@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Briefcase, Shield, Clock, MoreVertical, Trash2, CheckCircle2 } from 'lucide-react'
+import { Briefcase, Shield, Clock, MoreVertical, Trash2, CheckCircle2, Zap } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import type { StudioProject, ProjectStatus, StudioMilestone, ProjectKanbanProps } from '../types/studio.types'
 import { cn } from '@/lib/utils'
@@ -187,23 +187,57 @@ function ProjectCard({ project, milestones, onDragStart, onDragEnd, onClick, onD
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-60" />
+
+                    {/* Platform icons overlay */}
+                    {project.platforms && project.platforms.length > 0 && (
+                        <div className="absolute top-3 left-3 flex -space-x-1.5 ring-1 ring-white/20 rounded-full p-0.5 bg-black/10 backdrop-blur-md">
+                            {project.platforms.map(p => (
+                                <div
+                                    key={p}
+                                    className="w-5 h-5 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]"
+                                    title={p}
+                                >
+                                    <PlatformIcon platform={p} className="w-2.5 h-2.5" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
+
             <div className="p-4">
                 <div className="flex justify-between items-start mb-3">
-                    <div className="flex flex-col gap-1.5">
-                        <div className={cn(
-                            "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight w-fit",
-                            project.type === 'Media' && "bg-red-50 text-red-600",
-                            project.type === 'Architectural Design' && "bg-blue-50 text-blue-600",
-                            project.type === 'Product Design' && "bg-emerald-50 text-emerald-600",
-                            project.type === 'Technology' && "bg-cyan-50 text-cyan-600",
-                            project.type === 'Fashion' && "bg-purple-50 text-purple-600",
-                            !project.type && "bg-black/[0.03] text-black/40"
-                        )}>
-                            {project.type || 'Other'}
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                        {/* Tags section */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {!project.cover_url && project.platforms && project.platforms.length > 0 && (
+                                <div className="flex -space-x-1 mr-1">
+                                    {project.platforms.map(p => (
+                                        <div
+                                            key={p}
+                                            className="w-4 h-4 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]"
+                                            title={p}
+                                        >
+                                            <PlatformIcon platform={p} className="w-2 h-2" />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <div className={cn(
+                                "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight w-fit truncate",
+                                project.type === 'Media' && "bg-red-50 text-red-600",
+                                project.type === 'Architectural Design' && "bg-blue-50 text-blue-600",
+                                project.type === 'Product Design' && "bg-emerald-50 text-emerald-600",
+                                project.type === 'Technology' && "bg-cyan-50 text-cyan-600",
+                                project.type === 'Fashion' && "bg-purple-50 text-purple-600",
+                                !project.type && "bg-black/[0.03] text-black/40"
+                            )}>
+                                {project.type || 'Other'}
+                            </div>
                         </div>
+
+
                         {project.priority && (
                             <div className={cn(
                                 "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter w-fit",
@@ -216,12 +250,26 @@ function ProjectCard({ project, milestones, onDragStart, onDragEnd, onClick, onD
                             </div>
                         )}
                     </div>
-                    <div className="flex flex-col items-end gap-1.5">
-                        {project.impact_score && (
-                            <div className="text-[10px] font-black text-orange-500">
-                                {project.impact_score}/10
-                            </div>
-                        )}
+
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        {/* Top Right: Impact & Date */}
+                        <div className="flex items-center gap-2">
+                            {project.target_date && (
+                                <div className="flex items-center gap-1 text-[9px] font-black text-black/30 uppercase tracking-tighter">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    {new Date(project.target_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                </div>
+                            )}
+                            {project.impact_score && (
+                                <div className="flex items-center gap-0.5">
+                                    <Zap className="w-3 h-3 text-orange-500 fill-orange-500" />
+                                    <span className="text-[11px] font-black text-orange-600">
+                                        {project.impact_score}
+                                    </span>
+                                </div>
+                            )}
+
+                        </div>
                         {project.gtv_featured && (
                             <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-100 rounded-md">
                                 <Shield className="w-3 h-3 text-blue-600" />
@@ -230,6 +278,7 @@ function ProjectCard({ project, milestones, onDragStart, onDragEnd, onClick, onD
                         )}
                     </div>
                 </div>
+
 
                 <h4 className="text-[13px] font-black text-black leading-tight group-hover:text-orange-600 transition-colors">
                     {project.title}
@@ -260,27 +309,7 @@ function ProjectCard({ project, milestones, onDragStart, onDragEnd, onClick, onD
                     ))}
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-black/[0.03] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="flex -space-x-1.5">
-                            {project.platforms?.map(p => (
-                                <div
-                                    key={p}
-                                    className="w-5 h-5 rounded-full bg-white border border-black/[0.08] flex items-center justify-center text-black shadow-sm"
-                                    title={p}
-                                >
-                                    <PlatformIcon platform={p} className="w-2.5 h-2.5" />
-                                </div>
-                            ))}
-                        </div>
-                        {project.target_date && (
-                            <div className="flex items-center gap-1 text-[9px] font-black text-black/20 uppercase tracking-tighter">
-                                <Clock className="w-3 h-3" />
-                                {new Date(project.target_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                            </div>
-                        )}
-                    </div>
-
+                <div className="mt-4 pt-3 border-t border-black/[0.03] flex items-center justify-end">
                     <div className="flex items-center gap-1">
                         <button
                             onClick={handleArchive}
@@ -306,8 +335,9 @@ function ProjectCard({ project, milestones, onDragStart, onDragEnd, onClick, onD
                 </div>
             </div>
 
+
             {/* Drag Handle Overlay Indicator */}
             <div className="absolute inset-x-0 bottom-0 h-1 bg-orange-500 scale-x-0 group-active:scale-x-50 transition-transform rounded-full mx-8" />
-        </div>
+        </div >
     )
 }

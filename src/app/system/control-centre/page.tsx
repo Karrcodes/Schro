@@ -1,6 +1,8 @@
 'use client'
 
-import { LayoutDashboard, Activity, TrendingUp, Heart, Terminal, Lock, Target, AlertCircle, RefreshCw, BarChart3, Brain, Shield, SlidersHorizontal, Sparkles, ArrowRight } from 'lucide-react'
+import { LayoutDashboard, Activity, TrendingUp, Heart, Terminal, Lock, Target, AlertCircle, RefreshCw, BarChart3, Brain, Shield, SlidersHorizontal, Sparkles, ArrowRight, Briefcase } from 'lucide-react'
+
+
 import { KarrFooter } from '@/components/KarrFooter'
 import Link from 'next/link'
 import { useState, useEffect, useMemo } from 'react'
@@ -99,13 +101,17 @@ export default function ControlCentrePage() {
                     {/* Quick Actions */}
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         {[
+                            { href: "/create", color: "orange", icon: Briefcase, label: "Studio" },
                             { href: "/finances", color: "emerald", icon: BarChart3, label: "Finances" },
                             { href: "/tasks", color: "blue", icon: Activity, label: "Operations" },
                             { href: "/vault", color: "purple", icon: Shield, label: "Vault" },
                             { href: "/intelligence", color: "black", icon: Sparkles, label: "Karr AI" },
                             { href: "/goals", color: "amber", icon: Target, label: "Goals" },
-                            { href: "/system/settings", color: "orange", icon: SlidersHorizontal, label: "Settings" }
+                            { href: "/wellbeing", color: "rose", icon: Heart, label: "Wellbeing" },
+                            { href: "/system/settings", color: "slate", icon: SlidersHorizontal, label: "Settings" }
                         ].map((btn) => (
+
+
                             <Link
                                 key={btn.label}
                                 href={btn.href}
@@ -118,7 +124,11 @@ export default function ControlCentrePage() {
                                             btn.color === 'purple' ? "bg-purple-500/10 text-purple-600" :
                                                 btn.color === 'amber' ? "bg-amber-500/10 text-amber-600" :
                                                     btn.color === 'orange' ? "bg-orange-500/10 text-orange-600" :
-                                                        "bg-black/5 text-black"
+                                                        btn.color === 'rose' ? "bg-rose-500/10 text-rose-600" :
+                                                            btn.color === 'slate' ? "bg-slate-500/10 text-slate-600" :
+                                                                "bg-black/5 text-black"
+
+
                                 )}>
                                     <btn.icon className="w-3.5 h-3.5" />
                                 </div>

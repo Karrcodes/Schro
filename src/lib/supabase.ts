@@ -10,23 +10,44 @@ let supabaseInstance: SupabaseClient
 if (supabaseUrl && supabaseAnonKey) {
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey)
 } else {
-    // Stub client that returns empty arrays/null — prevents crashes during dev setup
-    supabaseInstance = {
-        from: () => ({
-            select: () => ({ order: () => ({ data: [], error: null }), data: [], error: null, single: () => ({ data: null, error: null }) }),
-            insert: () => ({ select: () => ({ single: async () => ({ data: {}, error: null }) }), error: null }),
-            update: () => ({ eq: async () => ({ error: null }) }),
-            delete: () => ({ eq: async () => ({ error: null }) }),
-            upsert: async () => ({ error: null }),
-        }),
+    const stub: any = {
+        from: () => stub,
+        select: () => stub,
+        eq: () => stub,
+        order: () => stub,
+        single: () => stub,
+        insert: () => stub,
+        update: () => stub,
+        delete: () => stub,
+        upsert: () => stub,
+        match: () => stub,
+        filter: () => stub,
+        range: () => stub,
+        limit: () => stub,
+        // Thenable for await
+        then: (onfulfilled: any) => Promise.resolve({ data: [], error: null }).then(onfulfilled),
         storage: {
-            from: () => ({
-                upload: async () => ({ data: {}, error: null }),
-                getPublicUrl: () => ({ data: { publicUrl: '/placeholder-image.png' } }),
-            })
+            from: () => stub,
+        },
+        upload: async () => ({ data: {}, error: null }),
+        getPublicUrl: () => ({ data: { publicUrl: '/placeholder-image.png' } }),
+        channel: () => ({
+            on: () => ({
+                subscribe: () => ({})
+            }),
+            subscribe: () => ({})
+        }),
+        removeChannel: () => ({}),
+        auth: {
+            getSession: async () => ({ data: { session: null }, error: null }),
+            getUser: async () => ({ data: { user: null }, error: null }),
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
         }
-    } as unknown as SupabaseClient
+    }
+    supabaseInstance = stub as unknown as SupabaseClient
 }
+
+
 
 export const supabase = supabaseInstance
 
