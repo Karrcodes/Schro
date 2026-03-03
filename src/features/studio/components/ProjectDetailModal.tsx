@@ -3,21 +3,35 @@
 import React, { useState } from 'react'
 import {
     X,
+    AlignLeft,
+    Briefcase,
     Calendar,
+    CheckCircle2,
+    ChevronDown,
+    ChevronRight,
+    Circle,
+    Clock,
+    DollarSign,
+    Edit3,
+    ExternalLink,
+    FileText,
+    Globe,
+    Hash,
+    Image as ImageIcon,
+    Lightbulb,
+    Link as LinkIcon,
+    MapPin,
+    Navigation,
+    Plus,
+    Rocket,
+    Save,
     Shield,
     Target,
-    Plus,
-    CheckCircle2,
-    Circle,
     Trash2,
-    ExternalLink,
-    ChevronRight,
-    Briefcase,
     Type,
-    AlignLeft,
-    Image as ImageIcon,
     UploadCloud,
-    Rocket
+    Video,
+    Zap
 } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import { useGoals } from '../../goals/hooks/useGoals'
@@ -27,6 +41,8 @@ import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import PlatformIcon from './PlatformIcon'
 import ConfirmationModal from '@/components/ConfirmationModal'
+
+const MILESTONE_CATEGORIES = ['rnd', 'production', 'media', 'growth']
 
 interface ProjectDetailModalProps {
     isOpen: boolean
@@ -39,9 +55,14 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
     const [isEditing, setIsEditing] = useState(false)
     const [newMilestoneTitle, setNewMilestoneTitle] = useState('')
     const [editedData, setEditedData] = useState<Partial<StudioProject>>({})
+    const [newMilestoneDate, setNewMilestoneDate] = useState('')
+    const [newMilestoneCategory, setNewMilestoneCategory] = useState('rnd')
     const [coverFile, setCoverFile] = useState<File | null>(null)
     const [showPromoteConfirm, setShowPromoteConfirm] = useState(false)
+    const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
     const { createGoal } = useGoals()
+
+    const { settings } = useSystemSettings()
 
     if (!isOpen || !project) return null
 
@@ -58,12 +79,12 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                 project_id: project.id,
                 title: newMilestoneTitle.trim(),
                 status: 'pending',
-                target_date: (document.getElementById('new-milestone-date') as HTMLInputElement)?.value || undefined
+                category: newMilestoneCategory,
+                target_date: newMilestoneDate || undefined
             })
             setNewMilestoneTitle('')
-            if (document.getElementById('new-milestone-date')) {
-                (document.getElementById('new-milestone-date') as HTMLInputElement).value = '';
-            }
+            setNewMilestoneDate('')
+            setNewMilestoneCategory('rnd')
         } catch (err: any) {
             alert(`Failed to add milestone: ${err.message}`)
         }
@@ -108,14 +129,11 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                 cover_url: project.cover_url,
                 target_date: project.target_date,
                 priority: project.priority,
-                impact_score: project.impact_score,
-                strategic_category: project.strategic_category
+                impact_score: project.impact_score
             })
         }
         setIsEditing(!isEditing)
     }
-
-    const { settings } = useSystemSettings()
 
     const handlePromote = async () => {
         console.log('Promoting project:', project.id)
@@ -340,25 +358,12 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
 
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="space-y-2">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Strategic Category</label>
-                                                        <select
-                                                            value={editedData.strategic_category ?? project.strategic_category ?? 'personal'}
-                                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditedData(prev => ({ ...prev, strategic_category: e.target.value }))}
-                                                            className="w-full px-4 py-3 bg-black/[0.02] border border-black/[0.1] rounded-xl text-[13px] font-bold focus:outline-none focus:border-orange-500 appearance-none cursor-pointer"
-                                                        >
-                                                            <option value="rnd">R&D</option>
-                                                            <option value="production">Production</option>
-                                                            <option value="media">Media</option>
-                                                            <option value="growth">Growth</option>
-                                                        </select>
-                                                    </div>
-                                                    <div className="space-y-2">
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Target Date</label>
                                                         <div className="relative">
                                                             <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20 pointer-events-none" />
                                                             <input
                                                                 type="date"
-                                                                value={editedData.target_date ?? project.target_date ?? ''}
+                                                                value={editedData.target_date ? editedData.target_date.split('T')[0] : (project.target_date ? project.target_date.split('T')[0] : '')}
                                                                 onChange={(e) => setEditedData(prev => ({ ...prev, target_date: e.target.value }))}
                                                                 className="w-full pl-11 pr-4 py-3 bg-black/[0.02] border border-black/[0.1] rounded-xl text-[13px] font-bold focus:outline-none focus:border-orange-500 cursor-pointer"
                                                             />
@@ -439,19 +444,6 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                             {!isEditing && (
                                 <div className="flex gap-2 justify-end -mt-12 mb-4 relative z-10">
                                     <button
-                                        onClick={() => setShowPromoteConfirm(true)}
-                                        className={cn(
-                                            "px-4 py-2 rounded-xl border text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2 shadow-sm",
-                                            project.is_promoted
-                                                ? "border-orange-200 bg-orange-50 text-orange-700"
-                                                : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                        )}
-                                        title={project.is_promoted ? "Already Promoted" : "Promote to Operations (Goal)"}
-                                    >
-                                        <Rocket className="w-4 h-4" />
-                                        {project.is_promoted ? 'Unpromote' : 'Promote'}
-                                    </button>
-                                    <button
                                         onClick={handleEditToggle}
                                         className="px-4 py-2 rounded-xl border border-black/[0.05] bg-white text-[11px] font-black uppercase tracking-widest hover:bg-black/[0.02] hover:scale-105 transition-all shadow-sm"
                                     >
@@ -459,6 +451,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                     </button>
                                 </div>
                             )}
+
                         </div>
 
                         {/* Platforms & GTV */}
@@ -503,101 +496,76 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                             {projectMilestones.map((m: StudioMilestone) => (
                                 <div
                                     key={m.id}
-                                    className="p-4 bg-white border border-black/[0.05] rounded-2xl flex items-center justify-between group hover:border-emerald-200 hover:shadow-sm transition-all"
+                                    className="p-4 bg-white border border-black/[0.05] rounded-2xl flex flex-col gap-3 group hover:border-emerald-200 hover:shadow-sm transition-all"
                                 >
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <button
+                                                onClick={() => toggleMilestone(m)}
+                                                className={cn(
+                                                    "transition-colors shrink-0",
+                                                    m.status === 'completed' ? "text-emerald-500" : "text-black/10 hover:text-emerald-500"
+                                                )}
+                                            >
+                                                {m.status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                                            </button>
+                                            <input
+                                                type="text"
+                                                value={m.title}
+                                                onChange={(e) => updateMilestone(m.id, { title: e.target.value })}
+                                                className={cn(
+                                                    "w-full bg-transparent border-none focus:outline-none text-[14px] font-bold p-0",
+                                                    m.status === 'completed' && "line-through text-black/30"
+                                                )}
+                                                placeholder="Milestone title..."
+                                            />
+                                        </div>
                                         <button
-                                            onClick={() => toggleMilestone(m)}
+                                            onClick={() => deleteMilestone(m.id)}
                                             className={cn(
-                                                "transition-colors shrink-0",
-                                                m.status === 'completed' ? "text-emerald-500" : "text-black/10 hover:text-emerald-500"
+                                                "p-2 text-black/10 hover:text-red-500 transition-all",
+                                                isEditing ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                                             )}
                                         >
-                                            {m.status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                                            <Trash2 className="w-4 h-4" />
                                         </button>
-                                        <div className="flex flex-col flex-1 min-w-0">
-                                            {isEditing ? (
-                                                <div className="flex flex-col gap-3">
-                                                    <input
-                                                        type="text"
-                                                        value={m.title}
-                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMilestone(m.id, { title: e.target.value })}
-                                                        className="w-full bg-black/[0.03] border border-black/5 rounded-lg px-3 py-1.5 text-[13px] font-bold focus:outline-none focus:border-emerald-200"
-                                                        placeholder="Milestone title"
-                                                    />
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <div className="flex items-center gap-2 px-2 py-1 bg-black/[0.02] border border-black/5 rounded-lg">
-                                                            <Calendar className="w-3 h-3 text-black/20" />
-                                                            <input
-                                                                type="date"
-                                                                value={m.target_date || ''}
-                                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMilestone(m.id, { target_date: e.target.value || undefined })}
-                                                                className="bg-transparent border-none text-[10px] font-bold focus:outline-none w-full"
-                                                            />
-                                                        </div>
-                                                        <div className="flex items-center gap-2 px-2 py-1 bg-black/[0.02] border border-black/5 rounded-lg">
-                                                            <Target className="w-3 h-3 text-black/20" />
-                                                            <input
-                                                                type="text"
-                                                                value={m.category || ''}
-                                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMilestone(m.id, { category: e.target.value })}
-                                                                className="bg-transparent border-none text-[10px] font-bold focus:outline-none w-full"
-                                                                placeholder="Category"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 px-2 py-1 bg-black/[0.02] border border-black/5 rounded-lg">
-                                                        <span className="text-[9px] font-black text-black/20 uppercase shrink-0">Impact</span>
-                                                        <input
-                                                            type="range"
-                                                            min="1"
-                                                            max="10"
-                                                            value={m.impact_score || 5}
-                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMilestone(m.id, { impact_score: parseInt(e.target.value) })}
-                                                            className="w-full h-1 bg-black/10 rounded-full appearance-none accent-emerald-500"
-                                                        />
-                                                        <span className="text-[10px] font-black text-emerald-600 shrink-0 w-4 text-center">{m.impact_score || 5}</span>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <div className="flex flex-wrap items-center gap-3 mt-1">
-                                                        <span className={cn(
-                                                            "text-[14px] font-bold transition-all truncate",
-                                                            m.status === 'completed' ? "text-black/30 line-through" : "text-black"
-                                                        )}>
-                                                            {m.title}
-                                                        </span>
-                                                        {m.category && (
-                                                            <span className="px-2 py-0.5 bg-black/[0.03] text-[9px] font-black uppercase tracking-wider text-black/40 rounded-md">
-                                                                {m.category}
-                                                            </span>
-                                                        )}
-                                                        {m.impact_score && (
-                                                            <span className="text-[10px] font-black text-orange-500/60">
-                                                                {m.impact_score}/10
-                                                            </span>
-                                                        )}
-                                                        {m.target_date && (
-                                                            <span className="text-[10px] font-bold text-black/20 flex items-center gap-1">
-                                                                <Calendar className="w-3 h-3" />
-                                                                {new Date(m.target_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </>
-                                            )}
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-4 pl-8">
+                                        <div className="flex items-center gap-2 px-2 py-1 bg-black/[0.02] border border-black/5 rounded-lg">
+                                            <Calendar className="w-3 h-3 text-black/20" />
+                                            <input
+                                                type="date"
+                                                value={m.target_date ? m.target_date.split('T')[0] : ''}
+                                                onChange={(e) => updateMilestone(m.id, { target_date: e.target.value || undefined })}
+                                                className="bg-transparent border-none text-[10px] font-bold focus:outline-none w-24 cursor-pointer"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-1 max-w-[150px]">
+                                            <span className="text-[9px] font-black uppercase text-black/20 whitespace-nowrap">Impact</span>
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="10"
+                                                value={m.impact_score || 5}
+                                                onChange={(e) => updateMilestone(m.id, { impact_score: parseInt(e.target.value) })}
+                                                className="w-full h-1 bg-black/10 rounded-full appearance-none accent-black"
+                                            />
+                                            <span className="text-[10px] font-black text-black/40 w-4 text-center">{m.impact_score || 5}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-black uppercase text-black/20 shrink-0">Type</span>
+                                            <select
+                                                value={m.category || 'rnd'}
+                                                onChange={(e) => updateMilestone(m.id, { category: e.target.value })}
+                                                className="bg-black/[0.02] border border-black/5 rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-black/60 focus:outline-none cursor-pointer"
+                                            >
+                                                {MILESTONE_CATEGORIES.map(cat => (
+                                                    <option key={cat} value={cat}>{cat}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => deleteMilestone(m.id)}
-                                        className={cn(
-                                            "p-2 text-black/10 hover:text-red-500 transition-all shrink-0",
-                                            isEditing ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                                        )}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
                                 </div>
                             ))}
 
@@ -611,12 +579,22 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                     placeholder="Add a milestone to the roadmap..."
                                     className="w-full pl-11 pr-32 py-3.5 bg-black/[0.01] border-2 border-dashed border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-emerald-200 focus:bg-emerald-50/10 transition-all"
                                 />
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
+                                    <select
+                                        value={newMilestoneCategory}
+                                        onChange={(e) => setNewMilestoneCategory(e.target.value)}
+                                        className="bg-black/5 rounded-lg px-2 py-1 text-[10px] font-black uppercase text-black/40 focus:outline-none cursor-pointer"
+                                    >
+                                        {MILESTONE_CATEGORIES.map(cat => (
+                                            <option key={cat} value={cat}>{cat.toUpperCase()}</option>
+                                        ))}
+                                    </select>
                                     <input
                                         type="date"
+                                        value={newMilestoneDate ? newMilestoneDate.split('T')[0] : ''}
+                                        onChange={(e) => setNewMilestoneDate(e.target.value)}
                                         className="bg-transparent border-none text-[11px] font-bold text-black/40 focus:outline-none"
                                         title="Target Date"
-                                        id="new-milestone-date"
                                     />
                                 </div>
                             </form>
@@ -639,11 +617,16 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                             New Related Spark
                                         </button>
                                         <button
-                                            onClick={() => updateProject(project.id, { is_archived: true })}
-                                            className="py-3 bg-white border border-emerald-100 rounded-xl text-[12px] font-black text-emerald-700 hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
+                                            onClick={() => setShowArchiveConfirm(true)}
+                                            className={cn(
+                                                "py-3 rounded-xl text-[12px] font-black transition-colors flex items-center justify-center gap-2 border",
+                                                project.is_archived
+                                                    ? "bg-blue-50 border-blue-100 text-blue-700 hover:bg-blue-100"
+                                                    : "bg-white border-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                                            )}
                                         >
-                                            <Trash2 className="w-4 h-4" />
-                                            Archive Project
+                                            <Shield className={cn("w-4 h-4", project.is_archived ? "text-blue-500" : "text-emerald-500")} />
+                                            {project.is_archived ? 'Restore from Archive' : 'Archive Project'}
                                         </button>
                                     </div>
                                 </div>
@@ -704,6 +687,22 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                 title="Promote Project"
                 message="This will convert this Studio Project into a formal Business Goal in the Operations module and sync its milestones as tasks. Continue?"
                 confirmText="Promote"
+                type="warning"
+            />
+
+            <ConfirmationModal
+                isOpen={showArchiveConfirm}
+                onClose={() => setShowArchiveConfirm(false)}
+                onConfirm={() => {
+                    updateProject(project.id, { is_archived: !project.is_archived })
+                    onClose()
+                }}
+                title={project.is_archived ? "Restore Project" : "Archive Project"}
+                message={project.is_archived
+                    ? "This project will be moved back to your active studio pipeline."
+                    : "This project will be hidden from your active pipeline but preserved in archives."
+                }
+                confirmText={project.is_archived ? "Restore" : "Archive"}
                 type="warning"
             />
         </div>

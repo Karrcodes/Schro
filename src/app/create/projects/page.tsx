@@ -7,7 +7,7 @@ import ProjectTimeline from '@/features/studio/components/ProjectTimeline'
 import CreateProjectModal from '@/features/studio/components/CreateProjectModal'
 import ProjectDetailModal from '@/features/studio/components/ProjectDetailModal'
 import { useStudio } from '@/features/studio/hooks/useStudio'
-import { Plus, Search, Filter } from 'lucide-react'
+import { Plus, Search, Filter, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { StudioProject } from '@/features/studio/types/studio.types'
 
@@ -18,10 +18,11 @@ export default function ProjectsPage() {
     const [selectedProject, setSelectedProject] = useState<StudioProject | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [filterType, setFilterType] = useState<string | null>(null)
+    const [showArchived, setShowArchived] = useState(false)
 
     return (
-        <main className="pb-24 pt-4 px-4 md:px-8">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <main className={cn("pb-12 pt-4 px-4 md:px-8 flex flex-col", view !== 'matrix' && "flex-1")}>
+            <div className={cn("mx-auto space-y-6 w-full", view === 'matrix' ? 'max-w-7xl' : 'max-w-7xl flex-1')}>
                 {error && error.includes('relation') && (
                     <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex flex-col gap-2">
                         <p className="text-[13px] font-bold text-red-900">Database Tables Missing</p>
@@ -30,9 +31,23 @@ export default function ProjectsPage() {
                 )}
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                    <div>
-                        <h1 className="text-3xl font-black text-black tracking-tight font-outfit">Project Pipeline</h1>
-                        <p className="text-[13px] text-black/40 font-bold uppercase tracking-widest mt-1">Strategic Development</p>
+                    <div className="flex items-center gap-4">
+                        <div>
+                            <h1 className="text-[22px] font-bold text-black tracking-tight">Project Pipeline</h1>
+                            <p className="text-[12px] text-black/35 mt-0.5">Studio Module · Strategic Development</p>
+                        </div>
+                        <button
+                            onClick={() => setShowArchived(!showArchived)}
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border",
+                                showArchived
+                                    ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20"
+                                    : "bg-black/[0.03] text-black/30 border-transparent hover:border-black/10 hover:text-black/60"
+                            )}
+                        >
+                            <Shield className={cn("w-3 h-3", showArchived ? "text-white" : "text-black/20")} />
+                            {showArchived ? 'Viewing Archives' : 'View Archives'}
+                        </button>
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -89,9 +104,9 @@ export default function ProjectsPage() {
                     </div>
                 </div>
 
-                {view === 'board' && <ProjectKanban searchQuery={searchQuery} filterType={filterType} />}
-                {view === 'matrix' && <ProjectMatrix searchQuery={searchQuery} filterType={filterType} />}
-                {view === 'timeline' && <ProjectTimeline onProjectClick={setSelectedProject} searchQuery={searchQuery} filterType={filterType} />}
+                {view === 'board' && <ProjectKanban searchQuery={searchQuery} filterType={filterType} showArchived={showArchived} />}
+                {view === 'matrix' && <ProjectMatrix searchQuery={searchQuery} filterType={filterType} showArchived={showArchived} />}
+                {view === 'timeline' && <ProjectTimeline onProjectClick={setSelectedProject} searchQuery={searchQuery} filterType={filterType} showArchived={showArchived} />}
             </div>
 
             <CreateProjectModal
@@ -104,6 +119,6 @@ export default function ProjectsPage() {
                 onClose={() => setSelectedProject(null)}
                 project={selectedProject}
             />
-        </main>
+        </main >
     )
 }

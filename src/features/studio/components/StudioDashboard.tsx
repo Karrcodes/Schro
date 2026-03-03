@@ -19,6 +19,7 @@ export default function StudioDashboard() {
     const [isSparkModalOpen, setIsSparkModalOpen] = useState(false)
     const [selectedProject, setSelectedProject] = useState<StudioProject | null>(null)
     const [selectedSpark, setSelectedSpark] = useState<StudioSpark | null>(null)
+    const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active')
 
     useEffect(() => {
         const target = new Date('2026-09-01')
@@ -27,7 +28,8 @@ export default function StudioDashboard() {
         setDaysUntilGTV(Math.ceil(diff / (1000 * 60 * 60 * 24)))
     }, [])
 
-    const activeProjects = projects.filter(p => p.status === 'active' || p.status === 'research')
+    const activeProjects = projects.filter(p => (p.status === 'active' || p.status === 'research') && !p.is_archived)
+    const archivedProjects = projects.filter(p => p.is_archived)
     const recentSparks = sparks.slice(0, 4)
 
     return (
@@ -104,10 +106,28 @@ export default function StudioDashboard() {
                 {/* Active Projects Summary */}
                 <div className="lg:col-span-2 space-y-4">
                     <div className="flex items-center justify-between px-2">
-                        <h2 className="text-[13px] font-bold text-black uppercase tracking-wider flex items-center gap-2">
-                            <Briefcase className="w-4 h-4 text-orange-500" />
-                            Active Pipeline
-                        </h2>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => setActiveTab('active')}
+                                className={cn(
+                                    "text-[13px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all",
+                                    activeTab === 'active' ? "text-black opacity-100 scale-105" : "text-black/30 hover:text-black/60 opacity-50"
+                                )}
+                            >
+                                <Briefcase className={cn("w-4 h-4", activeTab === 'active' ? "text-orange-500" : "text-black/20")} />
+                                Active Pipeline
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('archived')}
+                                className={cn(
+                                    "text-[13px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all",
+                                    activeTab === 'archived' ? "text-black opacity-100 scale-105" : "text-black/30 hover:text-black/60 opacity-50"
+                                )}
+                            >
+                                <Shield className={cn("w-4 h-4", activeTab === 'archived' ? "text-blue-500" : "text-black/20")} />
+                                Archives
+                            </button>
+                        </div>
                         <Link href="/create/projects" className="text-[11px] font-bold text-black/40 hover:text-black transition-colors">See Kanban</Link>
                     </div>
 
@@ -116,7 +136,7 @@ export default function StudioDashboard() {
                             [1, 2, 3, 4].map(i => (
                                 <div key={i} className="h-32 bg-black/[0.02] border border-black/[0.05] rounded-2xl animate-pulse" />
                             ))
-                        ) : activeProjects.length === 0 ? (
+                        ) : activeTab === 'active' && activeProjects.length === 0 ? (
                             <div className="col-span-2 py-12 bg-white border border-black/[0.05] rounded-3xl flex flex-col items-center justify-center text-center px-6">
                                 <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center mb-4">
                                     <Sparkles className="w-6 h-6 text-orange-500" />
@@ -130,8 +150,16 @@ export default function StudioDashboard() {
                                     Start New Project
                                 </button>
                             </div>
+                        ) : activeTab === 'archived' && archivedProjects.length === 0 ? (
+                            <div className="col-span-2 py-12 bg-white border border-black/[0.05] rounded-3xl flex flex-col items-center justify-center text-center px-6">
+                                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+                                    <Shield className="w-6 h-6 text-blue-500" />
+                                </div>
+                                <h3 className="text-sm font-bold text-black">No archived projects</h3>
+                                <p className="text-[12px] text-black/40 mt-1 max-w-[240px]">Your archived projects will show up here for future reference.</p>
+                            </div>
                         ) : (
-                            activeProjects.map(project => (
+                            (activeTab === 'active' ? activeProjects : archivedProjects).map(project => (
                                 <div
                                     key={project.id}
                                     onClick={() => setSelectedProject(project)}

@@ -1,13 +1,17 @@
 'use client'
 
-import * as React from 'react'
-const { useRef, useState, useEffect, useCallback, useMemo } = React
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, useMotionValue, animate, AnimatePresence } from 'framer-motion'
 import { useStudio } from '../hooks/useStudio'
 import { cn } from '@/lib/utils'
-import type { StudioProject, ProjectMatrixProps } from '../types/studio.types'
-import { Sparkles, RefreshCw, Wallet, Briefcase, Heart, User, Check, X, Beaker, Factory, Tv, TrendingUp, Zap, Clock, Edit2, Calendar } from 'lucide-react'
+import type { StudioMilestone, ProjectMatrixProps, StudioProject } from '../types/studio.types'
+import { useTasks } from '@/features/tasks/hooks/useTasks'
+import type { Task } from '@/features/tasks/types/tasks.types'
+import { TaskDetailModal } from '@/features/tasks/components/TaskDetailModal'
+import { RefreshCw, Beaker, Factory, Tv, TrendingUp, Zap, Clock, Edit2, Calendar, Check, X, ArrowRight } from 'lucide-react'
 import ProjectDetailModal from './ProjectDetailModal'
+import { useRota } from '@/features/finance/hooks/useRota'
+import { isShiftDay } from '@/features/finance/utils/rotaUtils'
 
 const PRIORITY_COLORS = {
     urgent: 'bg-purple-600 shadow-purple-500/40 text-purple-50',
@@ -23,7 +27,15 @@ const STRATEGIC_CATEGORIES = [
     { id: 'growth', label: 'Growth', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100', dotBgColor: 'bg-emerald-500 shadow-emerald-500/40' },
 ] as const
 
-const getPriorityY = (priority: string | undefined): number => {
+const getPriorityFromImpact = (impactScore: number | undefined): string => {
+    if (!impactScore) return 'low'
+    if (impactScore >= 9) return 'urgent'
+    if (impactScore >= 7) return 'high'
+    if (impactScore >= 4) return 'mid'
+    return 'low'
+}
+
+const getImpactY = (priority: string | undefined): number => {
     switch (priority) {
         case 'urgent': return 12.5
         case 'high': return 37.5
@@ -32,21 +44,30 @@ const getPriorityY = (priority: string | undefined): number => {
     }
 }
 
-const getPriorityFromY = (yPercent: number): string => {
-    if (yPercent < 25) return 'urgent'
-    if (yPercent < 50) return 'high'
-    if (yPercent < 75) return 'mid'
-    return 'low'
+const getPriorityY = (impactScore: number | undefined): number => {
+    const priority = getPriorityFromImpact(impactScore)
+    return getImpactY(priority)
+}
+
+const getImpactFromY = (yPercent: number): number => {
+    if (yPercent < 25) return 9 // Urgent
+    if (yPercent < 50) return 7 // High
+    if (yPercent < 75) return 4 // Mid
+    return 1 // Low
+}
+
+const getImpactOpacity = (priority: string | undefined, impactScore: number | undefined): number => {
+    if (priority === 'urgent') return 1;
+    const score = impactScore || 1;
+    return 0.4 + (score / 10) * 0.6;
 }
 
 const getUrgencyX = (targetDate: string | undefined | null): number => {
     if (!targetDate) return 92
-
     const due = new Date(targetDate)
     due.setHours(0, 0, 0, 0)
     const now = new Date()
     now.setHours(0, 0, 0, 0)
-
     const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     const clamped = Math.max(0, Math.min(14, diffDays))
     return 16 + (clamped / 14) * 68
@@ -56,43 +77,45 @@ const getTargetDateFromX = (xPercent: number): string | undefined => {
     if (xPercent > 86) return undefined
     const fraction = Math.max(0, (xPercent - 16) / 68)
     const days = Math.round(fraction * 14)
-
     if (days > 14) return undefined
-
     const date = new Date()
     date.setHours(0, 0, 0, 0)
     date.setDate(date.getDate() + days)
     return date.toISOString().split('T')[0]
 }
 
-interface ProjectDotProps {
-    project: StudioProject
-    containerRef: React.RefObject<HTMLDivElement | null>
-    updateProject: any
-    finalPosition: { x: number; y: number; density?: 'full' | 'compact' | 'minimal' }
-    setSelectedProject: (p: StudioProject | null) => void
-    isMoveApplied: boolean
-    setHoveredDayIndex: (index: number | null) => void
-    isConfirmingMove: boolean
-}
-
-function ProjectDot({
-    project,
+function ItemDot({
+    item,
     containerRef,
-    updateProject,
+    editItem,
     finalPosition,
-    setSelectedProject,
+    onSelectItem,
     isMoveApplied,
     setHoveredDayIndex,
-    isConfirmingMove
-}: ProjectDotProps) {
+    isConfirmingMove,
+    safeZoneRef
+}: {
+    item: { id: string, type: 'task' | 'milestone', data: any },
+    containerRef: React.RefObject<HTMLDivElement | null>,
+    safeZoneRef: React.RefObject<HTMLDivElement | null>,
+    editItem: (id: string, updates: any, callback: any) => void,
+    finalPosition: { x: number, y: number, density?: 'full' | 'compact' | 'minimal' },
+    onSelectItem: (item: any) => void,
+    isMoveApplied: boolean,
+    setHoveredDayIndex: (index: number | null) => void,
+    isConfirmingMove: boolean
+}) {
     const [isDragging, setIsDragging] = useState(false)
     const dotRef = useRef<HTMLDivElement>(null)
     const dragStartPos = useRef<{ x: number, y: number } | null>(null)
     const mvX = useMotionValue(0)
     const mvY = useMotionValue(0)
 
-    const syncKey = `${project.id}-${project.priority}-${project.target_date}-${finalPosition.x}-${finalPosition.y}`
+    const data = item.data
+    const priority = item.type === 'task' ? data.priority : getPriorityFromImpact(data.impact_score)
+    const dueDate = item.type === 'task' ? data.due_date : data.target_date
+
+    const syncKey = `${item.id}-${priority}-${dueDate}-${finalPosition.x}-${finalPosition.y}`
     useEffect(() => {
         if (!isDragging && !isConfirmingMove) {
             mvX.set(0)
@@ -100,62 +123,73 @@ function ProjectDot({
         }
     }, [syncKey, isDragging, isConfirmingMove])
 
-    const categoryConfig = STRATEGIC_CATEGORIES.find(c => c.id === project.strategic_category)
+    const categoryId = item.type === 'task' ? data.strategic_category : data.category
+    const categoryConfig = STRATEGIC_CATEGORIES.find(c => c.id === categoryId || c.label.toLowerCase() === categoryId?.toLowerCase())
     const dotColorClass = categoryConfig ? categoryConfig.dotBgColor : 'bg-neutral-800 shadow-black/40'
+    const opacity = getImpactOpacity(priority, data.impact_score)
 
     return (
         <motion.div
+            key={`${item.type}-${item.id}`}
             drag
+            dragListener={!isMoveApplied}
             dragConstraints={containerRef}
             dragElastic={0}
             dragMomentum={false}
+            dragPropagation={false}
             onDragStart={() => {
                 setIsDragging(true)
                 dragStartPos.current = { x: finalPosition.x, y: finalPosition.y }
             }}
-            onDrag={(e: any, info: any) => {
+            onDrag={(e, info) => {
                 if (!dotRef.current || !containerRef.current) return
                 const dotRect = dotRef.current.getBoundingClientRect()
                 const containerRect = containerRef.current.getBoundingClientRect()
-
                 const dotCenterX = dotRect.left + dotRect.width / 2
                 const dotCenterY = dotRect.top + dotRect.height / 2
                 const dropX = dotCenterX - containerRect.left
                 const dropY = dotCenterY - containerRect.top
-
                 let xPercent = (dropX / containerRect.width) * 100
+                let yPercent = (dropY / containerRect.height) * 100
                 xPercent = Math.max(16, Math.min(84, xPercent))
-                const snappedDays = Math.round((xPercent - 16) / 68 * 14)
+                yPercent = Math.max(5, Math.min(95, yPercent))
+                const daysFraction = (xPercent - 16) / 68 * 14
+                const snappedDays = Math.round(Math.max(0, Math.min(14, daysFraction)))
+                const snappedX = 16 + (snappedDays / 14) * 68
                 setHoveredDayIndex(snappedDays)
+                editItem(item.id, { x: snappedX, y: yPercent }, null)
             }}
-            onDragEnd={(e: any, info: any) => {
+            onDragEnd={(e, info) => {
                 setIsDragging(false)
                 setHoveredDayIndex(null)
                 if (!dotRef.current || !containerRef.current) return
                 const dotRect = dotRef.current.getBoundingClientRect()
                 const containerRect = containerRef.current.getBoundingClientRect()
-
-                const dropX = (dotRect.left + dotRect.width / 2) - containerRect.left
-                const dropY = (dotRect.top + dotRect.height / 2) - containerRect.top
-
+                const dotCenterX = dotRect.left + dotRect.width / 2
+                const dotCenterY = dotRect.top + dotRect.height / 2
+                const dropX = dotCenterX - containerRect.left
+                const dropY = dotCenterY - containerRect.top
                 let xPercent = (dropX / containerRect.width) * 100
                 let yPercent = (dropY / containerRect.height) * 100
-
                 xPercent = Math.max(16, Math.min(84, xPercent))
                 yPercent = Math.max(15, Math.min(85, yPercent))
-
-                const snappedDays = Math.round((xPercent - 16) / 68 * 14)
+                const daysFraction = (xPercent - 16) / 68 * 14
+                const snappedDays = Math.round(Math.max(0, Math.min(14, daysFraction)))
                 const snappedX = 16 + (snappedDays / 14) * 68
-
-                updateProject(project.id, {
-                    priority: getPriorityFromY(yPercent),
-                    target_date: getTargetDateFromX(snappedX),
-                    ai_position_x: snappedX,
-                    ai_position_y: yPercent
-                }, (confirmed: boolean) => {
+                editItem(item.id, { x: snappedX, y: yPercent }, (_confirmed: boolean) => {
                     animate(mvX, 0, { type: 'spring', damping: 30, stiffness: 300 })
                     animate(mvY, 0, { type: 'spring', damping: 30, stiffness: 300 })
                 })
+                const endOffsetXPercent = xPercent - snappedX
+                mvX.set(endOffsetXPercent * (containerRect.width / 100))
+                mvY.set(0)
+            }}
+            whileDrag={{ scale: 1.4, zIndex: 100 }}
+            whileHover={{ scale: isMoveApplied ? 1 : 1.25 }}
+            animate={{
+                scale: isDragging ? 1.4 : (data.impact_score && data.impact_score > 7 ? 1.1 : 1),
+                zIndex: isDragging ? 100 : 10,
+                opacity: opacity
             }}
             style={{
                 x: mvX,
@@ -168,94 +202,365 @@ function ProjectDot({
                 touchAction: 'none'
             }}
             className={cn(
-                "group flex items-center cursor-grab active:cursor-grabbing z-10",
-                finalPosition.density === 'full' ? "border p-2 pr-4 h-auto min-h-[44px] rounded-xl bg-white/90 border-black/10 shadow-sm" :
-                    finalPosition.density === 'compact' ? "border rounded-lg p-1.5 pr-3 h-6 bg-white/90 border-black/10 shadow-sm" : "p-1.5 w-6 h-6 justify-center"
+                "group flex items-center cursor-grab active:cursor-grabbing",
+                "backdrop-blur-[2px] shadow-sm hover:shadow-md",
+                isDragging ? "shadow-2xl ring-4 ring-black/10 scale-110 z-[100] select-none" : "z-10 transition-all duration-300",
+                item.type === 'milestone' && "border-2",
+                finalPosition.density === 'full' ? cn(
+                    "border items-center p-2 pr-4 h-auto min-h-[44px] rounded-xl",
+                    priority === 'urgent' ? "bg-purple-50/90 border-purple-200" :
+                        priority === 'high' ? "bg-red-50/90 border-red-200" :
+                            priority === 'mid' ? "bg-amber-50/90 border-amber-200" :
+                                "bg-black/[0.04] border-black/[0.05]"
+                ) :
+                    finalPosition.density === 'compact' ? cn(
+                        "border rounded-lg p-1.5 pr-3 h-6",
+                        priority === 'urgent' ? "bg-purple-50/90 border-purple-100" :
+                            priority === 'high' ? "bg-red-50/90 border-red-100" :
+                                priority === 'mid' ? "bg-amber-50/90 border-amber-100" :
+                                    "bg-black/[0.04] border-black/[0.05]"
+                    ) : "p-1.5 w-6 h-6 justify-center",
+                data.impact_score && data.impact_score >= 8 && "ring-2 ring-amber-400/30 shadow-[0_0_15px_rgba(251,191,36,0.2)]"
             )}
-            onClick={(e: React.MouseEvent) => {
+            onClick={(e) => {
                 if (!isDragging) {
                     e.stopPropagation()
-                    setSelectedProject(project)
+                    onSelectItem(item)
                 }
             }}
         >
-            <div ref={dotRef} className={cn("w-3 h-3 rounded-full flex-shrink-0 shadow-sm", dotColorClass)} />
+            <div
+                ref={dotRef}
+                className={cn(
+                    "w-3 h-3 rounded-full flex-shrink-0 shadow-sm",
+                    dotColorClass,
+                    isDragging && "scale-110",
+                    item.type === 'milestone' && "ring-2 ring-white ring-inset"
+                )}
+            />
             {finalPosition.density !== 'minimal' && (
                 <div className="flex flex-col items-start ml-2.5 overflow-hidden">
-                    <span className="text-[10px] font-black tracking-tight leading-none whitespace-nowrap text-black">
-                        {project.title}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                        <span className={cn(
+                            "text-[10px] font-semibold tracking-tight leading-none whitespace-nowrap text-black/80",
+                            data.impact_score && data.impact_score >= 8 && "font-black text-[11px]"
+                        )}>
+                            {item.type === 'milestone' && <span className="text-[8px] font-black mr-1 opacity-40">M</span>}
+                            {data.title}
+                        </span>
+                        {data.impact_score && finalPosition.density === 'compact' && (
+                            <span className="flex items-center gap-0.5 text-[8px] font-black text-amber-600 flex-shrink-0">
+                                <Zap className="w-2 h-2 fill-current" />
+                                {data.impact_score}
+                            </span>
+                        )}
+                        {item.type === 'task' && data.estimated_duration && finalPosition.density === 'compact' && (
+                            <span className="flex items-center gap-0.5 text-[8px] font-bold text-black/30 flex-shrink-0">
+                                <Clock className="w-2 h-2" />
+                                {data.estimated_duration}m
+                            </span>
+                        )}
+                    </div>
+                    {finalPosition.density === 'full' && (
+                        <div className="flex items-center gap-2 mt-1">
+                            {data.impact_score && (
+                                <span className="flex items-center gap-0.5 text-[8px] font-black text-amber-600 flex-shrink-0">
+                                    <Zap className="w-2 h-2 fill-current" />
+                                    {data.impact_score}
+                                </span>
+                            )}
+                            {item.type === 'task' && data.estimated_duration && (
+                                <span className="flex items-center gap-0.5 text-[8px] font-bold text-black/30 flex-shrink-0">
+                                    <Clock className="w-2 h-2" />
+                                    {data.estimated_duration}m
+                                </span>
+                            )}
+                            {dueDate && (
+                                <span className="flex items-center gap-0.5 text-[8px] font-bold text-black/25 uppercase tracking-tighter whitespace-nowrap">
+                                    <Calendar className="w-2 h-2" />
+                                    {new Date(dueDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
+            <div className={cn(
+                "absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-max max-w-[220px] bg-white border border-black/10 text-black p-3 rounded-2xl shadow-2xl pointer-events-auto transition-all duration-200 z-[200] space-y-2",
+                isDragging ? "opacity-0 invisible" : "opacity-0 invisible group-hover:opacity-100 group-hover:visible"
+            )}>
+                <p className="text-[12px] font-bold tracking-tight leading-tight">{data.title}</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={cn(
+                        "text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider text-white",
+                        (PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS] || PRIORITY_COLORS.low).split(' ')[0]
+                    )}>{priority}</span>
+                    {data.impact_score && (
+                        <span className="flex items-center gap-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">
+                            <Zap className="w-2.5 h-2.5 fill-current" />{data.impact_score}
+                        </span>
+                    )}
+                    {dueDate && (
+                        <span className="text-[8px] font-bold text-black/25 bg-black/[0.03] px-1.5 py-0.5 rounded-md uppercase tracking-tighter">
+                            {new Date(dueDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
+                        </span>
+                    )}
+                </div>
+            </div>
         </motion.div>
     )
 }
 
+export default function ProjectMatrix({ searchQuery = '', filterType = null, showArchived = false }: ProjectMatrixProps) {
+    const { projects, sparks, milestones, updateMilestone, refresh, loading: studioLoading } = useStudio()
+    const { tasks, loading: tasksLoading, editTask, toggleTask } = useTasks('todo')
+    const { overrides } = useRota('all')
+    const loading = studioLoading || tasksLoading
 
-export default function ProjectMatrix({
-    searchQuery = '',
-    filterType = null
-}: ProjectMatrixProps) {
-    const { projects, updateProject } = useStudio()
     const containerRef = useRef<HTMLDivElement>(null)
-    const [selectedProject, setSelectedProject] = useState<StudioProject | null>(null)
+    const safeZoneRef = useRef<HTMLDivElement>(null)
+    const [selectedParentId, setSelectedParentId] = useState<string | null>(null)
+    const [parentType, setParentType] = useState<'project' | 'spark' | null>(null)
+    const [selectedTaskForModal, setSelectedTaskForModal] = useState<Task | null>(null)
     const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
-    const [selectedCategory, setSelectedCategory] = useState<'all' | string>('all')
+    const [selectedStrategicCategory, setSelectedStrategicCategory] = useState<'all' | string>('all')
+    const [isPlottingAI, setIsPlottingAI] = useState(false)
 
-    const filteredProjects = useMemo(() => {
-        return projects.filter((p: StudioProject) => {
-            const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                p.tagline?.toLowerCase().includes(searchQuery.toLowerCase())
-            const matchesType = !filterType || p.type === filterType
-            const matchesCat = selectedCategory === 'all' || p.strategic_category === selectedCategory
-            const isNotArchived = !p.is_archived
+    // Move Confirmation State
+    const [movingItem, setMovingItem] = useState<{ id: string, type: 'task' | 'milestone', data: any } | null>(null)
+    const [newMovePos, setNewMovePos] = useState<{ x: number, y: number } | null>(null)
+    const [isConfirmingMove, setIsConfirmingMove] = useState(false)
+    const [onMoveSettled, setOnMoveSettled] = useState<((confirmed: boolean) => void) | null>(null)
+    const lastStablePositions = useRef<Record<string, any>>({})
+    const wasConfirmingRef = useRef(false)
 
-            if (!matchesSearch || !matchesType || !matchesCat || !isNotArchived) return false
-            if (!p.target_date) return true
+    const checkIsWorkDay = useCallback((date: Date) => {
+        const dateStr = date.toISOString().split('T')[0]
+        const override = overrides.find(o => o.date === dateStr)
+        if (override) {
+            if (override.type === 'overtime') return true
+            if (override.type === 'holiday' || override.type === 'absence') return false
+        }
+        return isShiftDay(date)
+    }, [overrides])
 
-            const diff = (new Date(p.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-            return diff >= -1 && diff <= 15
-        })
-    }, [projects, selectedCategory, searchQuery, filterType])
+    const filteredItems = useMemo(() => {
+        const activeProjects = projects.filter(p => showArchived || !p.is_archived)
+        const activeProjectIds = new Set(activeProjects.map(p => p.id))
+
+        const milest = milestones.filter(m => {
+            const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchesCategory = selectedStrategicCategory === 'all' || m.category === selectedStrategicCategory
+            // Include orphan milestones (content milestones with no project_id) + milestones from active projects
+            const isVisible = !m.project_id || activeProjectIds.has(m.project_id)
+
+            // Only show milestones with a target date and within roadmap range
+            if (!m.target_date) return false
+            const diff = (new Date(m.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+            if (diff < -1 || diff > 15) return false
+
+            return matchesSearch && matchesCategory && isVisible
+        }).map(m => ({ id: m.id, type: 'milestone' as const, data: m }))
+
+
+        const tsk = tasks.filter(t => {
+            if (t.is_completed) return false
+            if (t.profile !== 'business') return false
+            const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchesCategory = selectedStrategicCategory === 'all' || t.strategic_category === selectedStrategicCategory
+
+            if (!t.due_date) return false
+            const diff = (new Date(t.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+            if (diff < -1 || diff > 15) return false
+
+            return matchesSearch && matchesCategory
+        }).map(t => ({ id: t.id, type: 'task' as const, data: t }))
+
+        return [...milest, ...tsk]
+    }, [milestones, tasks, projects, searchQuery, selectedStrategicCategory, showArchived])
 
     const finalPositions = useMemo(() => {
-        const positions = filteredProjects.map((p: StudioProject) => {
-            const x = p.ai_position_x ?? getUrgencyX(p.target_date)
-            const y = p.ai_position_y ?? getPriorityY(p.priority)
-            return { id: p.id, x, y, width: 15, height: 5, density: 'full' as const }
+        if (isConfirmingMove && wasConfirmingRef.current) {
+            return lastStablePositions.current
+        }
+
+        const positions = filteredItems.map(item => {
+            const isMovingThis = movingItem?.id === item.id
+            const isAnchored = isMovingThis && (isConfirmingMove || !!newMovePos)
+            const targetPos = isAnchored && newMovePos ? newMovePos : null
+
+            let x, y;
+            if (item.type === 'milestone') {
+                x = targetPos ? targetPos.x : getUrgencyX(item.data.target_date)
+                y = targetPos ? targetPos.y : getPriorityY(item.data.impact_score)
+            } else {
+                x = targetPos ? targetPos.x : getUrgencyX(item.data.due_date)
+                y = targetPos ? targetPos.y : getImpactY(item.data.priority)
+            }
+
+            const titleLen = Math.min(item.data.title?.length || 10, 25)
+            const width = 3 + (titleLen * 0.8) + (item.data.impact_score ? 2 : 0)
+            return { id: item.id, x, y, width, height: 3 }
         })
-        const lookup: { [key: string]: any } = {}
-        positions.forEach(pos => {
-            lookup[pos.id] = pos
-        })
-        return lookup
-    }, [filteredProjects])
+
+        // Physics overlap resolution
+        const iterations = 60
+        const topWall = 5
+        const bottomWall = 95
+        for (let i = 0; i < iterations; i++) {
+            let totalShift = 0
+            for (let j = 0; j < positions.length; j++) {
+                for (let k = j + 1; k < positions.length; k++) {
+                    const a = positions[j]
+                    const b = positions[k]
+                    const xOverlap = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x - 3, b.x - 3)
+                    if (xOverlap > 0) {
+                        const dy = a.y - b.y
+                        const distance = Math.abs(dy)
+                        const minSpacing = 5.5
+                        if (distance < minSpacing) {
+                            const force = (minSpacing - distance) / 2
+                            const shift = dy >= 0 ? force : -force
+                            positions[j].y += shift
+                            positions[k].y -= shift
+                            totalShift += Math.abs(shift)
+                        }
+                    }
+                }
+            }
+            if (totalShift < 0.01) break
+        }
+
+        const result = positions.reduce((acc, pos) => {
+            acc[pos.id] = { x: pos.x, y: pos.y, density: 'full' as const }
+            return acc
+        }, {} as Record<string, any>)
+
+        lastStablePositions.current = result
+        wasConfirmingRef.current = isConfirmingMove
+        return result
+    }, [filteredItems, movingItem, newMovePos, isConfirmingMove])
+
+    const handleInitiateMove = useCallback((id: string, pos: { x: number, y: number }, callback: ((confirmed: boolean) => void) | null) => {
+        const item = filteredItems.find(x => x.id === id)
+        if (item) {
+            setMovingItem(item)
+            setNewMovePos(pos)
+            if (callback) {
+                setIsConfirmingMove(true)
+                setOnMoveSettled(() => callback)
+            }
+        }
+    }, [filteredItems])
+
+    const handleConfirmMove = async () => {
+        if (!movingItem || !newMovePos) return
+        const currentCallback = onMoveSettled
+        const pos = { ...newMovePos }
+        const newImpact = getImpactFromY(pos.y)
+        const newDate = getTargetDateFromX(pos.x)
+
+        try {
+            if (movingItem.type === 'milestone') {
+                await updateMilestone(movingItem.id, {
+                    impact_score: newImpact,
+                    target_date: newDate,
+                })
+            } else {
+                const priority = getPriorityFromImpact(newImpact)
+                await editTask(movingItem.id, {
+                    priority: priority as any,
+                    due_date: newDate,
+                    ai_position_x: pos.x,
+                    ai_position_y: pos.y
+                })
+            }
+            await refresh()
+            if (currentCallback) currentCallback(true)
+        } catch (err) {
+            console.error('Failed to update item position:', err)
+            if (currentCallback) currentCallback(false)
+        } finally {
+            setMovingItem(null)
+            setNewMovePos(null)
+            setIsConfirmingMove(false)
+            setOnMoveSettled(null)
+        }
+    }
+
+    const handleCancelMove = () => {
+        const currentCallback = onMoveSettled
+        setMovingItem(null)
+        setNewMovePos(null)
+        setIsConfirmingMove(false)
+        setOnMoveSettled(null)
+        if (currentCallback) currentCallback(false)
+    }
 
     const timelineDates = useMemo(() => {
         const dates = []
         for (let i = 0; i < 15; i++) {
             const d = new Date()
+            d.setHours(0, 0, 0, 0)
             d.setDate(d.getDate() + i)
             dates.push(d)
         }
         return dates
     }, [])
 
+    const workDayBlocks = useMemo(() => {
+        const blocks: { start: number, end: number }[] = [];
+        let currentBlock: { start: number, end: number } | null = null;
+        timelineDates.forEach((date, i) => {
+            if (checkIsWorkDay(date)) {
+                if (!currentBlock) currentBlock = { start: i, end: i }
+                else currentBlock.end = i
+            } else {
+                if (currentBlock) { blocks.push(currentBlock); currentBlock = null; }
+            }
+        });
+        if (currentBlock) blocks.push(currentBlock);
+        return blocks;
+    }, [timelineDates, checkIsWorkDay]);
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const diffTime = nextMonth.getTime() - now.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    const showMonthMarker = diffDays >= 0 && diffDays <= 14;
+    const monthMarkerX = showMonthMarker ? 16 + (diffDays / 14) * 68 : null;
+    const monthLabel = nextMonth.toLocaleDateString('en-GB', { month: 'long' }).toUpperCase() + ' 1ST';
+
+    // Modal Helpers
+    const handleModalToggleSubtask = async (id: string, index: number) => {
+        const t = tasks.find(x => x.id === id)
+        if (!t?.notes?.content) return
+        const newC = [...(t.notes.content as any[])]
+        newC[index] = { ...newC[index], completed: !newC[index].completed }
+        await editTask(id, { notes: { ...t.notes, content: newC } })
+    }
+
+    const handleModalToggleComplete = async (id: string, completed: boolean) => {
+        await toggleTask(id, completed)
+        setSelectedTaskForModal(null)
+    }
+
     return (
         <div className="flex flex-col h-full space-y-4">
-            <div className="flex items-center justify-between px-2">
-                <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-2 px-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <button
-                        onClick={() => setSelectedCategory('all')}
-                        className={cn("px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all", selectedCategory === 'all' ? "bg-black text-white" : "bg-black/5 text-black/40")}
+                        onClick={() => setSelectedStrategicCategory('all')}
+                        className={cn("px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all border", selectedStrategicCategory === 'all' ? "bg-black text-white border-black" : "bg-white text-black/40 border-black/[0.08] hover:border-black/20")}
                     >
                         All
                     </button>
                     {STRATEGIC_CATEGORIES.map(cat => (
                         <button
                             key={cat.id}
-                            onClick={() => setSelectedCategory(cat.id)}
-                            className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all", selectedCategory === cat.id ? cat.color : "bg-black/5 text-black/30")}
+                            onClick={() => setSelectedStrategicCategory(cat.id)}
+                            className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all border", selectedStrategicCategory === cat.id ? `${cat.color} border-current ring-1 ring-current/20` : "bg-white text-black/40 border-black/[0.08] hover:border-black/20")}
                         >
                             <cat.icon className="w-3.5 h-3.5" />
                             {cat.label}
@@ -264,46 +569,238 @@ export default function ProjectMatrix({
                 </div>
             </div>
 
-            <div ref={containerRef} className="relative w-full bg-white border border-black/[0.08] rounded-[32px] overflow-hidden shadow-sm min-h-[600px]">
-                <div className="absolute inset-0 pointer-events-none opacity-[0.03]">
-                    <div className="absolute inset-x-0 top-1/2 h-px bg-black" />
-                    <div className="absolute inset-y-0 left-1/2 w-px bg-black" />
-                </div>
+            <div
+                ref={containerRef}
+                className={cn(
+                    "relative w-full bg-white border border-black/[0.08] rounded-[32px] overflow-hidden shadow-sm",
+                    "min-h-[600px]",
+                    "md:portrait:min-h-[850px]",
+                    "2xl:min-h-[850px]"
+                )}
+            >
+                {/* Axis Grid Lines */}
+                <div className="absolute inset-x-0 top-1/2 h-px bg-black/[0.04] -translate-y-1/2 pointer-events-none" />
+                <div className="absolute inset-y-0 left-1/2 w-px bg-black/[0.04] -translate-x-1/2 pointer-events-none" />
 
+                {/* Vertical Date Grid Lines (Every Day) */}
                 <div className="absolute inset-0 pointer-events-none z-0">
-                    {timelineDates.map((_: Date, i: number) => (
+                    {timelineDates.map((_, i) => (
                         <div
-                            key={i}
-                            className={cn("absolute inset-y-0 w-px border-l transition-all duration-300", hoveredDayIndex === i ? "border-black/20" : "border-black/[0.03]")}
+                            key={`grid-${i}`}
+                            className={cn(
+                                "absolute inset-y-0 w-px border-l transition-all duration-300",
+                                hoveredDayIndex === null
+                                    ? "border-black/[0.03]"
+                                    : hoveredDayIndex === i
+                                        ? "border-black/20 z-10 scale-x-125"
+                                        : "border-black/[0.01]"
+                            )}
                             style={{ left: `${16 + (i / 14) * 68}%` }}
                         />
                     ))}
                 </div>
 
-                {filteredProjects.map((p: StudioProject) => (
-                    <ProjectDot
-                        key={p.id}
-                        project={p}
+                {/* Physical Drag Constraint Zone (Hidden) */}
+                <div
+                    ref={safeZoneRef}
+                    className="absolute inset-0 pointer-events-none z-0"
+                    style={{ left: '16%', right: '16%', top: '5%', bottom: '5%' }}
+                />
+
+                {/* Curved Quadrant Labels */}
+                <div className="absolute inset-0 pointer-events-none z-0">
+                    <svg viewBox="0 0 200 200" className="absolute top-0 left-0 w-[200px] h-[200px] overflow-visible">
+                        <path id="path-pm-tl" d="M 40 160 A 120 120 0 0 1 160 40" fill="none" />
+                        <text className="fill-purple-600/10 text-[10px] font-black uppercase tracking-[0.2em]">
+                            <textPath href="#path-pm-tl" startOffset="50%" textAnchor="middle">Urgent &amp; Important</textPath>
+                        </text>
+                    </svg>
+                    <svg viewBox="0 0 200 200" className="absolute top-0 right-0 w-[200px] h-[200px] overflow-visible">
+                        <path id="path-pm-tr" d="M 40 40 A 120 120 0 0 1 160 160" fill="none" />
+                        <text className="fill-red-600/10 text-[10px] font-black uppercase tracking-[0.2em]">
+                            <textPath href="#path-pm-tr" startOffset="50%" textAnchor="middle">High Importance</textPath>
+                        </text>
+                    </svg>
+                    <svg viewBox="0 0 200 200" className="absolute bottom-0 left-0 w-[200px] h-[200px] overflow-visible">
+                        <path id="path-pm-bl" d="M 40 40 A 120 120 0 0 0 160 160" fill="none" />
+                        <text className="fill-amber-600/10 text-[10px] font-black uppercase tracking-[0.2em]">
+                            <textPath href="#path-pm-bl" startOffset="50%" textAnchor="middle">Standard Focus</textPath>
+                        </text>
+                    </svg>
+                    <svg viewBox="0 0 200 200" className="absolute bottom-0 right-0 w-[200px] h-[200px] overflow-visible">
+                        <path id="path-pm-br" d="M 40 160 A 120 120 0 0 0 160 40" fill="none" />
+                        <text className="fill-black/10 text-[10px] font-black uppercase tracking-[0.2em]">
+                            <textPath href="#path-pm-br" startOffset="50%" textAnchor="middle">Backlog</textPath>
+                        </text>
+                    </svg>
+                </div>
+
+                {/* Priority Backlight Gradients */}
+                <div
+                    className="absolute left-0 inset-y-0 w-16 pointer-events-none opacity-60 z-0"
+                    style={{
+                        background: 'linear-gradient(to right, rgba(252,252,252,0) 0%, rgba(252,252,252,1) 100%), linear-gradient(to bottom, #a855f730 0%, #a855f730 25%, #ef444430 25%, #ef444430 50%, #f59e0b30 50%, #f59e0b30 75%, #26262615 75%, #26262610 100%)',
+                        maskImage: 'linear-gradient(to right, black 0%, transparent 100%)'
+                    }}
+                />
+                <div
+                    className="absolute right-0 inset-y-0 w-16 pointer-events-none opacity-60 z-0"
+                    style={{
+                        background: 'linear-gradient(to left, rgba(252,252,252,0) 0%, rgba(252,252,252,1) 100%), linear-gradient(to bottom, #a855f730 0%, #a855f730 25%, #ef444430 25%, #ef444430 50%, #f59e0b30 50%, #f59e0b30 75%, #26262615 75%, #26262610 100%)',
+                        maskImage: 'linear-gradient(to left, black 0%, transparent 100%)'
+                    }}
+                />
+
+                {/* Working Day Highlights */}
+                <div className="absolute inset-x-0 inset-y-0 pointer-events-none z-0 overflow-hidden">
+                    {workDayBlocks.map((block, i) => {
+                        const colWidth = 68 / 14;
+                        const startX = 16 + (block.start / 14) * 68;
+                        const width = (block.end - block.start) / 14 * 68 + colWidth;
+                        return (
+                            <div
+                                key={`work-block-${i}`}
+                                className="absolute inset-y-0 bg-black/[0.015] border-x border-dashed border-black/[0.12]"
+                                style={{ left: `${startX - colWidth / 2}%`, width: `${width}%` }}
+                            />
+                        );
+                    })}
+                </div>
+
+                {/* Month Marker */}
+                {showMonthMarker && monthMarkerX !== null && (
+                    <div
+                        className="absolute inset-y-0 w-px pointer-events-none z-[1]"
+                        style={{ left: `${monthMarkerX}%`, borderLeft: '1px dashed rgba(239, 68, 68, 0.4)' }}
+                    >
+                        <div className="absolute top-0 left-0 -translate-x-1/2 flex items-center justify-center pt-14">
+                            <span className="text-[7px] font-black text-white bg-red-600/80 backdrop-blur-md px-2 py-0.5 rounded-full whitespace-nowrap shadow-md border border-white/20 uppercase tracking-[0.2em] -rotate-90 origin-center">
+                                {monthLabel}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Date Scale Markers (Top) */}
+                <div className="absolute top-0 inset-x-0 h-4 pointer-events-none z-10">
+                    {timelineDates.map((date, i) => (
+                        <div
+                            key={`top-${i}`}
+                            className="absolute top-0 flex flex-col items-center"
+                            style={{ left: `${16 + (i / 14) * 68}%`, transform: 'translateX(-50%)' }}
+                        >
+                            <div className={cn("w-px bg-black/40", i % 2 === 0 ? "h-1.5" : "h-1 opacity-50")} />
+                            <span className={cn("text-[7px] font-black mt-0.5 whitespace-nowrap tracking-tighter", i === 0 ? "text-purple-600" : "text-black/40", i % 2 !== 0 && "opacity-60")}>
+                                {i === 0 ? 'TODAY' : date.getDate()}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Date Scale Markers (Bottom) */}
+                <div className="absolute bottom-0 inset-x-0 h-4 pointer-events-none z-10">
+                    {timelineDates.map((date, i) => (
+                        <div
+                            key={`bot-${i}`}
+                            className="absolute bottom-0 flex flex-col items-center"
+                            style={{ left: `${16 + (i / 14) * 68}%`, transform: 'translateX(-50%)' }}
+                        >
+                            <span className={cn("text-[7px] font-black mb-0.5 whitespace-nowrap tracking-tighter", i === 0 ? "text-purple-600" : "text-black/40", i % 2 !== 0 && "opacity-60")}>
+                                {i === 0 ? 'TODAY' : date.getDate()}
+                            </span>
+                            <div className={cn("w-px bg-black/40", i % 2 === 0 ? "h-1.5" : "h-1 opacity-50")} />
+                        </div>
+                    ))}
+                </div>
+
+                {/* Axis Labels */}
+                <div className="absolute top-1/2 left-6 text-[9px] font-black text-black/25 uppercase tracking-[0.3em] -translate-y-1/2 -translate-x-1/2 -rotate-90 origin-center pointer-events-none border-b border-black/5 pb-1">
+                    Impact
+                </div>
+                <div className="absolute bottom-6 left-1/2 text-[9px] font-black text-black/25 uppercase tracking-[0.3em] -translate-x-1/2 pointer-events-none border-t border-black/5 pt-1">
+                    Urgency
+                </div>
+
+                {/* Items Rendering */}
+                {filteredItems.map(item => (
+                    <ItemDot
+                        key={item.id}
+                        item={item}
                         containerRef={containerRef}
-                        updateProject={updateProject}
-                        finalPosition={finalPositions[p.id]}
-                        setSelectedProject={setSelectedProject}
-                        isMoveApplied={false}
+                        safeZoneRef={safeZoneRef}
+                        editItem={handleInitiateMove}
+                        finalPosition={finalPositions[item.id] || { x: 50, y: 50, density: 'full' }}
+                        onSelectItem={(selected) => {
+                            if (selected.type === 'milestone') {
+                                setSelectedParentId(selected.data.project_id || selected.data.spark_id || null)
+                                setParentType(selected.data.project_id ? 'project' : 'spark')
+                            } else {
+                                setSelectedTaskForModal(selected.data)
+                            }
+                        }}
+                        isMoveApplied={isConfirmingMove && movingItem?.id !== item.id}
                         setHoveredDayIndex={setHoveredDayIndex}
-                        isConfirmingMove={false}
+                        isConfirmingMove={isConfirmingMove}
                     />
                 ))}
 
-                {/* Legend / Axis Labels */}
-                <div className="absolute left-6 top-1/2 -rotate-90 origin-left text-[10px] font-black text-black/10 uppercase tracking-[0.3em]">Strategic Importance</div>
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-black/10 uppercase tracking-[0.3em]">Urgency (Days to Target)</div>
+                {/* Move Confirmation Overlay */}
+                {movingItem && newMovePos && isConfirmingMove && (
+                    <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/5 flex-col backdrop-blur-[2px] animate-in fade-in duration-300">
+                        <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="w-[320px] bg-white rounded-3xl shadow-2xl border border-black/[0.08] p-6 flex flex-col gap-5">
+                            <div className="flex flex-col gap-1">
+                                <h3 className="text-[17px] font-black tracking-tight text-black">Update {movingItem.type === 'task' ? 'Operation' : 'Milestone'}?</h3>
+                                <p className="text-[12px] text-black/40 font-medium leading-relaxed">You are changing the strategic focus of <b>"{movingItem.data.title}"</b>.</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 mt-1">
+                                <button onClick={handleCancelMove} className="h-10 rounded-xl border border-black/[0.08] bg-white text-[13px] font-black text-black/40 hover:bg-black/[0.02] transition-colors uppercase">Cancel</button>
+                                <button onClick={handleConfirmMove} className="h-10 rounded-xl bg-black text-white text-[13px] font-black hover:bg-neutral-800 transition-colors shadow-lg shadow-black/10 uppercase">Confirm</button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </div>
 
-            <ProjectDetailModal
-                isOpen={!!selectedProject}
-                onClose={() => setSelectedProject(null)}
-                project={selectedProject}
+            {/* Bottom Legend Bar */}
+            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 pt-4 pb-2 border-t border-black/[0.05]">
+                <div className="flex flex-wrap items-center justify-center gap-6">
+                    {STRATEGIC_CATEGORIES.map((cat) => (
+                        <div key={cat.id} className="flex items-center gap-2.5">
+                            <div className={cn("w-3 h-3 rounded-full shadow-sm", cat.dotBgColor)} />
+                            <span className="text-[11px] font-black text-black/30 uppercase tracking-widest">{cat.label}</span>
+                        </div>
+                    ))}
+                </div>
+                <div className="hidden sm:block w-px h-4 bg-black/[0.08]" />
+                <div className="flex flex-wrap items-center justify-center gap-6">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-4 h-3 bg-black/[0.04] border-x border-dashed border-black/10 rounded-sm" />
+                        <span className="text-[10px] font-black text-black/30 uppercase tracking-widest">Working Day</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-4 h-3 bg-white border border-black/5 rounded-sm" />
+                        <span className="text-[10px] font-black text-black/30 uppercase tracking-widest">Off Day</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Modals */}
+            <TaskDetailModal
+                task={selectedTaskForModal}
+                isOpen={!!selectedTaskForModal}
+                onClose={() => setSelectedTaskForModal(null)}
+                onToggleSubtask={handleModalToggleSubtask}
+                onToggleComplete={handleModalToggleComplete}
+                onEditTask={editTask}
             />
+
+            {selectedParentId && parentType === 'project' && (
+                <ProjectDetailModal
+                    isOpen={!!selectedParentId}
+                    onClose={() => { setSelectedParentId(null); setParentType(null); }}
+                    project={projects.find(x => x.id === selectedParentId) || null}
+                />
+            )}
         </div>
     )
 }

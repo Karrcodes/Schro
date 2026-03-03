@@ -40,7 +40,8 @@ const STAGE_CONFIG: Record<StrategicStage, { label: string, desc: string, icon: 
 export default function ProjectTimeline({
     onProjectClick,
     searchQuery = '',
-    filterType = null
+    filterType = null,
+    showArchived = false
 }: ProjectTimelineProps) {
     const { projects, milestones } = useStudio()
 
@@ -56,8 +57,8 @@ export default function ProjectTimeline({
             const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 p.tagline?.toLowerCase().includes(searchQuery.toLowerCase())
             const matchesType = !filterType || p.type === filterType
-            const isNotArchived = !p.is_archived
-            return matchesSearch && matchesType && isNotArchived
+            const archiveMatch = showArchived ? p.is_archived : !p.is_archived
+            return matchesSearch && matchesType && archiveMatch
         })
 
         const today = new Date()

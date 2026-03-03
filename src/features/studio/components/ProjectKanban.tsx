@@ -17,7 +17,7 @@ const COLUMNS: { label: string; value: ProjectStatus }[] = [
 ]
 
 
-export default function ProjectKanban({ searchQuery = '', filterType = null }: ProjectKanbanProps) {
+export default function ProjectKanban({ searchQuery = '', filterType = null, showArchived = false }: ProjectKanbanProps) {
     const { projects: allProjects, milestones, updateProject, deleteProject, loading } = useStudio()
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [dragOverStatus, setDragOverStatus] = useState<ProjectStatus | null>(null)
@@ -29,8 +29,8 @@ export default function ProjectKanban({ searchQuery = '', filterType = null }: P
         const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.tagline?.toLowerCase().includes(searchQuery.toLowerCase())
         const matchesType = !filterType || p.type === filterType
-        const isNotArchived = !p.is_archived
-        return matchesSearch && matchesType && isNotArchived
+        const archiveMatch = showArchived ? p.is_archived : !p.is_archived
+        return matchesSearch && matchesType && archiveMatch
     })
 
     useEffect(() => {

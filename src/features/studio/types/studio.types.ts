@@ -67,9 +67,14 @@ export interface StudioContent {
     status: ContentStatus;
     priority?: PriorityLevel;
     impact?: PriorityLevel;
+    impact_score?: number;
     publish_date?: string;
+    deadline?: string;
     url?: string;
     notes?: string;
+    script?: string;
+    cover_url?: string;
+    is_archived?: boolean;
     scenes?: ContentScene[];
     created_at: string;
     updated_at: string;
@@ -118,7 +123,9 @@ export interface StudioNetwork {
 
 export interface StudioMilestone {
     id: string;
-    project_id: string;
+    project_id?: string;
+    spark_id?: string;
+    content_id?: string;
     title: string;
     description?: string;
     status: 'pending' | 'completed';
@@ -134,15 +141,18 @@ export interface StudioMilestone {
 export interface ProjectMatrixProps {
     searchQuery?: string;
     filterType?: string | null;
+    showArchived?: boolean;
 }
 
 export interface ProjectTimelineProps {
     onProjectClick: (project: StudioProject) => void;
     searchQuery?: string;
     filterType?: string | null;
+    showArchived?: boolean;
 }
 
 export interface ProjectKanbanProps {
     searchQuery?: string;
     filterType?: string | null;
+    showArchived?: boolean;
 }

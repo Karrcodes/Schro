@@ -41,8 +41,8 @@ export default function NetworkPage() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-black text-black tracking-tight">Creative Network</h1>
-                        <p className="text-[13px] text-black/40 font-medium">Track people, communities, and events that inspire your journey.</p>
+                        <h1 className="text-[22px] font-bold text-black tracking-tight">Creative Network</h1>
+                        <p className="text-[12px] text-black/35 mt-0.5">Studio Module · People, communities, and events</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">

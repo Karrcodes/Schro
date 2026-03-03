@@ -44,7 +44,11 @@ import type { Task, TaskTemplate } from '../types/tasks.types'
 import { TaskDetailModal } from './TaskDetailModal'
 import { TaskSettingsModal } from './TaskSettingsModal'
 import { getNextOffPeriod, isShiftDay } from '@/features/finance/utils/rotaUtils'
-import { Beaker, Factory, Tv, TrendingUp } from 'lucide-react'
+import { Beaker, Factory, Tv, TrendingUp, Shield } from 'lucide-react'
+import { useStudio } from '@/features/studio/hooks/useStudio'
+import type { StudioMilestone } from '@/features/studio/types/studio.types'
+import ProjectDetailModal from '@/features/studio/components/ProjectDetailModal'
+import ContentDetailModal from '@/features/studio/components/ContentDetailModal'
 
 const PRIORITY_CONFIG = {
     urgent: { label: 'Urgent', color: 'bg-purple-50 text-purple-600 border-purple-200', sort: 0 },
@@ -71,12 +75,16 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const { activeProfile } = useTasksProfile()
     const strategicCategories = activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES
 
-    const { tasks, loading, createTask, toggleTask, deleteTask, clearAllTasks, clearCompletedTasks, editTask, updateTaskPositions } = useTasks(category)
+    const { tasks, loading: tasksLoading, createTask, toggleTask, deleteTask, clearAllTasks, clearCompletedTasks, editTask, updateTaskPositions } = useTasks(category)
+    const { milestones, projects, content, loading: studioLoading } = useStudio()
+    const loading = tasksLoading || studioLoading
 
     // Internalized title and icon logic
     const title = category === 'todo' ? 'Deployment' : category === 'grocery' ? 'Grocery List' : 'Reminders'
     const Icon = category === 'todo' ? Activity : category === 'grocery' ? ShoppingCart : Bell
     const [selectedTaskForModal, setSelectedTaskForModal] = useState<Task | null>(null)
+    const [selectedProjectForModal, setSelectedProjectForModal] = useState<any>(null)
+    const [selectedContentForModal, setSelectedContentForModal] = useState<any>(null)
     const [newTask, setNewTask] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
     const [amount, setAmount] = useState('1')
@@ -521,22 +529,43 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         }
     }
 
-    // Strategic Filtering
-    const filteredByStrategic = useMemo(() => {
-        return tasks.filter(task => {
-            const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase())
-            const matchesCategory = selectedStrategicCategory === 'all' || task.strategic_category === selectedStrategicCategory
+    const filteredItems = useMemo(() => {
+        const taskItems = tasks.map(t => ({ id: t.id, type: 'task' as const, data: t }))
+        // Milestones only for business profile and todo category
+        const milestoneItems = (category === 'todo' && activeProfile === 'business')
+            ? milestones.map(m => ({ id: m.id, type: 'milestone' as const, data: m }))
+            : []
+
+        const combined = [...taskItems, ...milestoneItems]
+
+        return combined.filter(item => {
+            const project = item.type === 'milestone' ? projects.find(p => p.id === item.data.project_id) : null
+            const contentItem = item.type === 'milestone' ? content.find(c => c.id === item.data.content_id) : null
+
+            const strategicCategory = item.type === 'task'
+                ? item.data.strategic_category
+                : (project?.strategic_category || contentItem?.category) // Use content category as fallback
+
+            const title = item.data.title
+            const matchesSearch = title?.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchesCategory = selectedStrategicCategory === 'all' || strategicCategory === selectedStrategicCategory
             return matchesSearch && matchesCategory
         })
-    }, [tasks, searchQuery, selectedStrategicCategory])
+    }, [tasks, milestones, content, projects, searchQuery, selectedStrategicCategory, category, activeProfile])
 
-    // Sort: Uncompleted first (sorted by manual position), Completed last (sorted by manual position).
-    const sortedTasks = [...filteredByStrategic].sort((a, b) => {
-        if (a.is_completed !== b.is_completed) {
-            return a.is_completed ? 1 : -1
+    // Sort: Uncompleted first, Completed last. Tasks use position, Milestones are mixed in.
+    const sortedItems = [...filteredItems].sort((a, b) => {
+        const aCompleted = a.type === 'task' ? a.data.is_completed : a.data.status === 'completed'
+        const bCompleted = b.type === 'task' ? b.data.is_completed : b.data.status === 'completed'
+
+        if (aCompleted !== bCompleted) {
+            return aCompleted ? 1 : -1
         }
-        // Use position DESC (higher position at the top)
-        return (b.position || 0) - (a.position || 0)
+
+        const aPos = a.type === 'task' ? (a.data.position || 0) : 0
+        const bPos = b.type === 'task' ? (b.data.position || 0) : 0
+
+        return bPos - aPos
     })
 
     // Expand recurring "off-day" tasks: one virtual entry per off-day in the current off period
@@ -555,32 +584,29 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     // It will show up once on the list for today.
     const dateStr = today.toISOString().split('T')[0]
     const dayOfWeek = today.getDay()
-    const expandedTasks: (Task & { _recurringDate?: string })[] = []
+    const expandedItems: ((any) & { _recurringDate?: string })[] = []
 
-    sortedTasks.forEach(task => {
-        // Only apply special filtering if it HAS a valid recurrence type
-        if (task.recurrence_config && task.recurrence_config.type && task.recurrence_config.type !== 'none') {
-            const type = task.recurrence_config.type
-            const daysOfWeek = task.recurrence_config.days_of_week || []
-            let shouldInclude = false
+    sortedItems.forEach(item => {
+        if (item.type === 'task') {
+            const task = item.data
+            if (task.recurrence_config && task.recurrence_config.type && task.recurrence_config.type !== 'none') {
+                const type = task.recurrence_config.type
+                const daysOfWeek = task.recurrence_config.days_of_week || []
+                let shouldInclude = false
 
-            if (type === 'daily') shouldInclude = true
-            else if (type === 'work_days' && isShiftDay(today)) shouldInclude = true
-            else if (type === 'off_days' && !isShiftDay(today)) shouldInclude = true
-            else if (type === 'custom' && daysOfWeek.includes(dayOfWeek)) shouldInclude = true
+                if (type === 'daily') shouldInclude = true
+                else if (type === 'work_days' && isShiftDay(today)) shouldInclude = true
+                else if (type === 'off_days' && !isShiftDay(today)) shouldInclude = true
+                else if (type === 'custom' && daysOfWeek.includes(dayOfWeek)) shouldInclude = true
 
-            // Legacy fallback support
-            if ((type as any) === 'shift_relative') {
-                if ((task.recurrence_config as any).target === 'off_days' && !isShiftDay(today)) shouldInclude = true
-                if ((task.recurrence_config as any).target === 'on_days' && isShiftDay(today)) shouldInclude = true
-            }
-
-            if (shouldInclude) {
-                expandedTasks.push({ ...task, id: `${task.id}__${dateStr}`, _recurringDate: dateStr })
+                if (shouldInclude) {
+                    expandedItems.push({ ...item, id: `${item.id}__${dateStr}`, _recurringDate: dateStr })
+                }
+            } else {
+                expandedItems.push(item)
             }
         } else {
-            // Task has NO recurrence or type is 'none' -> ALWAYS include
-            expandedTasks.push(task)
+            expandedItems.push(item)
         }
     })
 
@@ -1417,30 +1443,44 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
             <Reorder.Group
                 axis="y"
-                values={sortedTasks}
-                onReorder={updateTaskPositions}
+                values={expandedItems}
+                onReorder={(newOrder) => {
+                    const tasksOnly = newOrder.filter(i => i.type === 'task').map(i => i.data)
+                    updateTaskPositions(tasksOnly)
+                }}
                 className="flex-1 pr-1 space-y-2 no-scrollbar"
             >
-                {loading && tasks.length === 0 ? (
+                {loading && expandedItems.length === 0 ? (
                     <div className="flex items-center justify-center h-32">
                         <RefreshCw className="w-5 h-5 text-black/20 animate-spin" />
                     </div>
-                ) : tasks.length === 0 ? (
+                ) : expandedItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-32 text-center">
                         <p className="text-[13px] font-medium text-black/40">All caught up.</p>
                         <p className="text-[11px] text-black/30">Add something above to get started.</p>
                     </div>
                 ) : (
-                    sortedTasks.map((task) => (
-                        <TaskRow
-                            key={task.id}
-                            task={task}
-                            toggleTask={toggleTask}
-                            deleteTask={handleDeleteWithSafety}
-                            editTask={editTask}
-                            category={category}
-                            setSelectedTaskForModal={setSelectedTaskForModal}
-                        />
+                    expandedItems.map((item) => (
+                        item.type === 'task' ? (
+                            <TaskRow
+                                key={item.id}
+                                task={item.data}
+                                toggleTask={toggleTask}
+                                deleteTask={handleDeleteWithSafety}
+                                editTask={editTask}
+                                category={category}
+                                setSelectedTaskForModal={setSelectedTaskForModal}
+                            />
+                        ) : (
+                            <MilestoneRow
+                                key={item.id}
+                                milestone={item.data}
+                                project={projects.find(p => p.id === item.data.project_id)}
+                                content={content.find(c => c.id === item.data.content_id)}
+                                onProjectClick={(p) => setSelectedProjectForModal(p)}
+                                onContentClick={(c) => setSelectedContentForModal(c)}
+                            />
+                        )
                     ))
                 )}
             </Reorder.Group>
@@ -1453,6 +1493,22 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 onToggleComplete={handleModalToggleComplete}
                 onEditTask={editTask}
             />
+
+            {selectedProjectForModal && (
+                <ProjectDetailModal
+                    project={selectedProjectForModal}
+                    isOpen={!!selectedProjectForModal}
+                    onClose={() => setSelectedProjectForModal(null)}
+                />
+            )}
+
+            {selectedContentForModal && (
+                <ContentDetailModal
+                    item={selectedContentForModal}
+                    isOpen={!!selectedContentForModal}
+                    onClose={() => setSelectedContentForModal(null)}
+                />
+            )}
         </div>
     )
 }
@@ -2228,5 +2284,66 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                 </div>
             </div>
         </Reorder.Item>
+    )
+}
+
+function MilestoneRow({ milestone, project, content, onProjectClick, onContentClick }: {
+    milestone: StudioMilestone,
+    project: any,
+    content: any,
+    onProjectClick: (project: any) => void,
+    onContentClick: (content: any) => void
+}) {
+    const statusColor = milestone.status === 'completed' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-blue-500 shadow-blue-500/20'
+    const type = milestone.project_id ? 'Project' : 'Content'
+    const parentTitle = project?.title || content?.title || 'Unknown Source'
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="group flex items-center gap-3 p-3 bg-black/[0.02] hover:bg-black/[0.04] border border-black/[0.05] rounded-xl transition-all cursor-pointer"
+            onClick={() => {
+                if (milestone.project_id && project) onProjectClick(project)
+                else if (milestone.content_id && content) onContentClick(content)
+            }}
+        >
+            <div className={cn("w-2 h-2 rounded-full shrink-0 animate-pulse", statusColor)} />
+
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-black text-black tracking-tight truncate">{milestone.title}</span>
+                    <span className={cn(
+                        "px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider",
+                        type === 'Project' ? "bg-purple-50 text-purple-600 border border-purple-100" : "bg-blue-50 text-blue-600 border border-blue-100"
+                    )}>
+                        {type}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] font-bold text-black/40 truncate max-w-[150px]">{parentTitle}</span>
+                    <div className="w-1 h-1 rounded-full bg-black/10" />
+                    <span className="text-[10px] font-bold text-amber-600 flex items-center gap-0.5">
+                        <Zap className="w-3 h-3 fill-current" />
+                        {milestone.impact_score || 0}
+                    </span>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+                {milestone.target_date && (
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-black/5 rounded-lg shadow-sm">
+                        <Calendar className="w-3 h-3 text-black/20" />
+                        <span className="text-[10px] font-black text-black/40 uppercase tracking-tight">
+                            {new Date(milestone.target_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        </span>
+                    </div>
+                )}
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-black/5 text-black/20 group-hover:bg-black group-hover:text-white transition-all shadow-sm">
+                    <ArrowRight className="w-4 h-4" />
+                </div>
+            </div>
+        </motion.div>
     )
 }

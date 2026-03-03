@@ -11,11 +11,12 @@ interface GoalDetailSheetProps {
     isOpen: boolean
     onClose: () => void
     onToggleMilestone: (milestoneId: string, completed: boolean) => void
+    onUpdateMilestone: (milestoneId: string, updates: Partial<Milestone>) => void
     onDeleteGoal: (id: string) => void
     onEdit: (goal: Goal) => void
 }
 
-export default function GoalDetailSheet({ goal, isOpen, onClose, onToggleMilestone, onDeleteGoal, onEdit }: GoalDetailSheetProps) {
+export default function GoalDetailSheet({ goal, isOpen, onClose, onToggleMilestone, onUpdateMilestone, onDeleteGoal, onEdit }: GoalDetailSheetProps) {
     if (!goal) return null
 
     const totalMilestones = goal.milestones?.length || 0
@@ -152,26 +153,53 @@ export default function GoalDetailSheet({ goal, isOpen, onClose, onToggleMilesto
 
                                     <div className="space-y-4">
                                         {goal.milestones?.map((m) => (
-                                            <button
+                                            <div
                                                 key={m.id}
-                                                onClick={() => onToggleMilestone(m.id, !m.is_completed)}
                                                 className={cn(
-                                                    "w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left group",
+                                                    "w-full flex flex-col gap-3 p-4 rounded-xl border transition-all text-left group",
                                                     m.is_completed
-                                                        ? "bg-emerald-50 border-emerald-100 text-emerald-900 opacity-60"
-                                                        : "bg-white border-black/[0.06] hover:border-black/20 hover:shadow-lg hover:shadow-black/5"
+                                                        ? "bg-emerald-50 border-emerald-100 opacity-60"
+                                                        : "bg-white border-black/[0.06] hover:border-black/20"
                                                 )}
                                             >
-                                                <div className={cn(
-                                                    "w-6 h-6 rounded-full flex items-center justify-center transition-all",
-                                                    m.is_completed ? "bg-emerald-500 text-white" : "bg-black/5 text-black/20 group-hover:bg-black group-hover:text-white"
-                                                )}>
-                                                    {m.is_completed ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                                                <div className="flex items-center gap-4">
+                                                    <button
+                                                        onClick={() => onToggleMilestone(m.id, !m.is_completed)}
+                                                        className={cn(
+                                                            "w-6 h-6 rounded-full flex items-center justify-center transition-all shrink-0",
+                                                            m.is_completed ? "bg-emerald-500 text-white" : "bg-black/5 text-black/20 group-hover:bg-black group-hover:text-white"
+                                                        )}
+                                                    >
+                                                        {m.is_completed ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                                                    </button>
+                                                    <div className="flex-1 min-w-0">
+                                                        <input
+                                                            type="text"
+                                                            value={m.title}
+                                                            onChange={(e) => onUpdateMilestone(m.id, { title: e.target.value })}
+                                                            className={cn(
+                                                                "w-full bg-transparent border-none focus:outline-none text-[14px] font-bold p-0",
+                                                                m.is_completed && "line-through text-emerald-900/40"
+                                                            )}
+                                                            placeholder="Milestone title..."
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1">
-                                                    <span className={cn("text-[14px] font-bold", m.is_completed && "line-through")}>{m.title}</span>
+                                                <div className="flex items-center gap-4 pl-10">
+                                                    <div className="flex items-center gap-2 flex-1 max-w-[200px]">
+                                                        <span className="text-[9px] font-black uppercase text-black/20 whitespace-nowrap">Impact Score</span>
+                                                        <input
+                                                            type="range"
+                                                            min="1"
+                                                            max="10"
+                                                            value={m.impact_score || 5}
+                                                            onChange={(e) => onUpdateMilestone(m.id, { impact_score: parseInt(e.target.value) })}
+                                                            className="w-full h-1 bg-black/5 rounded-full appearance-none accent-black"
+                                                        />
+                                                        <span className="text-[10px] font-black text-black/40 w-4 text-center">{m.impact_score || 5}</span>
+                                                    </div>
                                                 </div>
-                                            </button>
+                                            </div>
                                         ))}
                                         {totalMilestones === 0 && (
                                             <div className="p-8 text-center bg-black/[0.02] border-2 border-dashed border-black/[0.04] rounded-2xl">

@@ -12,6 +12,10 @@ import { TaskDetailModal } from './TaskDetailModal'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { useRota } from '@/features/finance/hooks/useRota'
 import { isShiftDay } from '@/features/finance/utils/rotaUtils'
+import { useStudio } from '@/features/studio/hooks/useStudio'
+import type { StudioMilestone } from '@/features/studio/types/studio.types'
+import ProjectDetailModal from '@/features/studio/components/ProjectDetailModal'
+import ContentDetailModal from '@/features/studio/components/ContentDetailModal'
 
 const PRIORITY_COLORS = {
     urgent: 'bg-purple-600 shadow-purple-500/40 text-purple-50',
@@ -36,6 +40,14 @@ const BUSINESS_CATEGORIES = [
 
 const ALL_CATEGORIES = [...PERSONAL_CATEGORIES, ...BUSINESS_CATEGORIES] as const
 
+const getPriorityFromImpact = (impactScore: number | undefined): string => {
+    if (!impactScore) return 'low'
+    if (impactScore >= 9) return 'urgent'
+    if (impactScore >= 7) return 'high'
+    if (impactScore >= 4) return 'mid'
+    return 'low'
+}
+
 const getPriorityY = (priority: string | undefined): number => {
     switch (priority) {
         case 'urgent': return 12.5 // Vertical center of 0-25
@@ -50,6 +62,20 @@ const getPriorityFromY = (yPercent: number): string => {
     if (yPercent < 50) return 'high'
     if (yPercent < 75) return 'mid'
     return 'low'
+}
+
+const getImpactFromY = (yPercent: number): number => {
+    if (yPercent < 25) return 9 // Urgent
+    if (yPercent < 50) return 7 // High
+    if (yPercent < 75) return 4 // Mid
+    return 1 // Low
+}
+
+const getImpactOpacity = (priority: string | undefined, impactScore: number | undefined): number => {
+    if (priority === 'urgent') return 1;
+    // Map impact score (1-10) to opacity (0.4-1.0)
+    const score = impactScore || 1;
+    return 0.4 + (score / 10) * 0.6;
 }
 
 const getUrgencyX = (dueDate: string | undefined | null): number => {
@@ -81,25 +107,25 @@ const getDueDateFromX = (xPercent: number): string | undefined => {
     return date.toISOString()
 }
 
-function TaskDot({
-    task,
+function ItemDot({
+    item,
     containerRef,
     safeZoneRef,
-    editTask,
+    onInitiateMove,
     finalPosition,
-    setSelectedTaskForModal,
+    onSelectItem,
     allCategories,
     activeCategories,
     isMoveApplied,
     setHoveredDayIndex,
     isConfirmingMove
 }: {
-    task: Task,
+    item: { type: 'task' | 'milestone', id: string, data: any },
     containerRef: React.RefObject<HTMLDivElement | null>,
     safeZoneRef: React.RefObject<HTMLDivElement | null>,
-    editTask: any,
+    onInitiateMove: any,
     finalPosition: { x: number, y: number, density?: 'full' | 'compact' | 'minimal' },
-    setSelectedTaskForModal: (task: Task | null) => void,
+    onSelectItem: (item: any) => void,
     allCategories: readonly any[],
     activeCategories: readonly any[],
     isMoveApplied: boolean,
@@ -112,9 +138,11 @@ function TaskDot({
     const mvX = useMotionValue(0)
     const mvY = useMotionValue(0)
 
-    // Reset motion values when task or external position changes (but ignore while dragging OR confirming)
-    // We use a combined string key to prevent "dependency size changed" errors during hot-reloading
-    const syncKey = `${task.id}-${task.priority}-${task.due_date}-${finalPosition.x}-${finalPosition.y}`
+    const data = item.data;
+    const priority = item.type === 'task' ? data.priority : getPriorityFromImpact(data.impact_score);
+    const dueDate = item.type === 'task' ? data.due_date : data.target_date;
+
+    const syncKey = `${item.id}-${priority}-${dueDate}-${finalPosition.x}-${finalPosition.y}`
     useEffect(() => {
         if (!isDragging && !isConfirmingMove) {
             mvX.set(0)
@@ -122,12 +150,15 @@ function TaskDot({
         }
     }, [syncKey, isDragging, isConfirmingMove])
 
-    const categoryConfig = allCategories.find(c => c.id === task.strategic_category)
+    const categoryId = item.type === 'task' ? data.strategic_category : data.category;
+    const categoryConfig = allCategories.find(c => c.id === categoryId)
     const dotColorClass = categoryConfig ? categoryConfig.dotBgColor : 'bg-neutral-800 shadow-black/40'
+
+    const opacity = getImpactOpacity(priority, data.impact_score);
 
     return (
         <motion.div
-            key={`${task.id}`}
+            key={`${item.type}-${item.id}`}
             drag
             dragListener={!isMoveApplied}
             dragConstraints={containerRef}
@@ -143,7 +174,6 @@ function TaskDot({
                 const dotRect = dotRef.current.getBoundingClientRect()
                 const containerRect = containerRef.current.getBoundingClientRect()
 
-                // Calculate visual center of the DOT in percentages
                 const dotCenterX = dotRect.left + dotRect.width / 2
                 const dotCenterY = dotRect.top + dotRect.height / 2
                 const dropX = dotCenterX - containerRect.left
@@ -155,16 +185,12 @@ function TaskDot({
                 xPercent = Math.max(16, Math.min(84, xPercent))
                 yPercent = Math.max(5, Math.min(95, yPercent))
 
-                // Real-time Visual Snap for Repulsion logic
                 const daysFraction = (xPercent - 16) / 68 * 14
                 const snappedDays = Math.round(Math.max(0, Math.min(14, daysFraction)))
                 const snappedX = 16 + (snappedDays / 14) * 68
 
                 setHoveredDayIndex(snappedDays)
-
-                // Sync to parent for real-time repulsion calculation
-                // But do NOT update mvX/mvY here - let Framer's internal drag logic handle the cursor lock
-                editTask(task.id, undefined, { x: snappedX, y: yPercent }, null)
+                onInitiateMove(item.id, item.type, { x: snappedX, y: yPercent }, null)
             }}
             onDragEnd={(e, info) => {
                 setIsDragging(false)
@@ -173,39 +199,29 @@ function TaskDot({
                 const dotRect = dotRef.current.getBoundingClientRect()
                 const containerRect = containerRef.current.getBoundingClientRect()
 
-                // Calculate where the DOT is relative to the container at the moment of release
                 const dotCenterX = dotRect.left + dotRect.width / 2
                 const dotCenterY = dotRect.top + dotRect.height / 2
 
                 const dropX = dotCenterX - containerRect.left
                 const dropY = dotCenterY - containerRect.top
 
-                // Absolute Clamping to Safety Zones [16, 84] and [15, 85]
                 let xPercent = (dropX / containerRect.width) * 100
                 let yPercent = (dropY / containerRect.height) * 100
 
                 xPercent = Math.max(16, Math.min(84, xPercent))
                 yPercent = Math.max(15, Math.min(85, yPercent))
 
-                // Precise Date Snapping
                 const daysFraction = (xPercent - 16) / 68 * 14
                 const snappedDays = Math.round(Math.max(0, Math.min(14, daysFraction)))
                 const snappedX = 16 + (snappedDays / 14) * 68
 
-                // Trigger move confirmation in parent
-                editTask(task.id, undefined, { x: snappedX, y: yPercent }, (confirmed: boolean) => {
-                    // Smoothly animate back to 0 (which is the new finalPosition) regardless of outcome
-                    // This creates a "magnetic" settling effect instead of a jittery jump
+                onInitiateMove(item.id, item.type, { x: snappedX, y: yPercent }, (confirmed: boolean) => {
                     animate(mvX, 0, { type: 'spring', damping: 30, stiffness: 300 })
                     animate(mvY, 0, { type: 'spring', damping: 30, stiffness: 300 })
                 })
 
-                // MATHEMATICAL HANDOVER: 
-                // When isDragging becomes false, the base (left/top) jumps to 'snappedX' and 'yPercent'.
-                // To keep the visual position identical, we set mvX/mvY to the exact delta between
-                // the raw drop point (xPercent, yPercent) and the new base point.
                 const endOffsetXPercent = xPercent - snappedX
-                const endOffsetYPercent = 0 // Since yPercent is already the base
+                const endOffsetYPercent = 0
 
                 mvX.set(endOffsetXPercent * (containerRect.width / 100))
                 mvY.set(endOffsetYPercent * (containerRect.height / 100))
@@ -213,9 +229,9 @@ function TaskDot({
             whileDrag={{ scale: 1.4, zIndex: 100 }}
             whileHover={{ scale: isMoveApplied ? 1 : 1.25 }}
             animate={{
-                scale: isDragging ? 1.4 : (task.impact_score && task.impact_score > 7 ? 1.1 : 1),
+                scale: isDragging ? 1.4 : (data.impact_score && data.impact_score > 7 ? 1.1 : 1),
                 zIndex: isDragging ? 100 : 10,
-                opacity: 1
+                opacity: opacity
             }}
             style={{
                 x: mvX,
@@ -231,84 +247,82 @@ function TaskDot({
                 "group flex items-center cursor-grab active:cursor-grabbing",
                 "backdrop-blur-[2px] shadow-sm hover:shadow-md",
                 isDragging ? "shadow-2xl ring-4 ring-black/10 scale-110 z-[100] select-none" : "z-10 transition-all duration-300",
-                // Tier-based Styling
+                item.type === 'milestone' && "border-2",
                 finalPosition.density === 'full' ? cn(
                     "border items-center p-2 pr-4 h-auto min-h-[44px] rounded-xl",
-                    task.priority === 'urgent' ? "bg-purple-50/90 border-purple-200" :
-                        task.priority === 'high' ? "bg-red-50/90 border-red-200" :
-                            task.priority === 'mid' ? "bg-amber-50/90 border-amber-200" :
+                    priority === 'urgent' ? "bg-purple-50/90 border-purple-200" :
+                        priority === 'high' ? "bg-red-50/90 border-red-200" :
+                            priority === 'mid' ? "bg-amber-50/90 border-amber-200" :
                                 "bg-black/[0.04] border-black/[0.05]"
                 ) :
                     finalPosition.density === 'compact' ? cn(
                         "border rounded-lg p-1.5 pr-3 h-6",
-                        task.priority === 'urgent' ? "bg-purple-50/90 border-purple-100" :
-                            task.priority === 'high' ? "bg-red-50/90 border-red-100" :
-                                task.priority === 'mid' ? "bg-amber-50/90 border-amber-100" :
+                        priority === 'urgent' ? "bg-purple-50/90 border-purple-100" :
+                            priority === 'high' ? "bg-red-50/90 border-red-100" :
+                                priority === 'mid' ? "bg-amber-50/90 border-amber-100" :
                                     "bg-black/[0.04] border-black/[0.05]"
                     ) : "p-1.5 w-6 h-6 justify-center",
-                task.impact_score && task.impact_score >= 8 && "ring-2 ring-amber-400/30 shadow-[0_0_15px_rgba(251,191,36,0.2)]"
+                data.impact_score && data.impact_score >= 8 && "ring-2 ring-amber-400/30 shadow-[0_0_15px_rgba(251,191,36,0.2)]"
             )}
             onClick={(e) => {
                 if (!isDragging) {
                     e.stopPropagation()
-                    setSelectedTaskForModal(task)
+                    onSelectItem(item)
                 }
             }}
         >
-            {/* The Dot (Visual Anchor) */}
             <div
                 ref={dotRef}
                 className={cn(
                     "w-3 h-3 rounded-full flex-shrink-0 shadow-sm",
                     dotColorClass,
-                    isDragging && "scale-110"
+                    isDragging && "scale-110",
+                    item.type === 'milestone' && "ring-2 ring-white ring-inset"
                 )}
             />
 
-            {/* Tier-based Labels */}
             {finalPosition.density !== 'minimal' && (
                 <div className="flex flex-col items-start ml-2.5 overflow-hidden">
-                    {/* Tier 1 & 2: Task Title & Impact (Compact) */}
                     <div className="flex items-center gap-1.5">
                         <span className={cn(
                             "text-[10px] font-semibold tracking-tight leading-none whitespace-nowrap text-black/80",
-                            task.impact_score && task.impact_score >= 8 && "font-black text-[11px]"
+                            data.impact_score && data.impact_score >= 8 && "font-black text-[11px]"
                         )}>
-                            {task.title}
+                            {item.type === 'milestone' && <span className="text-[8px] font-black mr-1 opacity-40">M</span>}
+                            {data.title}
                         </span>
-                        {task.impact_score && finalPosition.density === 'compact' && (
+                        {data.impact_score && finalPosition.density === 'compact' && (
                             <span className="flex items-center gap-0.5 text-[8px] font-black text-amber-600 flex-shrink-0">
                                 <Zap className="w-2 h-2 fill-current" />
-                                {task.impact_score}
+                                {data.impact_score}
                             </span>
                         )}
-                        {task.estimated_duration && finalPosition.density === 'compact' && (
+                        {item.type === 'task' && data.estimated_duration && finalPosition.density === 'compact' && (
                             <span className="flex items-center gap-0.5 text-[8px] font-bold text-black/30 flex-shrink-0">
                                 <Clock className="w-2 h-2" />
-                                {task.estimated_duration}m
+                                {data.estimated_duration}m
                             </span>
                         )}
                     </div>
 
-                    {/* Tier 1 Only: Detail Row */}
                     {finalPosition.density === 'full' && (
                         <div className="flex items-center gap-2 mt-1">
-                            {task.impact_score && (
+                            {data.impact_score && (
                                 <span className="flex items-center gap-0.5 text-[8px] font-black text-amber-600 flex-shrink-0">
                                     <Zap className="w-2 h-2 fill-current" />
-                                    {task.impact_score}
+                                    {data.impact_score}
                                 </span>
                             )}
-                            {task.estimated_duration && (
+                            {item.type === 'task' && data.estimated_duration && (
                                 <span className="flex items-center gap-0.5 text-[8px] font-bold text-black/30 flex-shrink-0">
                                     <Clock className="w-2 h-2" />
-                                    {task.estimated_duration}m
+                                    {data.estimated_duration}m
                                 </span>
                             )}
-                            {task.due_date && (
+                            {dueDate && (
                                 <span className="flex items-center gap-0.5 text-[8px] font-bold text-black/25 uppercase tracking-tighter whitespace-nowrap">
                                     <Calendar className="w-2 h-2" />
-                                    {new Date(task.due_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
+                                    {new Date(dueDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
                                 </span>
                             )}
                         </div>
@@ -316,47 +330,31 @@ function TaskDot({
                 </div>
             )}
 
-            {/* Tooltip Hover (Legacy fallback or for minimal mode) */}
             <div className={cn(
                 "absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-max max-w-[220px] bg-white border border-black/10 text-black p-3 rounded-2xl shadow-2xl pointer-events-auto transition-all duration-200 z-[200] space-y-2",
                 isDragging ? "opacity-0 invisible" : "opacity-0 invisible group-hover:opacity-100 group-hover:visible"
             )}>
                 <div className="flex items-center justify-between gap-4">
-                    <p className="text-[12px] font-bold tracking-tight leading-tight">{task.title}</p>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedTaskForModal(task)
-                        }}
-                        className="p-1.5 rounded-lg bg-black/5 hover:bg-black/10 transition-colors"
-                    >
-                        <Edit2 className="w-3 h-3 text-black/40" />
-                    </button>
+                    <p className="text-[12px] font-bold tracking-tight leading-tight">{data.title}</p>
                 </div>
 
                 <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={cn(
                         "text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider",
-                        (PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS] || PRIORITY_COLORS.low).split(' ')[0],
+                        (PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS] || PRIORITY_COLORS.low).split(' ')[0],
                         "text-white"
                     )}>
-                        {task.priority}
+                        {priority}
                     </span>
-                    {task.impact_score && (
+                    {data.impact_score && (
                         <span className="flex items-center gap-1 text-[9px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">
                             <Zap className="w-2.5 h-2.5 fill-current" />
-                            {task.impact_score}
+                            {data.impact_score}
                         </span>
                     )}
-                    {(task.travel_to_duration || task.travel_from_duration) && (
-                        <span className="flex items-center gap-1 text-[9px] font-black text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded-md">
-                            <Car className="w-2.5 h-2.5" />
-                            {task.travel_to_duration || 0}{task.travel_from_duration !== task.travel_to_duration ? `+${task.travel_from_duration || 0}` : ''}m
-                        </span>
-                    )}
-                    {task.due_date && (
+                    {dueDate && (
                         <span className="text-[8px] font-bold text-black/25 bg-black/[0.03] px-1.5 py-0.5 rounded-md uppercase tracking-tighter">
-                            {new Date(task.due_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
+                            {new Date(dueDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
                         </span>
                     )}
                 </div>
@@ -370,20 +368,22 @@ export function TasksMatrix() {
     const categories = activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES
 
     const { tasks, editTask, toggleTask, refetch } = useTasks('todo')
+    const { projects, content, milestones, updateMilestone, refresh: refreshStudio } = useStudio()
     const containerRef = useRef<HTMLDivElement>(null)
     const safeZoneRef = useRef<HTMLDivElement>(null)
     const pendingTasks = tasks.filter(t => !t.is_completed)
     const [isPlottingAI, setIsPlottingAI] = useState(false)
     const [selectedTaskForModal, setSelectedTaskForModal] = useState<Task | null>(null)
+    const [selectedProjectForModal, setSelectedProjectForModal] = useState<any>(null)
+    const [selectedContentForModal, setSelectedContentForModal] = useState<any>(null)
 
     // Move Confirmation State
-    const [movingTask, setMovingTask] = useState<Task | null>(null)
+    const [movingItem, setMovingItem] = useState<{ id: string, type: 'task' | 'milestone' } | null>(null)
     const [newMovePos, setNewMovePos] = useState<{ x: number, y: number } | null>(null)
     const [isConfirmingMove, setIsConfirmingMove] = useState(false)
     const [onMoveSettled, setOnMoveSettled] = useState<((confirmed: boolean) => void) | null>(null)
     const lastStablePositions = useRef<Record<string, any>>({})
     const wasConfirmingRef = useRef(false)
-
     const [selectedStrategicCategory, setSelectedStrategicCategory] = useState<'all' | string>('all')
     const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
 
@@ -404,66 +404,102 @@ export function TasksMatrix() {
     }, [overrides])
 
 
-    const filteredTasks = pendingTasks.filter(t => {
-        const matchesCategory = selectedStrategicCategory === 'all' || t.strategic_category === selectedStrategicCategory
-        if (!matchesCategory) return false
+    const filteredItems = useMemo(() => {
+        // Items from Tasks
+        const taskItems = pendingTasks
+            .filter(t => {
+                const matchesCategory = selectedStrategicCategory === 'all' || t.strategic_category === selectedStrategicCategory
+                if (!matchesCategory) return false
 
-        if (!t.due_date) return true // Show tasks without due date on the right
+                if (!t.due_date) return true
 
-        const due = new Date(t.due_date)
-        due.setHours(0, 0, 0, 0)
-        const now = new Date()
-        now.setHours(0, 0, 0, 0)
+                const due = new Date(t.due_date)
+                due.setHours(0, 0, 0, 0)
+                const now = new Date()
+                now.setHours(0, 0, 0, 0)
 
-        const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-        // Only show tasks from Today (0) up to 14 days in future
-        return diffDays >= 0 && diffDays <= 14
-    })
+                const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                return diffDays >= 0 && diffDays <= 14
+            })
+            .map(t => ({ type: 'task' as const, id: t.id, data: t }))
+
+        // Items from Studio Milestones (only if in Business profile)
+        if (activeProfile !== 'business') return taskItems
+
+        const milestoneItems = milestones
+            .filter(m => {
+                if (!m.target_date) return false
+                if (m.status === 'completed') return false
+
+                const matchesCategory = selectedStrategicCategory === 'all' || m.category === selectedStrategicCategory
+                if (!matchesCategory) return false
+
+                const due = new Date(m.target_date)
+                due.setHours(0, 0, 0, 0)
+                const now = new Date()
+                now.setHours(0, 0, 0, 0)
+
+                const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                return diffDays >= 0 && diffDays <= 14
+            })
+            .map(m => ({ type: 'milestone' as const, id: m.id, data: m }))
+
+        return [...taskItems, ...milestoneItems]
+    }, [pendingTasks, milestones, activeProfile, selectedStrategicCategory])
+
+    const movingItemData = useMemo(() => {
+        if (!movingItem) return null
+        return filteredItems.find(i => i.id === movingItem.id)
+    }, [movingItem, filteredItems])
 
     const finalPositions = useMemo(() => {
         // One-Frame Settlement Logic:
-        // If we were already confirming in the PREVIOUS frame, return the frozen layout.
-        // This allows exactly one re-calculation (the "drop frame") before locking.
         if (isConfirmingMove && wasConfirmingRef.current) {
             return lastStablePositions.current;
         }
 
-        const positions = filteredTasks.map(task => {
-            const isMovingThisTask = movingTask?.id === task.id;
-            // Anchor if actively dragging OR if we are currently confirming the move 
-            // This prevents the "jitter" where physics pushes the item away while the modal is open
-            const isAnchored = isMovingThisTask && (isConfirmingMove || !!newMovePos);
+        const positions = filteredItems.map(item => {
+            const isMovingThisItem = movingItem?.id === item.id;
+            const isAnchored = isMovingThisItem && (isConfirmingMove || !!newMovePos);
             const targetPos = isAnchored && newMovePos ? newMovePos : null;
 
-            // Priority: Pending Move > Date/Priority Logic > AI Positions > Default Backlog
-            // For X: If date exists, follow urgency logic. Otherwise use stored position or default to far right (92%)
-            // We validate ai_position_x: if no due_date exists, ai_position_x MUST be in the backlog zone (> 84% X)
-            const x = targetPos
-                ? targetPos.x
-                : (task.due_date
-                    ? getUrgencyX(task.due_date)
-                    : (task.ai_position_x != null && (task.ai_position_x as number) > 84
-                        ? (task.ai_position_x as number)
-                        : 92));
+            let x: number;
+            let y: number;
 
-            // For Y: Default to priority zone center if no stored position 
-            // We validate ai_position_y: it is only used if its priority zone matches the task's CURRENT priority.
-            // This ensures manual priority edits in the list view (which change task.priority but not coordinates)
-            // are reflected immediately in the matrix as a jump to the correct zone center.
-            let y = targetPos
-                ? targetPos.y
-                : (task.ai_position_y != null && getPriorityFromY(task.ai_position_y as number) === task.priority)
-                    ? (task.ai_position_y as number)
-                    : getPriorityY(task.priority);
+            if (item.type === 'task') {
+                const task = item.data;
+                x = targetPos
+                    ? targetPos.x
+                    : (task.due_date
+                        ? getUrgencyX(task.due_date)
+                        : (task.ai_position_x != null && (task.ai_position_x as number) > 84
+                            ? (task.ai_position_x as number)
+                            : 92));
 
-            // Dynamic Width: Dot (approx 3%) + Gap (1%) + Title + Meta Space
-            const titleLen = Math.min(task.title.length, 25);
-            const impactBonus = task.impact_score ? 2 : 0;
-            const durationBonus = task.estimated_duration ? 2.5 : 0;
+                y = targetPos
+                    ? targetPos.y
+                    : (task.ai_position_y != null && getPriorityFromY(task.ai_position_y as number) === task.priority)
+                        ? (task.ai_position_y as number)
+                        : getPriorityY(task.priority);
+            } else {
+                const milestone = item.data;
+                x = targetPos
+                    ? targetPos.x
+                    : getUrgencyX(milestone.target_date);
+
+                y = targetPos
+                    ? targetPos.y
+                    : getPriorityY(getPriorityFromImpact(milestone.impact_score));
+            }
+
+            // Dynamic Width Calculation
+            const titleLen = Math.min(item.data.title.length, 25);
+            const impactBonus = (item.data as any).impact_score ? 2 : 0;
+            const durationBonus = item.type === 'task' && (item.data as any).estimated_duration ? 2.5 : 0;
             const width = 3 + (titleLen * 0.8) + impactBonus + durationBonus;
-            const height = 3; // Buffer height for repulsion
+            const height = 3;
 
-            return { id: task.id, x, y, width, height };
+            return { id: item.id, x, y, width, height };
         });
 
         // Resolve Overlaps (Vertical Only)
@@ -494,8 +530,8 @@ export function TasksMatrix() {
 
                             // Physics Locking: If an item is being actively dragged, it acts as an anchor.
                             // It pushes others away but is not pushed itself.
-                            const isAMoving = movingTask?.id === a.id;
-                            const isBMoving = movingTask?.id === b.id;
+                            const isAMoving = movingItem?.id === a.id;
+                            const isBMoving = movingItem?.id === b.id;
 
                             if (isAMoving) {
                                 positions[k].y -= shift * 1.2; // Softer multiplier to prevent flying
@@ -555,39 +591,35 @@ export function TasksMatrix() {
         wasConfirmingRef.current = isConfirmingMove;
 
         return result;
-    }, [filteredTasks, movingTask, newMovePos, isConfirmingMove]);
+    }, [filteredItems, movingItem, newMovePos, isConfirmingMove]);
 
-    const handleInitiateMove = useCallback((taskId: string, updates: any, pos: { x: number, y: number }, callback: ((confirmed: boolean) => void) | null) => {
-        const task = tasks.find(t => t.id === taskId)
-        if (task) {
-            // Unified Snapping: Ensure the 'pos' provided for repulsion matches the grid exactly
+    const handleInitiateMove = useCallback((itemId: string, itemType: 'task' | 'milestone', pos: { x: number, y: number }, callback: ((confirmed: boolean) => void) | null) => {
+        const item = filteredItems.find(i => i.id === itemId && i.type === itemType)
+        if (item) {
             const daysFraction = (pos.x - 16) / 68 * 14
             const snappedDays = Math.round(Math.max(0, Math.min(14, daysFraction)))
             const snappedX = 16 + (snappedDays / 14) * 68
             const gridSnappedPos = { x: snappedX, y: pos.y }
 
-            setMovingTask(task)
+            setMovingItem({ id: itemId, type: itemType })
             setNewMovePos(gridSnappedPos)
             if (callback) {
-                // DROP EVENT - The finalPositions memo will freeze itself on the next render
                 setIsConfirmingMove(true)
                 setOnMoveSettled(() => callback)
             }
         }
-    }, [tasks])
+    }, [filteredItems])
 
     const handleConfirmMove = async () => {
-        if (!movingTask || !newMovePos) return
+        if (!movingItem || !newMovePos) return
 
         const currentCallback = onMoveSettled
-        const taskId = movingTask.id
+        const { id, type } = movingItem
         const pos = { ...newMovePos }
 
-        // Final fail-safe clamping (Expanded to 5-95)
         const clampedX = Math.max(16, Math.min(84, pos.x))
         const clampedY = Math.max(5, Math.min(95, pos.y))
 
-        // Ensure X is snapped to the nearest day grid (0-14 days)
         const daysFraction = (clampedX - 16) / 68 * 14
         const snappedDays = Math.round(Math.max(0, Math.min(14, daysFraction)))
         const snappedX = 16 + (snappedDays / 14) * 68
@@ -596,24 +628,29 @@ export function TasksMatrix() {
         const newDueDate = getDueDateFromX(snappedX)
 
         try {
-            console.log('Confirming move:', { taskId, newPriority, clampedY })
-            await editTask(taskId, {
-                priority: newPriority as any,
-                due_date: newDueDate,
-                ai_position_x: snappedX,
-                ai_position_y: clampedY
-            })
-
-            // Refresh first to avoid the "old data" flash
-            await refetch()
+            if (type === 'task') {
+                await editTask(id, {
+                    priority: newPriority as any,
+                    due_date: newDueDate,
+                    ai_position_x: snappedX,
+                    ai_position_y: clampedY
+                })
+                await refetch()
+            } else {
+                const newImpact = getImpactFromY(clampedY)
+                await updateMilestone(id, {
+                    impact_score: newImpact,
+                    target_date: newDueDate?.split('T')[0]
+                })
+                await refreshStudio()
+            }
 
             if (currentCallback) currentCallback(true)
         } catch (err: any) {
-            console.error('CRITICAL: Failed to update task position/priority.', err)
+            console.error('CRITICAL: Failed to update item position/priority.', err)
             if (currentCallback) currentCallback(false)
         } finally {
-            // ONLY clear state once the update and refresh are completely done
-            setMovingTask(null)
+            setMovingItem(null)
             setNewMovePos(null)
             setIsConfirmingMove(false)
             setOnMoveSettled(null)
@@ -622,7 +659,7 @@ export function TasksMatrix() {
 
     const handleCancelMove = () => {
         const currentCallback = onMoveSettled
-        setMovingTask(null)
+        setMovingItem(null)
         setNewMovePos(null)
         setIsConfirmingMove(false)
         setOnMoveSettled(null)
@@ -674,15 +711,16 @@ export function TasksMatrix() {
     }, [getTimelineDates, checkIsWorkDay]);
 
     const rePlotAll = async () => {
-        if (filteredTasks.length === 0) return;
+        if (filteredItems.length === 0) return;
         setIsPlottingAI(true);
         try {
-            // Reset all filtered tasks to their data-driven positions
-            for (const task of filteredTasks) {
-                await editTask(task.id, {
-                    ai_position_x: null,
-                    ai_position_y: null
-                } as any);
+            for (const item of filteredItems) {
+                if (item.type === 'task') {
+                    await editTask(item.id, {
+                        ai_position_x: null,
+                        ai_position_y: null
+                    } as any);
+                }
             }
         } catch (error) {
             console.error('Re-plot failed:', error);
@@ -917,21 +955,29 @@ export function TasksMatrix() {
                 <div className="absolute bottom-6 left-1/2 text-[9px] font-black text-black/25 uppercase tracking-[0.3em] -translate-x-1/2 pointer-events-none border-t border-black/5 pt-1">
                     Urgency
                 </div>
-                {filteredTasks.map(task => {
-                    const pos = finalPositions[task.id]
+                {filteredItems.map(item => {
+                    const pos = finalPositions[item.id]
 
                     return (
-                        <TaskDot
-                            key={task.id}
-                            task={task}
+                        <ItemDot
+                            key={`${item.type}-${item.id}`}
+                            item={item}
                             containerRef={containerRef}
                             safeZoneRef={safeZoneRef}
-                            editTask={handleInitiateMove}
+                            onInitiateMove={handleInitiateMove}
                             finalPosition={pos || { x: 50, y: 50, density: 'full' }}
-                            setSelectedTaskForModal={setSelectedTaskForModal}
+                            onSelectItem={(selected) => {
+                                if (selected.type === 'task') {
+                                    setSelectedTaskForModal(selected.data)
+                                } else if (selected.data.project_id) {
+                                    setSelectedProjectForModal(projects.find(p => p.id === selected.data.project_id))
+                                } else if (selected.data.content_id) {
+                                    setSelectedContentForModal(content.find(c => c.id === selected.data.content_id))
+                                }
+                            }}
                             allCategories={ALL_CATEGORIES}
                             activeCategories={categories}
-                            isMoveApplied={movingTask?.id === task.id}
+                            isMoveApplied={movingItem?.id === item.id}
                             setHoveredDayIndex={setHoveredDayIndex}
                             isConfirmingMove={isConfirmingMove}
                         />
@@ -939,7 +985,7 @@ export function TasksMatrix() {
                 })}
 
                 {/* Confirm Move Modal */}
-                {movingTask && newMovePos && isConfirmingMove && (
+                {movingItem && movingItemData && newMovePos && isConfirmingMove && (
                     <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/5 flex-col backdrop-blur-[2px] animate-in fade-in duration-300">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9, y: 10 }}
@@ -947,28 +993,38 @@ export function TasksMatrix() {
                             className="w-[320px] bg-white rounded-3xl shadow-2xl border border-black/[0.08] p-6 flex flex-col gap-5"
                         >
                             <div className="flex flex-col gap-1">
-                                <h3 className="text-[17px] font-black tracking-tight text-black">Update Operation?</h3>
+                                <h3 className="text-[17px] font-black tracking-tight text-black">Update {movingItem.type === 'task' ? 'Operation' : 'Milestone'}?</h3>
                                 <p className="text-[12px] text-black/40 font-medium leading-relaxed">
-                                    You are changing the strategic focus of <b>"{movingTask.title}"</b>.
+                                    You are changing the strategic focus of <b>"{movingItemData.data.title}"</b>.
                                 </p>
                             </div>
 
                             <div className="flex flex-col gap-3 bg-black/[0.02] p-4 rounded-2xl border border-black/5">
                                 {/* Priority Shift */}
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-black/30">Priority</span>
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-black/30">{movingItem.type === 'task' ? 'Priority' : 'Impact'}</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-bold line-through text-black/20 capitalize">{movingTask.priority}</span>
+                                        <span className="text-[11px] font-bold line-through text-black/20 capitalize">
+                                            {movingItem.type === 'task'
+                                                ? (movingItemData.data as Task).priority
+                                                : getPriorityFromImpact((movingItemData.data as StudioMilestone).impact_score)}
+                                        </span>
                                         <span className="text-black/20">→</span>
-                                        <span className="text-[11px] font-black text-black capitalize">{getPriorityFromY(newMovePos.y)}</span>
+                                        <span className="text-[11px] font-black text-black capitalize">
+                                            {movingItem.type === 'task'
+                                                ? getPriorityFromY(newMovePos.y)
+                                                : getPriorityFromImpact(getImpactFromY(newMovePos.y))}
+                                        </span>
                                     </div>
                                 </div>
                                 {/* Date Shift */}
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-black/30">Due Date</span>
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-black/30">Target Date</span>
                                     <div className="flex items-center gap-2">
                                         <span className="text-[11px] font-bold line-through text-black/20">
-                                            {movingTask.due_date ? new Date(movingTask.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'No Date'}
+                                            {(movingItem.type === 'task' ? (movingItemData.data as Task).due_date : (movingItemData.data as StudioMilestone).target_date)
+                                                ? new Date((movingItem.type === 'task' ? (movingItemData.data as Task).due_date : (movingItemData.data as StudioMilestone).target_date)!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                                                : 'No Date'}
                                         </span>
                                         <span className="text-black/20">→</span>
                                         <span className="text-[11px] font-black text-black">
@@ -1061,6 +1117,20 @@ export function TasksMatrix() {
                     }
                 }}
             />
-        </div >
+
+            <ProjectDetailModal
+                project={selectedProjectForModal}
+                isOpen={!!selectedProjectForModal}
+                onClose={() => setSelectedProjectForModal(null)}
+            />
+
+            {selectedContentForModal && (
+                <ContentDetailModal
+                    item={selectedContentForModal}
+                    isOpen={!!selectedContentForModal}
+                    onClose={() => setSelectedContentForModal(null)}
+                />
+            )}
+        </div>
     )
 }

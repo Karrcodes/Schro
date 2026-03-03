@@ -42,7 +42,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const [targetDate, setTargetDate] = useState('')
-    const [milestones, setMilestones] = useState<{ id: string, text: string, is_completed: boolean }[]>([{ id: 'initial', text: '', is_completed: false }])
+    const [milestones, setMilestones] = useState<{ id: string, text: string, is_completed: boolean, impact_score: number }[]>([{ id: 'initial', text: '', is_completed: false, impact_score: 5 }])
     const [saving, setSaving] = useState(false)
     const [aiLoading, setAiLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -64,8 +64,9 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
             setMilestones(initialGoal.milestones?.map(m => ({
                 id: m.id || Math.random().toString(36).substring(2, 9),
                 text: m.title,
-                is_completed: m.is_completed
-            })) || [{ id: Math.random().toString(36).substring(2, 9), text: '', is_completed: false }])
+                is_completed: m.is_completed,
+                impact_score: m.impact_score || 5
+            })) || [{ id: Math.random().toString(36).substring(2, 9), text: '', is_completed: false, impact_score: 5 }])
             setImagePreview(null)
             setImageFile(null)
             setAiUsed(false)
@@ -74,21 +75,21 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
             // Reset for new goal
             setTitle(''); setDescription(''); setCategory('personal'); setStatus('active')
             setPriority('mid'); setTimeframe('short'); setVisionImageUrl(''); setTargetDate('')
-            setMilestones([{ id: 'initial', text: '', is_completed: false }]); setImagePreview(null); setImageFile(null); setAiUsed(false); setError(null)
+            setMilestones([{ id: 'initial', text: '', is_completed: false, impact_score: 5 }]); setImagePreview(null); setImageFile(null); setAiUsed(false); setError(null)
         }
     }, [initialGoal, isOpen])
 
     // ── helpers ──────────────────────────────────────────────
     const addMilestone = () => {
         console.log('Adding milestone...')
-        setMilestones([...milestones, { id: Math.random().toString(36).substring(2, 9), text: '', is_completed: false }])
+        setMilestones([...milestones, { id: Math.random().toString(36).substring(2, 9), text: '', is_completed: false, impact_score: 5 }])
     }
     const removeMilestone = (id: string) => {
-        if (milestones.length === 1) { setMilestones([{ id: Math.random().toString(36).substring(2, 9), text: '', is_completed: false }]); return }
+        if (milestones.length === 1) { setMilestones([{ id: Math.random().toString(36).substring(2, 9), text: '', is_completed: false, impact_score: 5 }]); return }
         setMilestones(milestones.filter(m => m.id !== id))
     }
-    const updateMilestone = (id: string, text: string) => {
-        setMilestones(milestones.map(m => m.id === id ? { ...m, text } : m))
+    const updateMilestone = (id: string, updates: Partial<{ text: string, impact_score: number }>) => {
+        setMilestones(milestones.map(m => m.id === id ? { ...m, ...updates } : m))
     }
 
     const handleImageFile = (file: File) => {
@@ -121,7 +122,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
             if (data.priority) setPriority(data.priority)
             if (data.timeframe) setTimeframe(data.timeframe)
             if (data.target_date) setTargetDate(data.target_date)
-            if (data.milestones?.length) setMilestones(data.milestones.map((m: string) => ({ id: Math.random().toString(36).substring(2, 9), text: m, is_completed: false })))
+            if (data.milestones?.length) setMilestones(data.milestones.map((m: string) => ({ id: Math.random().toString(36).substring(2, 9), text: m, is_completed: false, impact_score: 5 })))
             setAiUsed(true)
         } catch (e: any) {
             setError('AI assist failed. Fill in manually.')
@@ -148,7 +149,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                 target_date: targetDate || undefined,
                 milestones: milestones
                     .filter(m => m.text.trim() !== '')
-                    .map(m => ({ title: m.text, is_completed: m.is_completed }))
+                    .map(m => ({ title: m.text, is_completed: m.is_completed, impact_score: m.impact_score }))
             }, imageFile || undefined, initialGoal?.id)
 
             onClose()
@@ -491,8 +492,8 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
 }
 
 interface MilestoneItemProps {
-    milestone: { id: string; text: string }
-    onUpdate: (id: string, text: string) => void
+    milestone: { id: string; text: string; impact_score: number }
+    onUpdate: (id: string, updates: Partial<{ text: string, impact_score: number }>) => void
     onRemove: (id: string) => void
     index: number
 }
@@ -519,17 +520,31 @@ function MilestoneItem({ milestone, onUpdate, onRemove, index }: MilestoneItemPr
                 {index + 1}
             </div>
 
-            <input
-                value={milestone.text}
-                onChange={e => onUpdate(milestone.id, e.target.value)}
-                placeholder="Designate next step..."
-                className="flex-1 text-[13px] font-medium text-black/70 border-b border-black/5 py-2 px-1 focus:border-black/20 focus:outline-none transition-all bg-transparent min-w-0"
-            />
+            <div className="flex-1 flex flex-col gap-2">
+                <input
+                    value={milestone.text}
+                    onChange={e => onUpdate(milestone.id, { text: e.target.value })}
+                    placeholder="Designate next step..."
+                    className="w-full text-[13px] font-medium text-black/70 border-b border-black/5 py-2 px-1 focus:border-black/20 focus:outline-none transition-all bg-transparent min-w-0"
+                />
+                <div className="flex items-center gap-2">
+                    <span className="text-[8px] font-black uppercase text-black/20">Impact</span>
+                    <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={milestone.impact_score || 5}
+                        onChange={e => onUpdate(milestone.id, { impact_score: parseInt(e.target.value) })}
+                        className="flex-1 h-0.5 bg-black/5 rounded-full appearance-none accent-black/40"
+                    />
+                    <span className="text-[9px] font-black text-black/30 w-3">{milestone.impact_score || 5}</span>
+                </div>
+            </div>
 
             <button
                 type="button"
                 onClick={() => onRemove(milestone.id)}
-                className="p-1.5 rounded hover:bg-red-50 text-black/10 hover:text-red-400 transition-colors"
+                className="p-1.5 rounded hover:bg-red-50 text-black/10 hover:text-red-400 transition-colors self-start mt-1"
                 title="Remove step"
             >
                 <Trash2 className="w-3.5 h-3.5" />

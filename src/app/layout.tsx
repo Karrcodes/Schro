@@ -33,6 +33,7 @@ import { FinanceProfileProvider } from '@/features/finance/contexts/FinanceProfi
 import { SystemSettingsProvider } from '@/features/system/contexts/SystemSettingsContext'
 import { TasksProfileProvider } from '@/features/tasks/contexts/TasksProfileContext'
 import { VaultProvider } from '@/features/vault/contexts/VaultContext'
+import { StudioProvider } from '@/features/studio/context/StudioContext'
 import { SecurityLock } from '@/components/SecurityLock'
 import { GlobalQuickAction } from '@/components/GlobalQuickAction'
 import { headers } from 'next/headers'
@@ -57,16 +58,18 @@ export default async function RootLayout({
         <SystemSettingsProvider>
           <FinanceProfileProvider>
             <TasksProfileProvider>
-              <VaultProvider>
-                <SecurityLock>
-                  {!isLandingPage && <Sidebar />}
-                  {/* md:ml-[220px] — full width on mobile (sidebar is a drawer), shifted on desktop */}
-                  <main className={`${!isLandingPage ? 'md:ml-[220px]' : ''} min-h-screen bg-white`}>
-                    {children}
-                  </main>
-                  {!isLandingPage && <GlobalQuickAction />}
-                </SecurityLock>
-              </VaultProvider>
+              <StudioProvider>
+                <VaultProvider>
+                  <SecurityLock>
+                    {!isLandingPage && <Sidebar />}
+                    {/* md:ml-[220px] — full width on mobile (sidebar is a drawer), shifted on desktop */}
+                    <main className={`${!isLandingPage ? 'md:ml-[220px]' : ''} min-h-screen bg-white`}>
+                      {children}
+                    </main>
+                    {!isLandingPage && <GlobalQuickAction />}
+                  </SecurityLock>
+                </VaultProvider>
+              </StudioProvider>
             </TasksProfileProvider>
           </FinanceProfileProvider>
         </SystemSettingsProvider>

@@ -9,6 +9,7 @@ export interface Milestone {
     title: string
     is_completed: boolean
     position: number
+    impact_score?: number
     created_at: string
 }
 
@@ -36,5 +37,5 @@ export interface CreateGoalData {
     priority?: GoalPriority
     timeframe?: GoalTimeframe
     vision_image_url?: string
-    milestones?: { title: string; is_completed?: boolean }[]
+    milestones?: { title: string; is_completed?: boolean; impact_score?: number }[]
 }

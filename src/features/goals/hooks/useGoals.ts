@@ -71,6 +71,7 @@ export function useGoals() {
                         goal_id: 'new-id',
                         title: m.title,
                         is_completed: m.is_completed || false,
+                        impact_score: m.impact_score || 5,
                         position: idx,
                         created_at: new Date().toISOString()
                     }))
@@ -130,6 +131,7 @@ export function useGoals() {
                     goal_id: goal.id,
                     title: m.title,
                     is_completed: m.is_completed || false,
+                    impact_score: m.impact_score || 5,
                     position: idx
                 }))
                 await supabase.from('sys_milestones').insert(milestones)
@@ -157,6 +159,7 @@ export function useGoals() {
                                 goal_id: id,
                                 title: m.title,
                                 is_completed: m.is_completed || false,
+                                impact_score: m.impact_score || 5,
                                 position: idx,
                                 created_at: new Date().toISOString()
                             })) : g.milestones
@@ -220,6 +223,7 @@ export function useGoals() {
                         goal_id: id,
                         title: m.title,
                         is_completed: m.is_completed || false,
+                        impact_score: m.impact_score || 5,
                         position: idx
                     }))
                     await supabase.from('sys_milestones').insert(milestonesToInsert)
@@ -274,6 +278,31 @@ export function useGoals() {
             throw err
         }
     }
+    const updateMilestone = async (milestoneId: string, updates: Partial<Milestone>) => {
+        const originalGoals = [...goals]
+        setGoals(prev => prev.map(goal => ({
+            ...goal,
+            milestones: goal.milestones?.map(m =>
+                m.id === milestoneId ? { ...m, ...updates } : m
+            )
+        })))
+
+        try {
+            if (settings.is_demo_mode) return
+
+            const { error: mError } = await supabase
+                .from('sys_milestones')
+                .update(updates)
+                .eq('id', milestoneId)
+
+            if (mError) throw mError
+            await fetchGoals()
+        } catch (err: any) {
+            setGoals(originalGoals)
+            setError(err.message)
+            throw err
+        }
+    }
 
     useEffect(() => {
         fetchGoals()
@@ -287,6 +316,7 @@ export function useGoals() {
         updateGoal,
         deleteGoal,
         toggleMilestone,
+        updateMilestone,
         refetch: fetchGoals
     }
 }

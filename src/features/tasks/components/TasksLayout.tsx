@@ -145,10 +145,10 @@ export function TasksLayout({ children }: { children: React.ReactNode }) {
                 </div>
             )}
 
-            {/* Main content — ensured to fill screen so footer is pinned to absolute bottom */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto w-full">
-                <div className="flex-1 p-6 flex flex-col w-full">
-                    <div className={cn("mx-auto w-full flex-1 flex flex-col", isMatrix ? "max-w-6xl" : "max-w-3xl")}>
+            {/* Main content — flexible container */}
+            <div className={cn("flex flex-col min-h-0 overflow-y-auto w-full", !isMatrix && "flex-1")}>
+                <div className={cn("flex flex-col w-full", isMatrix ? "p-6 pb-0" : "p-6 flex-1")}>
+                    <div className={cn("mx-auto w-full", isMatrix ? "max-w-6xl" : "max-w-3xl flex-1 flex flex-col")}>
                         {children}
                     </div>
                 </div>

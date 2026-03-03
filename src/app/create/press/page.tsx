@@ -49,10 +49,8 @@ export default function PressPage() {
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
-                        <h1 className="text-3xl font-black text-black tracking-tight">Press & Media</h1>
-                        <p className="text-[13px] text-black/40 font-bold mt-1 uppercase tracking-widest">
-                            {press.length} entries • Tracking achievements & strategy
-                        </p>
+                        <h1 className="text-[22px] font-bold text-black tracking-tight">Press &amp; Media</h1>
+                        <p className="text-[12px] text-black/35 mt-0.5">Studio Module · {press.length} entries · Tracking achievements &amp; strategy</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">

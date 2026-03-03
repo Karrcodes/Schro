@@ -17,8 +17,8 @@ export default function SparksPage() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-black text-black tracking-tight">Studio Sparks</h1>
-                        <p className="text-[13px] text-black/40 font-medium">Capture ideas, tools, items, and inspiration instantly.</p>
+                        <h1 className="text-[22px] font-bold text-black tracking-tight">Studio Sparks</h1>
+                        <p className="text-[12px] text-black/35 mt-0.5">Studio Module · Capture ideas, tools, and inspiration instantly</p>
                     </div>
 
                     <div className="flex items-center gap-2">
