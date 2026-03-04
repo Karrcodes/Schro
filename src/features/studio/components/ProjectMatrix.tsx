@@ -45,6 +45,13 @@ const getPriorityY = (priority: string | undefined): number => {
     }
 }
 
+const getPriorityFromY = (yPercent: number): string => {
+    if (yPercent < 25) return 'urgent'
+    if (yPercent < 50) return 'high'
+    if (yPercent < 75) return 'mid'
+    return 'low'
+}
+
 const getImpactFromY = (yPercent: number): number => {
     if (yPercent < 25) return 9 // Urgent
     if (yPercent < 50) return 7 // High
@@ -232,10 +239,9 @@ function ItemDot({
             <div
                 ref={dotRef}
                 className={cn(
-                    "w-3 h-3 rounded-full flex-shrink-0 shadow-sm",
+                    "w-3 h-3 rounded-full flex-shrink-0 shadow-sm ring-2 ring-white ring-inset",
                     dotColorClass,
-                    isDragging && "scale-110",
-                    item.type === 'milestone' && "ring-2 ring-white ring-inset"
+                    isDragging && "scale-110"
                 )}
             />
             {finalPosition.density !== 'minimal' && (
@@ -249,8 +255,8 @@ function ItemDot({
                                 data.content_id ? <Video className="w-2.5 h-2.5 opacity-40 shrink-0" /> : <Rocket className="w-2.5 h-2.5 opacity-40 shrink-0" />
                             ) : (
                                 <>
-                                    {data.project_id && <Rocket className="w-3 h-3 text-orange-500 shrink-0" />}
-                                    {data.content_id && <Video className="w-3 h-3 text-blue-500 shrink-0" />}
+                                    {data.project_id && <Rocket className="w-3 h-3 opacity-40 shrink-0" />}
+                                    {data.content_id && <Video className="w-3 h-3 opacity-40 shrink-0" />}
                                 </>
                             )}
                             {data.title}
@@ -838,17 +844,72 @@ export default function ProjectMatrix({ searchQuery = '', filterType = null, sho
                     />
                 ))}
 
-                {/* Move Confirmation Overlay */}
                 {movingItem && newMovePos && isConfirmingMove && (
                     <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/5 flex-col backdrop-blur-[2px] animate-in fade-in duration-300">
-                        <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="w-[320px] bg-white rounded-3xl shadow-2xl border border-black/[0.08] p-6 flex flex-col gap-5">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            className="w-[320px] bg-white rounded-3xl shadow-2xl border border-black/[0.08] p-6 flex flex-col gap-5"
+                        >
                             <div className="flex flex-col gap-1">
                                 <h3 className="text-[17px] font-black tracking-tight text-black">Update {movingItem.type === 'task' ? 'Operation' : 'Milestone'}?</h3>
-                                <p className="text-[12px] text-black/40 font-medium leading-relaxed">You are changing the strategic focus of <b>"{movingItem.data.title}"</b>.</p>
+                                <p className="text-[12px] text-black/40 font-medium leading-relaxed">
+                                    You are changing the strategic focus of <b>"{movingItem.data.title}"</b>.
+                                </p>
                             </div>
+
+                            <div className="flex flex-col gap-3 bg-black/[0.02] p-4 rounded-2xl border border-black/5">
+                                {/* Priority/Impact Shift */}
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-black/30">
+                                        {movingItem.type === 'task' ? 'Priority' : 'Impact'}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-bold line-through text-black/20 capitalize">
+                                            {movingItem.type === 'task'
+                                                ? (movingItem.data as Task).priority
+                                                : getPriorityFromImpact((movingItem.data as StudioMilestone).impact_score)}
+                                        </span>
+                                        <span className="text-black/20">→</span>
+                                        <span className="text-[11px] font-black text-black capitalize">
+                                            {movingItem.type === 'task'
+                                                ? getPriorityFromY(newMovePos.y)
+                                                : getPriorityFromImpact(getImpactFromY(newMovePos.y))}
+                                        </span>
+                                    </div>
+                                </div>
+                                {/* Date Shift */}
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-black/30">Target Date</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-bold line-through text-black/20">
+                                            {(movingItem.type === 'task' ? (movingItem.data as Task).due_date : (movingItem.data as StudioMilestone).target_date)
+                                                ? new Date((movingItem.type === 'task' ? (movingItem.data as Task).due_date : (movingItem.data as StudioMilestone).target_date)!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                                                : 'No Date'}
+                                        </span>
+                                        <span className="text-black/20">→</span>
+                                        <span className="text-[11px] font-black text-black">
+                                            {getTargetDateFromX(newMovePos.x)
+                                                ? new Date(getTargetDateFromX(newMovePos.x)!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                                                : 'No Date'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-3 mt-1">
-                                <button onClick={handleCancelMove} className="h-10 rounded-xl border border-black/[0.08] bg-white text-[13px] font-black text-black/40 hover:bg-black/[0.02] transition-colors uppercase">Cancel</button>
-                                <button onClick={handleConfirmMove} className="h-10 rounded-xl bg-black text-white text-[13px] font-black hover:bg-neutral-800 transition-colors shadow-lg shadow-black/10 uppercase">Confirm</button>
+                                <button
+                                    onClick={handleCancelMove}
+                                    className="h-10 rounded-xl border border-black/[0.08] bg-white text-[13px] font-black text-black/40 hover:bg-black/[0.02] transition-colors uppercase"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleConfirmMove}
+                                    className="h-10 rounded-xl bg-black text-white text-[13px] font-black hover:bg-neutral-800 transition-colors shadow-lg shadow-black/10 uppercase"
+                                >
+                                    Confirm
+                                </button>
                             </div>
                         </motion.div>
                     </div>

@@ -279,10 +279,9 @@ function ItemDot({
             <div
                 ref={dotRef}
                 className={cn(
-                    "w-3 h-3 rounded-full flex-shrink-0 shadow-sm",
+                    "w-3 h-3 rounded-full flex-shrink-0 shadow-sm ring-2 ring-white ring-inset",
                     dotColorClass,
-                    isDragging && "scale-110",
-                    item.type === 'milestone' && "ring-2 ring-white ring-inset"
+                    isDragging && "scale-110"
                 )}
             />
 
@@ -297,8 +296,8 @@ function ItemDot({
                                 data.content_id ? <Video className="w-2.5 h-2.5 opacity-40 shrink-0" /> : <Rocket className="w-2.5 h-2.5 opacity-40 shrink-0" />
                             ) : (
                                 <>
-                                    {data.project_id && <Rocket className="w-3 h-3 text-orange-500 shrink-0" />}
-                                    {data.content_id && <Video className="w-3 h-3 text-blue-500 shrink-0" />}
+                                    {data.project_id && <Rocket className="w-3 h-3 opacity-40 shrink-0" />}
+                                    {data.content_id && <Video className="w-3 h-3 opacity-40 shrink-0" />}
                                 </>
                             )}
                             {data.title}
