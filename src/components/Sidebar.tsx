@@ -553,7 +553,7 @@ export function Sidebar() {
         <>
             {/* ── Desktop sidebar (always visible ≥ md) ─────────────────── */}
             <aside className={cn(
-                "hidden md:flex fixed left-0 top-0 h-full flex-col z-50 bg-white border-r border-black/[0.07] shadow-[1px_0_0_0_rgba(0,0,0,0.04)] transition-[width] duration-300 overflow-hidden",
+                "hidden md:flex fixed left-0 top-0 h-full flex-col z-[200] bg-white border-r border-black/[0.07] shadow-[1px_0_0_0_rgba(0,0,0,0.04)] transition-[width] duration-300 overflow-visible",
                 isCollapsed ? "w-[64px]" : "w-[220px]"
             )}>
                 {/* Logo area */}
@@ -579,7 +579,7 @@ export function Sidebar() {
                 {/* Nav */}
                 {isCollapsed ? (
                     /* Collapsed: icon-only nav with tooltips */
-                    <nav className="flex-1 flex flex-col items-center py-4 gap-0.5 overflow-y-auto">
+                    <nav className="flex-1 flex flex-col items-center py-4 gap-0.5 overflow-y-auto overflow-x-visible hide-scrollbar relative z-50">
                         {orderedTabs.map(label => {
                             const item = navItems.find(i => i.label === label)
                             if (!item) return null
