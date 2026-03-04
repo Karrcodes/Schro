@@ -309,9 +309,19 @@ export function Sidebar() {
         })
     }
 
-    // Close drawer on route change
+    // Close drawer and clean up irrelevant flyouts on route change
     useEffect(() => {
         setMobileOpen(false)
+        // Clean up expanded folders that are not related to the current path
+        setExpandedFolders(prev => {
+            const next = { ...prev }
+            Object.keys(next).forEach(key => {
+                if (!pathname.startsWith(key)) {
+                    delete next[key]
+                }
+            })
+            return next
+        })
     }, [pathname])
 
     const toggleFolder = (href: string, e: React.MouseEvent) => {
