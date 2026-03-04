@@ -369,7 +369,7 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                 style={{ touchAction: 'none' }}
             >
                 <img
-                    src={item.cover_url || `https://loremflickr.com/600/400/${encodeURIComponent(item.title.split(' ')[0])},abstract?lock=${item.id.length}`}
+                    src={item.cover_url || `https://source.unsplash.com/featured/600x400/?${encodeURIComponent(item.title + ',' + item.category)}`}
                     alt={item.title}
                     className={cn(
                         "w-full h-full object-cover transition-transform duration-500 group-hover:scale-110",

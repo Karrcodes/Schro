@@ -172,7 +172,7 @@ export default function StudioDashboard() {
                                     {project.cover_url && (
                                         <div className="h-24 -mx-4 -mt-4 mb-4 overflow-hidden relative">
                                             <img
-                                                src={project.cover_url}
+                                                src={project.cover_url || `https://source.unsplash.com/featured/800x600/?${encodeURIComponent(project.title + ',' + (project.tagline || project.type))}`}
                                                 alt=""
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                             />

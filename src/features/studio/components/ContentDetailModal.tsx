@@ -213,8 +213,8 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                 {/* Cover Banner */}
                 <div className="w-full h-36 relative overflow-hidden flex-shrink-0 bg-black/[0.02]">
                     <img
-                        src={coverSrc || `https://loremflickr.com/1200/400/${encodeURIComponent(item.title.split(' ')[0])},abstract?lock=${item.id.length}`}
-                        alt="cover"
+                        src={coverSrc || `https://source.unsplash.com/featured/1200x400/?${encodeURIComponent(item.title + ',' + item.category)}`}
+                        alt={item.title}
                         className={cn(
                             "w-full h-full object-cover transition-opacity duration-500",
                             !coverSrc && "opacity-40"

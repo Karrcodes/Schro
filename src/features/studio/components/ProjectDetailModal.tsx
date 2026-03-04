@@ -247,7 +247,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                 {/* Visual Header / Cover */}
                 <div className="h-48 w-full overflow-hidden shrink-0 bg-black/[0.02] relative">
                     <img
-                        src={project.cover_url || `https://loremflickr.com/1200/400/${encodeURIComponent(project.title.split(' ')[0])},tech?lock=${project.id.length}`}
+                        src={project.cover_url || `https://source.unsplash.com/featured/1200x400/?${encodeURIComponent(project.title + ',' + (project.tagline || project.type))}`}
                         alt=""
                         className={cn(
                             "w-full h-full object-cover transition-opacity duration-500",
