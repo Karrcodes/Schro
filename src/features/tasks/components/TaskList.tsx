@@ -1540,6 +1540,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 editTask={editTask}
                                 category={category}
                                 setSelectedTaskForModal={setSelectedTaskForModal}
+                                projects={projects}
+                                content={content}
                             />
                         ) : (
                             <MilestoneRow
@@ -1562,6 +1564,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 onToggleSubtask={handleModalToggleSubtask}
                 onToggleComplete={handleModalToggleComplete}
                 onEditTask={editTask}
+                projects={projects}
+                content={content}
             />
 
             {selectedProjectForModal && (
@@ -1584,13 +1588,15 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 }
 
 
-function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelectedTaskForModal }: {
+function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelectedTaskForModal, projects, content }: {
     task: Task,
     toggleTask: any,
     deleteTask: any,
     editTask: any,
     category: string,
-    setSelectedTaskForModal: (task: Task) => void
+    setSelectedTaskForModal: (task: Task) => void,
+    projects: any[],
+    content: any[]
 }) {
     const { activeProfile } = useTasksProfile()
     const strategicCategories = activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES
@@ -1616,6 +1622,11 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
     const [editTravelDuration, setEditTravelDuration] = useState(task.travel_to_duration?.toString() || '0')
     const [editImpact, setEditImpact] = useState(task.impact_score?.toString() || '5')
     const [newChecklistItem, setNewChecklistItem] = useState('')
+    const [editProjectId, setEditProjectId] = useState<string | null>(task.project_id || null)
+    const [editContentId, setEditContentId] = useState<string | null>(task.content_id || null)
+    const [linkType, setLinkType] = useState<'none' | 'project' | 'content'>(
+        task.content_id ? 'content' : task.project_id ? 'project' : 'none'
+    )
 
     // Reset edit states to DB truth whenever editing starts
     useEffect(() => {
@@ -1637,6 +1648,9 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
             setEditDuration(task.estimated_duration?.toString() || '30')
             setEditTravelDuration(task.travel_to_duration?.toString() || '0')
             setEditImpact(task.impact_score?.toString() || '5')
+            setEditProjectId(task.project_id || null)
+            setEditContentId(task.content_id || null)
+            setLinkType(task.content_id ? 'content' : task.project_id ? 'project' : 'none')
         }
     }, [isEditing, task])
 
@@ -1654,7 +1668,9 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
             estimated_duration: parseInt(editDuration),
             travel_to_duration: parseInt(editTravelDuration),
             travel_from_duration: parseInt(editTravelDuration),
-            impact_score: parseInt(editImpact)
+            impact_score: parseInt(editImpact),
+            project_id: editProjectId || null,
+            content_id: editContentId || null
         }
         if (editAmount.trim() !== (task.amount || '')) {
             let val = editAmount.trim()
@@ -2091,17 +2107,64 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 ml-auto mt-2">
-                            <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-black/40 hover:text-black text-[12px] font-bold transition-colors">
-                                Cancel
-                            </button>
-                            <button onClick={handleSave} className="px-4 py-1.5 bg-black text-white text-[12px] font-bold rounded-lg hover:bg-neutral-800 transition-colors shadow-sm">
-                                Save
-                            </button>
+                    </div>
+
+                    {/* Studio Linking in Inline Edit */}
+                    {editProfile === 'business' && (
+                        <div className="flex flex-col gap-2 p-2.5 bg-orange-50/50 border border-orange-100/50 rounded-xl mt-2">
+                            <span className="text-[8px] font-bold text-orange-900/40 uppercase tracking-widest px-1">Studio Linking</span>
+                            <div className="flex gap-2">
+                                <select
+                                    value={linkType}
+                                    onChange={(e) => {
+                                        const val = e.target.value as any
+                                        setLinkType(val)
+                                        if (val === 'none') {
+                                            setEditProjectId(null)
+                                            setEditContentId(null)
+                                        } else if (val === 'project') {
+                                            setEditContentId(null)
+                                        } else {
+                                            setEditProjectId(null)
+                                        }
+                                    }}
+                                    className="h-8 flex-1 bg-white border border-orange-200 rounded-lg px-2 py-1 text-[11px] text-black outline-none focus:border-orange-400 appearance-none cursor-pointer"
+                                >
+                                    <option value="none">None</option>
+                                    <option value="project">Project</option>
+                                    <option value="content">Content</option>
+                                </select>
+                                <select
+                                    disabled={linkType === 'none'}
+                                    value={linkType === 'project' ? (editProjectId || '') : (editContentId || '')}
+                                    onChange={(e) => {
+                                        if (linkType === 'project') setEditProjectId(e.target.value)
+                                        else setEditContentId(e.target.value)
+                                    }}
+                                    className="h-8 flex-[2] bg-white border border-orange-200 rounded-lg px-2 py-1 text-[11px] text-black outline-none focus:border-orange-400 appearance-none cursor-pointer disabled:opacity-50"
+                                >
+                                    <option value="">Select Item...</option>
+                                    {linkType === 'project' ? (
+                                        projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)
+                                    ) : (
+                                        content.map(c => <option key={c.id} value={c.id}>{c.title}</option>)
+                                    )}
+                                </select>
+                            </div>
                         </div>
+                    )}
+
+                    <div className="flex items-center gap-2 ml-auto mt-2">
+                        <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-black/40 hover:text-black text-[12px] font-bold transition-colors">
+                            Cancel
+                        </button>
+                        <button onClick={handleSave} className="px-4 py-1.5 bg-black text-white text-[12px] font-bold rounded-lg hover:bg-neutral-800 transition-colors shadow-sm">
+                            Save
+                        </button>
                     </div>
                 </div>
             </div>
+            </div >
         )
     }
 

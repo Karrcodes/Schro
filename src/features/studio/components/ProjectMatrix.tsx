@@ -329,7 +329,7 @@ function ItemDot({
 
 export default function ProjectMatrix({ searchQuery = '', filterType = null, showArchived = false }: ProjectMatrixProps) {
     const { projects, sparks, content, milestones, updateMilestone, refresh, loading: studioLoading } = useStudio()
-    const { tasks, loading: tasksLoading, editTask, toggleTask } = useTasks('todo')
+    const { tasks, loading: tasksLoading, editTask, toggleTask } = useTasks('todo', 'all')
     const { overrides } = useRota('all')
     const loading = studioLoading || tasksLoading
 
