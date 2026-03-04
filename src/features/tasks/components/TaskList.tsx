@@ -1553,7 +1553,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
     const [editProfile, setEditProfile] = useState(task.profile)
     const [editNotesType, setEditNotesType] = useState<'text' | 'bullets' | 'checklist'>(task.notes?.type || 'text')
     const [editNotesContent, setEditNotesContent] = useState<any>(task.notes?.content || '')
-    const [editStrategicCategory, setEditStrategicCategory] = useState<'personal' | 'finance' | 'health' | 'career' | undefined>(task.strategic_category as any)
+    const [editStrategicCategory, setEditStrategicCategory] = useState<Task['strategic_category']>(task.strategic_category)
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
     const [editDuration, setEditDuration] = useState(task.estimated_duration?.toString() || '30')
     const [editTravelDuration, setEditTravelDuration] = useState(task.travel_to_duration?.toString() || '0')
