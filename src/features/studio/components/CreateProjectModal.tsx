@@ -29,6 +29,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
         gtv_featured: boolean;
         cover_url: string;
         target_date: string;
+        start_date: string;
         priority: 'urgent' | 'high' | 'mid' | 'low';
         impact_score: number;
         strategic_category: string;
@@ -42,6 +43,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
         gtv_featured: false,
         cover_url: '',
         target_date: '',
+        start_date: new Date().toISOString().split('T')[0],
         priority: 'mid',
         impact_score: 5,
         strategic_category: 'rnd'
@@ -81,6 +83,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                 gtv_featured: false,
                 cover_url: '',
                 target_date: '',
+                start_date: new Date().toISOString().split('T')[0],
                 priority: 'mid',
                 impact_score: 5,
                 strategic_category: 'rnd'
@@ -254,30 +257,47 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                             />
                         </div>
 
-                        {/* 5. Target Date */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Overall Target Completion</label>
-                            <div className="relative w-full md:w-1/2 group/targetdate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden cursor-pointer">
-                                <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
-                                <input
-                                    type="date"
-                                    ref={targetDateInputRef}
-                                    value={formData.target_date ? formData.target_date.split('T')[0] : ''}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, target_date: e.target.value }))}
-                                    className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
-                                />
-                                <span className="ml-3 text-[13px] font-bold text-black/40 truncate pointer-events-none">
-                                    {formData.target_date ? new Date(formData.target_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Set target date'}
-                                </span>
-                                {formData.target_date && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData(prev => ({ ...prev, target_date: '' }))}
-                                        className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-30 pointer-events-auto"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
+                        {/* 5. Start & Target Dates */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Project Start Date</label>
+                                <div className="relative group/startdate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden cursor-pointer">
+                                    <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
+                                    <input
+                                        type="date"
+                                        value={formData.start_date}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
+                                    />
+                                    <span className="ml-3 text-[13px] font-bold text-black/40 truncate pointer-events-none">
+                                        {formData.start_date ? new Date(formData.start_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Set start date'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Target Completion</label>
+                                <div className="relative group/targetdate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden cursor-pointer">
+                                    <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
+                                    <input
+                                        type="date"
+                                        ref={targetDateInputRef}
+                                        value={formData.target_date ? formData.target_date.split('T')[0] : ''}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, target_date: e.target.value }))}
+                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
+                                    />
+                                    <span className="ml-3 text-[13px] font-bold text-black/40 truncate pointer-events-none">
+                                        {formData.target_date ? new Date(formData.target_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Set target date'}
+                                    </span>
+                                    {formData.target_date && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, target_date: '' }))}
+                                            className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-30 pointer-events-auto"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

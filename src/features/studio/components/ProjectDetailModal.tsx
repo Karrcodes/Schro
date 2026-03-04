@@ -134,8 +134,10 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                 platforms: project.platforms,
                 cover_url: project.cover_url,
                 target_date: project.target_date,
+                start_date: project.start_date,
                 priority: project.priority,
-                impact_score: project.impact_score
+                impact_score: project.impact_score,
+                gtv_featured: project.gtv_featured
             })
         }
         setIsEditing(!isEditing)
@@ -364,6 +366,21 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
 
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="space-y-2">
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Project Start Date</label>
+                                                        <div className="relative group/startdate h-[46px] flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-xl overflow-hidden">
+                                                            <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
+                                                            <input
+                                                                type="date"
+                                                                value={editedData.start_date ? editedData.start_date.split('T')[0] : (project.start_date ? project.start_date.split('T')[0] : '')}
+                                                                onChange={(e) => setEditedData(prev => ({ ...prev, start_date: e.target.value }))}
+                                                                className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
+                                                            />
+                                                            <span className="ml-3 text-[13px] font-bold text-black/40 truncate pointer-events-none">
+                                                                {(editedData.start_date || project.start_date) ? new Date((editedData.start_date ?? project.start_date!) + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Set start date'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-2">
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Target Date</label>
                                                         <div className="relative group/maindate h-[46px] flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-xl overflow-hidden">
                                                             <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
@@ -387,6 +404,36 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                             )}
                                                         </div>
                                                     </div>
+                                                </div>
+
+                                                <div className="pt-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEditedData(prev => ({ ...prev, gtv_featured: !prev.gtv_featured }))}
+                                                        className={cn(
+                                                            "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all",
+                                                            (editedData.gtv_featured ?? project.gtv_featured)
+                                                                ? "bg-blue-50 border-blue-200 text-blue-700"
+                                                                : "bg-black/[0.02] border-black/[0.05] text-black/40 hover:bg-black/[0.04]"
+                                                        )}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <Shield className={cn("w-5 h-5", (editedData.gtv_featured ?? project.gtv_featured) ? "text-blue-600" : "text-black/20")} />
+                                                            <div className="text-left">
+                                                                <p className="text-[12px] font-black uppercase tracking-widest">GTV Portfolio Evidence</p>
+                                                                <p className="text-[10px] font-medium opacity-60">Highlight this for GTV recognition</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className={cn(
+                                                            "w-10 h-5 rounded-full relative transition-colors",
+                                                            (editedData.gtv_featured ?? project.gtv_featured) ? "bg-blue-600" : "bg-black/10"
+                                                        )}>
+                                                            <div className={cn(
+                                                                "absolute top-1 w-3 h-3 bg-white rounded-full transition-all",
+                                                                (editedData.gtv_featured ?? project.gtv_featured) ? "right-1" : "left-1"
+                                                            )} />
+                                                        </div>
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
