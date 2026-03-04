@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import ProjectKanban from '@/features/studio/components/ProjectKanban'
 import ProjectMatrix from '@/features/studio/components/ProjectMatrix'
-import ProjectTimeline from '@/features/studio/components/ProjectTimeline'
+import ProjectRoadmap from '@/features/studio/components/ProjectRoadmap'
 import CreateProjectModal from '@/features/studio/components/CreateProjectModal'
 import ProjectDetailModal from '@/features/studio/components/ProjectDetailModal'
 import { useStudio } from '@/features/studio/hooks/useStudio'
@@ -115,7 +115,7 @@ export default function ProjectsPage() {
 
                 {view === 'board' && <ProjectKanban searchQuery={searchQuery} filterType={filterType} showArchived={showArchived} />}
                 {view === 'matrix' && <ProjectMatrix searchQuery={searchQuery} filterType={filterType} showArchived={showArchived} />}
-                {view === 'timeline' && <ProjectTimeline onProjectClick={setSelectedProject} searchQuery={searchQuery} filterType={filterType} showArchived={showArchived} />}
+                {view === 'timeline' && <ProjectRoadmap onProjectClick={setSelectedProject} searchQuery={searchQuery} filterType={filterType} showArchived={showArchived} />}
             </div>
 
             <CreateProjectModal

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Sparkles, Briefcase, Target, LayoutDashboard, Shield, Plus, Clock, ExternalLink, ArrowRight, Activity, Award, Zap } from 'lucide-react'
+import { Sparkles, Briefcase, Target, LayoutDashboard, Shield, Plus, Clock, ExternalLink, ArrowRight, Activity, Award, Zap, Video } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -83,7 +83,7 @@ export default function StudioDashboard() {
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {[
                     { label: 'Projects', href: '/create/projects', icon: Briefcase, color: 'text-orange-600', bg: 'bg-orange-500/10' },
-                    { label: 'Content', href: '/create/content', icon: LayoutDashboard, color: 'text-blue-600', bg: 'bg-blue-600/10' },
+                    { label: 'Content', href: '/create/content', icon: Video, color: 'text-blue-600', bg: 'bg-blue-600/10' },
                     { label: 'Sparks', href: '/create/sparks', icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
                     { label: 'Network', href: '/create/network', icon: Activity, color: 'text-purple-600', bg: 'bg-purple-500/10' },
                     { label: 'Press', href: '/create/press', icon: Award, color: 'text-amber-600', bg: 'bg-amber-500/10' },
@@ -314,7 +314,7 @@ export default function StudioDashboard() {
                     <div className="p-5 bg-white border border-black/[0.06] rounded-[32px] space-y-4">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
-                                <LayoutDashboard className="w-5 h-5" />
+                                <Video className="w-5 h-5" />
                             </div>
                             <div>
                                 <h3 className="text-[13px] font-black text-black leading-none">Content Pipeline</h3>

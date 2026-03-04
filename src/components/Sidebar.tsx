@@ -10,7 +10,8 @@ import {
     Shield, ChevronDown, Check, ChevronLeft, ChevronRight,
     TrendingUp, Calendar, CreditCard, PiggyBank,
     Moon, Sun, Laptop, Target, Briefcase, Heart, Gift,
-    LayoutDashboard, EyeOff, Receipt, Lock, ClipboardIcon, Key, Brain, Sparkles, Award
+    LayoutDashboard, EyeOff, Receipt, Lock, ClipboardIcon, Key, Brain, Sparkles, Award,
+    Video
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Reorder } from 'framer-motion'
@@ -59,7 +60,7 @@ const navItems = [
         icon: Sparkles,
         sub: [
             { label: 'Projects', href: '/create/projects', icon: Briefcase },
-            { label: 'Content', href: '/create/content', icon: LayoutDashboard },
+            { label: 'Content', href: '/create/content', icon: Video },
             { label: 'Sparks', href: '/create/sparks', icon: Target },
             { label: 'Network', href: '/create/network', icon: Activity },
             { label: 'Press', href: '/create/press', icon: Award },
