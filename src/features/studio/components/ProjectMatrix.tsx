@@ -269,7 +269,7 @@ function ItemDot({
                         )}
                     </div>
                     {item.type === 'milestone' && (data.content_id || data.project_id) && (
-                        <div className="mt-0">
+                        <div className="mt-[-3px]">
                             <span className="text-[7px] font-bold text-black/30 bg-black/[0.03] border border-black/5 rounded px-1 py-0.5 w-fit">
                                 {data.content_id
                                     ? content.find((c: any) => c.id === data.content_id)?.title || 'Content'
