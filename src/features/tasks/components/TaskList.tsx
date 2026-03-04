@@ -2164,7 +2164,6 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                     </div>
                 </div>
             </div>
-            </div >
         )
     }
 
