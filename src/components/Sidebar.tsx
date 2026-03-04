@@ -9,7 +9,7 @@ import {
     SlidersHorizontal, Menu, X, RefreshCw,
     Shield, ChevronDown, Check, ChevronLeft, ChevronRight,
     TrendingUp, Calendar, CreditCard, PiggyBank,
-    Moon, Sun, Laptop, Target, Briefcase, Heart, Gift,
+    Moon, Sun, Laptop, Target, Briefcase, Heart, Gift, Rocket,
     LayoutDashboard, EyeOff, Receipt, Lock, ClipboardIcon, Key, Brain, Sparkles, Award,
     Video
 } from 'lucide-react'
@@ -59,7 +59,7 @@ const navItems = [
         href: '/create',
         icon: Sparkles,
         sub: [
-            { label: 'Projects', href: '/create/projects', icon: Briefcase },
+            { label: 'Projects', href: '/create/projects', icon: Rocket },
             { label: 'Content', href: '/create/content', icon: Video },
             { label: 'Sparks', href: '/create/sparks', icon: Target },
             { label: 'Network', href: '/create/network', icon: Activity },

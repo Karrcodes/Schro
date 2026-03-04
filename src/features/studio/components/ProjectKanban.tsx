@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Briefcase, Shield, Clock, MoreVertical, Trash2, CheckCircle2, Zap } from 'lucide-react'
+import { Rocket, Shield, Clock, MoreVertical, Trash2, CheckCircle2, Zap } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import type { StudioProject, ProjectStatus, StudioMilestone, ProjectKanbanProps } from '../types/studio.types'
 import { cn } from '@/lib/utils'
@@ -157,7 +157,7 @@ export default function ProjectKanban({ searchQuery = '', filterType = null, sho
                                     </div>
                                 ) : columnProjects.length === 0 ? (
                                     <div className="py-12 flex flex-col items-center justify-center text-center px-4 opacity-10">
-                                        <Briefcase className="w-8 h-8 mb-2" />
+                                        <Rocket className="w-8 h-8 mb-2" />
                                         <p className="text-[11px] font-bold uppercase tracking-widest">Empty</p>
                                     </div>
                                 ) : (

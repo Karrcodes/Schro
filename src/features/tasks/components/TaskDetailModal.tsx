@@ -45,11 +45,26 @@ export function TaskDetailModal({ task, isOpen, onClose, onToggleSubtask, onTogg
     React.useEffect(() => {
         if (task && isOpen) {
             setEditTitle(task.title)
-            setEditPriority(task.priority || 'mid')
-            setEditStrategicCategory(task.strategic_category || 'personal')
+
+            let initialPriority = task.priority || 'mid'
+            let initialCategory = task.strategic_category || 'personal'
+            let initialImpact = task.impact_score?.toString() || '5'
+
+            // Apply business defaults for unlinked tasks
+            if (task.profile === 'business' && !task.project_id && !task.content_id) {
+                if (!task.strategic_category || task.strategic_category === 'rnd') { // rnd was the old default, if it's general now let's check
+                    // Actually, if it's NOT linked, it should definitely be 'general' if it's empty
+                    if (!task.strategic_category) initialCategory = 'general'
+                }
+                if (task.priority === 'low' || !task.priority) initialPriority = 'mid'
+                if (!task.impact_score || task.impact_score === 5) initialImpact = '2'
+            }
+
+            setEditPriority(initialPriority)
+            setEditStrategicCategory(initialCategory)
             setEditDuration(task.estimated_duration?.toString() || '30')
             setEditTravelDuration(task.travel_to_duration?.toString() || '0')
-            setEditImpact(task.impact_score?.toString() || '5')
+            setEditImpact(initialImpact)
             setEditStartTime(task.start_time || '')
             setEditLocation(task.location || '')
             setEditOriginLocation(task.origin_location || '')
@@ -71,6 +86,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onToggleSubtask, onTogg
         { id: 'production', label: 'Production' },
         { id: 'media', label: 'Media' },
         { id: 'growth', label: 'Growth' },
+        { id: 'general', label: 'General' },
     ] : [
         { id: 'finance', label: 'Finance' },
         { id: 'career', label: 'Career' },

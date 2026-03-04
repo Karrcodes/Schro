@@ -33,7 +33,9 @@ import {
     LayoutGrid,
     Settings2,
     Car,
-    MapPin
+    MapPin,
+    Rocket,
+    Video
 } from 'lucide-react'
 import { useTasksProfile } from '../contexts/TasksProfileContext'
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion'
@@ -69,6 +71,7 @@ const BUSINESS_CATEGORIES = [
     { id: 'production', label: 'Production', icon: Factory, color: 'text-orange-600 bg-orange-50 border-orange-100' },
     { id: 'media', label: 'Media', icon: Tv, color: 'text-rose-600 bg-rose-50 border-rose-100' },
     { id: 'growth', label: 'Growth', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+    { id: 'general', label: 'General', icon: Briefcase, color: 'text-neutral-600 bg-neutral-50 border-neutral-100' },
 ] as const
 
 export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminder' }) {
@@ -116,6 +119,9 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [newCreateChecklistItem, setNewCreateChecklistItem] = useState('')
     const [selectedStrategicCategory, setSelectedStrategicCategory] = useState<'all' | string>('all')
     const [newStrategicCategory, setNewStrategicCategory] = useState<string | undefined>(undefined)
+    const [linkType, setLinkType] = useState<'none' | 'project' | 'content'>('none')
+    const [newProjectId, setNewProjectId] = useState<string | undefined>(undefined)
+    const [newContentId, setNewContentId] = useState<string | undefined>(undefined)
     const [estimatedDuration, setEstimatedDuration] = useState('30')
     const [travelDuration, setTravelDuration] = useState('15')
     const [impactScore, setImpactScore] = useState('5')
@@ -426,9 +432,20 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 finalAmount = `x${finalAmount}`
             }
 
+            // Default logic for unlinked business tasks
+            let finalCategory = newStrategicCategory
+            let finalPriority = priority
+            let finalImpact = impactScore ? parseInt(impactScore) : undefined
+
+            if (activeProfile === 'business' && linkType === 'none') {
+                if (!finalCategory) finalCategory = 'general'
+                if (finalPriority === 'low') finalPriority = 'mid' // default to mid if not changed from low
+                if (!impactScore || impactScore === '5') finalImpact = 2 // default to 2 if not changed
+            }
+
             await createTask({
                 title: finalTitle,
-                priority,
+                priority: finalPriority,
                 due_date: dueDateMode !== 'none' && dueDateMode !== 'recurring' ? dueDate || undefined : undefined,
                 amount: (category as string) === 'grocery' ? finalAmount : undefined,
                 due_date_mode: dueDateMode !== 'none' && dueDateMode !== 'recurring' ? (dueDateMode as 'on' | 'before' | 'range') : undefined,
@@ -440,14 +457,16 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                     days_of_week: recurringType === 'custom' ? recurringDays : undefined
                 } : null,
                 notes: showCreateNotes ? { type: createNotesType, content: createNotesContent } : undefined,
-                strategic_category: newStrategicCategory as any,
+                strategic_category: finalCategory as any,
                 estimated_duration: estimatedDuration ? parseInt(estimatedDuration) : undefined,
-                impact_score: impactScore ? parseInt(impactScore) : undefined,
+                impact_score: finalImpact,
                 travel_to_duration: parseInt(travelDuration),
                 travel_from_duration: parseInt(travelDuration),
                 start_time: isAppointment ? appointmentTime : undefined,
                 location: isLocationActive ? destination : undefined,
-                origin_location: isLocationActive ? startFrom : undefined
+                origin_location: isLocationActive ? startFrom : undefined,
+                project_id: linkType === 'project' ? newProjectId : undefined,
+                content_id: linkType === 'content' ? newContentId : undefined
             })
             setNewTask('')
             setAmount('1')
@@ -467,6 +486,9 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             setCreateNotesContent('')
             setCreateNotesType('text')
             setNewStrategicCategory(undefined)
+            setLinkType('none')
+            setNewProjectId(undefined)
+            setNewContentId(undefined)
         } catch (err: any) {
             console.error('Operation creation failed:', err)
             alert(err.message || 'Failed to create operation. Please check your connection.')
@@ -1086,27 +1108,62 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                         ))}
                                     </select>
                                 </div>
+                                <div className="flex gap-4 mt-2">
+                                    <div className="flex-1 flex flex-col gap-1.5">
+                                        <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
+                                            <Zap className="w-3 h-3" /> Impact (1-10)
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="10"
+                                                value={impactScore}
+                                                onChange={(e) => setImpactScore(e.target.value)}
+                                                className="flex-1 accent-black h-1 bg-black/10 rounded-lg appearance-none cursor-pointer mt-2"
+                                            />
+                                            <span className="text-[11px] font-black text-black w-4 text-center">{impactScore}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Studio Linking Row */}
+                                {activeProfile === 'business' && (
+                                    <div className="flex flex-col gap-2 mt-2 pt-4 border-t border-black/[0.05]">
+                                        <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
+                                            <Rocket className="w-3 h-3 text-orange-500" /> Studio Linking
+                                        </span>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <select
+                                                value={linkType}
+                                                onChange={(e) => setLinkType(e.target.value as any)}
+                                                className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 py-2 text-[12px] text-black outline-none focus:border-black/40 transition-colors appearance-none cursor-pointer"
+                                            >
+                                                <option value="none">General Task</option>
+                                                <option value="project">Project Linked</option>
+                                                <option value="content">Content Linked</option>
+                                            </select>
+                                            <select
+                                                disabled={linkType === 'none'}
+                                                value={linkType === 'project' ? (newProjectId || '') : linkType === 'content' ? (newContentId || '') : ''}
+                                                onChange={(e) => {
+                                                    if (linkType === 'project') setNewProjectId(e.target.value)
+                                                    else setNewContentId(e.target.value)
+                                                }}
+                                                className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 py-2 text-[12px] text-black outline-none focus:border-black/40 transition-colors appearance-none cursor-pointer disabled:opacity-30"
+                                            >
+                                                <option value="">Select Item...</option>
+                                                {linkType === 'project' ? (
+                                                    projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)
+                                                ) : linkType === 'content' ? (
+                                                    content.map(c => <option key={c.id} value={c.id}>{c.title}</option>)
+                                                ) : null}
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
-
-                        <div className="flex gap-4 mt-2">
-                            <div className="flex-1 flex flex-col gap-1.5">
-                                <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
-                                    <Zap className="w-3 h-3" /> Impact (1-10)
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="10"
-                                        value={impactScore}
-                                        onChange={(e) => setImpactScore(e.target.value)}
-                                        className="flex-1 accent-black h-1 bg-black/10 rounded-lg appearance-none cursor-pointer mt-2"
-                                    />
-                                    <span className="text-[11px] font-black text-black w-4 text-center">{impactScore}</span>
-                                </div>
-                            </div>
-                        </div>
 
                         {/* Toggles: Appointment & Location */}
                         <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-black/[0.05]">

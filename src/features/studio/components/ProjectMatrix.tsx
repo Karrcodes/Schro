@@ -8,7 +8,7 @@ import type { StudioMilestone, ProjectMatrixProps, StudioProject, StudioContent 
 import { useTasks } from '@/features/tasks/hooks/useTasks'
 import type { Task } from '@/features/tasks/types/tasks.types'
 import { TaskDetailModal } from '@/features/tasks/components/TaskDetailModal'
-import { RefreshCw, Beaker, Factory, Tv, TrendingUp, Zap, Clock, Edit2, Calendar, Check, X, ArrowRight, Briefcase, Video } from 'lucide-react'
+import { RefreshCw, Beaker, Factory, Tv, TrendingUp, Zap, Clock, Edit2, Calendar, Check, X, ArrowRight, Rocket, Video } from 'lucide-react'
 import ProjectDetailModal from './ProjectDetailModal'
 import ContentDetailModal from './ContentDetailModal'
 import { useRota } from '@/features/finance/hooks/useRota'
@@ -251,7 +251,7 @@ function ItemDot({
                             data.impact_score && data.impact_score >= 8 && "font-black text-[11px]"
                         )}>
                             {item.type === 'milestone' && (
-                                data.content_id ? <Video className="w-2.5 h-2.5 opacity-40" /> : <Briefcase className="w-2.5 h-2.5 opacity-40" />
+                                data.content_id ? <Video className="w-2.5 h-2.5 opacity-40" /> : <Rocket className="w-2.5 h-2.5 opacity-40" />
                             )}
                             {data.title}
                         </span>

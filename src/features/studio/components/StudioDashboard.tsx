@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Sparkles, Briefcase, Target, LayoutDashboard, Shield, Plus, Clock, ExternalLink, ArrowRight, Activity, Award, Zap, Video } from 'lucide-react'
+import { Sparkles, Briefcase, Target, LayoutDashboard, Shield, Plus, Clock, ExternalLink, ArrowRight, Activity, Award, Zap, Video, Rocket } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -82,7 +82,7 @@ export default function StudioDashboard() {
             {/* Subpage Quick Actions */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {[
-                    { label: 'Projects', href: '/create/projects', icon: Briefcase, color: 'text-orange-600', bg: 'bg-orange-500/10' },
+                    { label: 'Projects', href: '/create/projects', icon: Rocket, color: 'text-orange-600', bg: 'bg-orange-500/10' },
                     { label: 'Content', href: '/create/content', icon: Video, color: 'text-blue-600', bg: 'bg-blue-600/10' },
                     { label: 'Sparks', href: '/create/sparks', icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
                     { label: 'Network', href: '/create/network', icon: Activity, color: 'text-purple-600', bg: 'bg-purple-500/10' },
@@ -118,7 +118,7 @@ export default function StudioDashboard() {
                                     activeTab === 'active' ? "text-black opacity-100 scale-105" : "text-black/30 hover:text-black/60 opacity-50"
                                 )}
                             >
-                                <Briefcase className={cn("w-4 h-4", activeTab === 'active' ? "text-orange-500" : "text-black/20")} />
+                                <Rocket className={cn("w-4 h-4", activeTab === 'active' ? "text-orange-500" : "text-black/20")} />
                                 Active Pipeline
                             </button>
                             <button

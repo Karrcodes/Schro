@@ -4,7 +4,7 @@ export interface Task {
     title: string
     is_completed: boolean
     category: 'todo' | 'grocery' | 'reminder'
-    strategic_category?: 'finance' | 'career' | 'health' | 'personal' | 'rnd' | 'production' | 'media' | 'growth'
+    strategic_category?: 'finance' | 'career' | 'health' | 'personal' | 'rnd' | 'production' | 'media' | 'growth' | 'general'
     priority: 'urgent' | 'high' | 'mid' | 'low'
     amount?: string
     due_date?: string
@@ -91,7 +91,7 @@ export interface TaskTemplate {
     title: string
     category: 'todo' | 'grocery' | 'reminder'
     priority: 'urgent' | 'high' | 'mid' | 'low'
-    strategic_category?: 'finance' | 'career' | 'health' | 'personal' | 'rnd' | 'production' | 'media' | 'growth'
+    strategic_category?: 'finance' | 'career' | 'health' | 'personal' | 'rnd' | 'production' | 'media' | 'growth' | 'general'
     amount?: string
     due_date_mode?: 'on' | 'before' | 'range'
     content_id?: string

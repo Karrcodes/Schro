@@ -6,7 +6,7 @@ import { useTasks } from '../hooks/useTasks'
 import { cn } from '@/lib/utils'
 import type { Task } from '../types/tasks.types'
 import { useTasksProfile } from '../contexts/TasksProfileContext'
-import { Sparkles, RefreshCw, Wallet, Briefcase, Heart, User, Check, X, Beaker, Factory, Tv, TrendingUp, Zap, Clock, Edit2, Calendar, Car } from 'lucide-react'
+import { Sparkles, RefreshCw, Wallet, Briefcase, Heart, User, Check, X, Beaker, Factory, Tv, TrendingUp, Zap, Clock, Edit2, Calendar, Car, Rocket, Video } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { TaskDetailModal } from './TaskDetailModal'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
@@ -36,6 +36,7 @@ const BUSINESS_CATEGORIES = [
     { id: 'production', label: 'Production', icon: Factory, color: 'text-orange-600 bg-orange-50 border-orange-100', dotBgColor: 'bg-orange-500 shadow-orange-500/40' },
     { id: 'media', label: 'Media', icon: Tv, color: 'text-rose-600 bg-rose-50 border-rose-100', dotBgColor: 'bg-rose-500 shadow-rose-500/40' },
     { id: 'growth', label: 'Growth', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100', dotBgColor: 'bg-emerald-500 shadow-emerald-500/40' },
+    { id: 'general', label: 'General', icon: Zap, color: 'text-neutral-600 bg-neutral-50 border-neutral-200', dotBgColor: 'bg-neutral-500 shadow-neutral-500/40' },
 ] as const
 
 const ALL_CATEGORIES = [...PERSONAL_CATEGORIES, ...BUSINESS_CATEGORIES] as const
@@ -284,6 +285,8 @@ function ItemDot({
             {finalPosition.density !== 'minimal' && (
                 <div className="flex flex-col items-start ml-2.5 overflow-hidden">
                     <div className="flex items-center gap-1.5">
+                        {item.type === 'task' && data.project_id && <Rocket className="w-3 h-3 text-orange-500 shrink-0" />}
+                        {item.type === 'task' && data.content_id && <Video className="w-3 h-3 text-blue-500 shrink-0" />}
                         <span className={cn(
                             "text-[10px] font-semibold tracking-tight leading-none whitespace-nowrap text-black/80",
                             data.impact_score && data.impact_score >= 8 && "font-black text-[11px]"
@@ -1096,6 +1099,8 @@ export function TasksMatrix() {
                 task={selectedTaskForModal}
                 isOpen={!!selectedTaskForModal}
                 onClose={() => setSelectedTaskForModal(null)}
+                projects={projects}
+                content={content}
                 onToggleComplete={async (taskId, completed) => {
                     await toggleTask(taskId, completed)
                     if (selectedTaskForModal?.id === taskId) {

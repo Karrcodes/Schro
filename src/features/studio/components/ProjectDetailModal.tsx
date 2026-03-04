@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react'
 import {
     X,
     AlignLeft,
-    Briefcase,
+    Rocket,
     Calendar,
     CheckCircle2,
     ChevronDown,
@@ -23,7 +23,6 @@ import {
     MapPin,
     Navigation,
     Plus,
-    Rocket,
     Save,
     Shield,
     Target,
@@ -264,7 +263,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                 <div className="flex items-center justify-between p-6 border-b border-black/[0.05]">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center">
-                            <Briefcase className="w-5 h-5 text-orange-600" />
+                            <Rocket className="w-5 h-5 text-orange-600" />
                         </div>
                         <div>
                             <h2 className="text-lg font-black text-black leading-none">Project Details</h2>
