@@ -176,6 +176,7 @@ export function Sidebar() {
     if (pathname === '/home') return null
     const [mobileOpen, setMobileOpen] = useState(false)
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
+    const [isRefreshing, setIsRefreshing] = useState(false)
     const { isPrivacyEnabled } = useFinanceProfile()
     const { isVaultPrivate } = useVault()
 
@@ -584,7 +585,7 @@ export function Sidebar() {
                             if (!item) return null
                             const Icon = item.icon
                             const isActive = !('disabled' in item && item.disabled) && pathname.startsWith(item.href)
-                            const isExpanded = expandedFolders.includes(item.label)
+                            const isExpanded = !!expandedFolders[item.label]
 
                             return (
                                 <div key={item.label} className="w-full flex justify-center flex-col items-center gap-1 mb-1">
@@ -593,11 +594,9 @@ export function Sidebar() {
                                         <Link
                                             href={item.href}
                                             onClick={() => {
-                                                if (item.subItems) {
+                                                if ('sub' in item && item.sub) {
                                                     setExpandedFolders(prev => {
-                                                        const next = prev.includes(item.label)
-                                                            ? prev.filter(l => l !== item.label)
-                                                            : [...prev, item.label]
+                                                        const next = { ...prev, [item.label]: !prev[item.label] }
                                                         localStorage.setItem('schro_sidebar_expanded', JSON.stringify(next))
                                                         return next
                                                     })
@@ -608,7 +607,6 @@ export function Sidebar() {
                                                 isActive ? 'bg-black/10 text-black shadow-sm' : 'text-black/35 hover:text-black/80 hover:bg-black/[0.04]'
                                             )}
                                         >
-
                                             <Icon className="w-4.5 h-4.5" />
                                         </Link>
                                         <div className="pointer-events-none absolute left-full ml-2 px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-[200] shadow-xl">
@@ -617,9 +615,9 @@ export function Sidebar() {
                                     </div>
 
                                     {/* Sub-items drop-down */}
-                                    {item.subItems && isExpanded && (
+                                    {'sub' in item && item.sub && isExpanded && (
                                         <div className="flex flex-col gap-1 items-center mt-0.5 mb-1 animate-in slide-in-from-top-2 fade-in duration-200">
-                                            {item.subItems.map(subItem => {
+                                            {item.sub.map(subItem => {
                                                 const SubIcon = subItem.icon || ((props: any) => <div className={cn("w-1.5 h-1.5 rounded-full bg-current", props.className)} />)
                                                 const isSubActive = pathname === subItem.href
                                                 return (
