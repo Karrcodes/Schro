@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Clock, Circle, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Clock, Circle, CheckCircle2, ArrowRight, Zap, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { StudioProject, StudioMilestone, ProjectTimelineProps } from '../types/studio.types'
 import { useStudio } from '../hooks/useStudio'
@@ -30,8 +30,9 @@ export default function ProjectRoadmap({
             const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 p.tagline?.toLowerCase().includes(searchQuery.toLowerCase())
             const matchesType = !filterType || p.type === filterType
+            const statusMatch = ['research', 'active', 'shipped'].includes(p.status)
             const archiveMatch = showArchived ? p.is_archived : !p.is_archived
-            return matchesSearch && matchesType && archiveMatch
+            return matchesSearch && matchesType && statusMatch && archiveMatch
         })
     }, [projects, searchQuery, filterType, showArchived])
 
@@ -84,6 +85,7 @@ export default function ProjectRoadmap({
     const calcPos = (project: StudioProject) => {
         const s = new Date(project.created_at)
         const e = project.target_date ? new Date(project.target_date) : new Date(roadmapRange.end)
+
         const sd = (s.getTime() - roadmapRange.start.getTime()) / 86_400_000
         const ed = (e.getTime() - roadmapRange.start.getTime()) / 86_400_000
         const left = Math.max(0, (sd / roadmapRange.totalDays) * 100)
@@ -106,9 +108,20 @@ export default function ProjectRoadmap({
                             className="group px-3 md:px-4 flex flex-col justify-center text-left hover:bg-black/[0.02] transition-colors overflow-hidden border-b border-black/[0.03] shrink-0"
                             style={{ height: ROW_HEIGHT }}
                         >
-                            <h4 className="text-[11px] md:text-[12px] font-bold text-black truncate group-hover:text-blue-600 transition-colors uppercase tracking-tight leading-snug">
-                                {project.title}
-                            </h4>
+                            <div className="flex items-center justify-between gap-2 overflow-hidden">
+                                <h4 className="text-[11px] md:text-[12px] font-bold text-black truncate group-hover:text-blue-600 transition-colors uppercase tracking-tight leading-snug flex-1">
+                                    {project.title}
+                                </h4>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    {project.gtv_featured && <Shield className="w-2.5 h-2.5 text-blue-500" />}
+                                    {project.impact_score && (
+                                        <div className="flex items-center gap-0.5">
+                                            <Zap className="w-2.5 h-2.5 text-orange-500 fill-orange-500" />
+                                            <span className="text-[9px] font-bold text-orange-600">{project.impact_score}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                             <div className="flex items-center gap-1.5 mt-1">
                                 <span className={cn(
                                     "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest",
@@ -119,8 +132,15 @@ export default function ProjectRoadmap({
                                 )}>
                                     {project.type || 'Other'}
                                 </span>
-                                {project.priority === 'urgent' && (
-                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                                {project.priority && (
+                                    <span className={cn(
+                                        "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest",
+                                        project.priority === 'urgent' ? "bg-purple-100 text-purple-700 animate-pulse" :
+                                            project.priority === 'high' ? "bg-orange-100 text-orange-700" :
+                                                "bg-black/5 text-black/40"
+                                    )}>
+                                        {project.priority}
+                                    </span>
                                 )}
                             </div>
                         </button>
@@ -199,7 +219,7 @@ export default function ProjectRoadmap({
                                     initial={{ opacity: 0, scaleX: 0 }}
                                     animate={{ opacity: 1, scaleX: 1 }}
                                     transition={{ duration: 0.4, ease: 'easeOut' }}
-                                    className="absolute h-7 rounded-full border border-black/10 shadow-sm flex items-center px-3 overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
+                                    className="absolute h-8 rounded-full border border-black/10 shadow-sm flex items-center px-4 overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
                                     style={{
                                         left: pos.left,
                                         width: pos.width,
@@ -212,23 +232,39 @@ export default function ProjectRoadmap({
                                         className="absolute inset-y-0 left-0 bg-black/[0.06] rounded-full"
                                         style={{ width: `${progress}%` }}
                                     />
-                                    <div className="relative z-10 flex items-center justify-between w-full gap-2">
-                                        <span className="text-[10px] font-bold uppercase tracking-tight truncate text-black/60 group-hover:text-blue-600 transition-colors">
-                                            {project.title}
-                                        </span>
-                                        <div className="flex items-center gap-0.5 shrink-0">
-                                            {projectMilestones.slice(0, 4).map(m => (
-                                                <div key={m.id} title={m.title}>
-                                                    {m.status === 'completed'
-                                                        ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
-                                                        : <Circle className="w-2.5 h-2.5 text-black/10" />
-                                                    }
-                                                </div>
-                                            ))}
-                                            {projectMilestones.length > 4 && (
-                                                <span className="text-[8px] font-bold text-black/20 ml-0.5">+{projectMilestones.length - 4}</span>
+                                    <div className="relative z-10 flex items-center justify-between w-full gap-4">
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-[10px] font-black uppercase tracking-tight truncate text-black group-hover:text-blue-600 transition-colors">
+                                                {project.title}
+                                            </span>
+                                            {project.target_date && (
+                                                <span className="text-[8px] font-bold text-black/40 uppercase tracking-tighter">
+                                                    Due {new Date(project.target_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                                </span>
                                             )}
-                                            <ArrowRight className="w-2.5 h-2.5 text-black/0 group-hover:text-black/20 transition-all ml-1" />
+                                        </div>
+
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {project.impact_score && (
+                                                <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                    <Zap className="w-2.5 h-2.5 text-orange-500 fill-orange-500" />
+                                                    <span className="text-[9px] font-black text-orange-600">{project.impact_score}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-0.5">
+                                                {projectMilestones.slice(0, 3).map(m => (
+                                                    <div key={m.id} title={m.title}>
+                                                        {m.status === 'completed'
+                                                            ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+                                                            : <Circle className="w-2.5 h-2.5 text-black/10" />
+                                                        }
+                                                    </div>
+                                                ))}
+                                                {projectMilestones.length > 3 && (
+                                                    <span className="text-[8px] font-bold text-black/20 ml-0.5">+{projectMilestones.length - 3}</span>
+                                                )}
+                                                <ArrowRight className="w-2.5 h-2.5 text-black/0 group-hover:text-black/20 transition-all ml-1" />
+                                            </div>
                                         </div>
                                     </div>
                                 </motion.div>
