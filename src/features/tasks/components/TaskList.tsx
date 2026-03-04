@@ -79,13 +79,25 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const strategicCategories = activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES
 
     const { tasks, loading: tasksLoading, createTask, toggleTask, deleteTask, clearAllTasks, clearCompletedTasks, editTask, updateTaskPositions } = useTasks(category)
-    const { milestones, projects, content, loading: studioLoading } = useStudio()
+    const { milestones, projects, content, updateMilestone, loading: studioLoading } = useStudio()
     const loading = tasksLoading || studioLoading
 
     const pendingData = useMemo(() => {
         const pTasks = tasks.filter(t => !t.is_completed)
         const pMilestones = category === 'todo' && activeProfile === 'business'
-            ? milestones.filter(m => m.status !== 'completed' && !m.is_archived)
+            ? milestones.filter(m => {
+                if (m.status === 'completed') return false
+                // Filter out if parent is archived
+                if (m.project_id) {
+                    const parent = projects.find(p => p.id === m.project_id)
+                    if (!parent || parent.is_archived) return false
+                }
+                if (m.content_id) {
+                    const parent = content.find(c => c.id === m.content_id)
+                    if (!parent || parent.is_archived) return false
+                }
+                return true
+            })
             : []
         return {
             tasks: pTasks,
