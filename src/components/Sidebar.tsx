@@ -110,6 +110,7 @@ function SidebarFooter({ pathname }: { pathname: string }) {
 
 function ProfileMenu() {
     const [isOpen, setIsOpen] = useState(false)
+    const [isRefreshing, setIsRefreshing] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -153,11 +154,15 @@ function ProfileMenu() {
                     </div>
                 </button>
                 <button
-                    onClick={() => window.location.reload()}
+                    onClick={() => {
+                        setIsRefreshing(true)
+                        window.location.reload()
+                    }}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-black/35 hover:text-black/80 hover:bg-black/[0.05] transition-colors shrink-0"
                     title="Refresh App"
+                    disabled={isRefreshing}
                 >
-                    <RefreshCw className="w-4 h-4" />
+                    <RefreshCw className={cn("w-4 h-4 transition-transform", isRefreshing && "animate-spin")} />
                 </button>
             </div>
         </div>
@@ -547,11 +552,13 @@ export function Sidebar() {
                         <Menu className="w-5 h-5 text-black/60" />
                     </button>
                     <button
-                        onClick={() => window.location.reload()}
-                        className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-black/[0.05] transition-colors"
+                        onClick={() => {
+                            window.location.reload()
+                        }}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-black/[0.05] transition-colors group"
                         title="Refresh App"
                     >
-                        <RefreshCw className="w-5 h-5 text-black/60" />
+                        <RefreshCw className="w-5 h-5 text-black/60 group-active:animate-spin" />
                     </button>
                 </div>
 
