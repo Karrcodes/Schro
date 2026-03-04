@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
     X,
     AlignLeft,
@@ -62,6 +62,8 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
     const [showPromoteConfirm, setShowPromoteConfirm] = useState(false)
     const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
     const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null)
+    const targetDateInputRef = useRef<HTMLInputElement>(null)
+    const newMilestoneDateRef = useRef<HTMLInputElement>(null)
     const { createGoal } = useGoals()
 
     const { settings } = useSystemSettings()
@@ -363,21 +365,22 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="space-y-2">
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Target Date</label>
-                                                        <div className="relative group/maindate h-[46px] flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-xl overflow-hidden">
+                                                        <div className="relative group/maindate h-[46px] flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-xl overflow-hidden cursor-pointer"
+                                                            onClick={() => targetDateInputRef.current?.showPicker()}>
                                                             <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
                                                             <input
                                                                 type="date"
+                                                                ref={targetDateInputRef}
                                                                 value={editedData.target_date ? editedData.target_date.split('T')[0] : (project.target_date ? project.target_date.split('T')[0] : '')}
-                                                                onChange={(e) => setEditedData(prev => ({ ...prev, target_date: e.target.value || undefined }))}
-                                                                onClick={(e) => (e.target as any).showPicker?.()}
-                                                                className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
+                                                                onChange={(e) => setEditedData(prev => ({ ...prev, target_date: e.target.value || null }))}
+                                                                className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none"
                                                             />
                                                             <span className="ml-3 text-[13px] font-bold text-black/40 truncate pointer-events-none">
                                                                 {(editedData.target_date || project.target_date) ? new Date((editedData.target_date ?? project.target_date!) + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Set target date'}
                                                             </span>
                                                             {(editedData.target_date || project.target_date) && (
                                                                 <button
-                                                                    onClick={(e) => { e.stopPropagation(); setEditedData(prev => ({ ...prev, target_date: undefined })) }}
+                                                                    onClick={(e) => { e.stopPropagation(); setEditedData(prev => ({ ...prev, target_date: null })) }}
                                                                     className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-20"
                                                                 >
                                                                     <X className="w-4 h-4" />
@@ -538,21 +541,21 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                 />
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/[0.03] border border-black/[0.05] rounded-lg group/date relative min-w-0 flex-1 h-7 overflow-hidden">
+                                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/[0.03] border border-black/[0.05] rounded-lg group/date relative min-w-0 flex-1 h-7 overflow-hidden cursor-pointer"
+                                                    onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}>
                                                     <Calendar className="w-2.5 h-2.5 text-black/10 shrink-0 pointer-events-none" />
                                                     <input
                                                         type="date"
                                                         value={m.target_date ? m.target_date.split('T')[0] : ''}
-                                                        onChange={(e) => updateMilestone(m.id, { target_date: e.target.value || undefined })}
-                                                        onClick={(e) => (e.target as any).showPicker?.()}
-                                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
+                                                        onChange={(e) => updateMilestone(m.id, { target_date: e.target.value || null })}
+                                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none"
                                                     />
                                                     <span className="text-[10px] font-bold text-black/40 truncate pointer-events-none">
                                                         {m.target_date ? new Date(m.target_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Set date'}
                                                     </span>
                                                     {m.target_date && (
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); updateMilestone(m.id, { target_date: undefined }) }}
+                                                            onClick={(e) => { e.stopPropagation(); updateMilestone(m.id, { target_date: null }) }}
                                                             className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-20"
                                                         >
                                                             <X className="w-2.5 h-2.5" />
@@ -616,14 +619,15 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                 </div>
                                 <div className="flex items-center justify-between gap-4 pl-8">
                                     <div className="flex flex-wrap items-center gap-3">
-                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-orange-100 rounded-lg group/adddate relative min-w-0 flex-1 h-8 overflow-hidden">
+                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-orange-100 rounded-lg group/adddate relative min-w-0 flex-1 h-8 overflow-hidden cursor-pointer"
+                                            onClick={() => newMilestoneDateRef.current?.showPicker()}>
                                             <Calendar className="w-3 h-3 text-orange-300 shrink-0 pointer-events-none" />
                                             <input
                                                 type="date"
+                                                ref={newMilestoneDateRef}
                                                 value={newMilestoneDate}
                                                 onChange={(e) => setNewMilestoneDate(e.target.value)}
-                                                onClick={(e) => (e.target as any).showPicker?.()}
-                                                className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
+                                                className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none"
                                             />
                                             <span className="text-[11px] font-bold text-orange-600 truncate pointer-events-none">
                                                 {newMilestoneDate ? new Date(newMilestoneDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Deadline'}

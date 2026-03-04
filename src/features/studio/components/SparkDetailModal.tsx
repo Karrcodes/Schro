@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
     X,
     ExternalLink,
@@ -62,6 +62,8 @@ export default function SparkDetailModal({ isOpen, onClose, spark, projects }: S
             setImgError(false)
         }
     }, [spark])
+
+    const milestoneDateInputRef = useRef<HTMLInputElement>(null)
 
     if (!isOpen || !spark) return null
 
@@ -283,21 +285,21 @@ export default function SparkDetailModal({ isOpen, onClose, spark, projects }: S
                                                 />
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-black/[0.03] border border-black/[0.05] rounded-lg group/stdate relative min-w-0 flex-1 h-7 overflow-hidden">
+                                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-black/[0.03] border border-black/[0.05] rounded-lg group/stdate relative min-w-0 flex-1 h-7 overflow-hidden cursor-pointer"
+                                                    onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}>
                                                     <Calendar className="w-2.5 h-2.5 text-black/10 shrink-0 pointer-events-none" />
                                                     <input
                                                         type="date"
                                                         value={m.target_date ? m.target_date.split('T')[0] : ''}
-                                                        onChange={(e) => updateMilestone(m.id, { target_date: e.target.value || undefined })}
-                                                        onClick={(e) => (e.target as any).showPicker?.()}
-                                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
+                                                        onChange={(e) => updateMilestone(m.id, { target_date: e.target.value || null })}
+                                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none"
                                                     />
                                                     <span className="text-[10px] font-bold text-black/40 truncate pointer-events-none">
                                                         {m.target_date ? new Date(m.target_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Set date'}
                                                     </span>
                                                     {m.target_date && (
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); updateMilestone(m.id, { target_date: undefined }) }}
+                                                            onClick={(e) => { e.stopPropagation(); updateMilestone(m.id, { target_date: null }) }}
                                                             className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-30 pointer-events-auto"
                                                         >
                                                             <X className="w-2.5 h-2.5" />

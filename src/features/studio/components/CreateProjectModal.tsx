@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Plus, X, Briefcase, Globe, Type, AlignLeft, Youtube, Instagram, UploadCloud, Trash2, CheckSquare, Calendar, Target as TargetIcon, Zap } from 'lucide-react'
 import type { ProjectStatus, ProjectType, Platform } from '../types/studio.types'
 import { useStudio } from '../hooks/useStudio'
@@ -52,6 +52,9 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
     const [newImpact, setNewImpact] = useState(5)
     const [newCategory, setNewCategory] = useState('rnd')
     const [newDate, setNewDate] = useState('')
+
+    const targetDateInputRef = useRef<HTMLInputElement>(null)
+    const newMilestoneDateRef = useRef<HTMLInputElement>(null)
 
     if (!isOpen) return null
 
@@ -250,14 +253,15 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                         {/* 5. Target Date */}
                         <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Overall Target Completion</label>
-                            <div className="relative w-full md:w-1/2 group/targetdate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden">
+                            <div className="relative w-full md:w-1/2 group/targetdate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden cursor-pointer"
+                                onClick={() => targetDateInputRef.current?.showPicker()}>
                                 <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
                                 <input
                                     type="date"
+                                    ref={targetDateInputRef}
                                     value={formData.target_date ? formData.target_date.split('T')[0] : ''}
                                     onChange={(e) => setFormData(prev => ({ ...prev, target_date: e.target.value }))}
-                                    onClick={(e) => (e.target as any).showPicker?.()}
-                                    className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
+                                    className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none"
                                 />
                                 <span className="ml-3 text-[13px] font-bold text-black/40 truncate pointer-events-none">
                                     {formData.target_date ? new Date(formData.target_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Set target date'}
@@ -348,14 +352,15 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-[9px] font-black uppercase text-black/20 ml-2">Deadline</label>
-                                        <div className="relative group/newdate h-9 flex items-center px-3 bg-black/[0.03] border border-black/5 rounded-xl overflow-hidden">
+                                        <div className="relative group/newdate h-9 flex items-center px-3 bg-black/[0.03] border border-black/5 rounded-xl overflow-hidden cursor-pointer"
+                                            onClick={() => newMilestoneDateRef.current?.showPicker()}>
                                             <Calendar className="w-3.5 h-3.5 text-black/20 shrink-0 pointer-events-none" />
                                             <input
                                                 type="date"
+                                                ref={newMilestoneDateRef}
                                                 value={newDate ? newDate.split('T')[0] : ''}
                                                 onChange={(e) => setNewDate(e.target.value)}
-                                                onClick={(e) => (e.target as any).showPicker?.()}
-                                                className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
+                                                className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none"
                                             />
                                             <span className="ml-2 text-[11px] font-bold text-black/40 truncate pointer-events-none">
                                                 {newDate ? new Date(newDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Set date'}

@@ -15,8 +15,8 @@ export interface StudioProject {
     cover_url?: string;
     gtv_featured: boolean;
     gtv_category?: 'innovation' | 'impact' | 'recognition' | 'leadership';
-    start_date?: string;
-    target_date?: string;
+    start_date?: string | null;
+    target_date?: string | null;
     priority?: PriorityLevel;
     impact?: PriorityLevel;
     impact_score?: number;
@@ -68,8 +68,8 @@ export interface StudioContent {
     priority?: PriorityLevel;
     impact?: PriorityLevel;
     impact_score?: number;
-    publish_date?: string;
-    deadline?: string;
+    publish_date?: string | null;
+    deadline?: string | null;
     url?: string;
     notes?: string;
     script?: string;
@@ -90,8 +90,8 @@ export interface StudioPress {
     type: PressType;
     status: PressStatus;
     requirements?: string;
-    deadline?: string;
-    date_achieved?: string;
+    deadline?: string | null;
+    date_achieved?: string | null;
     url?: string;
     notes?: string;
     milestone_goal?: string;
@@ -129,8 +129,8 @@ export interface StudioMilestone {
     title: string;
     description?: string;
     status: 'pending' | 'completed';
-    completed_at?: string;
-    target_date?: string;
+    completed_at?: string | null;
+    target_date?: string | null;
     category?: string;
     impact_score?: number;
     linked_task_id?: string | null;

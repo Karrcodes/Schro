@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Plus, X, Video, Type, Globe, Calendar, Briefcase, AlignLeft, UploadCloud, CheckSquare, Zap } from 'lucide-react'
 import type { ContentStatus, Platform, StudioContent, ContentCategory, PriorityLevel } from '../types/studio.types'
 import { useStudio } from '../hooks/useStudio'
@@ -55,6 +55,10 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
     const [newMilestoneImpact, setNewMilestoneImpact] = useState(5)
     const [newMilestoneCategory, setNewMilestoneCategory] = useState('production')
     const [newMilestoneDate, setNewMilestoneDate] = useState('')
+
+    const deadlineInputRef = useRef<HTMLInputElement>(null)
+    const publishDateInputRef = useRef<HTMLInputElement>(null)
+    const newMilestoneDateRef = useRef<HTMLInputElement>(null)
 
     if (!isOpen) return null
 
@@ -287,13 +291,14 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Deadline</label>
-                            <div className="relative group/dl h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden">
+                            <div className="relative group/dl h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden cursor-pointer"
+                                onClick={() => deadlineInputRef.current?.showPicker()}>
                                 <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
                                 <input type="date"
+                                    ref={deadlineInputRef}
                                     value={formData.deadline}
                                     onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                                    onClick={(e) => (e.target as any).showPicker?.()}
-                                    className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0" />
+                                    className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none" />
                                 <span className="ml-3 text-[13px] font-bold text-black/40 truncate pointer-events-none">
                                     {formData.deadline ? new Date(formData.deadline + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Set deadline'}
                                 </span>
@@ -310,13 +315,14 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Publish Date</label>
-                            <div className="relative group/pb h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden">
+                            <div className="relative group/pb h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden cursor-pointer"
+                                onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}>
                                 <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
                                 <input type="date"
+                                    ref={publishDateInputRef}
                                     value={(formData as any).publish_date || ''}
                                     onChange={e => setFormData(prev => ({ ...prev, publish_date: e.target.value } as any))}
-                                    onClick={(e) => (e.target as any).showPicker?.()}
-                                    className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0" />
+                                    className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none" />
                                 <span className="ml-3 text-[13px] font-bold text-black/40 truncate pointer-events-none">
                                     {(formData as any).publish_date ? new Date((formData as any).publish_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Set publish date'}
                                 </span>
@@ -434,13 +440,14 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[9px] font-black uppercase text-black/20 ml-2">Deadline</label>
-                                    <div className="relative group/msdate h-9 flex items-center px-3 bg-black/[0.03] border border-black/5 rounded-xl overflow-hidden">
+                                    <div className="relative group/msdate h-9 flex items-center px-3 bg-black/[0.03] border border-black/5 rounded-xl overflow-hidden cursor-pointer"
+                                        onClick={() => newMilestoneDateRef.current?.showPicker()}>
                                         <Calendar className="w-3.5 h-3.5 text-black/20 shrink-0 pointer-events-none" />
                                         <input type="date"
+                                            ref={newMilestoneDateRef}
                                             value={newMilestoneDate}
                                             onChange={e => setNewMilestoneDate(e.target.value)}
-                                            onClick={(e) => (e.target as any).showPicker?.()}
-                                            className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0" />
+                                            className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none" />
                                         <span className="ml-2 text-[11px] font-bold text-black/40 truncate pointer-events-none">
                                             {newMilestoneDate ? new Date(newMilestoneDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Set date'}
                                         </span>

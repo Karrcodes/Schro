@@ -89,6 +89,8 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
     const [scriptSaving, setScriptSaving] = useState(false)
     const [scriptSaved, setScriptSaved] = useState(false)
     const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const deadlineInputRef = useRef<HTMLInputElement>(null)
+    const publishDateInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         if (item) {
@@ -334,13 +336,14 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                                                 className={cn("flex-1 bg-transparent border-none p-0 text-[13px] font-bold focus:ring-0", m.status === 'completed' && "line-through text-black/20")}
                                             />
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/[0.03] border border-black/[0.05] rounded-lg group/date relative min-w-0 flex-1 h-7 overflow-hidden">
+                                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/[0.03] border border-black/[0.05] rounded-lg group/date relative min-w-0 flex-1 h-7 overflow-hidden cursor-pointer"
+                                                    onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}
+                                                >
                                                     <Calendar className="w-2.5 h-2.5 text-black/20 shrink-0 pointer-events-none" />
                                                     <input
                                                         type="date"
                                                         value={m.target_date?.split('T')[0] || ''}
-                                                        onChange={e => updateMilestone(m.id, { target_date: e.target.value || undefined })}
-                                                        onClick={(e) => (e.target as any).showPicker?.()}
+                                                        onChange={e => updateMilestone(m.id, { target_date: e.target.value || null })}
                                                         className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
                                                     />
                                                     <span className="text-[10px] font-bold text-black/40 truncate pointer-events-none">
@@ -348,7 +351,7 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                                                     </span>
                                                     {m.target_date && (
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); updateMilestone(m.id, { target_date: undefined }) }}
+                                                            onClick={(e) => { e.stopPropagation(); updateMilestone(m.id, { target_date: null }) }}
                                                             className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-30 pointer-events-auto"
                                                         >
                                                             <X className="w-2.5 h-2.5" />
@@ -400,13 +403,14 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                                     </div>
                                     <div className="flex items-center justify-between gap-4 pl-8">
                                         <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-blue-100 rounded-lg group/adddate relative min-w-0 flex-1 h-8 overflow-hidden">
+                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-blue-100 rounded-lg group/adddate relative min-w-0 flex-1 h-8 overflow-hidden cursor-pointer"
+                                                onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}
+                                            >
                                                 <Calendar className="w-3 h-3 text-blue-300 shrink-0 pointer-events-none" />
                                                 <input
                                                     type="date"
                                                     value={newMilestoneDate}
                                                     onChange={e => setNewMilestoneDate(e.target.value)}
-                                                    onClick={(e) => (e.target as any).showPicker?.()}
                                                     className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
                                                 />
                                                 <span className="text-[11px] font-bold text-black/40 truncate pointer-events-none">
@@ -580,19 +584,21 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Deadline</label>
-                                <div className="relative group/maindate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.05] rounded-2xl">
+                                <div className="relative group/maindate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.05] rounded-2xl cursor-pointer"
+                                    onClick={() => isEditing && deadlineInputRef.current?.showPicker()}
+                                >
                                     <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
                                     <input readOnly={!isEditing} type="date"
+                                        ref={deadlineInputRef}
                                         value={(editedData.deadline ?? item.deadline ?? '').split('T')[0]}
-                                        onChange={e => setEditedData(prev => ({ ...prev, deadline: e.target.value || undefined }))}
-                                        onClick={(e) => (e.target as any).showPicker?.()}
-                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 disabled:cursor-default" disabled={!isEditing} />
+                                        onChange={e => setEditedData(prev => ({ ...prev, deadline: e.target.value || null }))}
+                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none" />
                                     <span className="ml-3 text-[12px] font-bold text-black/40 truncate pointer-events-none">
                                         {(editedData.deadline ?? item.deadline) ? new Date((editedData.deadline ?? item.deadline!) + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No deadline'}
                                     </span>
                                     {isEditing && (editedData.deadline ?? item.deadline) && (
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); setEditedData(prev => ({ ...prev, deadline: undefined })) }}
+                                            onClick={(e) => { e.stopPropagation(); setEditedData(prev => ({ ...prev, deadline: null })) }}
                                             className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-20"
                                         >
                                             <X className="w-4 h-4" />
@@ -602,19 +608,21 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Publish Date</label>
-                                <div className="relative group/pubdate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.05] rounded-2xl">
+                                <div className="relative group/pubdate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.05] rounded-2xl cursor-pointer"
+                                    onClick={() => isEditing && publishDateInputRef.current?.showPicker()}
+                                >
                                     <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
                                     <input readOnly={!isEditing} type="date"
+                                        ref={publishDateInputRef}
                                         value={(editedData.publish_date ?? item.publish_date ?? '').split('T')[0]}
-                                        onChange={e => setEditedData(prev => ({ ...prev, publish_date: e.target.value || undefined }))}
-                                        onClick={(e) => (e.target as any).showPicker?.()}
-                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 disabled:cursor-default" disabled={!isEditing} />
+                                        onChange={e => setEditedData(prev => ({ ...prev, publish_date: e.target.value || null }))}
+                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0 pointer-events-none" />
                                     <span className="ml-3 text-[12px] font-bold text-black/40 truncate pointer-events-none">
                                         {(editedData.publish_date ?? item.publish_date) ? new Date((editedData.publish_date ?? item.publish_date!) + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not scheduled'}
                                     </span>
                                     {isEditing && (editedData.publish_date ?? item.publish_date) && (
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); setEditedData(prev => ({ ...prev, publish_date: undefined })) }}
+                                            onClick={(e) => { e.stopPropagation(); setEditedData(prev => ({ ...prev, publish_date: null })) }}
                                             className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-20"
                                         >
                                             <X className="w-4 h-4" />
