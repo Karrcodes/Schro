@@ -584,8 +584,7 @@ export function Sidebar() {
                             if (!item) return null
                             const Icon = item.icon
                             const isActive = !('disabled' in item && item.disabled) && pathname.startsWith(item.href)
-                            if ('disabled' in item && item.disabled) return null
-                            const isExpanded = expandedFolders.has(item.label)
+                            const isExpanded = expandedFolders.includes(item.label)
 
                             return (
                                 <div key={item.label} className="w-full flex justify-center flex-col items-center gap-1 mb-1">
@@ -596,14 +595,10 @@ export function Sidebar() {
                                             onClick={() => {
                                                 if (item.subItems) {
                                                     setExpandedFolders(prev => {
-                                                        const next = new Set(prev)
-                                                        if (next.has(item.label)) {
-                                                            // Optional: toggle off if clicking again? Default expanded sidebar keeps it open, here we can toggle
-                                                            next.delete(item.label)
-                                                        } else {
-                                                            next.add(item.label)
-                                                        }
-                                                        localStorage.setItem('schro_sidebar_expanded', JSON.stringify([...next]))
+                                                        const next = prev.includes(item.label)
+                                                            ? prev.filter(l => l !== item.label)
+                                                            : [...prev, item.label]
+                                                        localStorage.setItem('schro_sidebar_expanded', JSON.stringify(next))
                                                         return next
                                                     })
                                                 }
@@ -613,6 +608,7 @@ export function Sidebar() {
                                                 isActive ? 'bg-black/10 text-black shadow-sm' : 'text-black/35 hover:text-black/80 hover:bg-black/[0.04]'
                                             )}
                                         >
+
                                             <Icon className="w-4.5 h-4.5" />
                                         </Link>
                                         <div className="pointer-events-none absolute left-full ml-2 px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-[200] shadow-xl">
