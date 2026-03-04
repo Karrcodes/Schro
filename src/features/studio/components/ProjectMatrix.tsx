@@ -251,7 +251,6 @@ function ItemDot({
                                 <>
                                     {data.project_id && <Rocket className="w-3 h-3 text-orange-500 shrink-0" />}
                                     {data.content_id && <Video className="w-3 h-3 text-blue-500 shrink-0" />}
-                                    <Zap className="w-2.5 h-2.5 opacity-40 text-amber-500 shrink-0" />
                                 </>
                             )}
                             {data.title}
