@@ -123,13 +123,16 @@ export default function ContentKanban({
                             <Shield className={cn("w-3 h-3", showArchived ? "text-white" : "text-black/20")} />
                             {showArchived ? 'Viewing Archives' : 'View Archives'}
                         </button>
-                        <div className="flex items-center gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5">
-                            {(['priority', 'impact', 'date'] as const).map(mode => (
-                                <button key={mode} onClick={() => setSortBy(mode)}
-                                    className={cn("px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", sortBy === mode ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/50")}>
-                                    {mode}
-                                </button>
-                            ))}
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-black/20 ml-2">Sort By</span>
+                            <div className="flex items-center gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5">
+                                {(['priority', 'impact', 'date'] as const).map(mode => (
+                                    <button key={mode} onClick={() => setSortBy(mode)}
+                                        className={cn("px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", sortBy === mode ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/50")}>
+                                        {mode}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                     <button
@@ -155,13 +158,16 @@ export default function ContentKanban({
                         <Shield className={cn("w-3 h-3", showArchived ? "text-white" : "text-black/20")} />
                         {showArchived ? 'Viewing Archives' : 'View Archives'}
                     </button>
-                    <div className="flex items-center gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5">
-                        {(['priority', 'impact', 'date'] as const).map(mode => (
-                            <button key={mode} onClick={() => setSortBy(mode)}
-                                className={cn("px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", sortBy === mode ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/50")}>
-                                {mode}
-                            </button>
-                        ))}
+                    <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-black/20">Sort By</span>
+                        <div className="flex items-center gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5">
+                            {(['priority', 'impact', 'date'] as const).map(mode => (
+                                <button key={mode} onClick={() => setSortBy(mode)}
+                                    className={cn("px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", sortBy === mode ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/50")}>
+                                    {mode}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                     <button
                         onClick={() => setIsCreateModalOpen(true)}
