@@ -236,6 +236,9 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                     'line-height:1.3',
                 ].join(';')
                 ghost.innerHTML = `
+                    <div style="width:100%;height:80px;border-radius:8px;margin-bottom:6px;background:#f5f5f5;overflow:hidden;">
+                        <img src="${project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=${encodeURIComponent(project.type || '')}&id=${project.id}&w=1200&h=630`}" style="width:100%;height:100%;object-fit:cover;" />
+                    </div>
                     <div style="font-size:11px;font-weight:800;color:#000;margin-bottom:2px;font-family:inherit;">${project.title}</div>
                     ${project.tagline ? `<div style="font-size:9px;color:rgba(0,0,0,0.4);font-family:inherit;">${project.tagline.slice(0, 50)}</div>` : ''}
                 `

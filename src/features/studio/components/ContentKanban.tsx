@@ -324,6 +324,9 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                     'line-height:1.3',
                 ].join(';')
                 ghost.innerHTML = `
+                    <div style="width:100%;height:80px;border-radius:8px;margin-bottom:6px;background:#f5f5f5;overflow:hidden;">
+                        <img src="${item.cover_url || `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${item.id}&w=1200&h=630`}" style="width:100%;height:100%;object-fit:cover;" />
+                    </div>
                     <div style="font-size:11px;font-weight:800;color:#000;margin-bottom:2px;font-family:inherit;">${item.title}</div>
                     ${item.category ? `<div style="font-size:9px;color:rgba(0,0,0,0.4);font-family:inherit;">${item.category}</div>` : ''}
                 `
