@@ -147,6 +147,8 @@ function ItemDot({
     const priority = item.type === 'task' ? data.priority : getPriorityFromImpact(data.impact_score);
     const dueDate = item.type === 'task' ? data.due_date : data.target_date;
 
+    const [isHovered, setIsHovered] = useState(false)
+
     const syncKey = `${item.id}-${priority}-${dueDate}-${finalPosition.x}-${finalPosition.y}`
     useEffect(() => {
         if (!isDragging && !isConfirmingMove) {
@@ -233,9 +235,11 @@ function ItemDot({
             }}
             whileDrag={{ scale: 1.4, zIndex: 100 }}
             whileHover={{ scale: isMoveApplied ? 1 : 1.25 }}
+            onHoverStart={() => setIsHovered(true)}
+            onHoverEnd={() => setIsHovered(false)}
             animate={{
                 scale: isDragging ? 1.4 : (data.impact_score && data.impact_score > 7 ? 1.1 : 1),
-                zIndex: isDragging ? 100 : 10,
+                zIndex: isDragging ? 100 : isHovered ? 999 : 10,
                 opacity: opacity
             }}
             style={{
@@ -1009,16 +1013,15 @@ export function TasksMatrix() {
                             onInitiateMove={handleInitiateMove}
                             finalPosition={pos || { x: 50, y: 50, density: 'full' }}
                             onSelectItem={(selected) => {
-                                if (selected.type === 'task') {
-                                    if (selected.data.content_id) {
-                                        setSelectedContentForModal(content.find(c => c.id === selected.data.content_id))
-                                    } else if (selected.data.project_id) {
-                                        setSelectedProjectForModal(projects.find(p => p.id === selected.data.project_id))
-                                    } else {
-                                        setSelectedTaskForModal(selected.data)
-                                    }
+                                const d = selected.data
+                                if (d.content_id) {
+                                    setSelectedContentForModal(content.find(c => c.id === d.content_id))
+                                } else if (d.project_id) {
+                                    setSelectedProjectForModal(projects.find(p => p.id === d.project_id))
+                                } else if (selected.type === 'task') {
+                                    setSelectedTaskForModal(d)
                                 } else {
-                                    setSelectedMilestoneForModal(selected.data)
+                                    setSelectedMilestoneForModal(d)
                                 }
                             }}
                             allCategories={ALL_CATEGORIES}

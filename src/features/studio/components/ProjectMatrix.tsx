@@ -113,6 +113,7 @@ function ItemDot({
     content: StudioContent[]
 }) {
     const [isDragging, setIsDragging] = useState(false)
+    const [isHovered, setIsHovered] = useState(false)
     const dotRef = useRef<HTMLDivElement>(null)
     const dragStartPos = useRef<{ x: number, y: number } | null>(null)
     const mvX = useMotionValue(0)
@@ -193,9 +194,11 @@ function ItemDot({
             }}
             whileDrag={{ scale: 1.4, zIndex: 100 }}
             whileHover={{ scale: isMoveApplied ? 1 : 1.25 }}
+            onHoverStart={() => setIsHovered(true)}
+            onHoverEnd={() => setIsHovered(false)}
             animate={{
                 scale: isDragging ? 1.4 : (data.impact_score && data.impact_score > 7 ? 1.1 : 1),
-                zIndex: isDragging ? 100 : 10,
+                zIndex: isDragging ? 100 : isHovered ? 999 : 10,
                 opacity: opacity
             }}
             style={{
@@ -825,18 +828,17 @@ export default function ProjectMatrix({ searchQuery = '', filterType = null, sho
                         editItem={handleInitiateMove}
                         finalPosition={finalPositions[item.id] || { x: 50, y: 50, density: 'full' }}
                         onSelectItem={(selected) => {
-                            if (selected.type === 'milestone') {
-                                setSelectedMilestoneForModal(selected.data)
+                            const d = selected.data
+                            if (d.content_id) {
+                                setSelectedParentId(d.content_id)
+                                setParentType('content')
+                            } else if (d.project_id) {
+                                setSelectedParentId(d.project_id)
+                                setParentType('project')
+                            } else if (selected.type === 'task') {
+                                setSelectedTaskId(d.id)
                             } else {
-                                if (selected.data.content_id) {
-                                    setSelectedParentId(selected.data.content_id)
-                                    setParentType('content')
-                                } else if (selected.data.project_id) {
-                                    setSelectedParentId(selected.data.project_id)
-                                    setParentType('project')
-                                } else {
-                                    setSelectedTaskId(selected.data.id)
-                                }
+                                setSelectedMilestoneForModal(d)
                             }
                         }}
                         isMoveApplied={isConfirmingMove && movingItem?.id !== item.id}

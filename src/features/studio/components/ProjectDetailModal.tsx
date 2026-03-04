@@ -118,7 +118,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
     }
 
     const handleSaveMetadata = async () => {
-        if (Object.keys(editedData).length === 0) {
+        if (Object.keys(editedData).length === 0 && !coverFile) {
             setIsEditing(false)
             return
         }
