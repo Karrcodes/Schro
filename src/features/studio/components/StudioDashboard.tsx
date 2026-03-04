@@ -30,6 +30,7 @@ export default function StudioDashboard() {
 
     const activeProjects = projects.filter(p => (p.status === 'active' || p.status === 'research') && !p.is_archived)
     const archivedProjects = projects.filter(p => p.is_archived)
+    const activeContent = content.filter(c => ['scripted', 'filmed', 'edited', 'scheduled'].includes(c.status) && !c.is_archived)
     const recentSparks = sparks.slice(0, 4)
 
     const selectedProject = projects.find(p => p.id === selectedProjectId) || null
@@ -108,99 +109,81 @@ export default function StudioDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Active Projects Summary */}
-                <div className="lg:col-span-2 space-y-4">
-                    <div className="flex items-center justify-between px-2">
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => setActiveTab('active')}
-                                className={cn(
-                                    "text-[13px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all",
-                                    activeTab === 'active' ? "text-black opacity-100 scale-105" : "text-black/30 hover:text-black/60 opacity-50"
-                                )}
-                            >
-                                <Rocket className={cn("w-4 h-4", activeTab === 'active' ? "text-orange-500" : "text-black/20")} />
-                                Active Pipeline
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('archived')}
-                                className={cn(
-                                    "text-[13px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all",
-                                    activeTab === 'archived' ? "text-black opacity-100 scale-105" : "text-black/30 hover:text-black/60 opacity-50"
-                                )}
-                            >
-                                <Shield className={cn("w-4 h-4", activeTab === 'archived' ? "text-blue-500" : "text-black/20")} />
-                                Archives
-                            </button>
-                        </div>
-                        <Link href="/create/projects" className="text-[11px] font-bold text-black/40 hover:text-black transition-colors">See Kanban</Link>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {loading ? (
-                            [1, 2, 3, 4].map(i => (
-                                <div key={i} className="h-32 bg-black/[0.02] border border-black/[0.05] rounded-2xl animate-pulse" />
-                            ))
-                        ) : activeTab === 'active' && activeProjects.length === 0 ? (
-                            <div className="col-span-2 py-12 bg-white border border-black/[0.05] rounded-3xl flex flex-col items-center justify-center text-center px-6">
-                                <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center mb-4">
-                                    <Sparkles className="w-6 h-6 text-orange-500" />
-                                </div>
-                                <h3 className="text-sm font-bold text-black">No active projects</h3>
-                                <p className="text-[12px] text-black/40 mt-1 max-w-[240px]">Transform your sparks into projects to start your GTV portfolio.</p>
+                <div className="lg:col-span-2 space-y-8">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between px-2">
+                            <div className="flex items-center gap-4">
                                 <button
-                                    onClick={() => setIsProjectModalOpen(true)}
-                                    className="mt-4 px-4 py-2 bg-black text-white text-[11px] font-bold rounded-xl hover:scale-105 transition-transform"
+                                    onClick={() => setActiveTab('active')}
+                                    className={cn(
+                                        "text-[13px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all",
+                                        activeTab === 'active' ? "text-black opacity-100 scale-105" : "text-black/30 hover:text-black/60 opacity-50"
+                                    )}
                                 >
-                                    Start New Project
+                                    <Rocket className={cn("w-4 h-4", activeTab === 'active' ? "text-orange-500" : "text-black/20")} />
+                                    Active Pipeline
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('archived')}
+                                    className={cn(
+                                        "text-[13px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all",
+                                        activeTab === 'archived' ? "text-black opacity-100 scale-105" : "text-black/30 hover:text-black/60 opacity-50"
+                                    )}
+                                >
+                                    <Shield className={cn("w-4 h-4", activeTab === 'archived' ? "text-blue-500" : "text-black/20")} />
+                                    Archives
                                 </button>
                             </div>
-                        ) : activeTab === 'archived' && archivedProjects.length === 0 ? (
-                            <div className="col-span-2 py-12 bg-white border border-black/[0.05] rounded-3xl flex flex-col items-center justify-center text-center px-6">
-                                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
-                                    <Shield className="w-6 h-6 text-blue-500" />
+                            <Link href="/create/projects" className="text-[11px] font-bold text-black/40 hover:text-black transition-colors">See Kanban</Link>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {loading ? (
+                                [1, 2, 3, 4].map(i => (
+                                    <div key={i} className="h-32 bg-black/[0.02] border border-black/[0.05] rounded-2xl animate-pulse" />
+                                ))
+                            ) : activeTab === 'active' && activeProjects.length === 0 ? (
+                                <div className="col-span-2 py-12 bg-white border border-black/[0.05] rounded-3xl flex flex-col items-center justify-center text-center px-6">
+                                    <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center mb-4">
+                                        <Sparkles className="w-6 h-6 text-orange-500" />
+                                    </div>
+                                    <h3 className="text-sm font-bold text-black">No active projects</h3>
+                                    <p className="text-[12px] text-black/40 mt-1 max-w-[240px]">Transform your sparks into projects to start your GTV portfolio.</p>
+                                    <button
+                                        onClick={() => setIsProjectModalOpen(true)}
+                                        className="mt-4 px-4 py-2 bg-black text-white text-[11px] font-bold rounded-xl hover:scale-105 transition-transform"
+                                    >
+                                        Start New Project
+                                    </button>
                                 </div>
-                                <h3 className="text-sm font-bold text-black">No archived projects</h3>
-                                <p className="text-[12px] text-black/40 mt-1 max-w-[240px]">Your archived projects will show up here for future reference.</p>
-                            </div>
-                        ) : (
-                            (activeTab === 'active' ? activeProjects : archivedProjects).map(project => (
-                                <div
-                                    key={project.id}
-                                    onClick={() => setSelectedProjectId(project.id)}
-                                    className="p-4 bg-white border border-black/[0.05] rounded-2xl hover:border-orange-200 hover:shadow-lg transition-all group cursor-pointer"
-                                >
-                                    {project.cover_url && (
-                                        <div className="h-24 -mx-4 -mt-4 mb-4 overflow-hidden relative">
-                                            <img
-                                                src={project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=${encodeURIComponent(project.type || '')}&id=${project.id}&w=1200&h=630`}
-                                                alt=""
+                            ) : activeTab === 'archived' && archivedProjects.length === 0 ? (
+                                <div className="col-span-2 py-12 bg-white border border-black/[0.05] rounded-3xl flex flex-col items-center justify-center text-center px-6">
+                                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+                                        <Shield className="w-6 h-6 text-blue-500" />
+                                    </div>
+                                    <h3 className="text-sm font-bold text-black">No archived projects</h3>
+                                    <p className="text-[12px] text-black/40 mt-1 max-w-[240px]">Your archived projects will show up here for future reference.</p>
+                                </div>
+                            ) : (
+                                (activeTab === 'active' ? activeProjects : archivedProjects).map(project => (
+                                    <div
+                                        key={project.id}
+                                        onClick={() => setSelectedProjectId(project.id)}
+                                        className="p-4 bg-white border border-black/[0.05] rounded-2xl hover:border-orange-200 hover:shadow-lg transition-all group cursor-pointer"
+                                    >
+                                        {project.cover_url && (
+                                            <div className="h-24 -mx-4 -mt-4 mb-4 overflow-hidden relative">
+                                                <img
+                                                    src={project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=${encodeURIComponent(project.type || '')}&id=${project.id}&w=1200&h=630`}
+                                                    alt=""
 
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-60" />
+                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-60" />
 
-                                            {/* Platform icons overlay */}
-                                            {project.platforms && project.platforms.length > 0 && (
-                                                <div className="absolute top-2 left-2 flex -space-x-1 ring-1 ring-white/20 rounded-full p-0.5 bg-black/10 backdrop-blur-md">
-                                                    {project.platforms.map(p => (
-                                                        <div
-                                                            key={p}
-                                                            className="w-4 h-4 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]"
-                                                            title={p}
-                                                        >
-                                                            <PlatformIcon platform={p} className="w-2 h-2" />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between items-start mb-3">
-
-                                        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                                            <div className="flex flex-wrap items-center gap-1.5">
-                                                {!project.cover_url && project.platforms && project.platforms.length > 0 && (
-                                                    <div className="flex -space-x-1 mr-1">
+                                                {/* Platform icons overlay */}
+                                                {project.platforms && project.platforms.length > 0 && (
+                                                    <div className="absolute top-2 left-2 flex -space-x-1 ring-1 ring-white/20 rounded-full p-0.5 bg-black/10 backdrop-blur-md">
                                                         {project.platforms.map(p => (
                                                             <div
                                                                 key={p}
@@ -212,45 +195,140 @@ export default function StudioDashboard() {
                                                         ))}
                                                     </div>
                                                 )}
-                                                <div className={cn(
-                                                    "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight",
-                                                    project.status === 'active' ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
-                                                )}>
-                                                    {project.status}
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-start mb-3">
+
+                                            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    {!project.cover_url && project.platforms && project.platforms.length > 0 && (
+                                                        <div className="flex -space-x-1 mr-1">
+                                                            {project.platforms.map(p => (
+                                                                <div
+                                                                    key={p}
+                                                                    className="w-4 h-4 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]"
+                                                                    title={p}
+                                                                >
+                                                                    <PlatformIcon platform={p} className="w-2 h-2" />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    <div className={cn(
+                                                        "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight",
+                                                        project.status === 'active' ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
+                                                    )}>
+                                                        {project.status}
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                                <div className="flex items-center gap-2">
+                                                    {project.target_date && (
+                                                        <div className="flex items-center gap-1 text-[9px] text-black/30 font-bold uppercase tracking-tighter">
+                                                            <Clock className="w-2.5 h-2.5" />
+                                                            {new Date(project.target_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                                        </div>
+                                                    )}
+                                                    {project.impact_score && (
+                                                        <div className="flex items-center gap-0.5">
+                                                            <Zap className="w-3 h-3 text-orange-500 fill-orange-500" />
+                                                            <span className="text-[11px] font-black text-orange-600">
+                                                                {project.impact_score}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {project.gtv_featured && <Shield className="w-3.5 h-3.5 text-blue-500" />}
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col items-end gap-1.5 shrink-0">
-                                            <div className="flex items-center gap-2">
-                                                {project.target_date && (
-                                                    <div className="flex items-center gap-1 text-[9px] text-black/30 font-bold uppercase tracking-tighter">
-                                                        <Clock className="w-2.5 h-2.5" />
-                                                        {new Date(project.target_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+
+
+                                        <h4 className="text-[14px] font-black text-black leading-tight group-hover:text-orange-600 transition-colors">{project.title}</h4>
+                                        <p className="text-[11px] text-black/40 mt-1 line-clamp-2">{project.tagline || 'No tagline set'}</p>
+
+                                    </div>
+                                ))
+
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Active Content Summary */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between px-2">
+                            <h2 className="text-[13px] font-bold uppercase tracking-wider flex items-center gap-2 text-black">
+                                <Video className="w-4 h-4 text-blue-500" />
+                                Active Content
+                            </h2>
+                            <Link href="/create/content" className="text-[11px] font-bold text-black/40 hover:text-black transition-colors">See Pipeline</Link>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {loading ? (
+                                [1, 2, 3, 4].map(i => (
+                                    <div key={i} className="h-24 bg-black/[0.02] border border-black/[0.05] rounded-2xl animate-pulse" />
+                                ))
+                            ) : activeContent.length === 0 ? (
+                                <div className="col-span-2 py-12 bg-white border border-black/[0.05] rounded-3xl flex flex-col items-center justify-center text-center px-6">
+                                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+                                        <Video className="w-6 h-6 text-blue-500" />
+                                    </div>
+                                    <h3 className="text-sm font-bold text-black">No active content</h3>
+                                    <p className="text-[12px] text-black/40 mt-1 max-w-[240px]">Start scripting or filming to populate your content pipeline.</p>
+                                </div>
+                            ) : (
+                                activeContent.slice(0, 4).map(item => (
+                                    <div
+                                        key={item.id}
+                                        className="p-4 bg-white border border-black/[0.05] rounded-2xl hover:border-blue-200 hover:shadow-lg transition-all group cursor-pointer flex flex-col h-full"
+                                    >
+                                        <div className="h-24 -mx-4 -mt-4 mb-4 overflow-hidden relative shrink-0 rounded-t-2xl">
+                                            <img
+                                                src={item.cover_url || `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || 'Content')}&type=${encodeURIComponent(item.type || '')}&id=${item.id}&w=1200&h=630`}
+                                                alt=""
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-60" />
+                                            {item.platforms && item.platforms.length > 0 && (
+                                                <div className="absolute top-2 left-2 flex -space-x-1 ring-1 ring-white/20 rounded-full p-0.5 bg-black/10 backdrop-blur-md">
+                                                    {item.platforms.map(p => (
+                                                        <div key={p} className="w-4 h-4 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]" title={p}>
+                                                            <PlatformIcon platform={p} className="w-2 h-2" />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    <div className={cn(
+                                                        "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight",
+                                                        item.status === 'scheduled' ? "bg-purple-50 text-purple-600" :
+                                                            item.status === 'edited' ? "bg-emerald-50 text-emerald-600" :
+                                                                item.status === 'filmed' ? "bg-orange-50 text-orange-600" :
+                                                                    "bg-blue-50 text-blue-600"
+                                                    )}>
+                                                        {item.status}
                                                     </div>
-                                                )}
-                                                {project.impact_score && (
+                                                </div>
+
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                                {(item.priority === 'urgent' || item.priority === 'high') && (
                                                     <div className="flex items-center gap-0.5">
-                                                        <Zap className="w-3 h-3 text-orange-500 fill-orange-500" />
-                                                        <span className="text-[11px] font-black text-orange-600">
-                                                            {project.impact_score}
-                                                        </span>
+                                                        <Zap className={cn("w-3 h-3", item.priority === 'urgent' ? "text-red-500 fill-red-500" : "text-orange-500 fill-orange-500")} />
                                                     </div>
                                                 )}
                                             </div>
-                                            {project.gtv_featured && <Shield className="w-3.5 h-3.5 text-blue-500" />}
                                         </div>
+                                        <h4 className="text-[14px] font-black text-black leading-tight group-hover:text-blue-600 transition-colors line-clamp-2">{item.title}</h4>
+                                        <p className="text-[11px] text-black/40 mt-1 line-clamp-1">{item.category || 'Content'}</p>
                                     </div>
-
-
-                                    <h4 className="text-[14px] font-black text-black leading-tight group-hover:text-orange-600 transition-colors">{project.title}</h4>
-                                    <p className="text-[11px] text-black/40 mt-1 line-clamp-2">{project.tagline || 'No tagline set'}</p>
-
-                                </div>
-                            ))
-
-                        )}
+                                ))
+                            )}
+                        </div>
                     </div>
-
                 </div>
 
                 {/* Sidebar Cards */}

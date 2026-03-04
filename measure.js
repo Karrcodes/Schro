@@ -3,19 +3,19 @@ const puppeteer = require('puppeteer');
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     await page.goto('http://localhost:3000/system/control-centre');
-    await page.waitForSelector('.min-h-screen > div:first-child');
-    const headerRect = await page.evaluate(() => {
-        const header = document.querySelector('.min-h-screen > div:first-child');
-        return header ? header.getBoundingClientRect() : null;
+    await page.waitForSelector('.w-14.h-11');
+    const color = await page.evaluate(() => {
+        const activeBox = document.querySelector('.w-14.h-11');
+        return window.getComputedStyle(activeBox).backgroundColor;
     });
-    console.log("HEADER_HEIGHT_EXACT:", headerRect ? headerRect.height : 'Not found');
+    console.log("BACKGROUND:", color);
     
-    // Also measure the logo container
-    const logoRect = await page.evaluate(() => {
-        const logo = document.querySelector('aside > div:first-child');
-        return logo ? logo.getBoundingClientRect() : null;
+    // Check main Link background
+    const linkColor = await page.evaluate(() => {
+        const link = document.querySelector('.w-11.h-11.rounded-xl');
+        return window.getComputedStyle(link).backgroundColor;
     });
-    console.log("LOGO_HEIGHT_EXACT:", logoRect ? logoRect.height : 'Not found');
+    console.log("LINK BACKGROUND:", linkColor);
 
     await browser.close();
 })();

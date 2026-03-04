@@ -187,6 +187,7 @@ export function Sidebar() {
     const { settings, setSetting, loading: settingsLoading } = useSettings()
     const [isCollapsed, setIsCollapsed] = useState(false)
     const [hoveredItem, setHoveredItem] = useState<string | null>(null)
+    const [hoveredSubItem, setHoveredSubItem] = useState<string | null>(null)
     const [activeTabGap, setActiveTabGap] = useState<{ start: number; end: number } | null>(null)
     const sidebarRef = useRef<HTMLElement>(null)
     const collapsedNavRef = useRef<HTMLElement>(null)
@@ -587,11 +588,11 @@ export function Sidebar() {
                 />
                 {/* Logo area */}
                 <div className="px-4 border-b border-black/[0.06] flex items-center justify-between h-[96px] shrink-0">
-                    <Link href="/system/control-centre">
+                    <Link href="/system/control-centre" className="flex items-center justify-center relative -top-[1px]">
                         {isCollapsed ? (
                             <span className="text-3xl font-serif italic font-medium tracking-tight leading-none select-none">ö</span>
                         ) : (
-                            <span className="text-2xl font-serif italic font-medium tracking-tight">Schrö</span>
+                            <span className="text-2xl font-serif italic font-medium tracking-tight leading-none">Schrö</span>
                         )}
                     </Link>
                     {!isCollapsed && (
@@ -617,7 +618,12 @@ export function Sidebar() {
                             const isExpanded = !!expandedFolders[item.label]
 
                             return (
-                                <div key={item.label} className="w-full flex justify-end relative mb-1 z-10">
+                                <div
+                                    key={item.label}
+                                    className="w-full flex justify-end relative mb-1 z-10"
+                                    onMouseEnter={() => setHoveredItem(item.label)}
+                                    onMouseLeave={() => setHoveredItem(null)}
+                                >
                                     {/* Main Tab */}
                                     <div className="relative group">
                                         {/* Folder-tab box — absolutely positioned, independent from icon */}
@@ -627,22 +633,8 @@ export function Sidebar() {
                                         <Link
                                             ref={el => { tabRefs.current[item.label] = el }}
                                             href={item.href}
-                                            onMouseEnter={() => setHoveredItem(item.label)}
-                                            onMouseLeave={() => setHoveredItem(null)}
-                                            onClick={(e) => {
-                                                if ('sub' in item && item.sub) {
-                                                    if (isActive) {
-                                                        e.preventDefault()
-                                                        setExpandedFolders(prev => {
-                                                            const next = { ...prev, [item.label]: !prev[item.label] }
-                                                            localStorage.setItem('schro_sidebar_expanded', JSON.stringify(next))
-                                                            return next
-                                                        })
-                                                    }
-                                                }
-                                            }}
                                             className={cn(
-                                                'w-11 h-11 mr-2 flex items-center justify-center transition-colors duration-150 transform-gpu cursor-pointer relative z-10 rounded-xl',
+                                                'w-11 h-11 mr-2 flex items-center justify-center transition-colors duration-150 transform-gpu cursor-pointer relative z-20 rounded-xl',
                                                 isActive
                                                     ? 'text-black'
                                                     : hoveredItem === item.label
@@ -654,14 +646,14 @@ export function Sidebar() {
                                         </Link>
                                         <div className={cn(
                                             "pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap transition-opacity z-[200] shadow-xl",
-                                            hoveredItem === item.label ? "opacity-100" : "opacity-0"
+                                            hoveredItem === item.label && !('sub' in item && item.sub && isActive) ? "opacity-100" : "opacity-0"
                                         )}>
                                             {item.label}
                                         </div>
                                     </div>
 
                                     {/* Sub-items flyout */}
-                                    {'sub' in item && item.sub && isExpanded && (
+                                    {'sub' in item && item.sub && (isExpanded || (hoveredItem === item.label && isActive)) && (
                                         <div className="absolute left-[calc(100%-8px)] top-1/2 -translate-y-1/2 flex flex-col gap-1 p-1.5 bg-white border border-black/[0.08] rounded-2xl shadow-xl z-[100] animate-in fade-in zoom-in-95 duration-200">
                                             {item.sub.map(subItem => {
                                                 const SubIcon = subItem.icon || ((props: any) => <div className={cn("w-1.5 h-1.5 rounded-full bg-current", props.className)} />)
@@ -670,14 +662,23 @@ export function Sidebar() {
                                                     <div key={subItem.href} className="relative group/sub">
                                                         <Link
                                                             href={subItem.href}
+                                                            onMouseEnter={() => setHoveredSubItem(subItem.label)}
+                                                            onMouseLeave={() => setHoveredSubItem(null)}
                                                             className={cn(
                                                                 'w-8 h-8 flex items-center justify-center rounded-xl transition-all',
-                                                                isSubActive ? 'bg-black/5 text-black shadow-sm' : 'text-black/30 hover:text-black/70 hover:bg-black/[0.04]'
+                                                                isSubActive
+                                                                    ? 'bg-black/5 text-black shadow-sm'
+                                                                    : hoveredSubItem === subItem.label
+                                                                        ? 'text-black/70 bg-black/[0.04]'
+                                                                        : 'text-black/30'
                                                             )}
                                                         >
                                                             <SubIcon className="w-4 h-4" />
                                                         </Link>
-                                                        <div className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap opacity-0 group-hover/sub:opacity-100 transition-opacity z-[200] shadow-xl">
+                                                        <div className={cn(
+                                                            "pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap transition-opacity z-[200] shadow-xl",
+                                                            hoveredSubItem === subItem.label ? "opacity-100" : "opacity-0"
+                                                        )}>
                                                             {subItem.label}
                                                         </div>
                                                     </div>
