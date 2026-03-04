@@ -58,6 +58,12 @@ export default function ContentKanban({
         return matchesSearch && isArchivedMatch
     })
 
+    const onDragStart = (e: React.DragEvent, id: string) => {
+        setDraggingId(id)
+        e.dataTransfer.setData('contentId', id)
+        e.dataTransfer.effectAllowed = 'move'
+    }
+
     const onDragOver = (e: React.DragEvent, status: ContentStatus) => {
         e.preventDefault()
         setDragOverStatus(status)
@@ -66,9 +72,10 @@ export default function ContentKanban({
     const onDrop = async (e: React.DragEvent, status: ContentStatus) => {
         e.preventDefault()
         setDragOverStatus(null)
-        if (!draggingId) return
+        const contentId = e.dataTransfer.getData('contentId') || draggingId
+        if (!contentId) return
         try {
-            await updateContent(draggingId, { status })
+            await updateContent(contentId, { status })
         } catch (err) {
             console.error('Failed to update content status:', err)
         } finally {
@@ -203,7 +210,7 @@ export default function ContentKanban({
                                         item={item}
                                         project={projects.find(p => p.id === item.project_id)}
                                         milestones={milestones.filter(m => m.content_id === item.id)}
-                                        onDragStart={() => setDraggingId(item.id)}
+                                        onDragStart={(e) => onDragStart(e, item.id)}
                                         onDragEnd={() => setDraggingId(null)}
                                         onClick={() => setSelectedContentId(item.id)}
                                         onArchive={() => setContentToArchive(item)}
@@ -261,7 +268,7 @@ function ContentCard({ item, project, milestones, onDragStart, onDragEnd, onClic
     item: StudioContent
     project?: StudioProject
     milestones: StudioMilestone[]
-    onDragStart: () => void
+    onDragStart: (e: React.DragEvent) => void
     onDragEnd: () => void
     onClick: () => void
     onArchive: () => void
@@ -283,7 +290,7 @@ function ContentCard({ item, project, milestones, onDragStart, onDragEnd, onClic
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onClick={onClick}
-            className="group relative bg-white border border-black/[0.05] rounded-2xl cursor-grab active:cursor-grabbing hover:border-orange-200 hover:shadow-xl transition-all overflow-hidden"
+            className="group relative bg-white border border-black/[0.05] rounded-2xl cursor-grab active:cursor-grabbing hover:border-orange-200 hover:shadow-xl transition-all overflow-hidden touch-none"
         >
             {/* Cover image area */}
             <div className="w-full h-24 overflow-hidden relative">

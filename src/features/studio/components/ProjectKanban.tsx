@@ -46,6 +46,12 @@ export default function ProjectKanban({ searchQuery = '', filterType = null, sho
         return () => window.removeEventListener('studio:deleteProject', handleDeleteEvent)
     }, [deleteProject])
 
+    const onDragStart = (e: React.DragEvent, id: string) => {
+        setDraggingId(id)
+        e.dataTransfer.setData('projectId', id)
+        e.dataTransfer.effectAllowed = 'move'
+    }
+
     const onDragOver = (e: React.DragEvent, status: ProjectStatus) => {
         e.preventDefault()
         setDragOverStatus(status)
@@ -54,10 +60,11 @@ export default function ProjectKanban({ searchQuery = '', filterType = null, sho
     const onDrop = async (e: React.DragEvent, status: ProjectStatus) => {
         e.preventDefault()
         setDragOverStatus(null)
-        if (!draggingId) return
+        const projectId = e.dataTransfer.getData('projectId') || draggingId
+        if (!projectId) return
 
         try {
-            await updateProject(draggingId, { status })
+            await updateProject(projectId, { status })
         } catch (err) {
             console.error('Failed to update project status:', err)
         } finally {
@@ -131,7 +138,7 @@ export default function ProjectKanban({ searchQuery = '', filterType = null, sho
                                         key={project.id}
                                         project={project}
                                         milestones={milestones}
-                                        onDragStart={() => setDraggingId(project.id)}
+                                        onDragStart={(e) => onDragStart(e, project.id)}
                                         onDragEnd={() => setDraggingId(null)}
                                         onClick={() => setSelectedProjectId(project.id)}
                                         onArchive={() => setProjectToArchive(project)}
@@ -186,7 +193,7 @@ export default function ProjectKanban({ searchQuery = '', filterType = null, sho
 function ProjectCard({ project, milestones, onDragStart, onDragEnd, onClick, onArchive, onDelete }: {
     project: StudioProject;
     milestones: StudioMilestone[];
-    onDragStart: () => void;
+    onDragStart: (e: React.DragEvent) => void;
     onDragEnd: () => void;
     onClick: () => void;
     onArchive: () => void;
@@ -207,7 +214,7 @@ function ProjectCard({ project, milestones, onDragStart, onDragEnd, onClick, onA
                 draggable
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
-                className="h-32 w-full overflow-hidden relative cursor-grab active:cursor-grabbing"
+                className="h-32 w-full overflow-hidden relative cursor-grab active:cursor-grabbing touch-none"
             >
                 <img
                     src={project.cover_url || `https://loremflickr.com/800/600/${encodeURIComponent(project.title.split(' ')[0])},tech,design?lock=${project.id.length}`}
