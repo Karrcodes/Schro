@@ -36,13 +36,13 @@ export interface Task {
     recurrence_type?: 'habit' | 'task'
     energy_requirement?: 'high' | 'medium' | 'low'
     impact_score?: number
-    project_id?: string
+    project_id?: string | null
     travel_to_duration?: number // In minutes
     travel_from_duration?: number // In minutes
     start_time?: string // "HH:MM" fixed appointment time
     location?: string
     origin_location?: string
-    content_id?: string
+    content_id?: string | null
 }
 
 export interface DayPlannerSettings {

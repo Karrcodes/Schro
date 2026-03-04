@@ -18,7 +18,7 @@ export interface PlannerItem {
     type: 'routine' | 'task' | 'shift' | 'transit' | 'buffer'
     class: 'A' | 'B' | 'C'
     is_completed?: boolean
-    project_id?: string
+    project_id?: string | null
     is_flow_active?: boolean
     is_open_ended?: boolean
     is_stalled?: boolean
