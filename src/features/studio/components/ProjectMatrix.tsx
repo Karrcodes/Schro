@@ -36,18 +36,13 @@ const getPriorityFromImpact = (impactScore: number | undefined): string => {
     return 'low'
 }
 
-const getImpactY = (priority: string | undefined): number => {
+const getPriorityY = (priority: string | undefined): number => {
     switch (priority) {
         case 'urgent': return 12.5
         case 'high': return 37.5
         case 'mid': return 62.5
         case 'low': default: return 87.5
     }
-}
-
-const getPriorityY = (impactScore: number | undefined): number => {
-    const priority = getPriorityFromImpact(impactScore)
-    return getImpactY(priority)
 }
 
 const getImpactFromY = (yPercent: number): number => {
@@ -431,7 +426,7 @@ export default function ProjectMatrix({ searchQuery = '', filterType = null, sho
             if (item.type === 'task') {
                 const task = item.data;
                 x = targetPos ? targetPos.x : getUrgencyX(task.due_date);
-                y = targetPos ? targetPos.y : getImpactY(task.priority as any);
+                y = targetPos ? targetPos.y : getPriorityY(task.priority as any);
             } else {
                 const milestone = item.data;
                 x = targetPos ? targetPos.x : getUrgencyX(milestone.target_date);

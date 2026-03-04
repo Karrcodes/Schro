@@ -289,15 +289,19 @@ function ItemDot({
             {finalPosition.density !== 'minimal' && (
                 <div className="flex flex-col items-start ml-2.5 overflow-hidden">
                     <div className="flex items-center gap-1.5">
-                        {item.type === 'task' && data.project_id && <Rocket className="w-3 h-3 text-orange-500 shrink-0" />}
-                        {item.type === 'task' && data.content_id && <Video className="w-3 h-3 text-blue-500 shrink-0" />}
-                        {item.type === 'milestone' && (
-                            data.content_id ? <Video className="w-2.5 h-2.5 opacity-40" /> : <Rocket className="w-2.5 h-2.5 opacity-40" />
-                        )}
                         <span className={cn(
-                            "text-[10px] font-semibold tracking-tight leading-none whitespace-nowrap text-black/80",
+                            "text-[10px] font-semibold tracking-tight leading-none whitespace-nowrap text-black/80 flex items-center gap-1",
                             data.impact_score && data.impact_score >= 8 && "font-black text-[11px]"
                         )}>
+                            {item.type === 'milestone' ? (
+                                data.content_id ? <Video className="w-2.5 h-2.5 opacity-40 shrink-0" /> : <Rocket className="w-2.5 h-2.5 opacity-40 shrink-0" />
+                            ) : (
+                                <>
+                                    {data.project_id && <Rocket className="w-3 h-3 text-orange-500 shrink-0" />}
+                                    {data.content_id && <Video className="w-3 h-3 text-blue-500 shrink-0" />}
+                                    <Zap className="w-2.5 h-2.5 opacity-40 text-amber-500 shrink-0" />
+                                </>
+                            )}
                             {data.title}
                         </span>
                         {data.impact_score && finalPosition.density === 'compact' && (
