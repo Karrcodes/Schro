@@ -91,18 +91,24 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
     const [scriptSaving, setScriptSaving] = useState(false)
     const [scriptSaved, setScriptSaved] = useState(false)
     const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const prevItemId = useRef<string | null>(null)
     const deadlineInputRef = useRef<HTMLInputElement>(null)
     const publishDateInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         if (item) {
-            setEditedData({})
-            setIsEditing(false)
-            setActiveTab('details')
-            setScriptSections(parseScript(item.script))
-            setBrainstorm(item.notes || '')
-            setCoverFile(null)
-            setCoverPreview('')
+            if (prevItemId.current !== item.id) {
+                setEditedData({})
+                setIsEditing(false)
+                setActiveTab('details')
+                setScriptSections(parseScript(item.script))
+                setBrainstorm(item.notes || '')
+                setCoverFile(null)
+                setCoverPreview('')
+                prevItemId.current = item.id
+            }
+        } else {
+            prevItemId.current = null
         }
     }, [item])
 
