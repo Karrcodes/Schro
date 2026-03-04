@@ -533,8 +533,21 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         const taskItems = tasks.map(t => ({ id: t.id, type: 'task' as const, data: t }))
         // Milestones only for business profile and todo category
         const milestoneItems = (category === 'todo' && activeProfile === 'business')
-            ? milestones.map(m => ({ id: m.id, type: 'milestone' as const, data: m }))
+            ? milestones
+                .filter(m => {
+                    if (m.project_id) {
+                        const parent = projects.find(p => p.id === m.project_id)
+                        if (!parent || parent.is_archived) return false
+                    }
+                    if (m.content_id) {
+                        const parent = content.find(c => c.id === m.content_id)
+                        if (!parent || parent.is_archived) return false
+                    }
+                    return true
+                })
+                .map(m => ({ id: m.id, type: 'milestone' as const, data: m }))
             : []
+
 
         const combined = [...taskItems, ...milestoneItems]
 

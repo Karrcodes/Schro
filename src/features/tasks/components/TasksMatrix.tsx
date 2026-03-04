@@ -431,6 +431,16 @@ export function TasksMatrix() {
                 if (!m.target_date) return false
                 if (m.status === 'completed') return false
 
+                // Exclude milestones from archived projects or content
+                if (m.project_id) {
+                    const parentProject = projects.find(p => p.id === m.project_id)
+                    if (!parentProject || parentProject.is_archived) return false
+                }
+                if (m.content_id) {
+                    const parentContent = content.find(c => c.id === m.content_id)
+                    if (!parentContent || parentContent.is_archived) return false
+                }
+
                 const matchesCategory = selectedStrategicCategory === 'all' || m.category === selectedStrategicCategory
                 if (!matchesCategory) return false
 
@@ -443,6 +453,7 @@ export function TasksMatrix() {
                 return diffDays >= 0 && diffDays <= 14
             })
             .map(m => ({ type: 'milestone' as const, id: m.id, data: m }))
+
 
         return [...taskItems, ...milestoneItems]
     }, [pendingTasks, milestones, activeProfile, selectedStrategicCategory])

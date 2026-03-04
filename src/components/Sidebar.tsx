@@ -294,14 +294,13 @@ export function Sidebar() {
     // Close drawer on route change and auto-collapse others
     useEffect(() => {
         setMobileOpen(false)
-        // Find which module contains the current pathname and expand only that
+        // Expand the parent whose href is a prefix of the current pathname, collapse all others
         const activeItemWithSub = navItems.find(item =>
-            'sub' in item && item.sub?.some(sub => pathname.startsWith(sub.href))
+            'sub' in item && item.sub && pathname.startsWith(item.href)
         )
         if (activeItemWithSub) {
             setExpandedFolders({ [activeItemWithSub.href]: true })
         } else {
-            // Close all folders when moving to a page like Operations root which has no sidebar subpages
             setExpandedFolders({})
         }
     }, [pathname])
@@ -344,6 +343,12 @@ export function Sidebar() {
                         <Link
                             href={item.href}
                             draggable={false}
+                            onClick={() => {
+                                if ('sub' in item && item.sub) {
+                                    // Immediately expand this folder and collapse others
+                                    setExpandedFolders({ [item.href]: true })
+                                }
+                            }}
                             className={cn(
                                 'flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-150 relative group',
                                 isActive ? 'bg-black/10 text-black' : 'text-black/50 hover:text-black/80 hover:bg-black/[0.04]'
