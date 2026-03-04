@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Plus, Briefcase, Target, Zap } from 'lucide-react'
+import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Plus, Rocket, Target, Zap } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import type { PressType, PressStatus, StudioPress } from '../types/studio.types'
 import { cn } from '@/lib/utils'
@@ -164,7 +164,7 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
                             <div className="space-y-2">
                                 <label className="text-[11px] font-black uppercase tracking-widest text-black/30 ml-2">Linked Project</label>
                                 <div className="relative">
-                                    <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                                    <Rocket className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
                                     <select
                                         value={formData.project_id}
                                         onChange={e => setFormData(prev => ({ ...prev, project_id: e.target.value }))}

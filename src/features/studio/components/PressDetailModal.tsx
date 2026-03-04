@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Edit3, Save, Trash2, ExternalLink, Briefcase, Target, Zap, CheckCircle2 } from 'lucide-react'
+import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Edit3, Save, Trash2, ExternalLink, Rocket, Target, Zap, CheckCircle2 } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import type { PressType, PressStatus, StudioPress } from '../types/studio.types'
 import { cn } from '@/lib/utils'
@@ -148,7 +148,7 @@ export default function PressDetailModal({ isOpen, onClose, item }: PressDetailM
                         <div className="space-y-3">
                             <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Linked Project</label>
                             <div className="relative">
-                                <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                                <Rocket className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
                                 <select
                                     disabled={!isEditing}
                                     value={editedData.project_id ?? item.project_id ?? ''}

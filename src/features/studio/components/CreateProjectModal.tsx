@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Plus, X, Briefcase, Globe, Type, AlignLeft, Youtube, Instagram, UploadCloud, Trash2, CheckSquare, Calendar, Target as TargetIcon, Zap } from 'lucide-react'
+import { Plus, X, Rocket, Globe, Type, AlignLeft, Youtube, Instagram, UploadCloud, Trash2, CheckSquare, Calendar, Target as TargetIcon, Zap } from 'lucide-react'
 import type { ProjectStatus, ProjectType, Platform } from '../types/studio.types'
 import { useStudio } from '../hooks/useStudio'
 import PlatformIcon from './PlatformIcon'
@@ -472,7 +472,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                             ) : (
                                 <>
                                     Create Project
-                                    <Briefcase className="w-4 h-4" />
+                                    <Rocket className="w-4 h-4" />
                                 </>
                             )}
                         </button>

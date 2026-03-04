@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Video, Calendar, CheckCircle2, Trash2, Plus, Zap, Briefcase, Shield, ListTodo, MoreVertical } from 'lucide-react'
+import { Video, Calendar, CheckCircle2, Trash2, Plus, Zap, Rocket, Shield, ListTodo, MoreVertical } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import type { StudioContent, ContentStatus, StudioProject, StudioMilestone } from '../types/studio.types'
 import { cn } from '@/lib/utils'
@@ -503,7 +503,7 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                 {/* Project tag */}
                 {project && (
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-black/40 bg-black/[0.03] w-fit px-2 py-0.5 rounded-md mb-3">
-                        <Briefcase className="w-2.5 h-2.5" />
+                        <Rocket className="w-2.5 h-2.5" />
                         {project.title}
                     </div>
                 )}

@@ -101,7 +101,7 @@ export default function ControlCentrePage() {
                     {/* Quick Actions */}
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         {[
-                            { href: "/create", color: "orange", icon: Briefcase, label: "Studio" },
+                            { href: "/create", color: "orange", icon: Sparkles, label: "Studio" },
                             { href: "/finances", color: "emerald", icon: BarChart3, label: "Finances" },
                             { href: "/tasks", color: "blue", icon: Activity, label: "Operations" },
                             { href: "/vault", color: "purple", icon: Shield, label: "Vault" },

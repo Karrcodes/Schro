@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Plus, X, Video, Type, Globe, Calendar, Briefcase, AlignLeft, UploadCloud, CheckSquare, Zap } from 'lucide-react'
+import { Plus, X, Video, Type, Globe, Calendar, Rocket, AlignLeft, UploadCloud, CheckSquare, Zap } from 'lucide-react'
 import type { ContentStatus, Platform, StudioContent, ContentCategory, PriorityLevel } from '../types/studio.types'
 import { useStudio } from '../hooks/useStudio'
 import PlatformIcon from './PlatformIcon'
@@ -367,7 +367,7 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Link Project (Optional)</label>
                         <div className="relative">
-                            <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                            <Rocket className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
                             <select value={formData.project_id || ''}
                                 onChange={e => setFormData(prev => ({ ...prev, project_id: e.target.value }))}
                                 className="w-full pl-11 pr-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-blue-200 appearance-none cursor-pointer">

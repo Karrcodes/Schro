@@ -5,7 +5,7 @@ import {
     X,
     ExternalLink,
     Trash2,
-    Briefcase,
+    Rocket,
     Link as LinkIcon,
     Tag,
     Plus,
@@ -378,7 +378,7 @@ export default function SparkDetailModal({ isOpen, onClose, spark, projects }: S
                             <p className="text-[9px] font-black text-black/30 uppercase tracking-widest mb-1">Context</p>
                             {linkedProject ? (
                                 <p className="text-[12px] font-bold text-black flex items-center gap-1.5 truncate">
-                                    <Briefcase className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                    <Rocket className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                                     {linkedProject.title}
                                 </p>
                             ) : (

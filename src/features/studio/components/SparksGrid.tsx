@@ -1,6 +1,6 @@
 'use client'
 
-import { Target, ExternalLink, Calendar, Plus, MoreVertical, Tag, Briefcase, Trash2, Search, HelpCircle, Archive, CheckCircle2, Inbox } from 'lucide-react'
+import { Target, ExternalLink, Calendar, Plus, MoreVertical, Tag, Rocket, Trash2, Search, HelpCircle, Archive, CheckCircle2, Inbox } from 'lucide-react'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useStudio } from '../hooks/useStudio'
 import type { StudioSpark, SparkStatus } from '../types/studio.types'
@@ -231,7 +231,7 @@ function SparkListRow({ spark, projects, onClick }: { spark: StudioSpark; projec
             <div className="hidden md:flex items-center gap-4 shrink-0">
                 {linkedProject && (
                     <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50/50 rounded-lg">
-                        <Briefcase className="w-3 h-3 text-blue-500" />
+                        <Rocket className="w-3 h-3 text-blue-500" />
                         <span className="text-[10px] font-bold text-blue-700">{linkedProject.title}</span>
                     </div>
                 )}
@@ -353,7 +353,7 @@ function SparkCard({ spark, projects, onClick, onDragStart, onDragEnd }: {
                 <div className="flex items-center gap-2">
                     {linkedProject ? (
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50/50 rounded-lg max-w-[140px]">
-                            <Briefcase className="w-3 h-3 text-blue-500 shrink-0" />
+                            <Rocket className="w-3 h-3 text-blue-500 shrink-0" />
                             <span className="text-[10px] font-bold text-blue-700 truncate">{linkedProject.title}</span>
                         </div>
                     ) : (

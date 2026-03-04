@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { X, Video, Globe, Calendar, Briefcase, AlignLeft, Edit3, Save, Trash2, ExternalLink, Link as LinkIcon, CheckCircle2, MapPin, Navigation, DollarSign, Plus, FileText, Lightbulb, ChevronDown, ChevronRight, Clock, Hash, Zap, UploadCloud, Type, Shield } from 'lucide-react'
+import { X, Video, Globe, Calendar, Rocket, AlignLeft, Edit3, Save, Trash2, ExternalLink, Link as LinkIcon, CheckCircle2, MapPin, Navigation, DollarSign, Plus, FileText, Lightbulb, ChevronDown, ChevronRight, Clock, Hash, Zap, UploadCloud, Type, Shield } from 'lucide-react'
 import type { StudioContent, ContentStatus, Platform, ContentCategory, ContentScene, PriorityLevel } from '../types/studio.types'
 import { useStudio } from '../hooks/useStudio'
 import PlatformIcon from './PlatformIcon'
 import { cn } from '@/lib/utils'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import { supabase } from '@/lib/supabase'
+import { Task } from '../../tasks/types/tasks.types'
 
 interface ContentDetailModalProps {
     isOpen: boolean
@@ -95,6 +96,16 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
     const prevItemId = useRef<string | null>(null)
     const deadlineInputRef = useRef<HTMLInputElement>(null)
     const publishDateInputRef = useRef<HTMLInputElement>(null)
+    const [linkedTasks, setLinkedTasks] = useState<Task[]>([])
+
+    useEffect(() => {
+        if (!isOpen || !item) return
+        const fetchLinkedTasks = async () => {
+            const { data } = await supabase.from('fin_tasks').select('*').eq('content_id', item.id).order('created_at', { ascending: false })
+            if (data) setLinkedTasks(data)
+        }
+        fetchLinkedTasks()
+    }, [isOpen, item])
 
     useEffect(() => {
         if (item) {
@@ -579,7 +590,7 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Project</label>
                                 <div className="relative">
-                                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/20" />
+                                    <Rocket className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/20" />
                                     <select disabled={!isEditing} value={editedData.project_id ?? item.project_id ?? ''}
                                         onChange={e => setEditedData(prev => ({ ...prev, project_id: e.target.value }))}
                                         className="w-full pl-9 pr-3 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[12px] font-bold focus:outline-none appearance-none disabled:opacity-100">
@@ -717,6 +728,42 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                                 </table>
                             </div>
                         </div>
+
+                        {/* Linked Operations Tasks */}
+                        {linkedTasks.length > 0 && (
+                            <div className="mt-6 pt-6 border-t border-black/[0.05]">
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-black/30 mb-3 flex items-center gap-2">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    Linked Operations Tasks
+                                </h4>
+                                <div className="space-y-2">
+                                    {linkedTasks.map(task => (
+                                        <div key={task.id} className="flex flex-col gap-1.5 p-3 bg-black/[0.02] border border-black/[0.05] rounded-xl group/task">
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn(
+                                                    "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0",
+                                                    task.is_completed ? "bg-emerald-500 border-emerald-500" : "border-black/20"
+                                                )}>
+                                                    {task.is_completed && <CheckCircle2 className="w-3 h-3 text-white" />}
+                                                </div>
+                                                <span className={cn(
+                                                    "text-[12px] font-bold flex-1 truncate",
+                                                    task.is_completed ? "text-black/30 line-through" : "text-black/80"
+                                                )}>
+                                                    {task.title}
+                                                </span>
+                                                {task.due_date && (
+                                                    <span className="text-[10px] font-bold text-black/30 bg-black/5 px-2 py-0.5 rounded-md shrink-0">
+                                                        Due {new Date(task.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-[9px] font-bold text-black/20 uppercase tracking-widest text-center mt-3">Manage these tasks in Operations</p>
+                            </div>
+                        )}
                     </div>
                 )}
 

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Award, Globe, Shield, Target, Zap, Plus, Search, Filter, ArrowRight, ExternalLink, Calendar, Briefcase } from 'lucide-react'
+import { Award, Globe, Shield, Target, Zap, Plus, Search, Filter, ArrowRight, ExternalLink, Calendar, Rocket } from 'lucide-react'
 import { useStudio } from '@/features/studio/hooks/useStudio'
 import CreatePressModal from '@/features/studio/components/CreatePressModal'
 import PressDetailModal from '@/features/studio/components/PressDetailModal'
@@ -204,7 +204,7 @@ function PressCard({ item, onClick, projects }: { item: StudioPress; onClick: ()
                 <div className="flex items-center justify-between">
                     {project && (
                         <div className="flex items-center gap-2 text-[10px] font-black text-black/40">
-                            <Briefcase className="w-3 h-3" />
+                            <Rocket className="w-3 h-3" />
                             {project.title}
                         </div>
                     )}
