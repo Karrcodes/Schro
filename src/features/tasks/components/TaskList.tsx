@@ -86,6 +86,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const title = category === 'todo' ? 'Deployment' : category === 'grocery' ? 'Grocery List' : 'Reminders'
     const Icon = category === 'todo' ? Activity : category === 'grocery' ? ShoppingCart : Bell
     const [selectedTaskForModal, setSelectedTaskForModal] = useState<Task | null>(null)
+    const [selectedMilestoneForModal, setSelectedMilestoneForModal] = useState<StudioMilestone | null>(null)
     const [selectedProjectForModal, setSelectedProjectForModal] = useState<any>(null)
     const [selectedContentForModal, setSelectedContentForModal] = useState<any>(null)
     const [newTask, setNewTask] = useState('')
@@ -689,7 +690,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                     </div>
                     <div>
                         <h2 className="text-[16px] font-bold text-black tracking-tight">{title}</h2>
-                        <p className="text-[12px] text-black/50">{tasks.filter(t => !t.is_completed).length} pending</p>
+                        <p className="text-[12px] text-black/50">{pendingData.count} pending</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1549,8 +1550,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 milestone={item.data}
                                 project={projects.find(p => p.id === item.data.project_id)}
                                 content={content.find(c => c.id === item.data.content_id)}
-                                onProjectClick={(p) => setSelectedProjectForModal(p)}
-                                onContentClick={(c) => setSelectedContentForModal(c)}
+                                onSelectItem={(m) => setSelectedMilestoneForModal(m)}
                             />
                         )
                     ))
@@ -1559,11 +1559,16 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
             <TaskDetailModal
                 task={selectedTaskForModal}
-                isOpen={!!selectedTaskForModal}
-                onClose={() => setSelectedTaskForModal(null)}
+                milestone={selectedMilestoneForModal}
+                isOpen={!!selectedTaskForModal || !!selectedMilestoneForModal}
+                onClose={() => {
+                    setSelectedTaskForModal(null)
+                    setSelectedMilestoneForModal(null)
+                }}
                 onToggleSubtask={handleModalToggleSubtask}
                 onToggleComplete={handleModalToggleComplete}
                 onEditTask={editTask}
+                onEditMilestone={updateMilestone}
                 projects={projects}
                 content={content}
             />
@@ -2427,12 +2432,11 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
     )
 }
 
-function MilestoneRow({ milestone, project, content, onProjectClick, onContentClick }: {
+function MilestoneRow({ milestone, project, content, onSelectItem }: {
     milestone: StudioMilestone,
     project: any,
     content: any,
-    onProjectClick: (project: any) => void,
-    onContentClick: (content: any) => void
+    onSelectItem: (milestone: StudioMilestone) => void
 }) {
     const statusColor = milestone.status === 'completed' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-blue-500 shadow-blue-500/20'
     const type = milestone.project_id ? 'Project' : 'Content'
@@ -2444,10 +2448,7 @@ function MilestoneRow({ milestone, project, content, onProjectClick, onContentCl
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="group flex items-center gap-3 p-3 bg-black/[0.02] hover:bg-black/[0.04] border border-black/[0.05] rounded-xl transition-all cursor-pointer"
-            onClick={() => {
-                if (milestone.project_id && project) onProjectClick(project)
-                else if (milestone.content_id && content) onContentClick(content)
-            }}
+            onClick={() => onSelectItem(milestone)}
         >
             <div className={cn("w-2 h-2 rounded-full shrink-0 animate-pulse", statusColor)} />
 
@@ -2455,7 +2456,7 @@ function MilestoneRow({ milestone, project, content, onProjectClick, onContentCl
                 <div className="flex items-center gap-2">
                     <span className="text-[13px] font-black text-black tracking-tight truncate">{milestone.title}</span>
                     <span className={cn(
-                        "px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider",
+                        "px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider flex items-center gap-1",
                         type === 'Project' ? "bg-purple-50 text-purple-600 border border-purple-100" : "bg-blue-50 text-blue-600 border border-blue-100"
                     )}>
                         {type === 'Project' ? <Rocket className="w-2 h-2" /> : <Video className="w-2 h-2" />}

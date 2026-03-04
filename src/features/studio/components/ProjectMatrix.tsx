@@ -344,6 +344,7 @@ export default function ProjectMatrix({ searchQuery = '', filterType = null, sho
     const [selectedParentId, setSelectedParentId] = useState<string | null>(null)
     const [parentType, setParentType] = useState<'project' | 'spark' | 'content' | null>(null)
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+    const [selectedMilestoneForModal, setSelectedMilestoneForModal] = useState<StudioMilestone | null>(null)
     const selectedTaskForModal = tasks.find(t => t.id === selectedTaskId) || null
     const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
     const [selectedStrategicCategory, setSelectedStrategicCategory] = useState<'all' | string>('all')
@@ -825,13 +826,7 @@ export default function ProjectMatrix({ searchQuery = '', filterType = null, sho
                         finalPosition={finalPositions[item.id] || { x: 50, y: 50, density: 'full' }}
                         onSelectItem={(selected) => {
                             if (selected.type === 'milestone') {
-                                if (selected.data.content_id) {
-                                    setSelectedParentId(selected.data.content_id)
-                                    setParentType('content')
-                                } else {
-                                    setSelectedParentId(selected.data.project_id || selected.data.spark_id || null)
-                                    setParentType(selected.data.project_id ? 'project' : 'spark')
-                                }
+                                setSelectedMilestoneForModal(selected.data)
                             } else {
                                 if (selected.data.content_id) {
                                     setSelectedParentId(selected.data.content_id)
@@ -950,11 +945,16 @@ export default function ProjectMatrix({ searchQuery = '', filterType = null, sho
             {/* Modals */}
             <TaskDetailModal
                 task={selectedTaskForModal}
-                isOpen={!!selectedTaskId}
-                onClose={() => setSelectedTaskId(null)}
+                milestone={selectedMilestoneForModal}
+                isOpen={!!selectedTaskId || !!selectedMilestoneForModal}
+                onClose={() => {
+                    setSelectedTaskId(null)
+                    setSelectedMilestoneForModal(null)
+                }}
                 onToggleSubtask={handleModalToggleSubtask}
                 onToggleComplete={handleModalToggleComplete}
                 onEditTask={editTask}
+                onEditMilestone={updateMilestone}
                 projects={projects}
                 content={content}
             />

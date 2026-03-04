@@ -404,6 +404,7 @@ export function TasksMatrix() {
     const pendingTasks = tasks.filter(t => !t.is_completed)
     const [isPlottingAI, setIsPlottingAI] = useState(false)
     const [selectedTaskForModal, setSelectedTaskForModal] = useState<Task | null>(null)
+    const [selectedMilestoneForModal, setSelectedMilestoneForModal] = useState<StudioMilestone | null>(null)
     const [selectedProjectForModal, setSelectedProjectForModal] = useState<any>(null)
     const [selectedContentForModal, setSelectedContentForModal] = useState<any>(null)
 
@@ -1016,10 +1017,8 @@ export function TasksMatrix() {
                                     } else {
                                         setSelectedTaskForModal(selected.data)
                                     }
-                                } else if (selected.data.project_id) {
-                                    setSelectedProjectForModal(projects.find(p => p.id === selected.data.project_id))
-                                } else if (selected.data.content_id) {
-                                    setSelectedContentForModal(content.find(c => c.id === selected.data.content_id))
+                                } else {
+                                    setSelectedMilestoneForModal(selected.data)
                                 }
                             }}
                             allCategories={ALL_CATEGORIES}
@@ -1132,8 +1131,12 @@ export function TasksMatrix() {
 
             <TaskDetailModal
                 task={selectedTaskForModal}
-                isOpen={!!selectedTaskForModal}
-                onClose={() => setSelectedTaskForModal(null)}
+                milestone={selectedMilestoneForModal}
+                isOpen={!!selectedTaskForModal || !!selectedMilestoneForModal}
+                onClose={() => {
+                    setSelectedTaskForModal(null)
+                    setSelectedMilestoneForModal(null)
+                }}
                 projects={projects}
                 content={content}
                 onToggleComplete={async (taskId, completed) => {
@@ -1168,6 +1171,7 @@ export function TasksMatrix() {
                     }
                     await editTask(taskId, updates)
                 }}
+                onEditMilestone={updateMilestone}
             />
 
             <ProjectDetailModal
