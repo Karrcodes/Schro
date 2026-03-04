@@ -1,7 +1,12 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+)
 
 export async function GET(req: NextRequest) {
     const url = new URL(req.url)
@@ -9,8 +14,8 @@ export async function GET(req: NextRequest) {
     const tagline = url.searchParams.get('tagline') || ''
     const type = url.searchParams.get('type') || ''
     const id = url.searchParams.get('id') || '1'
-    const w = url.searchParams.get('w') || '800'
-    const h = url.searchParams.get('h') || '600'
+    const w = url.searchParams.get('w') || '1200'
+    const h = url.searchParams.get('h') || '630'
 
     try {
         const prompt = `Given this project or content piece: Title: "${title}", Tagline: "${tagline}", Type: "${type}". Extract exactly 1 or 2 highest-quality generic visual keywords representing it to find a relevant stock photo on a stock photography site. DO NOT include any punctuation, quotes, or conversational text. ONLY output the keywords separated by a comma. Example: 'finance,office' or 'health' or 'tech,code' or 'fitness,gym'. Keep it broad enough to guarantee a search hit.`
@@ -21,28 +26,42 @@ export async function GET(req: NextRequest) {
 
         if (!keywords) throw new Error('No keywords')
 
-        // Fetch the image from loremflickr (which redirects to a real image)
-        // By fetching server-side, we follow the redirect, get the real image buffer, and cache it!
-        const imageRes = await fetch(`https://loremflickr.com/${w}/${h}/${keywords}?lock=${id}`)
+        // Fetch the initial redirect from loremflickr
+        const imageRes = await fetch(`https://loremflickr.com/${w}/${h}/${keywords}?lock=${id}`, { redirect: 'manual' })
 
-        if (!imageRes.ok) throw new Error('Flickr fetch failed')
-
-        return new NextResponse(imageRes.body, {
-            headers: {
-                'Content-Type': imageRes.headers.get('Content-Type') || 'image/jpeg',
-                'Cache-Control': 'public, max-age=31536000, immutable',
+        let finalUrl = imageRes.url
+        if (imageRes.status >= 300 && imageRes.status < 400) {
+            const dest = imageRes.headers.get('location')
+            if (dest) {
+                finalUrl = dest.startsWith('http') ? dest : `https://loremflickr.com${dest}`
             }
-        })
+        }
+
+        // Save the permanent URL to Supabase so it never changes unless the user explicitly removes it
+        if (id && type) {
+            const table = type === 'content' ? 'studio_content' : 'studio_projects'
+            const { error } = await supabase.from(table).update({ cover_url: finalUrl }).eq('id', id)
+            if (error) console.error("Error saving cover_url to database:", error)
+        }
+
+        return NextResponse.redirect(finalUrl, 302)
     } catch (e) {
         // Fallback if AI fails or rate limits
         const fallback = encodeURIComponent((title.split(' ')[0] + ',' + (type || 'abstract')).toLowerCase())
-        const fallbackRes = await fetch(`https://loremflickr.com/${w}/${h}/${fallback}?lock=${id}`)
-
-        return new NextResponse(fallbackRes.body, {
-            headers: {
-                'Content-Type': fallbackRes.headers.get('Content-Type') || 'image/jpeg',
-                'Cache-Control': 'public, max-age=86400',
+        const fallbackRes = await fetch(`https://loremflickr.com/${w}/${h}/${fallback}?lock=${id}`, { redirect: 'manual' })
+        let finalUrl = fallbackRes.url
+        if (fallbackRes.status >= 300 && fallbackRes.status < 400) {
+            const dest = fallbackRes.headers.get('location')
+            if (dest) {
+                finalUrl = dest.startsWith('http') ? dest : `https://loremflickr.com${dest}`
             }
-        })
+        }
+
+        if (id && type) {
+            const table = type === 'content' ? 'studio_content' : 'studio_projects'
+            await supabase.from(table).update({ cover_url: finalUrl }).eq('id', id)
+        }
+
+        return NextResponse.redirect(finalUrl, 302)
     }
 }
