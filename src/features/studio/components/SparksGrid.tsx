@@ -241,7 +241,7 @@ function SparkListRow({ spark, projects, onClick }: { spark: StudioSpark; projec
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+            <div className="flex items-center gap-2 opacity-100 ml-auto">
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
@@ -299,7 +299,7 @@ function SparkCard({ spark, projects, onClick, onDragStart, onDragEnd }: {
                         typeEmoji
                     )}
                 </div>
-                <div className="flex items-center gap-1.5 opacity-100 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1.5 opacity-100">
                     <button
                         onClick={(e) => {
                             e.stopPropagation();

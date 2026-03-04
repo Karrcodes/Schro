@@ -407,7 +407,7 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                                         </div>
                                         <button type="button"
                                             onClick={() => setMilestones(prev => prev.filter((_, i) => i !== idx))}
-                                            className="p-1 rounded-md hover:bg-red-50 text-red-400 opacity-0 group-hover:opacity-100 transition-all">
+                                            className="p-1 rounded-md hover:bg-red-50 text-red-400 opacity-40 hover:opacity-100 transition-all">
                                             <X className="w-3.5 h-3.5" />
                                         </button>
                                     </div>

@@ -335,10 +335,7 @@ export default function SparkDetailModal({ isOpen, onClose, spark, projects }: S
                                                 </div>
                                                 <button
                                                     onClick={() => deleteMilestone(m.id)}
-                                                    className={cn(
-                                                        "p-1.5 text-black/10 hover:text-red-500 transition-all",
-                                                        isEditing ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                                                    )}
+                                                    className="p-1.5 text-black/20 hover:text-red-500 transition-all opacity-100"
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
