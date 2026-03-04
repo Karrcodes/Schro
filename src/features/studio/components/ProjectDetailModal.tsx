@@ -247,7 +247,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                 {/* Visual Header / Cover */}
                 <div className="h-48 w-full overflow-hidden shrink-0 bg-black/[0.02] relative">
                     <img
-                        src={project.cover_url || `https://image.pollinations.ai/prompt/${encodeURIComponent(project.title + ' ' + (project.tagline || project.type))}?width=1200&height=400&nologo=true`}
+                        src={project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=${encodeURIComponent(project.type || '')}&id=${project.id}&w=1200&h=400`}
                         alt=""
                         className={cn(
                             "w-full h-full object-cover transition-opacity duration-500",

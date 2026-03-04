@@ -279,7 +279,7 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                 style={{ touchAction: 'none' }}
             >
                 <img
-                    src={project.cover_url || `https://image.pollinations.ai/prompt/${encodeURIComponent(project.title + ' ' + (project.tagline || project.type))}?width=800&height=600&nologo=true`}
+                    src={project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=${encodeURIComponent(project.type || '')}&id=${project.id}&w=800&h=600`}
                     alt=""
                     className={cn(
                         "w-full h-full object-cover transition-transform duration-500 group-hover:scale-110",

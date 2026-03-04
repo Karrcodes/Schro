@@ -172,8 +172,9 @@ export default function StudioDashboard() {
                                     {project.cover_url && (
                                         <div className="h-24 -mx-4 -mt-4 mb-4 overflow-hidden relative">
                                             <img
-                                                src={project.cover_url || `https://image.pollinations.ai/prompt/${encodeURIComponent(project.title + ' ' + (project.tagline || project.type))}?width=800&height=600&nologo=true`}
+                                                src={project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=${encodeURIComponent(project.type || '')}&id=${project.id}&w=800&h=600`}
                                                 alt=""
+
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-60" />
