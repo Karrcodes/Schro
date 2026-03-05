@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ZoomIn, ZoomOut, Maximize2, Shuffle, ArrowUpRight, Archive, Trash2, Plus, Rocket, Video } from 'lucide-react'
+import { ZoomIn, ZoomOut, Maximize2, Shuffle, ArrowUpRight, Archive, Trash2, Plus, Rocket, Video, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CanvasConnection, CanvasColor, StudioCanvasEntry, StudioProject, StudioContent, PolymorphicNode } from '../types/studio.types'
 
