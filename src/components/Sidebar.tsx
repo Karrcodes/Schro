@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
     BarChart3, Activity, ShoppingCart, Bell,
     SlidersHorizontal, Menu, X, RefreshCw,
@@ -636,8 +637,14 @@ export function Sidebar() {
                     }}
                 />
                 {/* Logo area */}
-                <div className="px-4 border-b border-black/[0.06] flex items-center justify-between h-[96px] shrink-0">
-                    <Link href="/system/control-centre" className="flex items-center justify-center relative -top-[1px]">
+                <div className={cn(
+                    "border-b border-black/[0.06] flex items-center h-[96px] shrink-0",
+                    isCollapsed ? "justify-center" : "px-4 justify-between"
+                )}>
+                    <Link href="/system/control-centre" className={cn(
+                        "flex items-center justify-center relative -top-[1px]",
+                        isCollapsed && "left-[2px]"
+                    )}>
                         {isCollapsed ? (
                             <span className="text-3xl font-serif italic font-medium tracking-tight leading-none select-none">ö</span>
                         ) : (
@@ -685,7 +692,7 @@ export function Sidebar() {
                                     <div className="relative group">
                                         {/* Folder-tab box — absolutely positioned, independent from icon */}
                                         {isActive && (
-                                            <div className="absolute top-0 right-0 w-[62px] h-11 bg-[#fafafa] rounded-l-xl rounded-r-none border border-black/[0.1] border-r-transparent z-0 pointer-events-none before:content-[''] before:absolute before:-top-3 before:right-0 before:w-3 before:h-3 before:rounded-br-xl before:shadow-[3px_3px_0_3px_#fafafa] before:border-b before:border-black/[0.07] before:pointer-events-none after:content-[''] after:absolute after:-bottom-3 after:right-0 after:w-3 after:h-3 after:rounded-tr-xl after:shadow-[3px_-3px_0_3px_#fafafa] after:border-t after:border-black/[0.07] after:pointer-events-none" />
+                                            <div className="absolute top-0 right-0 w-[56px] h-11 bg-[#fafafa] rounded-l-xl rounded-r-none border border-black/[0.1] border-r-transparent z-0 pointer-events-none before:content-[''] before:absolute before:-top-3 before:right-0 before:w-3 before:h-3 before:rounded-br-xl before:shadow-[3px_3px_0_3px_#fafafa] before:border-b before:border-black/[0.07] before:pointer-events-none after:content-[''] after:absolute after:-bottom-3 after:right-0 after:w-3 after:h-3 after:rounded-tr-xl after:shadow-[3px_-3px_0_3px_#fafafa] after:border-t after:border-black/[0.07] after:pointer-events-none" />
                                         )}
                                         <Link
                                             ref={el => { tabRefs.current[item.label] = el }}
@@ -704,21 +711,22 @@ export function Sidebar() {
                                     </div>
 
                                     {/* Tooltip (fixed position, no sub) */}
-                                    {hoveredItem === item.label && !('sub' in item && item.sub) && (
+                                    {isMounted && hoveredItem === item.label && !('sub' in item && item.sub) && createPortal(
                                         <div
                                             ref={flyoutRef}
-                                            className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[60] shadow-xl max-h-[calc(100vh-24px)] overflow-y-auto custom-scrollbar"
+                                            className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[300] shadow-xl max-h-[calc(100vh-24px)] overflow-y-auto custom-scrollbar"
                                             style={{ left: 72, top: flyoutY + flyoutOffset, transform: 'translateY(-50%)' }}
                                         >
                                             {item.label}
-                                        </div>
+                                        </div>,
+                                        document.body
                                     )}
 
                                     {/* Sub-items flyout (fixed position) */}
-                                    {'sub' in item && item.sub && hoveredItem === item.label && (
+                                    {isMounted && 'sub' in item && item.sub && hoveredItem === item.label && createPortal(
                                         <div
                                             ref={flyoutRef}
-                                            className="fixed flex flex-col gap-1 p-1.5 bg-white border border-black/[0.08] rounded-2xl shadow-xl z-[60] animate-in fade-in zoom-in-95 duration-200 max-h-[calc(100vh-24px)] overflow-y-auto custom-scrollbar"
+                                            className="fixed flex flex-col gap-1 p-1.5 bg-white border border-black/[0.08] rounded-2xl shadow-xl z-[300] animate-in fade-in zoom-in-95 duration-200 max-h-[calc(100vh-24px)] overflow-y-auto custom-scrollbar"
                                             style={{ left: 56, top: flyoutY + flyoutOffset, transform: 'translateY(-50%)' }}
                                         >
                                             {item.sub.map(subItem => {
@@ -745,18 +753,20 @@ export function Sidebar() {
                                                         >
                                                             <SubIcon className="w-4 h-4" />
                                                         </Link>
-                                                        {hoveredSubItem === subItem.label && (
+                                                        {isMounted && hoveredSubItem === subItem.label && createPortal(
                                                             <div
-                                                                className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[60] shadow-xl"
+                                                                className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[310] shadow-xl"
                                                                 style={{ left: 56 + 44 + 12, top: subFlyoutY, transform: 'translateY(-50%)' }}
                                                             >
                                                                 {subItem.label}
-                                                            </div>
+                                                            </div>,
+                                                            document.body
                                                         )}
                                                     </div>
                                                 )
                                             })}
-                                        </div>
+                                        </div>,
+                                        document.body
                                     )}
                                 </div>
                             )
@@ -775,7 +785,11 @@ export function Sidebar() {
                     <div className="pb-4 flex flex-col items-center gap-1 shrink-0 px-2">
                         <Link
                             href="/system/settings"
-                            onMouseEnter={() => setHoveredItem('settings')}
+                            onMouseEnter={(e) => {
+                                setHoveredItem('settings')
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setFlyoutY(rect.top + rect.height / 2)
+                            }}
                             onMouseLeave={() => setHoveredItem(null)}
                             className={cn(
                                 "relative w-10 h-10 flex items-center justify-center rounded-xl transition-all outline-none select-none",
@@ -787,12 +801,16 @@ export function Sidebar() {
                             )}
                         >
                             <SlidersHorizontal className="w-4 h-4" />
-                            <div className={cn(
-                                "hidden md:block pointer-events-none absolute left-full ml-2 px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap transition-opacity z-[200] shadow-xl",
-                                hoveredItem === 'settings' ? 'opacity-100' : 'opacity-0'
-                            )}>
-                                System Settings
-                            </div>
+                            {isMounted && hoveredItem === 'settings' && createPortal(
+                                <div
+                                    ref={flyoutRef}
+                                    className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[300] shadow-xl"
+                                    style={{ left: 56 + 12, top: flyoutY + flyoutOffset, transform: 'translateY(-50%)' }}
+                                >
+                                    System Settings
+                                </div>,
+                                document.body
+                            )}
                         </Link>
 
                         <button
@@ -800,7 +818,11 @@ export function Sidebar() {
                                 setIsRefreshing(true)
                                 setTimeout(() => window.location.reload(), 600)
                             }}
-                            onMouseEnter={() => setHoveredItem('refresh')}
+                            onMouseEnter={(e) => {
+                                setHoveredItem('refresh')
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setFlyoutY(rect.top + rect.height / 2)
+                            }}
                             onMouseLeave={() => setHoveredItem(null)}
                             disabled={isRefreshing}
                             className={cn(
@@ -811,12 +833,16 @@ export function Sidebar() {
                             )}
                         >
                             <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin text-red-500")} />
-                            <div className={cn(
-                                "hidden md:block pointer-events-none absolute left-full ml-2 px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap transition-opacity z-[200] shadow-xl",
-                                hoveredItem === 'refresh' ? 'opacity-100' : 'opacity-0'
-                            )}>
-                                Sync Database
-                            </div>
+                            {isMounted && hoveredItem === 'refresh' && createPortal(
+                                <div
+                                    ref={flyoutRef}
+                                    className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[300] shadow-xl"
+                                    style={{ left: 56 + 12, top: flyoutY + flyoutOffset, transform: 'translateY(-50%)' }}
+                                >
+                                    Sync Database
+                                </div>,
+                                document.body
+                            )}
                         </button>
 
                         <div className="w-6 h-px bg-black/[0.06] my-2 rounded-full" />

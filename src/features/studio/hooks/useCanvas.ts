@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { CanvasConnection, StudioCanvasEntry, CanvasColor, CanvasMap, CanvasMapNode, StudioCanvasNodeLink } from '../types/studio.types'
+import type { CanvasConnection, StudioCanvasEntry, CanvasColor, CanvasMap, CanvasMapNode } from '../types/studio.types'
 
 export function useCanvas() {
     const [entries, setEntries] = useState<StudioCanvasEntry[]>([])
@@ -9,7 +9,6 @@ export function useCanvas() {
     const [maps, setMaps] = useState<CanvasMap[]>([])
     const [currentMapId, setCurrentMapId] = useState<string | null>(null)
     const [mapNodes, setMapNodes] = useState<CanvasMapNode[]>([])
-    const [nodeLinks, setNodeLinks] = useState<StudioCanvasNodeLink[]>([])
     const [loading, setLoading] = useState(true)
     const posDebounce = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
@@ -54,17 +53,10 @@ export function useCanvas() {
         else setConnections((data || []) as CanvasConnection[])
     }, [currentMapId])
 
-    const fetchNodeLinks = useCallback(async () => {
-        const { data, error } = await supabase.from('studio_canvas_node_links').select('*')
-        if (error) console.error('Canvas node links fetch error:', error.message)
-        else setNodeLinks((data || []) as StudioCanvasNodeLink[])
-    }, [])
-
     useEffect(() => {
         fetchMaps()
         fetchEntries()
-        fetchNodeLinks()
-    }, [fetchMaps, fetchEntries, fetchNodeLinks])
+    }, [fetchMaps, fetchEntries])
 
     useEffect(() => {
         if (currentMapId) {
@@ -246,32 +238,12 @@ export function useCanvas() {
         setConnections(prev => prev.filter(c => c.id !== id))
     }, [])
 
-    const nodeAddLink = useCallback(async (entryId: string, targetId: string, targetType: 'project' | 'content') => {
-        const { data, error } = await supabase
-            .from('studio_canvas_node_links')
-            .insert([{ entry_id: entryId, target_id: targetId, target_type: targetType }])
-            .select()
-        if (error) { console.error('Node link error:', error.message); return }
-        if (data?.[0]) setNodeLinks(prev => [...prev, data[0] as StudioCanvasNodeLink])
-    }, [])
-
-    const nodeRemoveLink = useCallback(async (entryId: string, targetId: string) => {
-        const { error } = await supabase
-            .from('studio_canvas_node_links')
-            .delete()
-            .eq('entry_id', entryId)
-            .eq('target_id', targetId)
-        if (error) { console.error('Remove link error:', error.message); return }
-        setNodeLinks(prev => prev.filter(l => !(l.entry_id === entryId && l.target_id === targetId)))
-    }, [])
-
     return {
         entries, connections, loading,
-        maps, currentMapId, setCurrentMapId, mapNodes, nodeLinks,
+        maps, currentMapId, setCurrentMapId, mapNodes,
         createEntry, updateEntry, updateNodePosition, deleteEntry, archiveEntry, togglePin,
         createConnection, deleteConnection,
         createMap, fetchMaps, addNodeToMap, deleteMapNode, deleteMap, archiveMap, renameMap,
-        nodeAddLink, nodeRemoveLink,
         refresh: fetchEntries
     }
 }

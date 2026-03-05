@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ZoomIn, ZoomOut, Maximize2, Shuffle, ArrowUpRight, Archive, Trash2, Plus, Rocket, Video, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ZoomIn, ZoomOut, Maximize2, Shuffle, ArrowUpRight, Archive, Trash2, Plus, Rocket, Video, X, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CanvasConnection, CanvasColor, StudioCanvasEntry, StudioProject, StudioContent, PolymorphicNode } from '../types/studio.types'
 
@@ -48,11 +49,15 @@ interface Props {
     onRemoveNode: (id: string) => void
     onCreateNode: (data: { title: string; x: number; y: number }) => void
     onDropNode: (id: string, type: 'entry' | 'project' | 'content', x: number, y: number) => void
+    isLibraryOpen?: boolean
+    onOverLibraryChange?: (isOver: boolean) => void
+    onCompose?: (nodes: PolymorphicNode[]) => void
 }
 
 export default function CanvasWebView({
     entries, connections, onNodeClick, onCreateConnection, onDeleteConnection, onUpdatePosition,
-    onDeleteNode, onArchiveNode, onRemoveNode, onCreateNode, onDropNode
+    onDeleteNode, onArchiveNode, onRemoveNode, onCreateNode, onDropNode, isLibraryOpen, onOverLibraryChange,
+    onCompose
 }: Props) {
     const containerRef = useRef<HTMLDivElement>(null)
     const [pan, setPan] = useState({ x: 60, y: 60 })
@@ -66,9 +71,16 @@ export default function CanvasWebView({
     const [hoveredEdge, setHoveredEdge] = useState<string | null>(null)
     const [hoveredControl, setHoveredControl] = useState<string | null>(null)
     const [magneticNode, setMagneticNode] = useState<string | null>(null)
+    const [isOverLibrary, setIsOverLibrary] = useState(false)
+    const [animatingRemovalId, setAnimatingRemovalId] = useState<string | null>(null)
+    const [removalTarget, setRemovalTarget] = useState<{ x: number, y: number } | null>(null)
+    const [ghostCoords, setGhostCoords] = useState<{ x: number, y: number } | null>(null)
+    const [selectedIds, setSelectedIds] = useState<string[]>([])
+    const [marqueeBox, setMarqueeBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
 
     const dragStart = useRef<{ mx: number; my: number; nx: number; ny: number } | null>(null)
     const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
+    const marqueeStart = useRef<{ x: number; y: number } | null>(null)
     const isPanning = useRef(false)
 
     // Initialise positions from persisted data + auto-layout for unpositioned
@@ -101,6 +113,146 @@ export default function CanvasWebView({
         return () => div.removeEventListener('wheel', handleWheel)
     }, [])
 
+    // ---- Global Drag/Pan Tracking ----
+    useEffect(() => {
+        if (!draggingId && !isPanning.current && !connectingFrom && !marqueeBox) return
+
+        const handleGlobalMouseMove = (e: MouseEvent) => {
+            // Re-type event for compatibility with existing logic
+            const reactEvent = e as unknown as React.MouseEvent
+
+            if (draggingId && dragStart.current) {
+                const dx = (e.clientX - dragStart.current.mx) / zoom
+                const dy = (e.clientY - dragStart.current.my) / zoom
+                const nx = dragStart.current.nx + dx
+                const ny = dragStart.current.ny + dy
+                setPositions(prev => ({ ...prev, [draggingId]: { x: nx, y: ny } }))
+
+                // Library drop detection (Global)
+                const rect = containerRef.current?.getBoundingClientRect()
+                if (rect && isLibraryOpen) {
+                    const over = e.clientX < rect.left
+                    if (over !== isOverLibrary) {
+                        setIsOverLibrary(over)
+                        onOverLibraryChange?.(over)
+                    }
+                }
+                setGhostCoords({ x: e.clientX, y: e.clientY })
+            } else if (isPanning.current && panStart.current) {
+                setPan({
+                    x: panStart.current.px + (e.clientX - panStart.current.mx),
+                    y: panStart.current.py + (e.clientY - panStart.current.my),
+                })
+            } else if (marqueeStart.current) {
+                const x1 = Math.min(e.clientX, marqueeStart.current.x)
+                const y1 = Math.min(e.clientY, marqueeStart.current.y)
+                const x2 = Math.max(e.clientX, marqueeStart.current.x)
+                const y2 = Math.max(e.clientY, marqueeStart.current.y)
+                setMarqueeBox({ x1, y1, x2, y2 })
+
+                const rect = containerRef.current?.getBoundingClientRect()
+                if (rect) {
+                    const cx1 = (x1 - rect.left - pan.x) / zoom
+                    const cy1 = (y1 - rect.top - pan.y) / zoom
+                    const cx2 = (x2 - rect.left - pan.x) / zoom
+                    const cy2 = (y2 - rect.top - pan.y) / zoom
+
+                    const ids = entries.filter(n => {
+                        const p = getPos(n.id)
+                        return p.x >= cx1 && p.x + NODE_W <= cx2 && p.y >= cy1 && p.y + NODE_H <= cy2
+                    }).map(n => n.id)
+                    setSelectedIds(ids)
+                }
+            }
+            if (connectingFrom) {
+                const rect = containerRef.current?.getBoundingClientRect()
+                if (rect) {
+                    const mx = (e.clientX - rect.left - pan.x) / zoom
+                    const my = (e.clientY - rect.top - pan.y) / zoom
+
+                    let closest: string | null = null
+                    let minD = 50
+                    let snappedPoint = { x: mx, y: my }
+
+                    entries.forEach(node => {
+                        if (node.id === connectingFrom.id) return
+                        const p = getPos(node.id)
+                        const sides: ('top' | 'bottom' | 'left' | 'right')[] = ['top', 'bottom', 'left', 'right']
+                        sides.forEach(side => {
+                            const portPos = getPortPos(p, side)
+                            const dx = mx - portPos.x
+                            const dy = my - portPos.y
+                            const dist = Math.sqrt(dx * dx + dy * dy)
+                            if (dist < minD) {
+                                minD = dist
+                                closest = node.id
+                                snappedPoint = portPos
+                            }
+                        })
+                    })
+                    setPendingLine(snappedPoint)
+                    setMagneticNode(closest)
+                }
+            }
+        }
+
+        const handleGlobalMouseUp = (e: MouseEvent) => {
+            if (marqueeStart.current) {
+                marqueeStart.current = null
+                setMarqueeBox(null)
+            }
+
+            if (draggingId) {
+                const rect = containerRef.current?.getBoundingClientRect()
+                if (isLibraryOpen && rect && e.clientX < rect.left) {
+                    // Fly-back animation
+                    setAnimatingRemovalId(draggingId)
+                    setRemovalTarget({ x: rect.left - 100, y: e.clientY })
+                    setTimeout(() => {
+                        onRemoveNode(draggingId)
+                        setAnimatingRemovalId(null)
+                        setRemovalTarget(null)
+                    }, 300)
+                    setIsOverLibrary(false)
+                    onOverLibraryChange?.(false)
+                } else {
+                    const pos = positions[draggingId]
+                    if (pos) onUpdatePosition(draggingId, pos.x, pos.y)
+                }
+            }
+
+            if (connectingFrom && magneticNode) {
+                onCreateConnection(connectingFrom.id, magneticNode)
+                setConnectingFrom(null)
+                setPendingLine(null)
+                setMagneticNode(null)
+            } else if (connectingFrom && !magneticNode) {
+                // If it's a click-drag, we might want to clear it, but for click-to-connect we keep it
+                // Logic based on dragStart? For now cancel on mouseup if not snapped and moved a bit
+                if (dragStart.current && Math.abs(e.clientX - dragStart.current.mx) > 5) {
+                    setConnectingFrom(null)
+                    setPendingLine(null)
+                }
+            }
+
+            setDraggingId(null)
+            setGhostCoords(null)
+            setIsOverLibrary(false)
+            onOverLibraryChange?.(false)
+            dragStart.current = null
+            isPanning.current = false
+            panStart.current = null
+            setMagneticNode(null)
+        }
+
+        window.addEventListener('mousemove', handleGlobalMouseMove)
+        window.addEventListener('mouseup', handleGlobalMouseUp)
+        return () => {
+            window.removeEventListener('mousemove', handleGlobalMouseMove)
+            window.removeEventListener('mouseup', handleGlobalMouseUp)
+        }
+    }, [draggingId, isOverLibrary, isLibraryOpen, zoom, pan, entries, positions, connectingFrom, magneticNode, onUpdatePosition, onRemoveNode, onCreateConnection, onOverLibraryChange])
+
     // ---- iPad Native Pointer Drop Support ----
     useEffect(() => {
         const handlePointerDrop = (e: any) => {
@@ -120,89 +272,31 @@ export default function CanvasWebView({
     const onBgMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return
         if ((e.target as HTMLElement).closest('[data-node]')) return
-        isPanning.current = true
-        panStart.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y }
+
+        if (e.shiftKey) {
+            marqueeStart.current = { x: e.clientX, y: e.clientY }
+            setSelectedIds([])
+        } else {
+            isPanning.current = true
+            panStart.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y }
+            setSelectedIds([])
+        }
     }
-
-    const onMouseMove = useCallback((e: React.MouseEvent) => {
-        if (draggingId && dragStart.current) {
-            const dx = (e.clientX - dragStart.current.mx) / zoom
-            const dy = (e.clientY - dragStart.current.my) / zoom
-            const nx = dragStart.current.nx + dx
-            const ny = dragStart.current.ny + dy
-            setPositions(prev => ({ ...prev, [draggingId]: { x: nx, y: ny } }))
-        } else if (isPanning.current && panStart.current) {
-            setPan({
-                x: panStart.current.px + (e.clientX - panStart.current.mx),
-                y: panStart.current.py + (e.clientY - panStart.current.my),
-            })
-        }
-
-        if (connectingFrom) {
-            const rect = containerRef.current?.getBoundingClientRect()
-            if (rect) {
-                const mx = (e.clientX - rect.left - pan.x) / zoom
-                const my = (e.clientY - rect.top - pan.y) / zoom
-
-                // Precise Port Snapping Detection
-                let closest: string | null = null
-                let minD = 50
-                let snappedPoint = { x: mx, y: my }
-
-                entries.forEach(node => {
-                    if (node.id === connectingFrom.id) return
-                    const p = getPos(node.id)
-
-                    // Check all 4 ports of each node for snapping
-                    const sides: ('top' | 'bottom' | 'left' | 'right')[] = ['top', 'bottom', 'left', 'right']
-                    sides.forEach(side => {
-                        const portPos = getPortPos(p, side)
-                        const dx = mx - portPos.x
-                        const dy = my - portPos.y
-                        const dist = Math.sqrt(dx * dx + dy * dy)
-                        if (dist < minD) {
-                            minD = dist
-                            closest = node.id
-                            snappedPoint = portPos
-                        }
-                    })
-                })
-
-                setPendingLine(snappedPoint)
-                setMagneticNode(closest)
-            }
-        }
-    }, [draggingId, zoom, connectingFrom, pan, entries, getPos])
-
-    const onMouseUp = useCallback((e: React.MouseEvent) => {
-        if (draggingId) {
-            const pos = positions[draggingId]
-            if (pos) onUpdatePosition(draggingId, pos.x, pos.y)
-        }
-        if (connectingFrom && magneticNode) {
-            onCreateConnection(connectingFrom.id, magneticNode)
-            setConnectingFrom(null)
-            setPendingLine(null)
-            setMagneticNode(null)
-        }
-        setDraggingId(null)
-        dragStart.current = null
-        isPanning.current = false
-        panStart.current = null
-        // If we were connecting but didn't hit a node, we might want to keep it or cancel
-        // Keeping it for click-to-connect for now, but clearing magnetic
-        setMagneticNode(null)
-    }, [draggingId, positions, onUpdatePosition, connectingFrom, magneticNode, onCreateConnection])
 
     // ---- Node interaction ----
     const onNodeMouseDown = (e: React.MouseEvent, id: string) => {
         e.stopPropagation()
         if (connectingFrom || (e.target as HTMLElement).closest('[data-handle]')) return
-        setDraggingId(id)
-        const pos = getPos(id)
-        dragStart.current = { mx: e.clientX, my: e.clientY, nx: pos.x, ny: pos.y }
-    }
 
+        if (e.shiftKey) {
+            setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+        } else {
+            if (!selectedIds.includes(id)) setSelectedIds([id])
+            setDraggingId(id)
+            const pos = getPos(id)
+            dragStart.current = { mx: e.clientX, my: e.clientY, nx: pos.x, ny: pos.y }
+        }
+    }
     const onNodeMouseMove = (e: React.MouseEvent, id: string) => {
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
         const mx = e.clientX - rect.left, my = e.clientY - rect.top
@@ -340,9 +434,6 @@ export default function CanvasWebView({
             style={{ backgroundImage: 'radial-gradient(circle, #d4d4d4 1px, transparent 1px)', backgroundSize: '28px 28px' }}
             ref={containerRef}
             onMouseDown={onBgMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
-            onMouseLeave={onMouseUp}
             onDragEnter={e => e.preventDefault()}
             onDragOver={e => e.preventDefault()}
             onDrop={handleDrop}
@@ -506,8 +597,9 @@ export default function CanvasWebView({
                             <div className={cn(
                                 "bg-white border rounded-2xl px-3.5 py-3 shadow-sm cursor-grab active:cursor-grabbing transition-all duration-150 relative",
                                 node.node_type === 'project' ? "border-orange-200" : node.node_type === 'content' ? "border-blue-200" : COLOR_BORDER[color as CanvasColor],
-                                draggingId === node.id && 'shadow-2xl ring-2 ring-black/10 scale-105 rotate-1 z-[100] cursor-grabbing',
+                                (draggingId === node.id || animatingRemovalId === node.id) && 'opacity-0 pointer-events-none',
                                 !!connectingFrom && connectingFrom.id === node.id && 'ring-2 ring-indigo-400 shadow-md',
+                                selectedIds.includes(node.id) && 'ring-2 ring-indigo-500 shadow-xl border-indigo-500 z-50',
                                 isHovered && !connectingFrom && draggingId !== node.id && 'shadow-md',
                                 (connectingFrom && connectingFrom.id !== node.id && magneticNode === node.id) && 'ring-4 ring-indigo-500/30 scale-[1.02] shadow-xl z-50',
                                 connectingFrom && connectingFrom.id !== node.id && !magneticNode && 'hover:ring-2 hover:ring-indigo-300'
@@ -607,6 +699,95 @@ export default function CanvasWebView({
                     )
                 })}
             </div>
+
+            {/* Dragging/Animating Portal */}
+            {(draggingId || animatingRemovalId) && typeof document !== 'undefined' && createPortal(
+                (() => {
+                    const activeId = animatingRemovalId || draggingId
+                    if (!activeId) return null
+                    const node = entries.find(n => n.id === activeId)
+                    if (!node) return null
+                    const color = (node as any).color || 'default'
+                    const body = (node as any).body || (node as any).description || (node as any).notes || (node as any).tagline || ''
+                    const icon = node.node_type === 'project' ? <Rocket className="w-3 h-3 text-orange-500" /> : node.node_type === 'content' ? <Video className="w-3 h-3 text-blue-500" /> : null
+
+                    const isAnimating = !!animatingRemovalId
+                    const x = isAnimating ? removalTarget?.x : ghostCoords?.x
+                    const y = isAnimating ? removalTarget?.y : ghostCoords?.y
+
+                    return (
+                        <div
+                            style={{
+                                position: 'fixed',
+                                left: x,
+                                top: y,
+                                width: NODE_W,
+                                zIndex: 9999,
+                                pointerEvents: 'none',
+                                transform: isAnimating
+                                    ? `translate(-50%, -50%) scale(0.05) rotate(-20deg)`
+                                    : isOverLibrary
+                                        ? `translate(-50%, -50%) rotate(0deg) scale(0.9)`
+                                        : `translate(-50%, -50%) rotate(1deg) scale(1.05)`,
+                                transition: isAnimating
+                                    ? 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                                    : 'transform 0.15s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s',
+                                opacity: isAnimating ? 0 : (isOverLibrary ? 1 : 0.95)
+                            }}
+                        >
+                            <div className={cn(
+                                "bg-white border-2 rounded-2xl px-3.5 py-3 shadow-2xl transition-all duration-200",
+                                isOverLibrary
+                                    ? "border-indigo-500 bg-white ring-8 ring-indigo-500/10 shadow-indigo-500/20"
+                                    : (node.node_type === 'project' ? "border-orange-200" : node.node_type === 'content' ? "border-blue-200" : COLOR_BORDER[color as CanvasColor])
+                            )}>
+                                <div className="flex flex-col">
+                                    <div className="flex items-start gap-2">
+                                        {node.node_type === 'entry' ? (
+                                            <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", COLOR_DOT[color as CanvasColor])} />
+                                        ) : (
+                                            <div className="shrink-0 mt-0.5">{icon}</div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[12px] font-bold text-black leading-tight line-clamp-1">{node.title}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0 mt-2">
+                                        <p className="text-[10px] text-black/50 leading-relaxed line-clamp-2">{body}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                })(),
+                document.body
+            )}
+
+            {/* Compose Button overlay */}
+            {selectedIds.length > 0 && onCompose && (
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[60] animate-in slide-in-from-bottom-4 duration-300">
+                    <button
+                        onClick={() => onCompose(entries.filter(e => selectedIds.includes(e.id)))}
+                        className="flex items-center gap-2.5 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-2xl hover:bg-indigo-700 hover:-translate-y-1 transition-all active:scale-95"
+                    >
+                        <BookOpen className="w-4 h-4" />
+                        Compose Draft ({selectedIds.length})
+                    </button>
+                </div>
+            )}
+
+            {/* Marquee Box */}
+            {marqueeBox && (
+                <div
+                    className="fixed border-2 border-indigo-500 bg-indigo-500/10 z-[1000] pointer-events-none rounded-sm"
+                    style={{
+                        left: marqueeBox.x1,
+                        top: marqueeBox.y1,
+                        width: marqueeBox.x2 - marqueeBox.x1,
+                        height: marqueeBox.y2 - marqueeBox.y1
+                    }}
+                />
+            )}
 
             {/* Empty state */}
             {entries.length === 0 && (

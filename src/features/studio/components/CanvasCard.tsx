@@ -16,18 +16,23 @@ const COLORS: CanvasColor[] = ['default', 'yellow', 'blue', 'green', 'purple', '
 
 interface Props {
     entry: StudioCanvasEntry
-    connectionCount?: number
+    connections?: {
+        notes: number
+        projects: { id: string; title: string }[]
+        content: { id: string; title: string }[]
+    }
     onClick: () => void
     onPin: () => void
     onDelete: () => void
     onArchive: () => void
     onColorChange: (color: CanvasColor) => void
-    links?: { id: string; type: 'project' | 'content'; title: string }[]
 }
 
-export default function CanvasCard({ entry, connectionCount = 0, onClick, onPin, onDelete, onArchive, onColorChange, links = [] }: Props) {
+export default function CanvasCard({ entry, connections, onClick, onPin, onDelete, onArchive, onColorChange }: Props) {
     const [showPalette, setShowPalette] = useState(false)
     const { card, dot } = COLOR_MAP[entry.color] || COLOR_MAP.default
+
+    const hasConnections = connections && (connections.notes > 0 || connections.projects.length > 0 || connections.content.length > 0)
 
     return (
         <div
@@ -44,35 +49,32 @@ export default function CanvasCard({ entry, connectionCount = 0, onClick, onPin,
                 </div>
             )}
 
-            {/* Header Row: dot, connection count, semantic links */}
+            {/* Header Row: dot, connections */}
             <div className="flex items-center gap-2 mb-1">
                 {/* Color dot */}
                 <div className={cn("w-2 h-2 rounded-full shrink-0", dot)} />
 
-                {/* Connection count */}
-                {connectionCount > 0 && (
-                    <span className="flex items-center gap-0.5 text-[9px] font-bold text-indigo-400 shrink-0">
-                        <Link2 className="w-2.5 h-2.5" />
-                        {connectionCount}
-                    </span>
-                )}
-
-                {/* Semantic Links */}
-                {links && links.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-4">
-                        <div className="flex -space-x-1 shrink-0">
-                            {links.slice(0, 3).map((link, i) => (
-                                <div key={link.id} className={cn(
-                                    "w-3.5 h-3.5 rounded-full flex items-center justify-center border border-white text-white",
-                                    link.type === 'project' ? "bg-orange-500" : "bg-blue-500"
-                                )} title={link.title}>
-                                    {link.type === 'project' ? <Rocket className="w-2 h-2" /> : <Video className="w-2 h-2" />}
-                                </div>
-                            ))}
-                        </div>
-                        <p className="text-[9px] font-black text-black/40 truncate flex-1 leading-none">
-                            {links.length === 1 ? links[0].title : `${links.length} links`}
-                        </p>
+                {/* Unified Connections */}
+                {hasConnections && (
+                    <div className="flex items-center gap-2 opacity-60">
+                        {connections.notes > 0 && (
+                            <span className="flex items-center gap-0.5 text-[9px] font-bold text-indigo-500">
+                                <Link2 className="w-2.5 h-2.5" />
+                                {connections.notes > 1 && connections.notes}
+                            </span>
+                        )}
+                        {connections.projects.length > 0 && (
+                            <span className="flex items-center gap-0.5 text-[9px] font-bold text-orange-500">
+                                <Rocket className="w-2.5 h-2.5" />
+                                {connections.projects.length > 1 && connections.projects.length}
+                            </span>
+                        )}
+                        {connections.content.length > 0 && (
+                            <span className="flex items-center gap-0.5 text-[9px] font-bold text-blue-500">
+                                <Video className="w-2.5 h-2.5" />
+                                {connections.content.length > 1 && connections.content.length}
+                            </span>
+                        )}
                     </div>
                 )}
             </div>

@@ -138,14 +138,10 @@ export default function SparkDetailModal({ isOpen, onClose, spark, projects }: S
         }
     }
 
-    const typeEmoji = {
-        idea: '💡',
+    const typeEmoji: any = {
         tool: '🛠️',
-        item: '🛒',
         resource: '🔗',
-        event: '📅',
-        person: '👤',
-        platform: '📱'
+        event: '📅'
     }[spark.type] || '✨'
 
     return (

@@ -29,7 +29,7 @@ export interface StudioProject {
     updated_at: string;
 }
 
-export type SparkType = 'idea' | 'tool' | 'item' | 'resource' | 'event' | 'person';
+export type SparkType = 'tool' | 'resource' | 'event';
 export type SparkStatus = 'inbox' | 'review' | 'utilized' | 'discarded';
 
 export interface StudioSpark {
@@ -206,16 +206,30 @@ export interface CanvasMapNode {
     created_at: string;
 }
 
-export interface StudioCanvasNodeLink {
-    id: string;
-    entry_id: string;
-    target_id: string;
-    target_type: 'project' | 'content';
-    created_at: string;
-}
-
 export type PolymorphicNode = (StudioCanvasEntry | StudioProject | StudioContent) & {
     web_x?: number | null;
     web_y?: number | null;
     node_type: 'entry' | 'project' | 'content';
 }
+
+export interface NodeReference {
+    node_id: string;
+    node_type: 'entry' | 'project' | 'content';
+    text_offset?: number;
+    text_length?: number;
+}
+
+export interface StudioDraft {
+    id: string;
+    project_id?: string;
+    content_id?: string | null;
+    title: string;
+    body: string;
+    node_references: NodeReference[];
+    status: 'draft' | 'revision' | 'completed';
+    is_archived: boolean;
+    last_snapshot_at: string;
+    created_at: string;
+    updated_at: string;
+}
+

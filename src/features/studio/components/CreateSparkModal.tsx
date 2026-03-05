@@ -11,12 +11,9 @@ interface CreateSparkModalProps {
 }
 
 const SPARK_TYPES: { label: string; value: SparkType; icon: string }[] = [
-    { label: 'Idea', value: 'idea', icon: '💡' },
     { label: 'Tool / Platform', value: 'tool', icon: '🛠️' },
-    { label: 'Physical Item', value: 'item', icon: '🛒' },
     { label: 'Resource / Link', value: 'resource', icon: '🔗' },
-    { label: 'Event', value: 'event', icon: '📅' },
-    { label: 'Person / Network', value: 'person', icon: '👤' }
+    { label: 'Event', value: 'event', icon: '📅' }
 ]
 
 export default function CreateSparkModal({ isOpen, onClose }: CreateSparkModalProps) {
@@ -24,7 +21,7 @@ export default function CreateSparkModal({ isOpen, onClose }: CreateSparkModalPr
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
         title: '',
-        type: 'idea' as SparkType,
+        type: 'tool' as SparkType,
         url: '',
         notes: '',
         tags: [] as string[],
@@ -42,7 +39,7 @@ export default function CreateSparkModal({ isOpen, onClose }: CreateSparkModalPr
         if (isOpen) {
             setFormData({
                 title: '',
-                type: 'idea',
+                type: 'tool',
                 url: '',
                 notes: '',
                 tags: [],
@@ -111,12 +108,12 @@ export default function CreateSparkModal({ isOpen, onClose }: CreateSparkModalPr
                 ...formData,
                 status: 'inbox',
                 project_id: formData.project_id || undefined,
-                price: (formData.type === 'item' || formData.type === 'tool') ? formData.price : undefined
+                price: formData.type === 'tool' ? formData.price : undefined
             } as any)
             onClose()
             setFormData({
                 title: '',
-                type: 'idea',
+                type: 'tool',
                 url: '',
                 notes: '',
                 tags: [],
@@ -268,7 +265,7 @@ export default function CreateSparkModal({ isOpen, onClose }: CreateSparkModalPr
 
                         {/* Optional Fields (Price / Project) */}
                         <div className="grid grid-cols-2 gap-3">
-                            {(formData.type === 'item' || formData.type === 'tool') && (
+                            {formData.type === 'tool' && (
                                 <div className="relative">
                                     <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
                                     <input

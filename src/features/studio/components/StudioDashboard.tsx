@@ -360,13 +360,9 @@ export default function StudioDashboard() {
                                 >
                                     <div className="w-8 h-8 rounded-lg bg-black/[0.02] flex items-center justify-center text-sm border border-black/[0.05]">
                                         {{
-                                            idea: '💡',
                                             tool: '🛠️',
-                                            item: '🛒',
                                             resource: '🔗',
-                                            event: '📅',
-                                            person: '👤',
-                                            platform: '📱'
+                                            event: '📅'
                                         }[spark.type] || '✨'}
                                     </div>
                                     <div className="flex-1 min-w-0">

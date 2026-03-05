@@ -230,13 +230,10 @@ function SparkListRow({ spark, projects, onClick, onPointerDragStart, onPointerD
     const linkedProject = projects.find(p => p.id === spark.project_id)
     const [imgError, setImgError] = useState(false)
 
-    const typeEmoji = {
-        idea: '💡',
+    const typeEmoji: any = {
         tool: '🛠️',
-        item: '🛒',
         resource: '🔗',
-        event: '📅',
-        person: '👤'
+        event: '📅'
     }[spark.type] || '✨'
 
     const handlePointerDown = (e: React.PointerEvent) => {
@@ -387,13 +384,10 @@ function SparkCard({ spark, projects, onClick, onPointerDragStart, onPointerDrag
     const linkedProject = projects.find(p => p.id === spark.project_id)
     const [imgError, setImgError] = useState(false)
 
-    const typeEmoji = {
-        idea: '💡',
+    const typeEmoji: any = {
         tool: '🛠️',
-        item: '🛒',
         resource: '🔗',
-        event: '📅',
-        person: '👤'
+        event: '📅'
     }[spark.type] || '✨'
 
     const handlePointerDown = (e: React.PointerEvent) => {
