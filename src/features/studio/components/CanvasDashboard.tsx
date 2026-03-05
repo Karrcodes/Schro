@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw, Video, Rocket, ArrowUpRight, SlidersHorizontal, Zap } from 'lucide-react'
+import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw, Video, Rocket, ArrowUpRight, SlidersHorizontal, Zap, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import CanvasCard from './CanvasCard'
 import CanvasEntryModal from './CanvasEntryModal'
@@ -52,7 +52,10 @@ export default function CanvasDashboard() {
         id: string,
         title: string
     } | null>(null)
+    const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [renameValue, setRenameValue] = useState('')
+    const [synthesisModalNodes, setSynthesisModalNodes] = useState<PolymorphicNode[] | null>(null)
+    const [synthesisTitle, setSynthesisTitle] = useState('')
     const quickInputRef = useRef<HTMLInputElement>(null)
 
     const loading = studioLoading || canvasLoading
@@ -181,14 +184,60 @@ export default function CanvasDashboard() {
 
     const activeMap = useMemo(() => maps.find(m => m.id === currentMapId), [maps, currentMapId])
 
-    const handleCompose = async (nodes: PolymorphicNode[]) => {
-        const title = prompt('Draft Title:', `Synthesis of ${nodes.length} nodes`)
-        if (!title) return
+    const handleCompose = (nodes: PolymorphicNode[]) => {
+        if (nodes.length === 0) return
+        setSynthesisModalNodes(nodes)
+        setSynthesisTitle(`Synthesis: ${nodes.length} Items`)
+    }
+
+    const startComposition = async (nodes: PolymorphicNode[], title: string) => {
+        const finalTitle = title || `Synthesis: ${nodes.length} Items`
+        setSynthesisModalNodes(null)
+        setSynthesisTitle('')
+
         const projectId = nodes.find(n => n.node_type === 'project')?.id
-        const draft = await createDraft({ title, project_id: projectId })
-        if (draft) {
+
+        try {
+            const draft = await createDraft({ title: finalTitle, project_id: projectId })
+            if (draft) {
+                setComposingNodes(nodes)
+                setActiveDraft(draft)
+            } else {
+                // Fallback for offline/DB error: create a mock draft object
+                const mockDraft: StudioDraft = {
+                    id: `temp-${Date.now()}`,
+                    title: finalTitle,
+                    project_id: projectId,
+                    body: '',
+                    node_references: nodes.map(n => ({ node_id: n.id, node_type: n.node_type })),
+                    status: 'draft',
+                    is_archived: false,
+                    last_snapshot_at: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }
+                setComposingNodes(nodes)
+                setActiveDraft(mockDraft)
+                setSelectedIds([]) // Clear selection once starting
+            }
+        } catch (err) {
+            console.error('Composition failed:', err)
+            // Even if it throws, we try to open the composer with mock data
+            const mockDraft: StudioDraft = {
+                id: `error-${Date.now()}`,
+                title: finalTitle,
+                project_id: projectId,
+                body: '',
+                node_references: nodes.map(n => ({ node_id: n.id, node_type: n.node_type })),
+                status: 'draft',
+                is_archived: false,
+                last_snapshot_at: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }
             setComposingNodes(nodes)
-            setActiveDraft(draft)
+            setActiveDraft(mockDraft)
+            setSelectedIds([]) // Clear selection once starting
         }
     }
 
@@ -203,6 +252,7 @@ export default function CanvasDashboard() {
             {(activeDraft || composingNodes) && (
                 <StudioComposer
                     draftId={activeDraft?.id}
+                    initialDraft={activeDraft}
                     initialNodes={composingNodes || []}
                     onBack={() => {
                         setActiveDraft(null)
@@ -211,6 +261,7 @@ export default function CanvasDashboard() {
                     }}
                 />
             )}
+
 
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 h-[96px] border-b border-black/[0.06] bg-[#fafafa] flex-shrink-0 shadow-sm z-30">
@@ -240,7 +291,7 @@ export default function CanvasDashboard() {
                         <div className="flex items-center gap-2">
                             <select
                                 value={currentMapId || ''}
-                                onChange={e => { setCurrentMapId(e.target.value); setShowBrowser(false) }}
+                                onChange={e => { setCurrentMapId(e.target.value); setShowBrowser(false); setSelectedIds([]) }}
                                 className="bg-black/[0.03] border border-black/[0.06] rounded-xl px-3 py-1.5 text-[12px] font-bold outline-none focus:ring-2 ring-indigo-500/20"
                             >
                                 {maps.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -298,7 +349,7 @@ export default function CanvasDashboard() {
                         ] as const).map(({ label, value, icon: Icon }) => (
                             <button
                                 key={value}
-                                onClick={() => setViewMode(value)}
+                                onClick={() => { setViewMode(value); setSelectedIds([]) }}
                                 className={cn(
                                     "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all",
                                     viewMode === value ? 'bg-white text-black shadow-sm' : 'text-black/30 hover:text-black/60'
@@ -592,6 +643,8 @@ export default function CanvasDashboard() {
                                         onArchiveNode={(id) => setConfirmAction({ type: 'archive_note', id, title: 'Note' })}
                                         onCreateNode={(data) => createEntry({ ...data })}
                                         onCompose={handleCompose}
+                                        selectedIds={selectedIds}
+                                        onSelectionChange={setSelectedIds}
                                     />
                                 ) : (
                                     <div className="flex-1 flex flex-col items-center justify-center gap-4">
@@ -820,6 +873,54 @@ export default function CanvasDashboard() {
                 )
             }
 
+            {/* Studio Synthesis Modal */}
+            {synthesisModalNodes && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[1000] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setSynthesisModalNodes(null)}>
+                    <div className="bg-white rounded-[32px] p-8 max-w-[400px] w-full shadow-2xl border border-black/5 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mb-6">
+                            <BookOpen className="w-6 h-6" />
+                        </div>
+
+                        <h3 className="text-[18px] font-black tracking-tight text-black mb-2">Create Synthesis Draft</h3>
+                        <p className="text-[13px] text-black/50 leading-relaxed mb-6">
+                            You are about to compile {synthesisModalNodes.length} nodes into a long-form draft. Enter a title to begin your synthesis.
+                        </p>
+
+                        <div className="space-y-4 mb-8">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30 block mb-1.5 ml-1">Draft Title</label>
+                                <input
+                                    autoFocus
+                                    value={synthesisTitle}
+                                    onChange={e => setSynthesisTitle(e.target.value)}
+                                    placeholder="Enter synthesis title..."
+                                    className="w-full px-4 py-3 bg-black/[0.03] border border-black/[0.06] rounded-xl text-[14px] font-medium outline-none focus:border-indigo-500/30 transition-all"
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') startComposition(synthesisModalNodes, synthesisTitle)
+                                        if (e.key === 'Escape') setSynthesisModalNodes(null)
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <button
+                                onClick={() => startComposition(synthesisModalNodes, synthesisTitle)}
+                                className="w-full py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-[0_20px_40px_rgba(79,70,229,0.2)] hover:bg-indigo-700"
+                            >
+                                Start Drafting
+                            </button>
+                            <button
+                                onClick={() => setSynthesisModalNodes(null)}
+                                className="w-full py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-wider text-black/40 hover:bg-black/5 transition-all"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Project modal */}
             <ProjectDetailModal
                 isOpen={!!selectedProjectId}
@@ -833,7 +934,30 @@ export default function CanvasDashboard() {
                 onClose={() => setSelectedContentId(null)}
                 item={content.find(c => c.id === selectedContentId) || null}
             />
-        </div >
+
+            {/* Global Compose Button */}
+            {selectedIds.length > 0 && !(activeDraft || composingNodes) && (
+                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-8 duration-500">
+                    <button
+                        onClick={() => {
+                            const nodesToCompose = entriesInMap.filter(e => selectedIds.includes(e.id))
+                            const finalNodes = nodesToCompose.length > 0 ? nodesToCompose : entries.filter(e => selectedIds.includes(e.id))
+                            handleCompose(finalNodes as PolymorphicNode[])
+                        }}
+                        className="flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-[24px] font-black uppercase text-[12px] tracking-widest shadow-[0_20px_60px_rgba(79,70,229,0.4)] hover:bg-indigo-700 hover:-translate-y-1 transition-all active:scale-95 group border-2 border-white/20"
+                    >
+                        <BookOpen className="w-5 h-5 group-hover:rotate-6 transition-transform" />
+                        Compose Synthesis ({selectedIds.length})
+                    </button>
+                    <button
+                        onClick={() => setSelectedIds([])}
+                        className="absolute -top-2 -right-2 w-7 h-7 bg-white border border-black/10 rounded-full flex items-center justify-center text-black/40 hover:text-black shadow-lg hover:shadow-xl transition-all"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+        </div>
     )
 }
 

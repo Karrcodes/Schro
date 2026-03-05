@@ -52,12 +52,14 @@ interface Props {
     isLibraryOpen?: boolean
     onOverLibraryChange?: (isOver: boolean) => void
     onCompose?: (nodes: PolymorphicNode[]) => void
+    selectedIds?: string[]
+    onSelectionChange?: (ids: string[]) => void
 }
 
 export default function CanvasWebView({
     entries, connections, onNodeClick, onCreateConnection, onDeleteConnection, onUpdatePosition,
     onDeleteNode, onArchiveNode, onRemoveNode, onCreateNode, onDropNode, isLibraryOpen, onOverLibraryChange,
-    onCompose
+    onCompose, selectedIds = [], onSelectionChange
 }: Props) {
     const containerRef = useRef<HTMLDivElement>(null)
     const [pan, setPan] = useState({ x: 60, y: 60 })
@@ -75,7 +77,6 @@ export default function CanvasWebView({
     const [animatingRemovalId, setAnimatingRemovalId] = useState<string | null>(null)
     const [removalTarget, setRemovalTarget] = useState<{ x: number, y: number } | null>(null)
     const [ghostCoords, setGhostCoords] = useState<{ x: number, y: number } | null>(null)
-    const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [marqueeBox, setMarqueeBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
 
     const dragStart = useRef<{ mx: number; my: number; nx: number; ny: number } | null>(null)
@@ -161,7 +162,7 @@ export default function CanvasWebView({
                         const p = getPos(n.id)
                         return p.x >= cx1 && p.x + NODE_W <= cx2 && p.y >= cy1 && p.y + NODE_H <= cy2
                     }).map(n => n.id)
-                    setSelectedIds(ids)
+                    onSelectionChange?.(ids)
                 }
             }
             if (connectingFrom) {
@@ -275,11 +276,11 @@ export default function CanvasWebView({
 
         if (e.shiftKey) {
             marqueeStart.current = { x: e.clientX, y: e.clientY }
-            setSelectedIds([])
+            onSelectionChange?.([])
         } else {
             isPanning.current = true
             panStart.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y }
-            setSelectedIds([])
+            onSelectionChange?.([])
         }
     }
 
@@ -289,9 +290,10 @@ export default function CanvasWebView({
         if (connectingFrom || (e.target as HTMLElement).closest('[data-handle]')) return
 
         if (e.shiftKey) {
-            setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+            const next = selectedIds.includes(id) ? selectedIds.filter(x => x !== id) : [...selectedIds, id]
+            onSelectionChange?.(next)
         } else {
-            if (!selectedIds.includes(id)) setSelectedIds([id])
+            if (!selectedIds.includes(id)) onSelectionChange?.([id])
             setDraggingId(id)
             const pos = getPos(id)
             dragStart.current = { mx: e.clientX, my: e.clientY, nx: pos.x, ny: pos.y }
@@ -763,18 +765,6 @@ export default function CanvasWebView({
                 document.body
             )}
 
-            {/* Compose Button overlay */}
-            {selectedIds.length > 0 && onCompose && (
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[60] animate-in slide-in-from-bottom-4 duration-300">
-                    <button
-                        onClick={() => onCompose(entries.filter(e => selectedIds.includes(e.id)))}
-                        className="flex items-center gap-2.5 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-2xl hover:bg-indigo-700 hover:-translate-y-1 transition-all active:scale-95"
-                    >
-                        <BookOpen className="w-4 h-4" />
-                        Compose Draft ({selectedIds.length})
-                    </button>
-                </div>
-            )}
 
             {/* Marquee Box */}
             {marqueeBox && (
