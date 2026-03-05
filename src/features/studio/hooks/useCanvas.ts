@@ -12,6 +12,7 @@ export function useCanvas() {
         const { data, error } = await supabase
             .from('studio_canvas_entries')
             .select('*')
+            .eq('is_archived', false)
             .order('pinned', { ascending: false })
             .order('created_at', { ascending: false })
         if (error) {
@@ -79,9 +80,18 @@ export function useCanvas() {
         setEntries(prev => prev.filter(e => e.id !== id))
     }, [])
 
+    const archiveEntry = useCallback(async (id: string) => {
+        const { error } = await supabase
+            .from('studio_canvas_entries')
+            .update({ is_archived: true, updated_at: new Date().toISOString() })
+            .eq('id', id)
+        if (error) { console.error('Canvas archive error:', error.message); return }
+        setEntries(prev => prev.filter(e => e.id !== id))
+    }, [])
+
     const togglePin = useCallback(async (id: string, current: boolean) => {
         await updateEntry(id, { pinned: !current })
     }, [updateEntry])
 
-    return { entries, loading, createEntry, updateEntry, deleteEntry, togglePin, refresh: fetchEntries }
+    return { entries, loading, createEntry, updateEntry, deleteEntry, archiveEntry, togglePin, refresh: fetchEntries }
 }

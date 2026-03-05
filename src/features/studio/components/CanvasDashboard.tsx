@@ -8,7 +8,7 @@ import CanvasEntryModal from './CanvasEntryModal'
 import type { StudioCanvasEntry, CanvasColor } from '../types/studio.types'
 
 export default function CanvasDashboard() {
-    const { entries, loading, createEntry, updateEntry, deleteEntry, togglePin } = useCanvas()
+    const { entries, loading, createEntry, updateEntry, deleteEntry, archiveEntry, togglePin } = useCanvas()
     const [selectedEntry, setSelectedEntry] = useState<StudioCanvasEntry | null>(null)
     const [search, setSearch] = useState('')
     const [filterTag, setFilterTag] = useState<string | null>(null)
@@ -194,6 +194,7 @@ export default function CanvasDashboard() {
                 onClose={() => setSelectedEntry(null)}
                 onUpdate={(id, upd) => { updateEntry(id, upd); setSelectedEntry(prev => prev ? { ...prev, ...upd } : prev) }}
                 onDelete={(id) => { deleteEntry(id); setSelectedEntry(null) }}
+                onArchive={(id) => { archiveEntry(id); setSelectedEntry(null) }}
                 onPromoteToSpark={handlePromoteToSpark}
             />
         </div>

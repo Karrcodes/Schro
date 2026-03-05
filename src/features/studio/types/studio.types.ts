@@ -168,6 +168,7 @@ export interface StudioCanvasEntry {
     tags?: string[];
     color: CanvasColor;
     pinned: boolean;
+    is_archived?: boolean;
     promoted_to_spark_id?: string | null;
     created_at: string;
     updated_at: string;
