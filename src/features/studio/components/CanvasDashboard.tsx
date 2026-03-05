@@ -10,7 +10,7 @@ import ContentDetailModal from './ContentDetailModal'
 import { useStudioContext } from '../context/StudioContext'
 import { useCanvas } from '../hooks/useCanvas'
 import { supabase } from '@/lib/supabase'
-import type { StudioCanvasEntry, CanvasColor, StudioProject, StudioContent, CanvasMap, CanvasMapNode, CanvasConnection, PolymorphicNode } from '../types/studio.types'
+import type { StudioCanvasEntry, CanvasColor, StudioProject, StudioContent, CanvasMap, CanvasMapNode, CanvasConnection, PolymorphicNode, ProjectType } from '../types/studio.types'
 
 type ViewMode = 'board' | 'web'
 
