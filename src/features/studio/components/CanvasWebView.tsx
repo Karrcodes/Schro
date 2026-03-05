@@ -105,10 +105,13 @@ export default function CanvasWebView({
     useEffect(() => {
         const handlePointerDrop = (e: any) => {
             const { id, type, clientX, clientY } = e.detail
+            console.log('[CanvasWebView] pointer drop rcvd:', { id, type, clientX, clientY })
             const rect = containerRef.current?.getBoundingClientRect()
+            console.log('[CanvasWebView] canvas rect:', rect)
             if (rect && id && type) {
                 const x = (clientX - rect.left - pan.x) / zoom - (NODE_W / 2)
                 const y = (clientY - rect.top - pan.y) / zoom - 20
+                console.log('[CanvasWebView] calling onDropNode:', { id, type, x, y })
                 onDropNode(id, type, x, y)
             }
         }

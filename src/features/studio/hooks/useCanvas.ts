@@ -192,15 +192,22 @@ export function useCanvas() {
     }, [])
 
     const addNodeToMap = useCallback(async (id: string, type: 'entry' | 'project' | 'content' = 'entry', x: number = 100, y: number = 100) => {
-        if (!currentMapId) return
+        console.log('[addNodeToMap] called:', { id, type, x, y, currentMapId })
+        if (!currentMapId) {
+            console.warn('[addNodeToMap] skipped: no currentMapId')
+            return
+        }
         const nodeData: any = { map_id: currentMapId, x, y }
         if (type === 'entry') nodeData.entry_id = id
         else if (type === 'project') nodeData.project_id = id
         else if (type === 'content') nodeData.content_id = id
-
+        console.log('[addNodeToMap] inserting:', nodeData)
         const { error } = await supabase.from('studio_canvas_map_nodes').insert([nodeData])
-        if (error) console.error('Add node to map error:', error.message)
-        else await fetchMapNodes()
+        if (error) console.error('[addNodeToMap] error:', error.message, error)
+        else {
+            console.log('[addNodeToMap] success, fetching nodes')
+            await fetchMapNodes()
+        }
     }, [currentMapId, fetchMapNodes])
 
     const deleteMapNode = useCallback(async (id: string) => {
