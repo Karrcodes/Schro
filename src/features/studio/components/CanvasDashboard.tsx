@@ -228,6 +228,7 @@ export default function CanvasDashboard() {
                                             connectionCount={connectionCountMap[entry.id] || 0}
                                             onClick={() => setSelectedEntry(entry)}
                                             onPin={() => togglePin(entry.id, entry.pinned)}
+                                            onArchive={() => archiveEntry(entry.id)}
                                             onDelete={() => deleteEntry(entry.id)}
                                             onColorChange={(c: CanvasColor) => updateEntry(entry.id, { color: c })}
                                         />

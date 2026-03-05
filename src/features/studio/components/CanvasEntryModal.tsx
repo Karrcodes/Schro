@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { X, Pin, Trash2, ArrowUpRight, Tag, Archive } from 'lucide-react'
+import { X, Pin, Trash2, ArrowUpRight, Tag, Archive, Image as ImageIcon, List, Loader2, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import type { StudioCanvasEntry, CanvasColor } from '../types/studio.types'
@@ -32,7 +32,9 @@ export default function CanvasEntryModal({ entry, isOpen, onClose, onUpdate, onD
     const [tags, setTags] = useState<string[]>([])
     const [color, setColor] = useState<CanvasColor>('default')
     const [pinned, setPinned] = useState(false)
+    const [images, setImages] = useState<string[]>([])
     const [isDirty, setIsDirty] = useState(false)
+    const [isUploading, setIsUploading] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
     const bodyRef = useRef<HTMLTextAreaElement>(null)
@@ -45,6 +47,7 @@ export default function CanvasEntryModal({ entry, isOpen, onClose, onUpdate, onD
             setTags(entry.tags || [])
             setColor(entry.color)
             setPinned(entry.pinned)
+            setImages(entry.images || [])
             setIsDirty(false)
         }
     }, [entry])
@@ -54,11 +57,11 @@ export default function CanvasEntryModal({ entry, isOpen, onClose, onUpdate, onD
         if (!isDirty || !entry) return
         if (saveTimeout.current) clearTimeout(saveTimeout.current)
         saveTimeout.current = setTimeout(() => {
-            onUpdate(entry.id, { title, body: body || undefined, tags, color, pinned })
+            onUpdate(entry.id, { title, body: body || undefined, tags, color, pinned, images })
             setIsDirty(false)
         }, 800)
         return () => { if (saveTimeout.current) clearTimeout(saveTimeout.current) }
-    }, [title, body, tags, color, pinned, isDirty, entry, onUpdate])
+    }, [title, body, tags, color, pinned, images, isDirty, entry, onUpdate])
 
     const change = (fn: () => void) => { fn(); setIsDirty(true) }
 
@@ -74,6 +77,79 @@ export default function CanvasEntryModal({ entry, isOpen, onClose, onUpdate, onD
         if (bodyRef.current) {
             bodyRef.current.style.height = 'auto'
             bodyRef.current.style.height = `${bodyRef.current.scrollHeight}px`
+        }
+    }
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setIsUploading(true)
+        try {
+            // Using Data URL for demonstration/simplicity as no storage utility is available
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                const base64 = reader.result as string
+                change(() => setImages(prev => [...prev, base64]))
+                setIsUploading(false)
+            }
+            reader.readAsDataURL(file)
+        } catch (err) {
+            console.error('Upload failed:', err)
+            setIsUploading(false)
+        }
+    }
+
+    const removeImage = (index: number) => change(() => setImages(prev => prev.filter((_, i) => i !== index)))
+
+    const insertBullet = () => {
+        const textarea = bodyRef.current
+        if (!textarea) return
+
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const prefix = body.substring(0, start)
+        const suffix = body.substring(end)
+
+        // If we are at the start of a line, or middle of a line, insert "• "
+        const isStartOfLine = start === 0 || body[start - 1] === '\n'
+        const newText = prefix + (isStartOfLine ? '• ' : '\n• ') + suffix
+
+        change(() => setBody(newText))
+        setTimeout(() => {
+            textarea.focus()
+            const newPos = start + (isStartOfLine ? 2 : 3)
+            textarea.setSelectionRange(newPos, newPos)
+            autoGrow()
+        }, 0)
+    }
+
+    const handleBodyKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            const textarea = bodyRef.current
+            if (!textarea) return
+            const start = textarea.selectionStart
+            const lines = body.substring(0, start).split('\n')
+            const lastLine = lines[lines.length - 1]
+
+            if (lastLine.startsWith('• ')) {
+                if (lastLine === '• ') {
+                    // Backspace the empty bullet if they hit enter again
+                    e.preventDefault()
+                    const newBody = body.substring(0, start - 2) + '\n' + body.substring(start)
+                    change(() => setBody(newBody))
+                } else {
+                    // Auto-continue bullet
+                    e.preventDefault()
+                    const newBody = body.substring(0, start) + '\n• ' + body.substring(start)
+                    change(() => setBody(newBody))
+                    setTimeout(() => {
+                        const newPos = start + 3
+                        textarea.setSelectionRange(newPos, newPos)
+                        autoGrow()
+                    }, 0)
+                }
+            }
         }
     }
 
@@ -164,16 +240,50 @@ export default function CanvasEntryModal({ entry, isOpen, onClose, onUpdate, onD
                             className="text-[22px] font-bold text-black bg-transparent border-none outline-none placeholder:text-black/20 w-full"
                         />
 
+                        {/* Toolbar */}
+                        <div className="flex items-center gap-2 border-y border-black/[0.04] py-1">
+                            <button
+                                onClick={insertBullet}
+                                className="p-1.5 rounded-lg text-black/40 hover:text-black hover:bg-black/[0.05] transition-all"
+                                title="Bullet point"
+                            >
+                                <List className="w-4 h-4" />
+                            </button>
+                            <label className="p-1.5 rounded-lg text-black/40 hover:text-black hover:bg-black/[0.05] transition-all cursor-pointer">
+                                <ImageIcon className="w-4 h-4" />
+                                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                            </label>
+                            {isUploading && <Loader2 className="w-3.5 h-3.5 text-black/20 animate-spin" />}
+                        </div>
+
                         {/* Body */}
                         <textarea
                             ref={bodyRef}
                             value={body}
                             onChange={e => { change(() => setBody(e.target.value)); autoGrow() }}
+                            onKeyDown={handleBodyKeyDown}
                             onInput={autoGrow}
-                            placeholder="Write your thoughts here..."
+                            placeholder="Write your thoughts here... start a line with * for bullets"
                             rows={4}
-                            className="text-[14px] text-black/70 leading-relaxed bg-transparent border-none outline-none placeholder:text-black/20 w-full resize-none"
+                            className="text-[14px] text-black/70 leading-relaxed bg-transparent border-none outline-none placeholder:text-black/20 w-full resize-none min-h-[120px]"
                         />
+
+                        {/* Images Grid */}
+                        {images.length > 0 && (
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-2">
+                                {images.map((url, i) => (
+                                    <div key={i} className="group relative aspect-square rounded-2xl overflow-hidden border border-black/[0.08] bg-black/[0.02]">
+                                        <img src={url} alt="" className="w-full h-full object-cover" />
+                                        <button
+                                            onClick={() => removeImage(i)}
+                                            className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Tags */}
                         <div className="border-t border-black/[0.06] pt-4">

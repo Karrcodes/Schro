@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Pin, Trash2, Palette, ArrowUpRight, Link2, Archive } from 'lucide-react'
+import { Pin, Trash2, Palette, ArrowUpRight, Link2, Archive, List } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { StudioCanvasEntry, CanvasColor } from '../types/studio.types'
 
@@ -46,27 +46,32 @@ export default function CanvasCard({ entry, connectionCount = 0, onClick, onPin,
             {/* Color dot */}
             <div className={cn("w-2 h-2 rounded-full shrink-0", dot)} />
 
-            {/* Title */}
-            <h3 className="text-[13px] font-bold text-black leading-snug line-clamp-2 pr-6">{entry.title}</h3>
+            {/* Content Row */}
+            <div className="flex gap-4">
+                <div className="flex-1 min-w-0">
+                    {/* Title */}
+                    <h3 className="text-[13px] font-bold text-black leading-snug line-clamp-2 pr-6">{entry.title}</h3>
 
-            {/* Body */}
-            {entry.body && (
-                <p className="text-[12px] text-black/50 leading-relaxed line-clamp-4 whitespace-pre-line">{entry.body}</p>
-            )}
-
-            {/* Image thumbnail strip */}
-            {entry.images && entry.images.length > 0 && (
-                <div className="flex gap-1.5 mt-1">
-                    {entry.images.slice(0, 3).map((url, i) => (
-                        <img key={i} src={url} alt="" className="w-12 h-12 rounded-xl object-cover border border-black/[0.06]" />
-                    ))}
-                    {entry.images.length > 3 && (
-                        <div className="w-12 h-12 rounded-xl bg-black/[0.04] flex items-center justify-center text-[10px] font-bold text-black/40">
-                            +{entry.images.length - 3}
-                        </div>
+                    {/* Body */}
+                    {entry.body && (
+                        <p className="text-[12px] text-black/50 leading-relaxed line-clamp-4 whitespace-pre-line mt-1">{entry.body}</p>
                     )}
                 </div>
-            )}
+
+                {/* Image thumbnail (right side) */}
+                {entry.images && entry.images.length > 0 && (
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                        {entry.images.slice(0, 2).map((url, i) => (
+                            <img key={i} src={url} alt="" className="w-14 h-14 rounded-xl object-cover border border-black/[0.06] shadow-sm" />
+                        ))}
+                        {entry.images.length > 2 && (
+                            <div className="w-14 h-14 rounded-xl bg-black/[0.04] flex items-center justify-center text-[10px] font-bold text-black/40">
+                                +{entry.images.length - 2}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/* Tags */}
             {entry.tags && entry.tags.length > 0 && (
