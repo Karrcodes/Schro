@@ -101,6 +101,21 @@ export default function CanvasWebView({
         return () => div.removeEventListener('wheel', handleWheel)
     }, [])
 
+    // ---- iPad Native Pointer Drop Support ----
+    useEffect(() => {
+        const handlePointerDrop = (e: any) => {
+            const { id, type, clientX, clientY } = e.detail
+            const rect = containerRef.current?.getBoundingClientRect()
+            if (rect && id && type) {
+                const x = (clientX - rect.left - pan.x) / zoom - (NODE_W / 2)
+                const y = (clientY - rect.top - pan.y) / zoom - 20
+                onDropNode(id, type, x, y)
+            }
+        }
+        window.addEventListener('studio-canvas-pointer-drop', handlePointerDrop)
+        return () => window.removeEventListener('studio-canvas-pointer-drop', handlePointerDrop)
+    }, [pan, zoom, onDropNode])
+
     // ---- Pan (background drag) ----
     const onBgMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return

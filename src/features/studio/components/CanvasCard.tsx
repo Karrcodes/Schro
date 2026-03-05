@@ -44,14 +44,22 @@ export default function CanvasCard({ entry, connectionCount = 0, onClick, onPin,
                 </div>
             )}
 
-            {/* Header Row */}
+            {/* Header Row: dot, connection count, semantic links */}
             <div className="flex items-center gap-2 mb-1">
                 {/* Color dot */}
                 <div className={cn("w-2 h-2 rounded-full shrink-0", dot)} />
 
+                {/* Connection count */}
+                {connectionCount > 0 && (
+                    <span className="flex items-center gap-0.5 text-[9px] font-bold text-indigo-400 shrink-0">
+                        <Link2 className="w-2.5 h-2.5" />
+                        {connectionCount}
+                    </span>
+                )}
+
                 {/* Semantic Links */}
                 {links && links.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-6">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-4">
                         <div className="flex -space-x-1 shrink-0">
                             {links.slice(0, 3).map((link, i) => (
                                 <div key={link.id} className={cn(
@@ -68,6 +76,7 @@ export default function CanvasCard({ entry, connectionCount = 0, onClick, onPin,
                     </div>
                 )}
             </div>
+
 
             {/* Content Row */}
             <div className="flex gap-4">
@@ -107,17 +116,11 @@ export default function CanvasCard({ entry, connectionCount = 0, onClick, onPin,
                 </div>
             )}
 
-            {/* Date + connection indicator */}
-            <div className="flex items-center justify-between mt-1 pt-1">
+            {/* Date */}
+            <div className="flex items-center mt-1 pt-1">
                 <p className="text-[10px] text-black/25 font-medium">
                     {new Date(entry.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                 </p>
-                {connectionCount > 0 && (
-                    <span className="flex items-center gap-1 text-[9px] font-bold text-indigo-400 mr-12">
-                        <Link2 className="w-2.5 h-2.5" />
-                        {connectionCount}
-                    </span>
-                )}
             </div>
 
             {/* Action buttons - always visible but low opacity until hover */}

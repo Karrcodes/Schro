@@ -721,48 +721,83 @@ function EmptyLibrary({ message }: { message: string }) {
 }
 
 function LibraryItem({ id, title, type = 'entry', onClick }: { id: string; title: string; type?: 'entry' | 'project' | 'content'; onClick: () => void }) {
-    const handleDragStart = (e: React.DragEvent) => {
-        const payload = JSON.stringify({ id, type })
-        e.dataTransfer.setData('application/json', payload)
-        e.dataTransfer.setData('text/plain', payload)
-        e.dataTransfer.effectAllowed = 'copy'
+    const isDraggingRef = useRef(false)
+    const startPosRef = useRef({ x: 0, y: 0 })
+    const [isDraggingThis, setIsDraggingThis] = useState(false)
 
-        // Create custom drag image to look like a Project Card
-        const ghost = document.createElement('div')
-        ghost.style.cssText = [
-            'position:absolute',
-            'top:-1000px',
-            'width:180px',
-            'background:white',
-            'border-radius:14px',
-            'box-shadow:0 24px 48px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06)',
-            'padding:10px 12px',
-            'font-family:ui-sans-serif, system-ui, sans-serif',
-            'color:#000',
-            'pointer-events:none'
-        ].join(';')
+    const handlePointerDown = (e: React.PointerEvent) => {
+        if (e.button !== 0 && e.pointerType !== 'touch') return
+        e.preventDefault()
+        startPosRef.current = { x: e.clientX, y: e.clientY }
+        isDraggingRef.current = false
 
-        ghost.innerHTML = `
-            <div style="font-size:11px;font-weight:800;color:#000;margin-bottom:2px;">${title}</div>
-            <div style="font-size:9px;color:rgba(0,0,0,0.4);text-transform:uppercase;font-weight:bold;">${type}</div>
-        `
-        document.body.appendChild(ghost)
+        let ghost: HTMLDivElement | null = null
 
-        // Set drag image with center offset roughly
-        e.dataTransfer.setDragImage(ghost, 90, 30)
+        const handleMove = (ev: PointerEvent) => {
+            const dx = ev.clientX - startPosRef.current.x
+            const dy = ev.clientY - startPosRef.current.y
+            if (!isDraggingRef.current && Math.sqrt(dx * dx + dy * dy) > 8) {
+                isDraggingRef.current = true
+                setIsDraggingThis(true)
 
-        // Cleanup after browser captures it
-        requestAnimationFrame(() => {
-            if (ghost.parentNode) ghost.remove()
-        })
+                ghost = document.createElement('div')
+                ghost.style.cssText = [
+                    'position:fixed',
+                    'pointer-events:none',
+                    'z-index:9999',
+                    'width:180px',
+                    'background:white',
+                    'border-radius:14px',
+                    'box-shadow:0 24px 48px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06)',
+                    'padding:10px 12px',
+                    'font-family:ui-sans-serif, system-ui, sans-serif',
+                    'color:#000',
+                    'transform:rotate(-2deg) scale(0.95)',
+                    'opacity:0.96',
+                    'line-height:1.3'
+                ].join(';')
+                ghost.innerHTML = `
+                    <div style="font-size:11px;font-weight:800;color:#000;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
+                    <div style="font-size:9px;color:rgba(0,0,0,0.4);text-transform:uppercase;font-weight:bold;">${type}</div>
+                `
+                document.body.appendChild(ghost)
+            }
+
+            if (isDraggingRef.current && ghost) {
+                ghost.style.left = `${ev.clientX - 90}px`
+                ghost.style.top = `${ev.clientY - 30}px`
+            }
+        }
+
+        const handleUp = (ev: PointerEvent) => {
+            window.removeEventListener('pointermove', handleMove)
+            window.removeEventListener('pointerup', handleUp)
+
+            if (ghost) { ghost.remove(); ghost = null }
+            setIsDraggingThis(false)
+
+            if (isDraggingRef.current) {
+                window.dispatchEvent(new CustomEvent('studio-canvas-pointer-drop', {
+                    detail: { id, type, clientX: ev.clientX, clientY: ev.clientY }
+                }))
+                isDraggingRef.current = false
+            } else {
+                onClick()
+            }
+        }
+
+        window.addEventListener('pointermove', handleMove)
+        window.addEventListener('pointerup', handleUp)
     }
 
     return (
-        <button
-            draggable
-            onDragStart={handleDragStart}
-            onClick={onClick}
-            className="w-full text-left p-4 rounded-2xl border border-black/[0.05] hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group relative overflow-hidden"
+        <div
+            onPointerDown={handlePointerDown}
+            className={cn(
+                "w-full text-left p-4 rounded-2xl border border-black/[0.05] transition-all group relative overflow-hidden select-none cursor-grab active:cursor-grabbing",
+                isDraggingThis ? "opacity-30 scale-95 shadow-none" : "hover:border-indigo-300 hover:bg-indigo-50/30"
+            )}
+            style={{ touchAction: 'none' }}
         >
             <div className={cn(
                 "absolute top-0 right-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-all",
@@ -778,6 +813,6 @@ function LibraryItem({ id, title, type = 'entry', onClick }: { id: string; title
                     {type ? `Map ${type}` : 'Map Idea'}
                 </p>
             </div>
-        </button>
+        </div>
     )
 }

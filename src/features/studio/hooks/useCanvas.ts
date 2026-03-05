@@ -136,12 +136,7 @@ export function useCanvas() {
                 const node = mapNodes.find(n => n.entry_id === id || n.project_id === id || n.content_id === id)
                 if (!node) return
 
-                const upsertData: any = { map_id: currentMapId, x, y }
-                if (node.entry_id) upsertData.entry_id = node.entry_id
-                else if (node.project_id) upsertData.project_id = node.project_id
-                else if (node.content_id) upsertData.content_id = node.content_id
-
-                await supabase.from('studio_canvas_map_nodes').upsert([upsertData])
+                await supabase.from('studio_canvas_map_nodes').update({ x, y }).eq('id', node.id)
             }, 400)
         }
     }, [currentMapId, mapNodes])
@@ -213,9 +208,16 @@ export function useCanvas() {
         const node = mapNodes.find(n => (n.entry_id === id || n.project_id === id || n.content_id === id) && n.map_id === currentMapId)
         if (!node) return
 
+        // Cleanup connections involving this node to prevent dangling lines
+        const { error: connError } = await supabase.from('studio_canvas_connections').delete().or(`from_id.eq.${id},to_id.eq.${id}`)
+        if (connError) console.error('Clear connections error:', connError.message)
+
         const { error } = await supabase.from('studio_canvas_map_nodes').delete().eq('id', node.id)
         if (error) console.error('Delete map node error:', error.message)
-        else await fetchMapNodes()
+        else {
+            setConnections(prev => prev.filter(c => c.from_id !== id && c.to_id !== id))
+            await fetchMapNodes()
+        }
     }, [currentMapId, mapNodes, fetchMapNodes])
 
     const deleteMap = useCallback(async (id: string) => {
