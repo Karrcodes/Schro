@@ -179,8 +179,26 @@ export interface StudioCanvasEntry {
 
 export interface CanvasConnection {
     id: string;
+    map_id?: string; // Scoped to a specific mindmap
     from_id: string;
     to_id: string;
     label?: string;
+    created_at: string;
+}
+
+export interface CanvasMap {
+    id: string;
+    name: string;
+    user_id: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CanvasMapNode {
+    id: string;
+    map_id: string;
+    entry_id: string;
+    x: number;
+    y: number;
     created_at: string;
 }

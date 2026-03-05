@@ -13,11 +13,14 @@ type ViewMode = 'board' | 'web'
 export default function CanvasDashboard() {
     const {
         entries, connections, loading,
+        maps, currentMapId, setCurrentMapId, mapNodes,
         createEntry, updateEntry, updateNodePosition, deleteEntry, archiveEntry, togglePin,
         createConnection, deleteConnection,
+        createMap, addNodeToMap, deleteMapNode
     } = useCanvas()
     const [viewMode, setViewMode] = useState<ViewMode>('board')
     const [selectedEntry, setSelectedEntry] = useState<StudioCanvasEntry | null>(null)
+    const [isImporting, setIsImporting] = useState(false)
     const [search, setSearch] = useState('')
     const [filterTag, setFilterTag] = useState<string | null>(null)
     const [pinnedFirst, setPinnedFirst] = useState(true)
@@ -53,12 +56,6 @@ export default function CanvasDashboard() {
         window.open(`/create/sparks?from_canvas=${encodeURIComponent(entry.title)}`, '_self')
     }
 
-    const connectedIds = useMemo(() => {
-        const set = new Set<string>()
-        connections.forEach(c => { set.add(c.from_id); set.add(c.to_id) })
-        return set
-    }, [connections])
-
     const connectionCountMap = useMemo(() => {
         const map: Record<string, number> = {}
         connections.forEach(c => {
@@ -68,15 +65,73 @@ export default function CanvasDashboard() {
         return map
     }, [connections])
 
+    const entriesInMap = useMemo(() => {
+        if (!currentMapId) return []
+        return mapNodes.map(mn => {
+            const entry = entries.find(e => e.id === mn.entry_id)
+            if (!entry) return null
+            return { ...entry, web_x: mn.x, web_y: mn.y }
+        }).filter(Boolean) as StudioCanvasEntry[]
+    }, [mapNodes, entries, currentMapId])
+
+    const unmappedEntries = useMemo(() => {
+        const mappedIds = new Set(mapNodes.map(m => m.entry_id))
+        return entries.filter(e => !mappedIds.has(e.id))
+    }, [entries, mapNodes])
+
+    const activeMap = useMemo(() => maps.find(m => m.id === currentMapId), [maps, currentMapId])
+
+    const handleCreateMap = async () => {
+        const name = prompt('Map Name:', `Brainstorm ${maps.length + 1}`)
+        if (name) await createMap(name)
+    }
+
     return (
         <div className="min-h-screen bg-[#fafafa] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 h-[96px] border-b border-black/[0.06] bg-[#fafafa] flex-shrink-0 shadow-sm z-10">
-                <div>
-                    <h1 className="text-[22px] font-bold text-black tracking-tight">Canvas</h1>
-                    <p className="text-[12px] text-black/35 mt-0.5">Brainstorm · Studio Module</p>
+            <div className="flex items-center justify-between px-6 py-5 h-[96px] border-b border-black/[0.06] bg-[#fafafa] flex-shrink-0 shadow-sm z-30">
+                <div className="flex items-center gap-6">
+                    <div>
+                        <h1 className="text-[22px] font-bold text-black tracking-tight">Canvas</h1>
+                        <p className="text-[12px] text-black/35 mt-0.5">Brainstorm · Studio Module</p>
+                    </div>
+
+                    {viewMode === 'web' && maps.length > 0 && (
+                        <div className="h-10 w-px bg-black/[0.06] mx-2 hidden md:block" />
+                    )}
+
+                    {viewMode === 'web' && (
+                        <div className="flex items-center gap-2">
+                            <select
+                                value={currentMapId || ''}
+                                onChange={e => setCurrentMapId(e.target.value)}
+                                className="bg-black/[0.03] border border-black/[0.06] rounded-xl px-3 py-1.5 text-[12px] font-bold outline-none focus:ring-2 ring-indigo-500/20"
+                            >
+                                {maps.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                {maps.length === 0 && <option value="">No Mindmaps</option>}
+                            </select>
+                            <button onClick={handleCreateMap} className="w-8 h-8 rounded-xl bg-black text-white flex items-center justify-center hover:bg-black/80 transition-all shadow-md active:scale-95">
+                                <Plus className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
                 </div>
+
                 <div className="flex items-center gap-3">
+                    {/* Import toggle */}
+                    {viewMode === 'web' && currentMapId && (
+                        <button
+                            onClick={() => setIsImporting(!isImporting)}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-1.5 rounded-xl text-[12px] font-bold transition-all border",
+                                isImporting ? "bg-black text-white border-black" : "bg-white text-black/50 border-black/[0.06] hover:border-black/20"
+                            )}
+                        >
+                            <LayoutGrid className="w-3.5 h-3.5" />
+                            {isImporting ? "Close Library" : "Import Node"}
+                        </button>
+                    )}
+
                     {/* View toggle */}
                     <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/[0.04] items-center gap-0.5">
                         {([
@@ -96,25 +151,68 @@ export default function CanvasDashboard() {
                             </button>
                         ))}
                     </div>
-                    <div className="text-[11px] text-black/25 uppercase tracking-wider font-medium hidden sm:block">
-                        {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                    </div>
                 </div>
             </div>
 
             {/* Web View */}
             {viewMode === 'web' && (
-                <div className="flex-1 flex flex-col" style={{ height: 'calc(100vh - 96px)' }}>
-                    <CanvasWebView
-                        entries={entries}
-                        connections={connections}
-                        onNodeClick={setSelectedEntry}
-                        onCreateConnection={createConnection}
-                        onDeleteConnection={deleteConnection}
-                        onUpdatePosition={updateNodePosition}
-                        onDeleteNode={deleteEntry}
-                        onArchiveNode={archiveEntry}
-                    />
+                <div className="flex-1 flex relative overflow-hidden" style={{ height: 'calc(100vh - 96px)' }}>
+                    {/* Node Library Side Panel */}
+                    {isImporting && (
+                        <div className="w-72 bg-white border-r border-black/[0.06] flex flex-col z-20 animate-in slide-in-from-left duration-300">
+                            <div className="p-4 border-b border-black/[0.03] flex items-center justify-between">
+                                <h3 className="text-[12px] font-black uppercase tracking-tight text-black/40">Idea Library</h3>
+                                <button onClick={() => setIsImporting(false)}><X className="w-4 h-4 text-black/20" /></button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                                {unmappedEntries.length === 0 ? (
+                                    <p className="text-[11px] text-black/30 italic text-center py-10">All ideas are already in this map</p>
+                                ) : (
+                                    unmappedEntries.map(e => (
+                                        <button
+                                            key={e.id}
+                                            onClick={() => addNodeToMap(e.id)}
+                                            className="w-full text-left p-3 rounded-xl border border-black/[0.04] hover:border-black/20 hover:bg-black/[0.01] transition-all group"
+                                        >
+                                            <p className="text-[12px] font-bold text-black line-clamp-1">{e.title}</p>
+                                            <p className="text-[10px] text-black/30 mt-0.5 line-clamp-1 group-hover:text-indigo-500">+ Add to map</p>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex-1 flex flex-col">
+                        {currentMapId ? (
+                            <CanvasWebView
+                                entries={entriesInMap}
+                                connections={connections}
+                                onNodeClick={setSelectedEntry}
+                                onCreateConnection={createConnection}
+                                onDeleteConnection={deleteConnection}
+                                onUpdatePosition={updateNodePosition}
+                                onDeleteNode={deleteMapNode}
+                                onArchiveNode={archiveEntry}
+                                onCreateNode={(data) => createEntry({ ...data })}
+                            />
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center bg-[#f7f7f7] gap-4">
+                                <div className="p-6 bg-white border border-black/[0.06] rounded-3xl shadow-sm text-center max-w-sm">
+                                    <Network className="w-10 h-10 text-black/10 mx-auto mb-4" />
+                                    <h3 className="text-[16px] font-bold text-black">Create your first mindmap</h3>
+                                    <p className="text-[12px] text-black/40 mt-2 mb-6 leading-relaxed">Organize your thoughts and connect ideas visually in independent maps.</p>
+                                    <button
+                                        onClick={handleCreateMap}
+                                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-black text-white rounded-2xl text-[13px] font-bold hover:bg-black/80 transition-all shadow-xl active:scale-95"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Get Started
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
