@@ -1,10 +1,12 @@
 'use client'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw, Video, Rocket, ArrowUpRight } from 'lucide-react'
+import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw, Video, Rocket, ArrowUpRight, SlidersHorizontal, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import CanvasCard from './CanvasCard'
 import CanvasEntryModal from './CanvasEntryModal'
 import CanvasWebView from './CanvasWebView'
+import ProjectDetailModal from './ProjectDetailModal'
+import ContentDetailModal from './ContentDetailModal'
 import { useStudioContext } from '../context/StudioContext'
 import { useCanvas } from '../hooks/useCanvas'
 import { supabase } from '@/lib/supabase'
@@ -30,6 +32,10 @@ export default function CanvasDashboard() {
     const [showArchivedMaps, setShowArchivedMaps] = useState(false)
     const [libraryTab, setLibraryTab] = useState<'notes' | 'projects' | 'content'>('notes')
     const [selectedEntry, setSelectedEntry] = useState<StudioCanvasEntry | null>(null)
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+    const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
+    const [librarySort, setLibrarySort] = useState<'priority' | 'impact' | 'date'>('priority')
+    const [libraryFilter, setLibraryFilter] = useState<string | null>(null)
     const [isImporting, setIsImporting] = useState(false)
     const [showBrowser, setShowBrowser] = useState(false)
     const [search, setSearch] = useState('')
@@ -120,15 +126,26 @@ export default function CanvasDashboard() {
         return entries.filter(e => !mappedIds.has(e.id) && !e.is_archived)
     }, [entries, mapNodes])
 
+    const priorityWeight: Record<string, number> = { urgent: 4, high: 3, mid: 2, low: 1 }
+
     const unmappedProjects = useMemo(() => {
         const mappedIds = new Set(mapNodes.map(m => m.project_id))
-        return projects.filter(p => !mappedIds.has(p.id))
-    }, [projects, mapNodes])
+        let list = projects.filter(p => !mappedIds.has(p.id) && !p.is_archived)
+        if (libraryFilter) list = list.filter(p => p.type === libraryFilter)
+        if (librarySort === 'priority') list = [...list].sort((a, b) => (priorityWeight[b.priority || 'low'] || 0) - (priorityWeight[a.priority || 'low'] || 0))
+        else if (librarySort === 'impact') list = [...list].sort((a, b) => (b.impact_score || 0) - (a.impact_score || 0))
+        return list
+    }, [projects, mapNodes, librarySort, libraryFilter])
 
     const unmappedContent = useMemo(() => {
         const mappedIds = new Set(mapNodes.map(m => m.content_id))
-        return content.filter(c => !mappedIds.has(c.id))
-    }, [content, mapNodes])
+        let list = content.filter(c => !mappedIds.has(c.id))
+        if (libraryFilter) list = list.filter(c => (c as any).platform === libraryFilter || (c as any).type === libraryFilter)
+        return list
+    }, [content, mapNodes, libraryFilter])
+
+    const projectTypes = useMemo(() => [...new Set(projects.map(p => p.type).filter(Boolean))], [projects])
+    const contentPlatforms = useMemo(() => [...new Set(content.map(c => (c as any).platform || (c as any).type).filter(Boolean))], [content])
 
     const getLinkedInfo = (entryId: string) => {
         return nodeLinks
@@ -436,6 +453,58 @@ export default function CanvasDashboard() {
                                     </div>
 
                                     <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-12">
+                                        {/* Sort/Filter bar for projects & content */}
+                                        {(libraryTab === 'projects' || libraryTab === 'content') && (
+                                            <div className="space-y-2 pb-2">
+                                                {/* Sort */}
+                                                <div className="flex items-center gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5">
+                                                    {(['priority', 'impact', 'date'] as const).map(mode => (
+                                                        libraryTab === 'projects' ? (
+                                                            <button
+                                                                key={mode}
+                                                                onClick={() => setLibrarySort(mode)}
+                                                                className={cn(
+                                                                    "flex-1 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                                                    librarySort === mode ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/60"
+                                                                )}
+                                                            >{mode}</button>
+                                                        ) : null
+                                                    ))}
+                                                    {libraryTab === 'content' && (
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-black/30 flex-1 text-center">Filter by platform</span>
+                                                    )}
+                                                </div>
+                                                {/* Filter chips */}
+                                                {libraryTab === 'projects' && projectTypes.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        <button
+                                                            onClick={() => setLibraryFilter(null)}
+                                                            className={cn("px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter transition-all", !libraryFilter ? "bg-indigo-500 text-white" : "bg-black/[0.04] text-black/40 hover:bg-black/[0.08]")}
+                                                        >All</button>
+                                                        {projectTypes.map(t => (
+                                                            <button key={t}
+                                                                onClick={() => setLibraryFilter(f => f === t ? null : t)}
+                                                                className={cn("px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter transition-all", libraryFilter === t ? "bg-orange-500 text-white" : "bg-black/[0.04] text-black/40 hover:bg-orange-50 hover:text-orange-600")}
+                                                            >{t}</button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {libraryTab === 'content' && contentPlatforms.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        <button
+                                                            onClick={() => setLibraryFilter(null)}
+                                                            className={cn("px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter transition-all", !libraryFilter ? "bg-indigo-500 text-white" : "bg-black/[0.04] text-black/40 hover:bg-black/[0.08]")}
+                                                        >All</button>
+                                                        {contentPlatforms.map(p => p && (
+                                                            <button key={p}
+                                                                onClick={() => setLibraryFilter(f => f === p ? null : p!)}
+                                                                className={cn("px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter transition-all", libraryFilter === p ? "bg-blue-500 text-white" : "bg-black/[0.04] text-black/40 hover:bg-blue-50 hover:text-blue-600")}
+                                                            >{p}</button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                         {libraryTab === 'notes' && (
                                             unmappedEntries.length === 0 ? (
                                                 <EmptyLibrary message="No unmapped ideas" />
@@ -475,6 +544,10 @@ export default function CanvasDashboard() {
                                         onNodeClick={(node) => {
                                             if (node.node_type === 'entry') {
                                                 setSelectedEntry(node as StudioCanvasEntry)
+                                            } else if (node.node_type === 'project') {
+                                                setSelectedProjectId(node.id)
+                                            } else if (node.node_type === 'content') {
+                                                setSelectedContentId(node.id)
                                             }
                                         }}
                                         onCreateConnection={createConnection}
@@ -706,6 +779,20 @@ export default function CanvasDashboard() {
                     </div>
                 </div>
             )}
+
+            {/* Project modal */}
+            <ProjectDetailModal
+                isOpen={!!selectedProjectId}
+                onClose={() => setSelectedProjectId(null)}
+                project={projects.find(p => p.id === selectedProjectId) || null}
+            />
+
+            {/* Content modal */}
+            <ContentDetailModal
+                isOpen={!!selectedContentId}
+                onClose={() => setSelectedContentId(null)}
+                item={content.find(c => c.id === selectedContentId) || null}
+            />
         </div>
     )
 }
