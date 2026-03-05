@@ -62,6 +62,10 @@ export default function CanvasWebView({
     const [hoveredNode, setHoveredNode] = useState<string | null>(null)
     const [hoverSide, setHoverSide] = useState<'top' | 'bottom' | 'left' | 'right'>('right')
     const [hoveredEdge, setHoveredEdge] = useState<string | null>(null)
+    const [hoveredControl, setHoveredControl] = useState<string | null>(null)
+    const [confirmAction, setConfirmAction] = useState<{ id: string, type: 'archive' | 'delete' } | null>(null)
+    const [magneticNode, setMagneticNode] = useState<string | null>(null)
+
     const dragStart = useRef<{ mx: number; my: number; nx: number; ny: number } | null>(null)
     const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
     const isPanning = useRef(false)
@@ -82,10 +86,18 @@ export default function CanvasWebView({
 
     const getPos = (id: string) => positions[id] ?? { x: 80, y: 80 }
 
-    // ---- Zoom ----
-    const handleWheel = useCallback((e: React.WheelEvent) => {
-        e.preventDefault()
-        setZoom(z => Math.max(0.3, Math.min(2.5, z - e.deltaY * 0.001)))
+    // ---- Zoom/Scroll Lock ----
+    useEffect(() => {
+        const div = containerRef.current
+        if (!div) return
+        const handleWheel = (e: WheelEvent) => {
+            // Prevent page scroll when over the canvas
+            e.preventDefault()
+            const delta = e.deltaY
+            setZoom(z => Math.max(0.3, Math.min(2.5, z - delta * 0.001)))
+        }
+        div.addEventListener('wheel', handleWheel, { passive: false })
+        return () => div.removeEventListener('wheel', handleWheel)
     }, [])
 
     // ---- Pan (background drag) ----
@@ -113,24 +125,49 @@ export default function CanvasWebView({
         if (connectingFrom) {
             const rect = containerRef.current?.getBoundingClientRect()
             if (rect) {
-                setPendingLine({
-                    x: (e.clientX - rect.left - pan.x) / zoom,
-                    y: (e.clientY - rect.top - pan.y) / zoom,
+                const mx = (e.clientX - rect.left - pan.x) / zoom
+                const my = (e.clientY - rect.top - pan.y) / zoom
+                setPendingLine({ x: mx, y: my })
+
+                // Magnetic Proximity Detection
+                let closest: string | null = null
+                let minD = 50 // Pixels proximity
+
+                entries.forEach(entry => {
+                    if (entry.id === connectingFrom.id) return
+                    const p = getPos(entry.id)
+                    const dx = mx - (p.x + NODE_W / 2)
+                    const dy = my - (p.y + NODE_H / 2)
+                    const dist = Math.sqrt(dx * dx + dy * dy)
+                    if (dist < minD) {
+                        minD = dist
+                        closest = entry.id
+                    }
                 })
+                setMagneticNode(closest)
             }
         }
-    }, [draggingId, zoom, connectingFrom, pan])
+    }, [draggingId, zoom, connectingFrom, pan, entries, getPos])
 
     const onMouseUp = useCallback((e: React.MouseEvent) => {
         if (draggingId) {
             const pos = positions[draggingId]
             if (pos) onUpdatePosition(draggingId, pos.x, pos.y)
         }
+        if (connectingFrom && magneticNode) {
+            onCreateConnection(connectingFrom.id, magneticNode)
+            setConnectingFrom(null)
+            setPendingLine(null)
+            setMagneticNode(null)
+        }
         setDraggingId(null)
         dragStart.current = null
         isPanning.current = false
         panStart.current = null
-    }, [draggingId, positions, onUpdatePosition])
+        // If we were connecting but didn't hit a node, we might want to keep it or cancel
+        // Keeping it for click-to-connect for now, but clearing magnetic
+        setMagneticNode(null)
+    }, [draggingId, positions, onUpdatePosition, connectingFrom, magneticNode, onCreateConnection])
 
     // ---- Node interaction ----
     const onNodeMouseDown = (e: React.MouseEvent, id: string) => {
@@ -195,6 +232,16 @@ export default function CanvasWebView({
         })
     }
 
+    const ControlTooltip = ({ label, id }: { label: string, id: string }) => (
+        <div className={cn(
+            "absolute right-full mr-3 px-2.5 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-wider rounded-lg whitespace-nowrap transition-all duration-200 pointer-events-none z-[100] shadow-xl",
+            hoveredControl === id ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"
+        )}>
+            {label}
+            <div className="absolute top-1/2 -right-1 -translate-y-1/2 border-y-[4px] border-y-transparent border-l-[4px] border-l-black" />
+        </div>
+    )
+
     // ---- Ports & Paths ----
     const getPortPos = (nodePos: { x: number; y: number }, side: 'top' | 'bottom' | 'left' | 'right') => {
         switch (side) {
@@ -241,7 +288,6 @@ export default function CanvasWebView({
         <div className="relative w-full flex-1 bg-[#f7f7f7] overflow-hidden select-none"
             style={{ backgroundImage: 'radial-gradient(circle, #d4d4d4 1px, transparent 1px)', backgroundSize: '28px 28px' }}
             ref={containerRef}
-            onWheel={handleWheel}
             onMouseDown={onBgMouseDown}
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
@@ -258,32 +304,75 @@ export default function CanvasWebView({
             onClick={connectingFrom ? cancelConnect : undefined}
         >
             {/* Controls */}
-            <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
-                <button onClick={() => setZoom(z => Math.min(2.5, z + 0.15))} className="w-8 h-8 bg-white border border-black/[0.08] rounded-xl flex items-center justify-center text-black/40 hover:text-black/70 shadow-sm transition-all">
-                    <ZoomIn className="w-4 h-4" />
-                </button>
-                <button onClick={() => setZoom(z => Math.max(0.3, z - 0.15))} className="w-8 h-8 bg-white border border-black/[0.08] rounded-xl flex items-center justify-center text-black/40 hover:text-black/70 shadow-sm transition-all">
-                    <ZoomOut className="w-4 h-4" />
-                </button>
-                <button onClick={() => { setPan({ x: 60, y: 60 }); setZoom(1) }} className="w-8 h-8 bg-white border border-black/[0.08] rounded-xl flex items-center justify-center text-black/40 hover:text-black/70 shadow-sm transition-all">
-                    <Maximize2 className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={autoArrange} className="w-8 h-8 bg-white border border-black/[0.08] rounded-xl flex items-center justify-center text-black/40 hover:text-black/70 shadow-sm transition-all" title="Auto-arrange">
-                    <Shuffle className="w-3.5 h-3.5" />
-                </button>
+            <div className="absolute top-4 right-4 z-50 flex flex-col gap-2">
+                <div className="flex flex-col bg-white border border-black/[0.08] rounded-xl shadow-lg overflow-hidden">
+                    <div className="relative flex items-center">
+                        <ControlTooltip label="Zoom In" id="zoom-in" />
+                        <button
+                            onClick={() => setZoom(z => Math.min(z + 0.15, 2.5))}
+                            onMouseEnter={() => setHoveredControl('zoom-in')}
+                            onMouseLeave={() => setHoveredControl(null)}
+                            className="w-8 h-8 flex items-center justify-center text-black/40 hover:text-black/70 hover:bg-black/[0.02] transition-all"
+                        >
+                            <ZoomIn className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <div className="h-px bg-black/[0.04]" />
+                    <div className="relative flex items-center">
+                        <ControlTooltip label="Zoom Out" id="zoom-out" />
+                        <button
+                            onClick={() => setZoom(z => Math.max(z - 0.15, 0.3))}
+                            onMouseEnter={() => setHoveredControl('zoom-out')}
+                            onMouseLeave={() => setHoveredControl(null)}
+                            className="w-8 h-8 flex items-center justify-center text-black/40 hover:text-black/70 hover:bg-black/[0.02] transition-all"
+                        >
+                            <ZoomOut className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="relative flex items-center">
+                    <ControlTooltip label="Reset View" id="reset" />
+                    <button
+                        onClick={() => { setPan({ x: 60, y: 60 }); setZoom(1) }}
+                        onMouseEnter={() => setHoveredControl('reset')}
+                        onMouseLeave={() => setHoveredControl(null)}
+                        className="w-8 h-8 bg-white border border-black/[0.08] rounded-xl flex items-center justify-center text-black/40 hover:text-black/70 shadow-sm transition-all"
+                    >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+
+                <div className="relative flex items-center">
+                    <ControlTooltip label="Auto-arrange" id="arrange" />
+                    <button
+                        onClick={autoArrange}
+                        onMouseEnter={() => setHoveredControl('arrange')}
+                        onMouseLeave={() => setHoveredControl(null)}
+                        className="w-8 h-8 bg-white border border-black/[0.08] rounded-xl flex items-center justify-center text-black/40 hover:text-black/70 shadow-sm transition-all"
+                    >
+                        <Shuffle className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+
                 <div className="h-px bg-black/[0.06] my-1" />
-                <button
-                    onClick={() => {
-                        const rect = containerRef.current?.getBoundingClientRect()
-                        if (rect) {
-                            onCreateNode({ title: 'New Idea', x: (40 - pan.x) / zoom, y: (40 - pan.y) / zoom })
-                        }
-                    }}
-                    className="w-8 h-8 bg-indigo-500 text-white rounded-xl flex items-center justify-center hover:bg-indigo-600 shadow-lg transition-all active:scale-95"
-                    title="New Note"
-                >
-                    <Plus className="w-5 h-5" />
-                </button>
+
+                <div className="relative flex items-center">
+                    <ControlTooltip label="New Idea" id="new" />
+                    <button
+                        onClick={() => {
+                            const rect = containerRef.current?.getBoundingClientRect()
+                            if (rect) {
+                                onCreateNode({ title: 'New Idea', x: (40 - pan.x) / zoom, y: (40 - pan.y) / zoom })
+                            }
+                        }}
+                        onMouseEnter={() => setHoveredControl('new')}
+                        onMouseLeave={() => setHoveredControl(null)}
+                        className="w-8 h-8 bg-indigo-500 text-white rounded-xl flex items-center justify-center hover:bg-indigo-600 shadow-lg transition-all active:scale-95"
+                    >
+                        <Plus className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
 
             {/* Status hint */}
@@ -349,7 +438,7 @@ export default function CanvasWebView({
                         <div
                             key={entry.id}
                             data-node="1"
-                            style={{ position: 'absolute', left: pos.x, top: pos.y, width: NODE_W }}
+                            style={{ position: 'absolute', left: pos.x, top: pos.y, width: NODE_W, paddingTop: 20, paddingBottom: 40, marginTop: -20 }}
                             onMouseEnter={() => setHoveredNode(entry.id)}
                             onMouseMove={e => onNodeMouseMove(e, entry.id)}
                             onMouseLeave={() => { setHoveredNode(null); setHoverSide('right') }}
@@ -357,12 +446,13 @@ export default function CanvasWebView({
                             onClick={e => handleNodeClick(e, entry)}
                         >
                             <div className={cn(
-                                "bg-white border rounded-2xl px-3.5 py-3 shadow-sm cursor-grab active:cursor-grabbing transition-all duration-150",
+                                "bg-white border rounded-2xl px-3.5 py-3 shadow-sm cursor-grab active:cursor-grabbing transition-all duration-150 relative",
                                 COLOR_BORDER[entry.color],
                                 draggingId === entry.id && 'shadow-2xl ring-2 ring-black/10 scale-105 rotate-1 z-[100] cursor-grabbing',
                                 !!connectingFrom && connectingFrom.id === entry.id && 'ring-2 ring-indigo-400 shadow-md',
                                 isHovered && !connectingFrom && draggingId !== entry.id && 'shadow-md',
-                                connectingFrom && connectingFrom.id !== entry.id && 'hover:ring-2 hover:ring-indigo-300'
+                                (connectingFrom && connectingFrom.id !== entry.id && magneticNode === entry.id) && 'ring-4 ring-indigo-500/30 scale-[1.02] shadow-xl z-50',
+                                connectingFrom && connectingFrom.id !== entry.id && !magneticNode && 'hover:ring-2 hover:ring-indigo-300'
                             )}
                                 style={{ height: NODE_H }}
                             >
@@ -396,7 +486,7 @@ export default function CanvasWebView({
                                 </div>
 
                                 {/* Connection Handle - Dynamic */}
-                                {isHovered && !draggingId && !connectingFrom && (
+                                {(isHovered || magneticNode === entry.id) && !draggingId && (!connectingFrom || magneticNode === entry.id) && (
                                     <div
                                         data-handle={hoverSide}
                                         onMouseDown={e => startConnect(e, entry.id, hoverSide)}
@@ -415,7 +505,7 @@ export default function CanvasWebView({
 
                             {/* Hover actions: Open + Archive + Delete */}
                             {isHovered && !connectingFrom && draggingId !== entry.id && (
-                                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10" onClick={e => e.stopPropagation()}>
+                                <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10" onClick={e => e.stopPropagation()}>
                                     <button
                                         onClick={e => { e.stopPropagation(); onNodeClick(entry) }}
                                         className="h-7 px-2.5 bg-black text-white text-[9px] font-black rounded-lg shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-1"
@@ -424,14 +514,57 @@ export default function CanvasWebView({
                                         <ArrowUpRight className="w-3 h-3" />
                                         OPEN
                                     </button>
-                                    <button onClick={e => { e.stopPropagation(); onArchiveNode(entry.id) }} className="w-7 h-7 bg-amber-50 text-amber-500 rounded-lg flex items-center justify-center hover:bg-amber-100 transition-all border border-amber-200" title="Archive" onMouseDown={e => e.stopPropagation()}>▿</button>
-                                    <button onClick={e => { e.stopPropagation(); onDeleteNode(entry.id) }} className="w-7 h-7 bg-red-50 text-red-500 rounded-lg flex items-center justify-center hover:bg-red-100 transition-all border border-red-200" title="Delete" onMouseDown={e => e.stopPropagation()}>✕</button>
+                                    <button onClick={e => { e.stopPropagation(); setConfirmAction({ id: entry.id, type: 'archive' }) }} className="w-7 h-7 bg-amber-50 text-amber-500 rounded-lg flex items-center justify-center hover:bg-amber-100 transition-all border border-amber-200" title="Archive" onMouseDown={e => e.stopPropagation()}>▿</button>
+                                    <button onClick={e => { e.stopPropagation(); setConfirmAction({ id: entry.id, type: 'delete' }) }} className="w-7 h-7 bg-red-50 text-red-500 rounded-lg flex items-center justify-center hover:bg-red-100 transition-all border border-red-200" title="Delete" onMouseDown={e => e.stopPropagation()}>✕</button>
                                 </div>
                             )}
                         </div>
                     )
                 })}
             </div>
+
+            {/* Confirmation Modal */}
+            {confirmAction && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[1000] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setConfirmAction(null)}>
+                    <div className="bg-white rounded-[32px] p-8 max-w-[320px] w-full shadow-2xl border border-black/5 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className={cn(
+                            "w-12 h-12 rounded-2xl flex items-center justify-center mb-6",
+                            confirmAction.type === 'delete' ? "bg-red-50 text-red-500" : "bg-amber-50 text-amber-500"
+                        )}>
+                            {confirmAction.type === 'delete' ? <Trash2 className="w-6 h-6" /> : <Archive className="w-6 h-6" />}
+                        </div>
+                        <h3 className="text-[18px] font-black tracking-tight text-black mb-2">
+                            {confirmAction.type === 'delete' ? 'Delete Idea?' : 'Archive Idea?'}
+                        </h3>
+                        <p className="text-[13px] text-black/50 leading-relaxed mb-8">
+                            {confirmAction.type === 'delete'
+                                ? 'This will permanently remove this idea and all its links. This action cannot be undone.'
+                                : 'This will hide the idea and remove its links from the map. You can find it in Archived Notes later.'}
+                        </p>
+                        <div className="flex flex-col gap-2">
+                            <button
+                                onClick={() => {
+                                    if (confirmAction.type === 'delete') onDeleteNode(confirmAction.id)
+                                    else onArchiveNode(confirmAction.id)
+                                    setConfirmAction(null)
+                                }}
+                                className={cn(
+                                    "w-full py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-lg",
+                                    confirmAction.type === 'delete' ? "bg-red-500 text-white hover:bg-red-600" : "bg-black text-white hover:bg-neutral-800 shadow-amber-500/10"
+                                )}
+                            >
+                                {confirmAction.type === 'delete' ? 'Delete Permanently' : 'Confirm Archive'}
+                            </button>
+                            <button
+                                onClick={() => setConfirmAction(null)}
+                                className="w-full py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-wider text-black/40 hover:bg-black/5 transition-all"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Empty state */}
             {entries.length === 0 && (

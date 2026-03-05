@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network } from 'lucide-react'
+import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCanvas } from '../hooks/useCanvas'
 import CanvasCard from './CanvasCard'
@@ -16,11 +16,13 @@ export default function CanvasDashboard() {
         maps, currentMapId, setCurrentMapId, mapNodes,
         createEntry, updateEntry, updateNodePosition, deleteEntry, archiveEntry, togglePin,
         createConnection, deleteConnection,
-        createMap, addNodeToMap, deleteMapNode
+        createMap, addNodeToMap, deleteMapNode, deleteMap, renameMap
     } = useCanvas()
     const [viewMode, setViewMode] = useState<ViewMode>('board')
+    const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active')
     const [selectedEntry, setSelectedEntry] = useState<StudioCanvasEntry | null>(null)
     const [isImporting, setIsImporting] = useState(false)
+    const [showBrowser, setShowBrowser] = useState(false)
     const [search, setSearch] = useState('')
     const [filterTag, setFilterTag] = useState<string | null>(null)
     const [pinnedFirst, setPinnedFirst] = useState(true)
@@ -36,15 +38,15 @@ export default function CanvasDashboard() {
     }, [entries])
 
     const filtered = useMemo(() => {
-        let list = entries
+        let list = entries.filter(e => e.is_archived === (activeTab === 'archived'))
         if (search) {
             const q = search.toLowerCase()
             list = list.filter(e => e.title.toLowerCase().includes(q) || e.body?.toLowerCase().includes(q))
         }
         if (filterTag) list = list.filter(e => e.tags?.includes(filterTag))
-        if (pinnedFirst) list = [...list.filter(e => e.pinned), ...list.filter(e => !e.pinned)]
+        if (pinnedFirst && activeTab === 'active') list = [...list.filter(e => e.pinned), ...list.filter(e => !e.pinned)]
         return list
-    }, [entries, search, filterTag, pinnedFirst])
+    }, [entries, search, filterTag, pinnedFirst, activeTab])
 
     const handleQuickCreate = async () => {
         if (!quickTitle.trim()) return
@@ -68,7 +70,7 @@ export default function CanvasDashboard() {
     const entriesInMap = useMemo(() => {
         if (!currentMapId) return []
         return mapNodes.map(mn => {
-            const entry = entries.find(e => e.id === mn.entry_id)
+            const entry = entries.find(e => e.id === mn.entry_id && !e.is_archived) // Only show non-archived in map
             if (!entry) return null
             return { ...entry, web_x: mn.x, web_y: mn.y }
         }).filter(Boolean) as StudioCanvasEntry[]
@@ -76,7 +78,7 @@ export default function CanvasDashboard() {
 
     const unmappedEntries = useMemo(() => {
         const mappedIds = new Set(mapNodes.map(m => m.entry_id))
-        return entries.filter(e => !mappedIds.has(e.id))
+        return entries.filter(e => !mappedIds.has(e.id) && !e.is_archived) // Only show non-archived in library
     }, [entries, mapNodes])
 
     const activeMap = useMemo(() => maps.find(m => m.id === currentMapId), [maps, currentMapId])
@@ -102,9 +104,22 @@ export default function CanvasDashboard() {
 
                     {viewMode === 'web' && (
                         <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowBrowser(!showBrowser)}
+                                className={cn(
+                                    "flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12px] font-bold transition-all border",
+                                    showBrowser ? "bg-black text-white border-black" : "bg-black/[0.03] text-black/50 border-black/[0.06] hover:border-black/20"
+                                )}
+                            >
+                                <LayoutGrid className="w-3.5 h-3.5" />
+                                {showBrowser ? "Back to Canvas" : "All Maps"}
+                            </button>
+
+                            <div className="h-4 w-px bg-black/[0.06] mx-1" />
+
                             <select
                                 value={currentMapId || ''}
-                                onChange={e => setCurrentMapId(e.target.value)}
+                                onChange={e => { setCurrentMapId(e.target.value); setShowBrowser(false) }}
                                 className="bg-black/[0.03] border border-black/[0.06] rounded-xl px-3 py-1.5 text-[12px] font-bold outline-none focus:ring-2 ring-indigo-500/20"
                             >
                                 {maps.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -118,6 +133,20 @@ export default function CanvasDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {/* View Archived Toggle */}
+                    {viewMode === 'board' && (
+                        <button
+                            onClick={() => setActiveTab(activeTab === 'active' ? 'archived' : 'active')}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-1.5 rounded-xl text-[12px] font-bold transition-all border",
+                                activeTab === 'archived' ? "bg-amber-500 text-white border-amber-600" : "bg-white text-black/50 border-black/[0.06] hover:border-black/20"
+                            )}
+                        >
+                            <Archive className="w-3.5 h-3.5" />
+                            {activeTab === 'archived' ? "View Active" : "View Archived"}
+                        </button>
+                    )}
+
                     {/* Import toggle */}
                     {viewMode === 'web' && currentMapId && (
                         <button
@@ -157,62 +186,189 @@ export default function CanvasDashboard() {
             {/* Web View */}
             {viewMode === 'web' && (
                 <div className="flex-1 flex relative overflow-hidden" style={{ height: 'calc(100vh - 96px)' }}>
-                    {/* Node Library Side Panel */}
-                    {isImporting && (
-                        <div className="w-72 bg-white border-r border-black/[0.06] flex flex-col z-20 animate-in slide-in-from-left duration-300">
-                            <div className="p-4 border-b border-black/[0.03] flex items-center justify-between">
-                                <h3 className="text-[12px] font-black uppercase tracking-tight text-black/40">Idea Library</h3>
-                                <button onClick={() => setIsImporting(false)}><X className="w-4 h-4 text-black/20" /></button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                                {unmappedEntries.length === 0 ? (
-                                    <p className="text-[11px] text-black/30 italic text-center py-10">All ideas are already in this map</p>
-                                ) : (
-                                    unmappedEntries.map(e => (
-                                        <button
-                                            key={e.id}
-                                            onClick={() => addNodeToMap(e.id)}
-                                            className="w-full text-left p-3 rounded-xl border border-black/[0.04] hover:border-black/20 hover:bg-black/[0.01] transition-all group"
-                                        >
-                                            <p className="text-[12px] font-bold text-black line-clamp-1">{e.title}</p>
-                                            <p className="text-[10px] text-black/30 mt-0.5 line-clamp-1 group-hover:text-indigo-500">+ Add to map</p>
-                                        </button>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex-1 flex flex-col">
-                        {currentMapId ? (
-                            <CanvasWebView
-                                entries={entriesInMap}
-                                connections={connections}
-                                onNodeClick={setSelectedEntry}
-                                onCreateConnection={createConnection}
-                                onDeleteConnection={deleteConnection}
-                                onUpdatePosition={updateNodePosition}
-                                onDeleteNode={deleteMapNode}
-                                onArchiveNode={archiveEntry}
-                                onCreateNode={(data) => createEntry({ ...data })}
-                            />
-                        ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center bg-[#f7f7f7] gap-4">
-                                <div className="p-6 bg-white border border-black/[0.06] rounded-3xl shadow-sm text-center max-w-sm">
-                                    <Network className="w-10 h-10 text-black/10 mx-auto mb-4" />
-                                    <h3 className="text-[16px] font-bold text-black">Create your first mindmap</h3>
-                                    <p className="text-[12px] text-black/40 mt-2 mb-6 leading-relaxed">Organize your thoughts and connect ideas visually in independent maps.</p>
+                    {showBrowser ? (
+                        <div className="flex-1 bg-white overflow-y-auto p-8 sm:p-12 z-20">
+                            <div className="max-w-6xl mx-auto">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
+                                    <div>
+                                        <h2 className="text-3xl font-black text-black tracking-tighter">Mindmap Browser</h2>
+                                        <p className="text-black/40 text-[13px] mt-1 font-medium">Manage your personal multiverse of ideas</p>
+                                    </div>
                                     <button
                                         onClick={handleCreateMap}
-                                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-black text-white rounded-2xl text-[13px] font-bold hover:bg-black/80 transition-all shadow-xl active:scale-95"
+                                        className="flex items-center justify-center gap-2 px-6 py-3 bg-black text-white rounded-2xl font-black uppercase text-[11px] tracking-wider shadow-xl hover:bg-black/80 transition-all active:scale-95"
                                     >
                                         <Plus className="w-4 h-4" />
-                                        Get Started
+                                        New Mindmap
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {maps.map(map => {
+                                        const nodeCount = mapNodes.filter(mn => mn.map_id === map.id).length
+                                        const connCount = connections.filter(c => c.map_id === map.id).length
+                                        const isActive = currentMapId === map.id
+
+                                        return (
+                                            <div
+                                                key={map.id}
+                                                onClick={() => { setCurrentMapId(map.id); setShowBrowser(false) }}
+                                                className={cn(
+                                                    "group relative flex flex-col bg-white border-2 rounded-[32px] p-7 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] hover:-translate-y-1.5 cursor-pointer overflow-hidden",
+                                                    isActive ? "border-indigo-500 bg-indigo-50/20 shadow-xl shadow-indigo-100/50" : "border-black/[0.04] hover:border-black/10"
+                                                )}
+                                            >
+                                                {/* Hover Glow */}
+                                                <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-all duration-500" />
+
+                                                <div className="flex items-start justify-between mb-8 relative z-10">
+                                                    <div className={cn(
+                                                        "p-4 rounded-[20px] transition-all duration-500 group-hover:rotate-6",
+                                                        isActive ? "bg-indigo-500 text-white shadow-lg shadow-indigo-200" : "bg-black/[0.04] text-black/40 group-hover:bg-indigo-50"
+                                                    )}>
+                                                        <Network className="w-6 h-6" />
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 translate-x-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); const n = prompt('Rename Mindmap:', map.name); if (n) renameMap(map.id, n) }}
+                                                            className="p-2.5 hover:bg-black/5 rounded-xl text-black/40 hover:text-black transition-colors"
+                                                            title="Rename"
+                                                        >
+                                                            <PenLine className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); if (confirm('Delete this mindmap? All associations will be lost.')) deleteMap(map.id) }}
+                                                            className="p-2.5 hover:bg-red-50 rounded-xl text-black/40 hover:text-red-500 transition-colors"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="relative z-10">
+                                                    <h3 className="text-[19px] font-black text-black tracking-tight mb-1 group-hover:text-indigo-600 transition-colors">{map.name}</h3>
+                                                    <div className="flex items-center gap-2 mb-6">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-black/10" />
+                                                        <p className="text-[10px] text-black/30 font-black uppercase tracking-widest">
+                                                            Last Edit {new Date(map.updated_at || map.created_at).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-auto pt-6 border-t border-black/[0.04] flex items-center justify-between relative z-10">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[13px] font-black text-black">{nodeCount}</span>
+                                                            <span className="text-[9px] font-black uppercase tracking-tighter text-black/25">Nodes</span>
+                                                        </div>
+                                                        <div className="w-px h-6 bg-black/[0.06]" />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[13px] font-black text-black">{connCount}</span>
+                                                            <span className="text-[9px] font-black uppercase tracking-tighter text-black/25">Conns</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className={cn(
+                                                        "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                                                        isActive
+                                                            ? "bg-indigo-500 text-white shadow-lg shadow-indigo-200"
+                                                            : "bg-black/[0.05] text-black/30 group-hover:bg-indigo-50 group-hover:text-indigo-500"
+                                                    )}>
+                                                        {isActive ? "Viewing" : "Open Map"}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+
+                                    <button
+                                        onClick={handleCreateMap}
+                                        className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-black/[0.06] rounded-[32px] hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group group-hover:-translate-y-1 duration-300"
+                                    >
+                                        <div className="w-12 h-12 bg-black/[0.03] rounded-2xl flex items-center justify-center mb-4 group-hover:bg-indigo-100 group-hover:text-indigo-500 transition-all">
+                                            <Plus className="w-6 h-6 text-black/20 group-hover:text-indigo-500" />
+                                        </div>
+                                        <p className="text-[14px] font-black text-black/30 group-hover:text-indigo-600">Create New Map</p>
                                     </button>
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Node Library Side Panel */}
+                            {isImporting && (
+                                <div className="w-72 bg-white border-r border-black/[0.06] flex flex-col z-20 animate-in slide-in-from-left duration-300 shadow-2xl">
+                                    <div className="p-5 border-b border-black/[0.05] bg-black/[0.01] flex items-center justify-between">
+                                        <div>
+                                            <h3 className="text-[13px] font-black uppercase tracking-wider text-black">Concept Library</h3>
+                                            <p className="text-[10px] text-black/30 font-medium">Add existing ideas to this map</p>
+                                        </div>
+                                        <button onClick={() => setIsImporting(false)} className="p-1.5 hover:bg-black/5 rounded-xl transition-colors text-black/20">
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-12">
+                                        {unmappedEntries.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-16 px-4 text-center opacity-30">
+                                                <LayoutGrid className="w-10 h-10 mb-3" />
+                                                <p className="text-[12px] font-bold">Library is empty</p>
+                                                <p className="text-[10px] mt-1">All your ideas are already present in this mindmap.</p>
+                                            </div>
+                                        ) : (
+                                            unmappedEntries.map(e => (
+                                                <button
+                                                    key={e.id}
+                                                    onClick={() => addNodeToMap(e.id)}
+                                                    className="w-full text-left p-4 rounded-2xl border border-black/[0.05] hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group relative overflow-hidden"
+                                                >
+                                                    <div className="absolute top-0 right-0 w-1 h-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-all" />
+                                                    <p className="text-[13px] font-black text-black line-clamp-1">{e.title}</p>
+                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                        <Plus className="w-3 h-3 text-indigo-500" />
+                                                        <p className="text-[10px] font-bold text-indigo-500/70 uppercase tracking-tighter">Click to link</p>
+                                                    </div>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex-1 flex flex-col">
+                                {currentMapId ? (
+                                    <CanvasWebView
+                                        entries={entriesInMap}
+                                        connections={connections}
+                                        onNodeClick={setSelectedEntry}
+                                        onCreateConnection={createConnection}
+                                        onDeleteConnection={deleteConnection}
+                                        onUpdatePosition={updateNodePosition}
+                                        onDeleteNode={deleteMapNode}
+                                        onArchiveNode={archiveEntry}
+                                        onCreateNode={(data) => createEntry({ ...data })}
+                                    />
+                                ) : (
+                                    <div className="flex-1 flex flex-col items-center justify-center bg-[#f7f7f7] gap-4">
+                                        <div className="p-10 bg-white border border-black/[0.05] rounded-[48px] shadow-2xl shadow-black/5 text-center max-w-sm">
+                                            <div className="w-20 h-20 bg-indigo-50 rounded-[28px] flex items-center justify-center mx-auto mb-8 shadow-inner">
+                                                <Network className="w-10 h-10 text-indigo-500" />
+                                            </div>
+                                            <h3 className="text-2xl font-black text-black tracking-tight mb-2">Build Your Universe</h3>
+                                            <p className="text-[14px] text-black/40 font-medium leading-relaxed mb-8">
+                                                Each mindmap is an independent dimension of thought. Start your first session now.
+                                            </p>
+                                            <button
+                                                onClick={handleCreateMap}
+                                                className="w-full py-4 bg-indigo-500 text-white rounded-[24px] font-black uppercase text-[12px] tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-600 hover:-translate-y-1 transition-all active:translate-y-0 active:scale-95"
+                                            >
+                                                Create First Mindmap
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 
@@ -222,23 +378,25 @@ export default function CanvasDashboard() {
                     <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-20 flex-1 flex flex-col gap-6">
 
                         {/* Quick Capture Bar */}
-                        <div className="flex items-center gap-3 bg-white border border-black/[0.07] rounded-2xl px-4 py-3 shadow-sm hover:border-black/10 transition-all focus-within:border-orange-200 focus-within:shadow-orange-500/5">
-                            <PenLine className="w-4 h-4 text-black/25 shrink-0" />
-                            <input
-                                ref={quickInputRef}
-                                value={quickTitle}
-                                onChange={e => setQuickTitle(e.target.value)}
-                                onKeyDown={e => { if (e.key === 'Enter') handleQuickCreate() }}
-                                placeholder="Capture an idea... press Enter to save"
-                                className="flex-1 text-[14px] font-medium text-black bg-transparent outline-none placeholder:text-black/25"
-                            />
-                            {quickTitle && (
-                                <button onClick={handleQuickCreate} className="flex items-center gap-1.5 px-3 py-1.5 bg-black text-white text-[11px] font-black rounded-xl hover:bg-black/80 transition-all shrink-0">
-                                    <Plus className="w-3.5 h-3.5" />
-                                    Save
-                                </button>
-                            )}
-                        </div>
+                        {activeTab === 'active' && (
+                            <div className="flex items-center gap-3 bg-white border border-black/[0.07] rounded-2xl px-4 py-3 shadow-sm hover:border-black/10 transition-all focus-within:border-orange-200 focus-within:shadow-orange-500/5">
+                                <PenLine className="w-4 h-4 text-black/25 shrink-0" />
+                                <input
+                                    ref={quickInputRef}
+                                    value={quickTitle}
+                                    onChange={e => setQuickTitle(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleQuickCreate() }}
+                                    placeholder="Capture an idea... press Enter to save"
+                                    className="flex-1 text-[14px] font-medium text-black bg-transparent outline-none placeholder:text-black/25"
+                                />
+                                {quickTitle && (
+                                    <button onClick={handleQuickCreate} className="flex items-center gap-1.5 px-3 py-1.5 bg-black text-white text-[11px] font-black rounded-xl hover:bg-black/80 transition-all shrink-0">
+                                        <Plus className="w-3.5 h-3.5" />
+                                        Save
+                                    </button>
+                                )}
+                            </div>
+                        )}
 
                         {/* Filter row */}
                         <div className="flex items-center gap-3 flex-wrap">

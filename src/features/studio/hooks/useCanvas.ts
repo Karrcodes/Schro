@@ -17,7 +17,6 @@ export function useCanvas() {
         const { data, error } = await supabase
             .from('studio_canvas_entries')
             .select('*')
-            .eq('is_archived', false)
             .order('pinned', { ascending: false })
             .order('created_at', { ascending: false })
         if (error) console.error('Canvas fetch error:', error.message)
@@ -35,11 +34,10 @@ export function useCanvas() {
     }, [currentMapId])
 
     const fetchMapNodes = useCallback(async () => {
-        if (!currentMapId) return
-        const { data, error } = await supabase.from('studio_canvas_map_nodes').select('*').eq('map_id', currentMapId)
+        const { data, error } = await supabase.from('studio_canvas_map_nodes').select('*')
         if (error) console.error('Canvas fetch map nodes error:', error.message)
         else setMapNodes(data as CanvasMapNode[])
-    }, [currentMapId])
+    }, [])
 
     const fetchConnections = useCallback(async () => {
         const query = supabase.from('studio_canvas_connections').select('*').order('created_at', { ascending: true })
@@ -130,6 +128,9 @@ export function useCanvas() {
     }, [currentMapId])
 
     const deleteEntry = useCallback(async (id: string) => {
+        // Clear connections first
+        await supabase.from('studio_canvas_connections').delete().or(`from_id.eq.${id},to_id.eq.${id}`)
+
         const { error } = await supabase.from('studio_canvas_entries').delete().eq('id', id)
         if (error) { console.error('Canvas delete error:', error.message); return }
         setEntries(prev => prev.filter(e => e.id !== id))
@@ -137,12 +138,16 @@ export function useCanvas() {
     }, [])
 
     const archiveEntry = useCallback(async (id: string) => {
+        // Clear connections for archived nodes as requested
+        await supabase.from('studio_canvas_connections').delete().or(`from_id.eq.${id},to_id.eq.${id}`)
+
         const { error } = await supabase
             .from('studio_canvas_entries')
             .update({ is_archived: true, updated_at: new Date().toISOString() })
             .eq('id', id)
         if (error) { console.error('Canvas archive error:', error.message); return }
         setEntries(prev => prev.filter(e => e.id !== id))
+        setConnections(prev => prev.filter(c => c.from_id !== id && c.to_id !== id))
     }, [])
 
     const togglePin = useCallback(async (id: string, current: boolean) => {
@@ -190,6 +195,19 @@ export function useCanvas() {
         else fetchMapNodes()
     }, [currentMapId, fetchMapNodes])
 
+    const deleteMap = useCallback(async (id: string) => {
+        const { error } = await supabase.from('studio_canvas_maps').delete().eq('id', id)
+        if (error) { console.error('Delete map error:', error.message); return }
+        setMaps(prev => prev.filter(m => m.id !== id))
+        if (currentMapId === id) setCurrentMapId(maps.find(m => m.id !== id)?.id || null)
+    }, [currentMapId, maps])
+
+    const renameMap = useCallback(async (id: string, name: string) => {
+        const { error } = await supabase.from('studio_canvas_maps').update({ name }).eq('id', id)
+        if (error) { console.error('Rename map error:', error.message); return }
+        setMaps(prev => prev.map(m => m.id === id ? { ...m, name } : m))
+    }, [])
+
     const deleteConnection = useCallback(async (id: string) => {
         const { error } = await supabase.from('studio_canvas_connections').delete().eq('id', id)
         if (error) { console.error('Canvas delete connection error:', error.message); return }
@@ -201,7 +219,7 @@ export function useCanvas() {
         maps, currentMapId, setCurrentMapId, mapNodes,
         createEntry, updateEntry, updateNodePosition, deleteEntry, archiveEntry, togglePin,
         createConnection, deleteConnection,
-        createMap, addNodeToMap, deleteMapNode,
+        createMap, addNodeToMap, deleteMapNode, deleteMap, renameMap,
         refresh: fetchEntries
     }
 }
