@@ -138,7 +138,7 @@ function ProfileMenu() {
     return (
         <div className="relative px-5 py-4 border-t border-black/[0.06]" ref={menuRef}>
             {isOpen && (
-                <div className="absolute bottom-full left-4 mb-2 w-52 bg-white border border-black/[0.08] rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-[60]">
+                <div className="absolute bottom-full left-4 mb-2 w-52 bg-white border border-black/[0.08] rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-[50]">
                     <div className="p-3">
                         <p className="text-[12px] font-bold text-black">{settings.user_name || 'Schrö Admin'}</p>
                         <p className="text-[10px] text-black/40">{settings.user_email || 'karr@studiokarrtesian.com'}</p>
@@ -205,9 +205,36 @@ export function Sidebar() {
     const [hoveredItem, setHoveredItem] = useState<string | null>(null)
     const [hoveredSubItem, setHoveredSubItem] = useState<string | null>(null)
     const [activeTabGap, setActiveTabGap] = useState<{ start: number; end: number } | null>(null)
+    const [flyoutY, setFlyoutY] = useState<number>(0)
+    const [flyoutOffset, setFlyoutOffset] = useState<number>(0)
+    const [subFlyoutY, setSubFlyoutY] = useState<number>(0)
     const sidebarRef = useRef<HTMLElement>(null)
     const collapsedNavRef = useRef<HTMLElement>(null)
+    const flyoutRef = useRef<HTMLDivElement>(null)
     const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({})
+    const itemWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+    // Clamp flyout to viewport
+    useEffect(() => {
+        if (hoveredItem && flyoutRef.current) {
+            const rect = flyoutRef.current.getBoundingClientRect()
+            const viewportHeight = window.innerHeight
+            const margin = 12
+
+            let offset = 0
+            if (rect.top < margin) {
+                offset = margin - rect.top
+            } else if (rect.bottom > viewportHeight - margin) {
+                offset = (viewportHeight - margin) - rect.bottom
+            }
+
+            if (offset !== 0) {
+                setFlyoutOffset(prev => prev + offset)
+            }
+        } else if (!hoveredItem) {
+            setFlyoutOffset(0)
+        }
+    }, [hoveredItem, flyoutY])
 
     // Update activeTabGap whenever pathname or collapsed state changes
     useEffect(() => {
@@ -594,9 +621,10 @@ export function Sidebar() {
             <aside
                 ref={sidebarRef as React.RefObject<HTMLElement>}
                 className={cn(
-                    "hidden md:flex fixed left-0 top-0 h-full flex-col z-[200] bg-white transition-[width] duration-300 overflow-visible",
-                    isCollapsed ? "w-[64px]" : "w-[220px]"
+                    "hidden md:flex fixed left-0 top-0 h-full flex-col z-[40] bg-white transition-[width] duration-300",
+                    isCollapsed ? "w-[64px]" : "w-[220px] overflow-visible"
                 )}
+                style={isCollapsed ? { overflowX: 'clip', overflowY: 'visible' } as React.CSSProperties : undefined}
             >
                 {/* Dynamic separator — transparent gap curves around the active tab */}
                 <div
@@ -641,15 +669,23 @@ export function Sidebar() {
                             return (
                                 <div
                                     key={item.label}
+                                    ref={el => { itemWrapperRefs.current[item.label] = el }}
                                     className="w-full flex justify-end relative mb-1 z-10"
-                                    onMouseEnter={() => setHoveredItem(item.label)}
+                                    onMouseEnter={() => {
+                                        setHoveredItem(item.label)
+                                        const el = itemWrapperRefs.current[item.label]
+                                        if (el) {
+                                            const rect = el.getBoundingClientRect()
+                                            setFlyoutY(rect.top + rect.height / 2)
+                                        }
+                                    }}
                                     onMouseLeave={() => setHoveredItem(null)}
                                 >
                                     {/* Main Tab */}
                                     <div className="relative group">
                                         {/* Folder-tab box — absolutely positioned, independent from icon */}
                                         {isActive && (
-                                            <div className="absolute top-0 right-0 -mr-[2px] w-14 h-11 bg-[#fafafa] rounded-l-xl rounded-r-none border border-black/[0.1] border-r-transparent z-0 pointer-events-none before:content-[''] before:absolute before:-top-3 before:right-0 before:w-3 before:h-3 before:rounded-br-xl before:shadow-[3px_3px_0_3px_#fafafa] before:border-b before:border-black/[0.07] before:pointer-events-none after:content-[''] after:absolute after:-bottom-3 after:right-0 after:w-3 after:h-3 after:rounded-tr-xl after:shadow-[3px_-3px_0_3px_#fafafa] after:border-t after:border-black/[0.07] after:pointer-events-none" />
+                                            <div className="absolute top-0 right-0 w-[62px] h-11 bg-[#fafafa] rounded-l-xl rounded-r-none border border-black/[0.1] border-r-transparent z-0 pointer-events-none before:content-[''] before:absolute before:-top-3 before:right-0 before:w-3 before:h-3 before:rounded-br-xl before:shadow-[3px_3px_0_3px_#fafafa] before:border-b before:border-black/[0.07] before:pointer-events-none after:content-[''] after:absolute after:-bottom-3 after:right-0 after:w-3 after:h-3 after:rounded-tr-xl after:shadow-[3px_-3px_0_3px_#fafafa] after:border-t after:border-black/[0.07] after:pointer-events-none" />
                                         )}
                                         <Link
                                             ref={el => { tabRefs.current[item.label] = el }}
@@ -665,17 +701,26 @@ export function Sidebar() {
                                         >
                                             <Icon className="w-4.5 h-4.5" />
                                         </Link>
-                                        <div className={cn(
-                                            "pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap transition-opacity z-[200] shadow-xl",
-                                            hoveredItem === item.label && !('sub' in item && item.sub) ? "opacity-100" : "opacity-0"
-                                        )}>
-                                            {item.label}
-                                        </div>
                                     </div>
 
-                                    {/* Sub-items flyout */}
+                                    {/* Tooltip (fixed position, no sub) */}
+                                    {hoveredItem === item.label && !('sub' in item && item.sub) && (
+                                        <div
+                                            ref={flyoutRef}
+                                            className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[60] shadow-xl max-h-[calc(100vh-24px)] overflow-y-auto custom-scrollbar"
+                                            style={{ left: 72, top: flyoutY + flyoutOffset, transform: 'translateY(-50%)' }}
+                                        >
+                                            {item.label}
+                                        </div>
+                                    )}
+
+                                    {/* Sub-items flyout (fixed position) */}
                                     {'sub' in item && item.sub && hoveredItem === item.label && (
-                                        <div className="absolute left-[calc(100%-8px)] top-1/2 -translate-y-1/2 flex flex-col gap-1 p-1.5 bg-white border border-black/[0.08] rounded-2xl shadow-xl z-[100] animate-in fade-in zoom-in-95 duration-200">
+                                        <div
+                                            ref={flyoutRef}
+                                            className="fixed flex flex-col gap-1 p-1.5 bg-white border border-black/[0.08] rounded-2xl shadow-xl z-[60] animate-in fade-in zoom-in-95 duration-200 max-h-[calc(100vh-24px)] overflow-y-auto custom-scrollbar"
+                                            style={{ left: 56, top: flyoutY + flyoutOffset, transform: 'translateY(-50%)' }}
+                                        >
                                             {item.sub.map(subItem => {
                                                 const SubIcon = subItem.icon || ((props: any) => <div className={cn("w-1.5 h-1.5 rounded-full bg-current", props.className)} />)
                                                 const isSubActive = pathname === subItem.href
@@ -683,7 +728,11 @@ export function Sidebar() {
                                                     <div key={subItem.href} className="relative group/sub">
                                                         <Link
                                                             href={subItem.href}
-                                                            onMouseEnter={() => setHoveredSubItem(subItem.label)}
+                                                            onMouseEnter={(e) => {
+                                                                setHoveredSubItem(subItem.label)
+                                                                const rect = e.currentTarget.getBoundingClientRect()
+                                                                setSubFlyoutY(rect.top + rect.height / 2)
+                                                            }}
                                                             onMouseLeave={() => setHoveredSubItem(null)}
                                                             className={cn(
                                                                 'w-8 h-8 flex items-center justify-center rounded-xl transition-all',
@@ -696,12 +745,14 @@ export function Sidebar() {
                                                         >
                                                             <SubIcon className="w-4 h-4" />
                                                         </Link>
-                                                        <div className={cn(
-                                                            "pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap transition-opacity z-[200] shadow-xl",
-                                                            hoveredSubItem === subItem.label ? "opacity-100" : "opacity-0"
-                                                        )}>
-                                                            {subItem.label}
-                                                        </div>
+                                                        {hoveredSubItem === subItem.label && (
+                                                            <div
+                                                                className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[60] shadow-xl"
+                                                                style={{ left: 56 + 44 + 12, top: subFlyoutY, transform: 'translateY(-50%)' }}
+                                                            >
+                                                                {subItem.label}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )
                                             })}
