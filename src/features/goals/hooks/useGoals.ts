@@ -271,9 +271,9 @@ export function useGoals() {
         try {
             if (settings.is_demo_mode) {
                 const session = getSessionGoals() || []
-                const updated = session.filter(g => g.id !== id)
-                saveSessionGoals(updated)
-                setGoals(updated)
+                const updated = session.filter((g: any) => g.id !== id)
+                saveSessionGoals(updated as Goal[])
+                setGoals(updated as Goal[])
                 return
             }
 
