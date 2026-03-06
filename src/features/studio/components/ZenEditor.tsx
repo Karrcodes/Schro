@@ -6,7 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import Heading from '@tiptap/extension-heading'
-import { Bold, Italic, Heading1, Heading2, Type, Wand2, Image as ImageIcon, Loader2, Check, X, Sparkles, Search, Dna } from 'lucide-react'
+import { Bold, Italic, Heading1, Heading2, Type, Wand2, Image as ImageIcon, Loader2, Check, X, Sparkles, Search, Dna, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ZenEditorProps {
