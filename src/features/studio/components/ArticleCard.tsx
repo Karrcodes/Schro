@@ -111,19 +111,19 @@ export default function ArticleCard({ draft, onClick, onPin, onDelete, onArchive
                 )}
             </div>
 
-            {/* Footer Row: Date & Hover Actions */}
-            <div className="flex items-center justify-between mt-auto pt-3 border-t border-black/[0.04] relative z-10 h-10 overflow-hidden">
-                <p className="text-[9px] text-black/20 font-black uppercase tracking-widest group-hover:translate-y-10 transition-all duration-300">
+            {/* Footer Row: Date & Persistent Actions */}
+            <div className="flex items-center justify-between mt-auto pt-3 border-t border-black/[0.04] relative z-20">
+                <p className="text-[10px] text-black/30 font-bold uppercase tracking-widest shrink-0">
                     {new Date(draft.updated_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                 </p>
 
-                {/* Actions: Simplified Visibility & Animation */}
-                <div className="flex items-center gap-1.5 absolute right-0 translate-y-10 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out">
+                {/* Actions: Persistent Visibility for iPad/Tablet */}
+                <div className="flex items-center gap-1.5 ml-auto">
                     <button
                         onClick={(e) => { e.stopPropagation(); onPin(); }}
                         className={cn(
-                            "w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm",
-                            draft.pinned ? "bg-black text-white" : "text-black/20 hover:text-black hover:bg-black/5"
+                            "w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm border border-black/[0.03]",
+                            draft.pinned ? "bg-black text-white" : "bg-white text-black/40 hover:text-black hover:border-black/10"
                         )}
                         title="Pin"
                     >
@@ -131,14 +131,14 @@ export default function ArticleCard({ draft, onClick, onPin, onDelete, onArchive
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onArchive(); }}
-                        className="w-8 h-8 rounded-xl flex items-center justify-center text-black/20 bg-white hover:text-white hover:bg-amber-500 border border-black/[0.05] transition-all hover:scale-110 active:scale-95 shadow-sm hover:shadow-amber-500/20"
+                        className="w-8 h-8 rounded-xl flex items-center justify-center bg-white text-black/40 hover:text-white hover:bg-amber-500 border border-black/[0.05] transition-all hover:scale-110 active:scale-95 shadow-sm hover:shadow-amber-500/20"
                         title="Archive"
                     >
                         <Archive className="w-3.5 h-3.5" />
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                        className="w-8 h-8 rounded-xl flex items-center justify-center text-black/20 bg-white hover:text-white hover:bg-red-500 border border-black/[0.05] transition-all hover:scale-110 active:scale-95 shadow-sm hover:shadow-red-500/20"
+                        className="w-8 h-8 rounded-xl flex items-center justify-center bg-white text-black/40 hover:text-white hover:bg-red-500 border border-black/[0.05] transition-all hover:scale-110 active:scale-95 shadow-sm hover:shadow-red-500/20"
                         title="Delete"
                     >
                         <Trash2 className="w-3.5 h-3.5" />

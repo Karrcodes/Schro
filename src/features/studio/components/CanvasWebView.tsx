@@ -83,6 +83,9 @@ export default function CanvasWebView({
     const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
     const marqueeStart = useRef<{ x: number; y: number } | null>(null)
     const isPanning = useRef(false)
+    const activePointers = useRef<Map<number, { x: number, y: number }>>(new Map())
+    const lastTouchDistance = useRef<number | null>(null)
+    const lastTouchCenter = useRef<{ x: number, y: number } | null>(null)
 
     // Initialise positions from persisted data + auto-layout for unpositioned
     useEffect(() => {
@@ -118,9 +121,33 @@ export default function CanvasWebView({
     useEffect(() => {
         if (!draggingId && !isPanning.current && !connectingFrom && !marqueeBox) return
 
-        const handleGlobalMouseMove = (e: MouseEvent) => {
-            // Re-type event for compatibility with existing logic
-            const reactEvent = e as unknown as React.MouseEvent
+        const handleGlobalPointerMove = (e: PointerEvent) => {
+            activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+            // Two-finger pan/zoom for iPad
+            if (activePointers.current.size === 2) {
+                const pointers = Array.from(activePointers.current.values())
+                const p1 = pointers[0]
+                const p2 = pointers[1]
+
+                const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
+                const center = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+
+                if (lastTouchDistance.current !== null && lastTouchCenter.current !== null) {
+                    // Panning
+                    const dx = center.x - lastTouchCenter.current.x
+                    const dy = center.y - lastTouchCenter.current.y
+                    setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }))
+
+                    // Zooming (Optional but usually goes together)
+                    const zoomDelta = dist / lastTouchDistance.current
+                    setZoom(prev => Math.max(0.3, Math.min(2.5, prev * zoomDelta)))
+                }
+
+                lastTouchDistance.current = dist
+                lastTouchCenter.current = center
+                return
+            }
 
             if (draggingId && dragStart.current) {
                 const dx = (e.clientX - dragStart.current.mx) / zoom
@@ -129,7 +156,6 @@ export default function CanvasWebView({
                 const ny = dragStart.current.ny + dy
                 setPositions(prev => ({ ...prev, [draggingId]: { x: nx, y: ny } }))
 
-                // Library drop detection (Global)
                 const rect = containerRef.current?.getBoundingClientRect()
                 if (rect && isLibraryOpen) {
                     const over = e.clientX < rect.left
@@ -139,7 +165,8 @@ export default function CanvasWebView({
                     }
                 }
                 setGhostCoords({ x: e.clientX, y: e.clientY })
-            } else if (isPanning.current && panStart.current) {
+            } else if (isPanning.current && panStart.current && activePointers.current.size === 1 && e.pointerType === 'mouse') {
+                // One-finger pan only for mouse
                 setPan({
                     x: panStart.current.px + (e.clientX - panStart.current.mx),
                     y: panStart.current.py + (e.clientY - panStart.current.my),
@@ -197,7 +224,13 @@ export default function CanvasWebView({
             }
         }
 
-        const handleGlobalMouseUp = (e: MouseEvent) => {
+        const handleGlobalPointerUp = (e: PointerEvent) => {
+            activePointers.current.delete(e.pointerId)
+            if (activePointers.current.size < 2) {
+                lastTouchDistance.current = null
+                lastTouchCenter.current = null
+            }
+
             if (marqueeStart.current) {
                 marqueeStart.current = null
                 setMarqueeBox(null)
@@ -206,7 +239,6 @@ export default function CanvasWebView({
             if (draggingId) {
                 const rect = containerRef.current?.getBoundingClientRect()
                 if (isLibraryOpen && rect && e.clientX < rect.left) {
-                    // Fly-back animation
                     setAnimatingRemovalId(draggingId)
                     setRemovalTarget({ x: rect.left - 100, y: e.clientY })
                     setTimeout(() => {
@@ -228,8 +260,6 @@ export default function CanvasWebView({
                 setPendingLine(null)
                 setMagneticNode(null)
             } else if (connectingFrom && !magneticNode) {
-                // If it's a click-drag, we might want to clear it, but for click-to-connect we keep it
-                // Logic based on dragStart? For now cancel on mouseup if not snapped and moved a bit
                 if (dragStart.current && Math.abs(e.clientX - dragStart.current.mx) > 5) {
                     setConnectingFrom(null)
                     setPendingLine(null)
@@ -246,11 +276,13 @@ export default function CanvasWebView({
             setMagneticNode(null)
         }
 
-        window.addEventListener('mousemove', handleGlobalMouseMove)
-        window.addEventListener('mouseup', handleGlobalMouseUp)
+        window.addEventListener('pointermove', handleGlobalPointerMove)
+        window.addEventListener('pointerup', handleGlobalPointerUp)
+        window.addEventListener('pointercancel', handleGlobalPointerUp)
         return () => {
-            window.removeEventListener('mousemove', handleGlobalMouseMove)
-            window.removeEventListener('mouseup', handleGlobalMouseUp)
+            window.removeEventListener('pointermove', handleGlobalPointerMove)
+            window.removeEventListener('pointerup', handleGlobalPointerUp)
+            window.removeEventListener('pointercancel', handleGlobalPointerUp)
         }
     }, [draggingId, isOverLibrary, isLibraryOpen, zoom, pan, entries, positions, connectingFrom, magneticNode, onUpdatePosition, onRemoveNode, onCreateConnection, onOverLibraryChange])
 
@@ -270,14 +302,15 @@ export default function CanvasWebView({
     }, [pan, zoom, onDropNode])
 
     // ---- Pan (background drag) ----
-    const onBgMouseDown = (e: React.MouseEvent) => {
-        if (e.button !== 0) return
+    const onBgPointerDown = (e: React.PointerEvent) => {
+        activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+        if (e.button !== 0 && e.pointerType === 'mouse') return
         if ((e.target as HTMLElement).closest('[data-node]')) return
 
         if (e.shiftKey) {
             marqueeStart.current = { x: e.clientX, y: e.clientY }
             onSelectionChange?.([])
-        } else {
+        } else if (e.pointerType === 'mouse') {
             isPanning.current = true
             panStart.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y }
             onSelectionChange?.([])
@@ -435,7 +468,10 @@ export default function CanvasWebView({
         <div className="relative w-full flex-1 bg-[#f7f7f7] overflow-hidden select-none"
             style={{ backgroundImage: 'radial-gradient(circle, #d4d4d4 1px, transparent 1px)', backgroundSize: '28px 28px' }}
             ref={containerRef}
-            onMouseDown={onBgMouseDown}
+            onPointerDown={onBgPointerDown}
+            onPointerMove={() => { }} // PointerMove is handled globally
+            onPointerUp={(e) => activePointers.current.delete(e.pointerId)}
+            onPointerCancel={(e) => activePointers.current.delete(e.pointerId)}
             onDragEnter={e => e.preventDefault()}
             onDragOver={e => e.preventDefault()}
             onDrop={handleDrop}

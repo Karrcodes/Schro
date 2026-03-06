@@ -29,6 +29,7 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
     const [isSaving, setIsSaving] = useState(false)
     const [showScaffold, setShowScaffold] = useState(true)
     const [showContext, setShowContext] = useState(true)
+    const [isMinimized, setIsMinimized] = useState(false)
     const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
 
     // Library State
@@ -223,7 +224,12 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
     }, [body, title, nodeRefs, draft?.id])
 
     return (
-        <div className="fixed inset-0 bg-[#fafafa] z-[100] flex flex-col animate-in fade-in duration-300">
+        <div className={cn(
+            "bg-[#fafafa] z-[100] flex flex-col transition-all duration-500 ease-in-out",
+            isMinimized
+                ? "fixed bottom-6 right-6 w-[420px] h-[600px] rounded-[32px] shadow-[0_32px_80px_rgba(0,0,0,0.25)] border-2 border-black/10 overflow-hidden"
+                : "fixed inset-0"
+        )}>
             {/* Header */}
             <header className="h-[72px] border-b border-black/[0.05] bg-white flex items-center justify-between px-6 shrink-0 z-20 shadow-sm relative">
                 <div className="flex items-center gap-4">
@@ -252,34 +258,47 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="flex bg-black/[0.03] p-1.5 rounded-2xl border border-black/5 mr-4 gap-1.5">
-                        <button
-                            onClick={() => setShowScaffold(!showScaffold)}
-                            className={cn(
-                                "p-3 rounded-xl transition-all active:scale-90",
-                                showScaffold ? "bg-white text-indigo-500 shadow-sm" : "text-black/30 hover:text-black/60"
-                            )}
-                            title="Toggle Scaffold"
-                        >
-                            <Layers className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => setShowContext(!showContext)}
-                            className={cn(
-                                "p-3 rounded-xl transition-all active:scale-90",
-                                showContext ? "bg-white text-indigo-500 shadow-sm" : "text-black/30 hover:text-black/60"
-                            )}
-                            title="Toggle Assistant"
-                        >
-                            <Sparkles className="w-5 h-5" />
-                        </button>
-                    </div>
+                    {!isMinimized && (
+                        <div className="flex bg-black/[0.03] p-1.5 rounded-2xl border border-black/5 mr-4 gap-1.5">
+                            <button
+                                onClick={() => setShowScaffold(!showScaffold)}
+                                className={cn(
+                                    "p-3 rounded-xl transition-all active:scale-90",
+                                    showScaffold ? "bg-white text-indigo-500 shadow-sm" : "text-black/30 hover:text-black/60"
+                                )}
+                                title="Toggle Scaffold"
+                            >
+                                <Layers className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={() => setShowContext(!showContext)}
+                                className={cn(
+                                    "p-3 rounded-xl transition-all active:scale-90",
+                                    showContext ? "bg-white text-indigo-500 shadow-sm" : "text-black/30 hover:text-black/60"
+                                )}
+                                title="Toggle Assistant"
+                            >
+                                <Sparkles className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
+
                     <button
-                        onClick={() => setIsPublishModalOpen(true)}
-                        className="px-6 py-3 bg-black text-white rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl hover:bg-black/80 transition-all active:scale-95 touch-manipulation"
+                        onClick={() => setIsMinimized(!isMinimized)}
+                        className="p-3 bg-black/[0.03] border border-black/5 rounded-xl text-black/40 hover:text-black transition-all active:scale-90"
+                        title={isMinimized ? "Expand Editor" : "Minimize Editor"}
                     >
-                        Publish
+                        {isMinimized ? <Maximize2 className="w-5 h-5" /> : <Minimize2 className="w-5 h-5" />}
                     </button>
+
+                    {!isMinimized && (
+                        <button
+                            onClick={() => setIsPublishModalOpen(true)}
+                            className="px-6 py-3 bg-black text-white rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl hover:bg-black/80 transition-all active:scale-95 touch-manipulation"
+                        >
+                            Publish
+                        </button>
+                    )}
                 </div>
             </header>
 
@@ -288,8 +307,8 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                 {/* Left: Research Scaffold */}
                 <aside
                     className={cn(
-                        "w-[340px] bg-white border-r border-black/[0.05] flex flex-col transition-all duration-300 overflow-hidden",
-                        !showScaffold && "w-0 opacity-0"
+                        "w-[340px] bg-white border-r border-black/[0.05] flex flex-col transition-all duration-300 overflow-hidden shrink-0",
+                        (!showScaffold || isMinimized) && "w-0 opacity-0"
                     )}
                 >
                     <div className="flex border-b border-black/[0.03] shrink-0">
@@ -445,7 +464,10 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                 </aside>
 
                 {/* Center: Zen Editor */}
-                <section className="flex-1 overflow-y-auto bg-white flex flex-col items-center relative">
+                <section className={cn(
+                    "flex-1 overflow-y-auto bg-white flex flex-col items-center relative transition-all duration-300",
+                    (showContext && !isMinimized) ? "pr-[100px]" : "pr-0"
+                )}>
                     <div className="w-full max-w-[720px] pb-[60vh] pt-[64px] px-8 flex flex-col">
                         {/* Title & Metadata Area */}
                         <div className="mb-12">
@@ -486,8 +508,8 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                 {/* Right: Context Panel */}
                 <aside
                     className={cn(
-                        "w-[340px] bg-white border-l border-black/[0.05] flex flex-col transition-all duration-300 overflow-hidden",
-                        !showContext && "w-0 opacity-0"
+                        "w-[340px] bg-white border-l border-black/[0.05] flex flex-col transition-all duration-300 overflow-hidden shrink-0",
+                        (!showContext || isMinimized) && "w-0 opacity-0 border-l-0"
                     )}
                 >
                     <div className="p-6 border-b border-black/[0.03] flex items-center justify-between">
@@ -550,8 +572,10 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
 
                                     <button
                                         onClick={() => {
-                                            insertText(analysis.insertable_text)
-                                            setAnalysis(null)
+                                            if (analysis) {
+                                                insertText(analysis.insertable_text)
+                                                setAnalysis(null)
+                                            }
                                         }}
                                         className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/10 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
                                     >

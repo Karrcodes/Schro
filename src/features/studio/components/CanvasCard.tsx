@@ -132,67 +132,65 @@ export default function CanvasCard({ entry, connections, onClick, onPin, onDelet
                 </div>
             )}
 
-            {/* Date */}
-            <div className="flex items-center mt-1 pt-1">
-                <p className="text-[10px] text-black/25 font-medium">
+            {/* Date & Persistent Actions */}
+            <div className="flex items-center justify-between mt-auto pt-2 border-t border-black/[0.04] relative z-20">
+                <p className="text-[10px] text-black/25 font-medium shrink-0">
                     {new Date(entry.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                 </p>
-            </div>
 
-            {/* Action buttons - always visible but low opacity until hover */}
-            <div
-                className="absolute bottom-3 right-3 flex items-center gap-1 opacity-25 group-hover:opacity-100 transition-opacity"
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Color palette */}
-                <div className="relative">
+                {/* Action buttons - Persistent for iPad accessibility */}
+                <div
+                    className="flex items-center gap-1.5 ml-auto"
+                    onClick={e => e.stopPropagation()}
+                >
+                    {/* Color palette */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowPalette(p => !p)}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center bg-white text-black/30 hover:text-black/60 hover:bg-black/[0.05] border border-black/[0.05] transition-all"
+                        >
+                            <Palette className="w-3.5 h-3.5" />
+                        </button>
+                        {showPalette && (
+                            <div className="absolute bottom-full right-0 mb-1.5 flex items-center gap-1 p-1.5 bg-white border border-black/[0.08] rounded-xl shadow-xl z-[50]">
+                                {COLORS.map(c => (
+                                    <button
+                                        key={c}
+                                        onClick={() => { onColorChange(entry.color === c ? 'default' : c); setShowPalette(false) }}
+                                        className={cn("w-5 h-5 rounded-full border-2 transition-all hover:scale-110", COLOR_MAP[c].dot,
+                                            entry.color === c ? 'border-black/40' : 'border-transparent'
+                                        )}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     <button
-                        onClick={() => setShowPalette(p => !p)}
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-black/30 hover:text-black/60 hover:bg-black/[0.05] transition-all"
+                        onClick={onPin}
+                        className={cn(
+                            "w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm border border-black/[0.03]",
+                            entry.pinned ? "bg-black text-white" : "bg-white text-black/30 hover:text-black hover:bg-black/5"
+                        )}
+                        title={entry.pinned ? "Unpin" : "Pin"}
                     >
-                        <Palette className="w-3.5 h-3.5" />
+                        <Pin className={cn("w-3.5 h-3.5", entry.pinned && "fill-current")} />
                     </button>
-                    {showPalette && (
-                        <div className="absolute bottom-full right-0 mb-1.5 flex items-center gap-1 p-1.5 bg-white border border-black/[0.08] rounded-xl shadow-xl z-[50]">
-                            {COLORS.map(c => (
-                                <button
-                                    key={c}
-                                    onClick={() => { onColorChange(entry.color === c ? 'default' : c); setShowPalette(false) }}
-                                    className={cn("w-5 h-5 rounded-full border-2 transition-all hover:scale-110", COLOR_MAP[c].dot,
-                                        entry.color === c ? 'border-black/40' : 'border-transparent'
-                                    )}
-                                />
-                            ))}
-                        </div>
-                    )}
+
+                    <button
+                        onClick={onArchive}
+                        className="w-8 h-8 rounded-xl flex items-center justify-center bg-white text-black/30 hover:text-white hover:bg-amber-500 border border-black/[0.05] transition-all hover:scale-110 active:scale-95 shadow-sm hover:shadow-amber-500/20"
+                        title="Archive"
+                    >
+                        <Archive className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                        onClick={onDelete}
+                        className="w-8 h-8 rounded-xl flex items-center justify-center bg-white text-black/30 hover:text-white hover:bg-red-500 border border-black/[0.05] transition-all hover:scale-110 active:scale-95 shadow-sm hover:shadow-red-500/20"
+                        title="Delete"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                 </div>
-                <button
-                    onClick={onPin}
-                    className={cn(
-                        "w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:scale-110 active:scale-95",
-                        entry.pinned ? "bg-black text-white" : "text-black/30 hover:text-black hover:bg-black/5"
-                    )}
-                    title={entry.pinned ? "Unpin" : "Pin"}
-                >
-                    <Pin className={cn("w-4 h-4", entry.pinned && "fill-current")} />
-                </button>
-
-                <div className="w-px h-4 bg-black/[0.05] mx-0.5" />
-
-                <button
-                    onClick={onArchive}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-black/30 hover:text-white hover:bg-amber-500 transition-all hover:scale-110 active:scale-95 shadow-sm hover:shadow-amber-500/20"
-                    title="Archive"
-                >
-                    <Archive className="w-4 h-4" />
-                </button>
-                <button
-                    onClick={onDelete}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-black/30 hover:text-white hover:bg-red-500 transition-all hover:scale-110 active:scale-95 shadow-sm hover:shadow-red-500/20"
-                    title="Delete"
-                >
-                    <Trash2 className="w-4 h-4" />
-                </button>
             </div>
 
             {/* Promoted badge */}

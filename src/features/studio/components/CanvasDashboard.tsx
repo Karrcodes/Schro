@@ -36,7 +36,8 @@ export default function CanvasDashboard() {
     const [activeDraft, setActiveDraft] = useState<StudioDraft | null>(null)
     const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active')
     const [showArchivedMaps, setShowArchivedMaps] = useState(false)
-    const [libraryTab, setLibraryTab] = useState<'notes' | 'projects' | 'content'>('notes')
+    const [libraryTab, setLibraryTab] = useState<'canvas' | 'projects' | 'content'>('canvas')
+    const [libraryCanvasType, setLibraryCanvasType] = useState<'notes' | 'articles'>('notes')
     const [selectedEntry, setSelectedEntry] = useState<StudioCanvasEntry | null>(null)
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
     const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
@@ -525,7 +526,7 @@ export default function CanvasDashboard() {
                                         </button>
                                     </div>
                                     <div className="flex border-b border-black/[0.05]">
-                                        {(['notes', 'projects', 'content'] as const).map(tab => (
+                                        {(['canvas', 'projects', 'content'] as const).map(tab => (
                                             <button
                                                 key={tab}
                                                 onClick={() => setLibraryTab(tab)}
@@ -534,10 +535,30 @@ export default function CanvasDashboard() {
                                                     libraryTab === tab ? "text-indigo-600 bg-indigo-50/50 border-b-2 border-indigo-600" : "text-black/30 hover:text-black/50"
                                                 )}
                                             >
-                                                {tab}
+                                                {tab === 'canvas' ? 'Canvas' : tab}
                                             </button>
                                         ))}
                                     </div>
+
+                                    {/* Sub-toggle for Canvas tab: Notes vs Articles */}
+                                    {libraryTab === 'canvas' && (
+                                        <div className="px-4 py-2 border-b border-black/[0.03] bg-black/[0.01]">
+                                            <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/5">
+                                                {(['notes', 'articles'] as const).map(type => (
+                                                    <button
+                                                        key={type}
+                                                        onClick={() => setLibraryCanvasType(type)}
+                                                        className={cn(
+                                                            "flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                                            libraryCanvasType === type ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/60"
+                                                        )}
+                                                    >
+                                                        {type}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-12">
                                         {/* Sort/Filter bar for projects & content */}
@@ -592,13 +613,23 @@ export default function CanvasDashboard() {
                                                 )}
                                             </div>
                                         )}
-                                        {libraryTab === 'notes' && (
-                                            unmappedEntries.length === 0 ? (
-                                                <EmptyLibrary message="No unmapped ideas" />
+                                        {libraryTab === 'canvas' && (
+                                            libraryCanvasType === 'notes' ? (
+                                                unmappedEntries.length === 0 ? (
+                                                    <EmptyLibrary message="No unmapped ideas" />
+                                                ) : (
+                                                    unmappedEntries.map(e => (
+                                                        <LibraryItem key={e.id} id={e.id} type="entry" title={e.title} onClick={() => addNodeToMap(e.id, 'entry' as const)} />
+                                                    ))
+                                                )
                                             ) : (
-                                                unmappedEntries.map(e => (
-                                                    <LibraryItem key={e.id} id={e.id} type="entry" title={e.title} onClick={() => addNodeToMap(e.id, 'entry' as const)} />
-                                                ))
+                                                drafts.filter(d => !mapNodes.some(m => m.entry_id === d.id)).length === 0 ? (
+                                                    <EmptyLibrary message="No unmapped articles" />
+                                                ) : (
+                                                    drafts.filter(d => !mapNodes.some(m => m.entry_id === d.id)).map(d => (
+                                                        <LibraryItem key={d.id} id={d.id} type="content" title={d.title} onClick={() => addNodeToMap(d.id, 'content' as const)} />
+                                                    ))
+                                                )
                                             )
                                         )}
                                         {libraryTab === 'projects' && (
