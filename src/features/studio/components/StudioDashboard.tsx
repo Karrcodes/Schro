@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Sparkles, Briefcase, Target, LayoutDashboard, Shield, Plus, Clock, ExternalLink, ArrowRight, Activity, Award, Zap, Video, Rocket, Users } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
+import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import CreateProjectModal from './CreateProjectModal'
@@ -15,6 +16,7 @@ import type { StudioProject, StudioSpark, StudioContent } from '../types/studio.
 
 export default function StudioDashboard() {
     const { projects, sparks, content, press, loading, error } = useStudio()
+    const { settings } = useSystemSettings()
     const [daysUntilGTV, setDaysUntilGTV] = useState(0)
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
     const [isSparkModalOpen, setIsSparkModalOpen] = useState(false)
@@ -48,40 +50,42 @@ export default function StudioDashboard() {
                 </div>
             )}
             {/* GTV Header Banner */}
-            <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#0A2647] to-[#144272] p-6 md:p-10 text-white shadow-2xl">
-                <div className="absolute top-0 right-0 p-8 opacity-10 hidden sm:block">
-                    <Shield className="w-48 h-48" />
-                </div>
-                <div className="relative z-10 flex flex-col gap-2">
-                    <div className="flex flex-col gap-1">
-                        <p className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.25em] text-blue-300/80 mb-2">Global Talent Visa Pipeline</p>
-                        <div className="flex items-baseline gap-3 mb-4 md:mb-6">
-                            <h1 className="text-4xl md:text-6xl font-black font-outfit">{daysUntilGTV}</h1>
-                            <p className="text-base md:text-xl font-bold text-blue-200/60 lowercase">days until 2026 cutoff</p>
-                        </div>
+            {!settings.is_demo_mode && (
+                <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#0A2647] to-[#144272] p-6 md:p-10 text-white shadow-2xl">
+                    <div className="absolute top-0 right-0 p-8 opacity-10 hidden sm:block">
+                        <Shield className="w-48 h-48" />
                     </div>
-
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mt-2 pt-6 border-t border-white/5">
-                        <div className="flex items-center gap-3">
-                            <div className="flex -space-x-3">
-                                {projects.filter(p => p.gtv_featured).slice(0, 4).map((p, i) => (
-                                    <div key={p.id} className="w-8 md:w-10 h-8 md:h-10 rounded-full border-2 border-blue-900 bg-blue-100 flex items-center justify-center text-blue-900 font-black text-[10px] md:text-xs ring-4 ring-[#0A2647] overflow-hidden">
-                                        {p.title[0]}
-                                    </div>
-                                ))}
-                                {projects.filter(p => p.gtv_featured).length > 4 && (
-                                    <div className="w-8 md:w-10 h-8 md:h-10 rounded-full border-2 border-blue-900 bg-blue-800 flex items-center justify-center text-blue-200 font-black text-[10px] md:text-xs ring-4 ring-[#0A2647]">
-                                        +{projects.filter(p => p.gtv_featured).length - 4}
-                                    </div>
-                                )}
+                    <div className="relative z-10 flex flex-col gap-2">
+                        <div className="flex flex-col gap-1">
+                            <p className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.25em] text-blue-300/80 mb-2">Global Talent Visa Pipeline</p>
+                            <div className="flex items-baseline gap-3 mb-4 md:mb-6">
+                                <h1 className="text-4xl md:text-6xl font-black font-outfit">{daysUntilGTV}</h1>
+                                <p className="text-base md:text-xl font-bold text-blue-200/60 lowercase">days until 2026 cutoff</p>
                             </div>
-                            <p className="text-[12px] md:text-[13px] font-bold text-blue-100/70">
-                                Portfolio is <span className="text-white font-black">{Math.min(100, Math.round(((projects.filter(p => p.gtv_featured).length + press.filter(p => p.is_portfolio_item && (p.status === 'achieved' || p.status === 'published')).length) / 10) * 100))}%</span> optimized
-                            </p>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mt-2 pt-6 border-t border-white/5">
+                            <div className="flex items-center gap-3">
+                                <div className="flex -space-x-3">
+                                    {projects.filter(p => p.gtv_featured).slice(0, 4).map((p, i) => (
+                                        <div key={p.id} className="w-8 md:w-10 h-8 md:h-10 rounded-full border-2 border-blue-900 bg-blue-100 flex items-center justify-center text-blue-900 font-black text-[10px] md:text-xs ring-4 ring-[#0A2647] overflow-hidden">
+                                            {p.title[0]}
+                                        </div>
+                                    ))}
+                                    {projects.filter(p => p.gtv_featured).length > 4 && (
+                                        <div className="w-8 md:w-10 h-8 md:h-10 rounded-full border-2 border-blue-900 bg-blue-800 flex items-center justify-center text-blue-200 font-black text-[10px] md:text-xs ring-4 ring-[#0A2647]">
+                                            +{projects.filter(p => p.gtv_featured).length - 4}
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-[12px] md:text-[13px] font-bold text-blue-100/70">
+                                    Portfolio is <span className="text-white font-black">{Math.min(100, Math.round(((projects.filter(p => p.gtv_featured).length + press.filter(p => p.is_portfolio_item && (p.status === 'achieved' || p.status === 'published')).length) / 10) * 100))}%</span> optimized
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Subpage Quick Actions */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -91,7 +95,7 @@ export default function StudioDashboard() {
                     { label: 'Sparks', href: '/create/sparks', icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
                     { label: 'Network', href: '/create/network', icon: Users, color: 'text-purple-600', bg: 'bg-purple-500/10' },
                     { label: 'Press', href: '/create/press', icon: Award, color: 'text-amber-600', bg: 'bg-amber-500/10' },
-                    { label: 'Portfolio', href: '/create/portfolio', icon: Shield, color: 'text-blue-600', bg: 'bg-blue-500/10' }
+                    ...(!settings.is_demo_mode ? [{ label: 'Portfolio', href: '/create/portfolio', icon: Shield, color: 'text-blue-600', bg: 'bg-blue-500/10' }] : [])
                 ].map((item) => (
                     <Link
                         key={item.label}
@@ -243,7 +247,7 @@ export default function StudioDashboard() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    {project.gtv_featured && <Shield className="w-3.5 h-3.5 text-blue-500" />}
+                                                    {!settings.is_demo_mode && project.gtv_featured && <Shield className="w-3.5 h-3.5 text-blue-500" />}
                                                 </div>
                                             </div>
 

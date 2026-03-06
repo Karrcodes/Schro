@@ -4,11 +4,13 @@ import React, { useState } from 'react'
 import { Shield, ExternalLink, Calendar, Award, CheckCircle2, Plus, Rocket, Globe, X, Orbit } from 'lucide-react'
 
 import { useStudio } from '@/features/studio/hooks/useStudio'
+import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import Link from 'next/link'
 import type { StudioProject, StudioPress } from '@/features/studio/types/studio.types'
 
 export default function PortfolioPage() {
     const { projects, press } = useStudio()
+    const { settings } = useSystemSettings()
 
     const portfolioProjects = projects.filter(p => p.gtv_featured)
     const portfolioPress = press.filter(p => p.is_portfolio_item && (p.status === 'achieved' || p.status === 'published'))
@@ -28,27 +30,39 @@ export default function PortfolioPage() {
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-400/20 w-fit text-blue-200 border border-blue-400/20 text-[10px] font-bold uppercase tracking-widest">
                                 <Shield className="w-3 h-3" />
-                                GTV Portfolio Mode
+                                {settings.is_demo_mode ? "Showcase Portfolio" : "GTV Portfolio Mode"}
                             </div>
-                            <h1 className="text-4xl font-black tracking-tight leading-none">Global Talent Visa<br /><span className="text-blue-300/80">Evidence Evidence Storage</span></h1>
+                            <h1 className="text-4xl font-black tracking-tight leading-none">
+                                {settings.is_demo_mode ? (
+                                    <>Professional<br /><span className="text-blue-300/80">Project Portfolio</span></>
+                                ) : (
+                                    <>Global Talent Visa<br /><span className="text-blue-300/80">Evidence Storage</span></>
+                                )}
+                            </h1>
                             <p className="text-[14px] font-medium text-blue-200/60 max-w-xl">
-                                Your curated evidence for the September 2026 application. Everything here represents your case for Exceptional Promise under Tech Nation's Digital Technology criteria.
+                                {settings.is_demo_mode ? (
+                                    "A curated selection of high-impact projects and media recognition, showcasing expertise in digital technology and innovation."
+                                ) : (
+                                    "Your curated evidence for the September 2026 application. Everything here represents your case for Exceptional Promise under Tech Nation's Digital Technology criteria."
+                                )}
                             </p>
                         </div>
 
                         <div className="flex gap-4">
-                            <div className="p-4 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-1">Application Target</p>
-                                <div className="flex items-center gap-2 text-xl font-bold">
-                                    <Calendar className="w-5 h-5 text-blue-400" />
-                                    Sept 2026
+                            {!settings.is_demo_mode && (
+                                <div className="p-4 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-1">Application Target</p>
+                                    <div className="items-center gap-2 text-xl font-bold flex">
+                                        <Calendar className="w-5 h-5 text-blue-400" />
+                                        Sept 2026
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                             <div className="p-4 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-1">Evidence Count</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-1">{settings.is_demo_mode ? "Featured Items" : "Evidence Count"}</p>
                                 <div className="flex items-center gap-2 text-xl font-bold">
                                     <Award className="w-5 h-5 text-blue-400" />
-                                    {evidenceCount} / 10
+                                    {evidenceCount} {settings.is_demo_mode ? "" : "/ 10"}
                                 </div>
                             </div>
                         </div>
@@ -76,8 +90,8 @@ export default function PortfolioPage() {
                                                 <div className="w-16 h-16 rounded-full bg-black/[0.02] border-2 border-dashed border-black/[0.05] flex items-center justify-center mb-6">
                                                     <Plus className="w-8 h-8 text-black/10" />
                                                 </div>
-                                                <h3 className="text-[13px] font-bold text-black/30">Add {category} Evidence</h3>
-                                                <p className="text-[11px] text-black/20 mt-2 px-4">Tag active projects as 'gtv_featured' to curate your portfolio.</p>
+                                                <h3 className="text-[13px] font-bold text-black/30">Add {category} Items</h3>
+                                                <p className="text-[11px] text-black/20 mt-2 px-4">{settings.is_demo_mode ? "Tag projects to feature them in your professional showcase." : "Tag active projects as 'gtv_featured' to curate your portfolio."}</p>
                                             </div>
                                         ) : (
                                             <div className="space-y-3">
@@ -130,26 +144,28 @@ export default function PortfolioPage() {
                 </div>
 
                 {/* Resources */}
-                <div className="p-6 rounded-3xl bg-blue-50 border border-blue-200/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                            <CheckCircle2 className="w-6 h-6" />
+                {!settings.is_demo_mode && (
+                    <div className="p-6 rounded-3xl bg-blue-50 border border-blue-200/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                                <CheckCircle2 className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h4 className="text-[14px] font-black text-blue-900">Tech Nation Guidelines</h4>
+                                <p className="text-[12px] font-medium text-blue-800/60">Review the official criteria for Exceptional Promise endorsement.</p>
+                            </div>
                         </div>
-                        <div>
-                            <h4 className="text-[14px] font-black text-blue-900">Tech Nation Guidelines</h4>
-                            <p className="text-[12px] font-medium text-blue-800/60">Review the official criteria for Exceptional Promise endorsement.</p>
-                        </div>
+                        <a
+                            href="https://technation.io/visa/digital-technology-exceptional-promise-criteria/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-6 py-3 bg-blue-900 text-white rounded-2xl text-[12px] font-bold hover:bg-blue-800 transition-all"
+                        >
+                            View Official Guide
+                            <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
                     </div>
-                    <a
-                        href="https://technation.io/visa/digital-technology-exceptional-promise-criteria/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-6 py-3 bg-blue-900 text-white rounded-2xl text-[12px] font-bold hover:bg-blue-800 transition-all"
-                    >
-                        View Official Guide
-                        <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                </div>
+                )}
             </div>
         </main>
     )

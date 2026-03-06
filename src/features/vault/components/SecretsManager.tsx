@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabase'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { MOCK_VAULT } from '@/lib/demoData'
 
+const LOCAL_STORAGE_KEY = 'schrö_demo_vault_secrets_v1'
+
 interface Secret {
     id: string
     service: string
@@ -42,9 +44,27 @@ export function SecretsManager() {
         notes: ''
     })
 
+    const [selectedSecret, setSelectedSecret] = useState<Secret | null>(null)
+
+    const getSessionSecrets = useCallback(() => {
+        if (typeof window === 'undefined') return null
+        const stored = localStorage.getItem(LOCAL_STORAGE_KEY)
+        return stored ? JSON.parse(stored) : null
+    }, [])
+
+    const saveSessionSecrets = useCallback((data: any[]) => {
+        if (typeof window === 'undefined') return
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data))
+    }, [])
+
     const fetchSecrets = useCallback(async () => {
         if (settings.is_demo_mode) {
-            setSecrets(MOCK_VAULT.secrets as any)
+            let session = getSessionSecrets()
+            if (!session) {
+                session = MOCK_VAULT.secrets
+                saveSessionSecrets(session)
+            }
+            setSecrets(session)
             setLoading(false)
             return
         }
@@ -58,7 +78,7 @@ export function SecretsManager() {
             setSecrets(data)
         }
         setLoading(false)
-    }, [settings.is_demo_mode])
+    }, [settings.is_demo_mode, getSessionSecrets, saveSessionSecrets]) // Added dependencies for useCallback
 
     useEffect(() => {
         fetchSecrets()
@@ -67,6 +87,24 @@ export function SecretsManager() {
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!newSecret.service || !newSecret.password) return
+
+        if (settings.is_demo_mode) {
+            const newSecretDemo: Secret = {
+                id: `demo-s-${Date.now()}`,
+                service: newSecret.service,
+                username: newSecret.username || null,
+                password: newSecret.password,
+                notes: newSecret.notes || null,
+                created_at: new Date().toISOString()
+            }
+            const session = getSessionSecrets() || []
+            const updated = [newSecretDemo, ...session]
+            saveSessionSecrets(updated)
+            setSecrets(updated)
+            setNewSecret({ service: '', username: '', password: '', notes: '' })
+            setAdding(false)
+            return
+        }
 
         const { error } = await supabase
             .from('sys_secrets')
@@ -83,11 +121,27 @@ export function SecretsManager() {
             setAdding(false)
             fetchSecrets()
         }
+        // setIsSaving(false) // Ensure setIsSaving is reset for non-demo mode too // This line was commented out in the original, and not part of the requested change.
     }
 
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!editingId || !editSecret.service || !editSecret.password) return
+
+        if (settings.is_demo_mode) {
+            const session = getSessionSecrets() || []
+            const updated = session.map((s: Secret) => s.id === editingId ? {
+                ...s,
+                service: editSecret.service,
+                username: editSecret.username || null,
+                password: editSecret.password,
+                notes: editSecret.notes || null
+            } : s)
+            saveSessionSecrets(updated)
+            setSecrets(updated)
+            setEditingId(null)
+            return
+        }
 
         const { error } = await supabase
             .from('sys_secrets')
@@ -106,6 +160,13 @@ export function SecretsManager() {
     }
 
     const handleDelete = async (id: string) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionSecrets() || []
+            const updated = session.filter((s: Secret) => s.id !== id)
+            saveSessionSecrets(updated)
+            setSecrets(updated)
+            return
+        }
         const { error } = await supabase
             .from('sys_secrets')
             .delete()

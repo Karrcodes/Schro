@@ -10,6 +10,8 @@ import { MOCK_FINANCE, MOCK_BUSINESS } from '@/lib/demoData'
 // Module-level locks to prevent race conditions across multiple hook instances
 const ensuringProfiles = new Set<string>()
 
+const GET_LOCAL_KEY = (profile: string) => `schrö_demo_finance_pockets_${profile}_v2`
+
 export function usePots() {
     const [pots, setPots] = useState<Pot[]>([])
     const [loading, setLoading] = useState(true)
@@ -31,8 +33,15 @@ export function usePots() {
 
     const fetchPots = async () => {
         if (settings.is_demo_mode) {
-            const mockData = activeProfile === 'business' ? MOCK_BUSINESS.pockets : MOCK_FINANCE.pockets
-            setPots(mockData as any)
+            const key = GET_LOCAL_KEY(activeProfile || 'personal')
+            const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null
+            if (stored) {
+                setPots(JSON.parse(stored))
+            } else {
+                const mockData = activeProfile === 'business' ? MOCK_BUSINESS.pockets : MOCK_FINANCE.pockets
+                setPots(mockData as any)
+                if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(mockData))
+            }
             setLoading(false)
             return
         }
@@ -55,6 +64,20 @@ export function usePots() {
     }
 
     const createPot = async (pot: Omit<Pot, 'id' | 'created_at' | 'profile'>) => {
+        if (settings.is_demo_mode) {
+            const newPot = {
+                ...pot,
+                id: `demo-p-${Date.now()}`,
+                created_at: new Date().toISOString(),
+                profile: activeProfile || 'personal'
+            } as Pot
+            const updatedPots = [...pots, newPot]
+            setPots(updatedPots)
+            const key = GET_LOCAL_KEY(activeProfile || 'personal')
+            if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(updatedPots))
+            globalRefresh()
+            return
+        }
         const { error } = await supabase.from('fin_pockets').insert({ ...pot, profile: activeProfile })
         if (error) throw error
         globalRefresh()
@@ -62,15 +85,10 @@ export function usePots() {
 
     const updatePot = async (id: string, updates: Partial<Pot>) => {
         if (settings.is_demo_mode) {
-            const currentPots = [...pots]
-            const index = currentPots.findIndex(p => p.id === id)
-            if (index !== -1) {
-                currentPots[index] = { ...currentPots[index], ...updates }
-                setPots(currentPots)
-                // Persistence in sessionStorage for demo mode
-                const key = activeProfile === 'business' ? 'karr_demo_business_pockets' : 'karr_demo_finance_pockets'
-                sessionStorage.setItem(key, JSON.stringify(currentPots))
-            }
+            const updatedPots = pots.map(p => p.id === id ? { ...p, ...updates } : p)
+            setPots(updatedPots)
+            const key = GET_LOCAL_KEY(activeProfile || 'personal')
+            if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(updatedPots))
             globalRefresh()
             return
         }
@@ -92,6 +110,15 @@ export function usePots() {
                     throw new Error(`The "${pot.name}" pot is your only ${keyword} pot and cannot be deleted.`)
                 }
             }
+        }
+
+        if (settings.is_demo_mode) {
+            const updatedPots = pots.filter(p => p.id !== id)
+            setPots(updatedPots)
+            const key = GET_LOCAL_KEY(activeProfile || 'personal')
+            if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(updatedPots))
+            globalRefresh()
+            return
         }
         const { error } = await supabase.from('fin_pockets').delete().eq('id', id)
         if (error) throw error

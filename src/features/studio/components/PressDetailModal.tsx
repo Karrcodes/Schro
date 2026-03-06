@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Edit3, Save, Trash2, ExternalLink, Rocket, Target, Zap, CheckCircle2 } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
+import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import type { PressType, PressStatus, StudioPress } from '../types/studio.types'
 import { cn } from '@/lib/utils'
 import ConfirmationModal from '@/components/ConfirmationModal'
@@ -32,6 +33,7 @@ const STATUSES: { value: PressStatus; label: string }[] = [
 
 export default function PressDetailModal({ isOpen, onClose, item }: PressDetailModalProps) {
     const { updatePress, deletePress, projects } = useStudio()
+    const { settings } = useSystemSettings()
     const [isEditing, setIsEditing] = useState(false)
     const [editedData, setEditedData] = useState<Partial<StudioPress>>({})
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -229,32 +231,34 @@ export default function PressDetailModal({ isOpen, onClose, item }: PressDetailM
                             </div>
                         </button>
 
-                        <button
-                            type="button"
-                            disabled={!isEditing}
-                            onClick={() => setEditedData(prev => ({ ...prev, is_portfolio_item: !(editedData.is_portfolio_item ?? item.is_portfolio_item) }))}
-                            className={cn(
-                                "p-5 rounded-3xl border flex items-center gap-4 transition-all text-left",
-                                (editedData.is_portfolio_item ?? item.is_portfolio_item)
-                                    ? "bg-blue-50 border-blue-200 shadow-sm"
-                                    : "bg-black/[0.01] border-black/[0.05] hover:border-black/10",
-                                !isEditing && "cursor-default"
-                            )}
-                        >
-                            <div className={cn(
-                                "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
-                                (editedData.is_portfolio_item ?? item.is_portfolio_item) ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "bg-black/[0.05] text-black/20"
-                            )}>
-                                <Shield className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <p className="text-[13px] font-black text-black leading-none">Add to Portfolio</p>
-                                <p className="text-[11px] text-black/40 mt-1 font-bold">Showcase on GTV</p>
-                            </div>
-                        </button>
+                        {!settings.is_demo_mode && (
+                            <button
+                                type="button"
+                                disabled={!isEditing}
+                                onClick={() => setEditedData(prev => ({ ...prev, is_portfolio_item: !(editedData.is_portfolio_item ?? item.is_portfolio_item) }))}
+                                className={cn(
+                                    "p-5 rounded-3xl border flex items-center gap-4 transition-all text-left",
+                                    (editedData.is_portfolio_item ?? item.is_portfolio_item)
+                                        ? "bg-blue-50 border-blue-200 shadow-sm"
+                                        : "bg-black/[0.01] border-black/[0.05] hover:border-black/10",
+                                    !isEditing && "cursor-default"
+                                )}
+                            >
+                                <div className={cn(
+                                    "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                                    (editedData.is_portfolio_item ?? item.is_portfolio_item) ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "bg-black/[0.05] text-black/20"
+                                )}>
+                                    <Shield className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <p className="text-[13px] font-black text-black leading-none">Add to Portfolio</p>
+                                    <p className="text-[11px] text-black/40 mt-1 font-bold">Showcase on GTV</p>
+                                </div>
+                            </button>
+                        )}
                     </div>
 
-                    {(editedData.is_portfolio_item ?? item.is_portfolio_item) && (
+                    {!settings.is_demo_mode && (editedData.is_portfolio_item ?? item.is_portfolio_item) && (
                         <div className="p-6 bg-blue-50/50 border border-blue-100 rounded-[32px] space-y-4 animate-in slide-in-from-top-2 duration-200">
                             <div className="flex items-center gap-2 ml-1">
                                 <Shield className="w-4 h-4 text-blue-600" />

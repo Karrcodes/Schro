@@ -44,6 +44,15 @@ export function useTasks(category: 'todo' | 'grocery' | 'reminder', profileOverr
     const fetchTasks = useCallback(async () => {
         if (settings.is_demo_mode) {
             let allTasks = getSessionTasks()
+            if (allTasks) {
+                // If the user has old demo tasks missing the 'profile' field, clear them to force update
+                const isStale = allTasks.some((t: any) => !t.profile)
+                if (isStale) {
+                    localStorage.removeItem(LOCAL_STORAGE_KEY)
+                    allTasks = null
+                }
+            }
+
             if (!allTasks) {
                 const initial = (MOCK_TASKS[category] as any).map((t: any) => ({
                     ...t,

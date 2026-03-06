@@ -160,12 +160,24 @@ export function ProjectionsAnalytics() {
             const currentMonday = new Date(curr)
             currentMonday.setDate(curr.getDate() - daysSinceMonday)
 
-            // Pay is issued on the Friday of the NEXT week (Monday + 11 days)
             const paydayFri = new Date(currentMonday)
             paydayFri.setDate(currentMonday.getDate() + 11)
 
             const paydayStr = paydayFri.toISOString().split('T')[0]
-            weeklyPayMap[paydayStr] = (weeklyPayMap[paydayStr] || 0) + dailyEarnings[dateStr]
+
+            if (settings.is_demo_mode) {
+                // In Demo Mode, accumulate everything into a single payday (last Friday of the month)
+                // We'll find the last Friday of whatever month curr is in
+                const lastDay = new Date(curr.getFullYear(), curr.getMonth() + 1, 0)
+                const lastFriday = new Date(lastDay)
+                while (lastFriday.getDay() !== 5) {
+                    lastFriday.setDate(lastFriday.getDate() - 1)
+                }
+                const lastFriStr = lastFriday.toISOString().split('T')[0]
+                weeklyPayMap[lastFriStr] = (weeklyPayMap[lastFriStr] || 0) + dailyEarnings[dateStr]
+            } else {
+                weeklyPayMap[paydayStr] = (weeklyPayMap[paydayStr] || 0) + dailyEarnings[dateStr]
+            }
 
             curr.setDate(curr.getDate() + 1)
         }
@@ -198,7 +210,16 @@ export function ProjectionsAnalytics() {
                 isShift = cycleDay < 3
             }
 
-            const isPayday = date.getDay() === 5
+            let isPayday = date.getDay() === 5
+            if (settings.is_demo_mode) {
+                // Ensure only the LAST Friday of the month is a payday in Demo Mode
+                const lastDay = new Date(year, monthIndex + 1, 0)
+                const lastFriday = new Date(lastDay)
+                while (lastFriday.getDay() !== 5) {
+                    lastFriday.setDate(lastFriday.getDate() - 1)
+                }
+                isPayday = date.getDate() === lastFriday.getDate()
+            }
             const overrideRecord = bookedOverrides.find(o => o.date === dateStr)
             const override = overrideRecord?.type || dayOverrides[dateStr]
             const isStaged = !!dayOverrides[dateStr]

@@ -463,58 +463,60 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                     </div>
                                                 </div>
 
-                                                <div className="pt-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEditedData(prev => ({ ...prev, gtv_featured: !prev.gtv_featured }))}
-                                                        className={cn(
-                                                            "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all",
-                                                            (editedData.gtv_featured ?? project.gtv_featured)
-                                                                ? "bg-blue-50 border-blue-200 text-blue-700"
-                                                                : "bg-black/[0.02] border-black/[0.05] text-black/40 hover:bg-black/[0.04]"
-                                                        )}
-                                                    >
-                                                        <div className="flex items-center gap-3">
-                                                            <Shield className={cn("w-5 h-5", (editedData.gtv_featured ?? project.gtv_featured) ? "text-blue-600" : "text-black/20")} />
-                                                            <div className="text-left">
-                                                                <p className="text-[12px] font-black uppercase tracking-widest">GTV Portfolio Evidence</p>
-                                                                <p className="text-[10px] font-medium opacity-60">Highlight this for GTV recognition</p>
+                                                {!settings.is_demo_mode && (
+                                                    <div className="pt-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditedData(prev => ({ ...prev, gtv_featured: !prev.gtv_featured }))}
+                                                            className={cn(
+                                                                "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all",
+                                                                (editedData.gtv_featured ?? project.gtv_featured)
+                                                                    ? "bg-blue-50 border-blue-200 text-blue-700"
+                                                                    : "bg-black/[0.02] border-black/[0.05] text-black/40 hover:bg-black/[0.04]"
+                                                            )}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <Shield className={cn("w-5 h-5", (editedData.gtv_featured ?? project.gtv_featured) ? "text-blue-600" : "text-black/20")} />
+                                                                <div className="text-left">
+                                                                    <p className="text-[12px] font-black uppercase tracking-widest">GTV Portfolio Evidence</p>
+                                                                    <p className="text-[10px] font-medium opacity-60">Highlight this for GTV recognition</p>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                        <div className={cn(
-                                                            "w-10 h-5 rounded-full relative transition-colors",
-                                                            (editedData.gtv_featured ?? project.gtv_featured) ? "bg-blue-600" : "bg-black/10"
-                                                        )}>
                                                             <div className={cn(
-                                                                "absolute top-1 w-3 h-3 bg-white rounded-full transition-all",
-                                                                (editedData.gtv_featured ?? project.gtv_featured) ? "right-1" : "left-1"
-                                                            )} />
-                                                        </div>
-                                                    </button>
-
-                                                    {(editedData.gtv_featured ?? project.gtv_featured) && (
-                                                        <div className="mt-2 pl-4 pr-2 py-3 bg-blue-50/50 border border-blue-100 rounded-xl space-y-3 animate-in slide-in-from-top-2 duration-200">
-                                                            <label className="text-[9px] font-black uppercase tracking-widest text-blue-900/40 block ml-1">Select Category</label>
-                                                            <div className="flex gap-2">
-                                                                {(['innovation', 'impact', 'recognition'] as const).map((cat) => (
-                                                                    <button
-                                                                        key={cat}
-                                                                        type="button"
-                                                                        onClick={() => setEditedData(prev => ({ ...prev, gtv_category: cat }))}
-                                                                        className={cn(
-                                                                            "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all",
-                                                                            (editedData.gtv_category ?? project.gtv_category ?? 'innovation') === cat
-                                                                                ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200"
-                                                                                : "bg-white border-blue-100 text-blue-400 hover:bg-blue-50"
-                                                                        )}
-                                                                    >
-                                                                        {cat}
-                                                                    </button>
-                                                                ))}
+                                                                "w-10 h-5 rounded-full relative transition-colors",
+                                                                (editedData.gtv_featured ?? project.gtv_featured) ? "bg-blue-600" : "bg-black/10"
+                                                            )}>
+                                                                <div className={cn(
+                                                                    "absolute top-1 w-3 h-3 bg-white rounded-full transition-all",
+                                                                    (editedData.gtv_featured ?? project.gtv_featured) ? "right-1" : "left-1"
+                                                                )} />
                                                             </div>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                        </button>
+
+                                                        {(editedData.gtv_featured ?? project.gtv_featured) && (
+                                                            <div className="mt-2 pl-4 pr-2 py-3 bg-blue-50/50 border border-blue-100 rounded-xl space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                                                <label className="text-[9px] font-black uppercase tracking-widest text-blue-900/40 block ml-1">Select Category</label>
+                                                                <div className="flex gap-2">
+                                                                    {(['innovation', 'impact', 'recognition'] as const).map((cat) => (
+                                                                        <button
+                                                                            key={cat}
+                                                                            type="button"
+                                                                            onClick={() => setEditedData(prev => ({ ...prev, gtv_category: cat }))}
+                                                                            className={cn(
+                                                                                "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all",
+                                                                                (editedData.gtv_category ?? project.gtv_category ?? 'innovation') === cat
+                                                                                    ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200"
+                                                                                    : "bg-white border-blue-100 text-blue-400 hover:bg-blue-50"
+                                                                            )}
+                                                                        >
+                                                                            {cat}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     ) : (
@@ -610,7 +612,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                     {(!project.platforms || project.platforms.length === 0) && <span className="text-[11px] font-bold text-black/20 italic">No targets</span>}
                                 </div>
                             </div>
-                            {project.gtv_featured && (
+                            {!settings.is_demo_mode && project.gtv_featured && (
                                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-xl">
                                     <Shield className="w-3.5 h-3.5 text-blue-600" />
                                     <span className="text-[11px] font-black text-blue-900 uppercase">GTV Portfolio Evidence</span>

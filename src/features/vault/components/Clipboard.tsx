@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useVault } from '../contexts/VaultContext'
 import { Plus, Copy, Trash2, Check, ExternalLink, List, X, Camera, Image as ImageIcon, ZoomIn, Maximize2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { MOCK_VAULT } from '@/lib/demoData'
+
+const LOCAL_STORAGE_KEY = 'schrö_demo_vault_clips_v1'
 
 interface Clip {
     id: string
@@ -42,10 +44,27 @@ export function Clipboard() {
         message: '',
         id: null
     })
+    const [showSettings, setShowSettings] = useState(false)
 
-    const fetchClips = async () => {
+    const getSessionClips = useCallback(() => {
+        if (typeof window === 'undefined') return null
+        const stored = localStorage.getItem(LOCAL_STORAGE_KEY)
+        return stored ? JSON.parse(stored) : null
+    }, [])
+
+    const saveSessionClips = useCallback((data: any[]) => {
+        if (typeof window === 'undefined') return
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data))
+    }, [])
+
+    const fetchClips = useCallback(async () => {
         if (settings.is_demo_mode) {
-            setClips(MOCK_VAULT.clips)
+            let session = getSessionClips()
+            if (!session) {
+                session = MOCK_VAULT.clips
+                saveSessionClips(session)
+            }
+            setClips(session)
             setLoading(false)
             return
         }
@@ -60,7 +79,7 @@ export function Clipboard() {
             setClips(data)
         }
         setLoading(false)
-    }
+    }, [settings.is_demo_mode, getSessionClips, saveSessionClips, clips.length])
 
     useEffect(() => {
         setIsMounted(true)
@@ -71,7 +90,7 @@ export function Clipboard() {
             interval = setInterval(fetchClips, 30000)
         }
         return () => { if (interval) clearInterval(interval) }
-    }, [settings.is_demo_mode])
+    }, [settings.is_demo_mode, fetchClips])
 
     const handleAdd = async (e?: React.FormEvent) => {
         if (e) e.preventDefault()
@@ -81,13 +100,16 @@ export function Clipboard() {
         setAdding(true)
 
         if (settings.is_demo_mode) {
-            const demoClip: Clip = {
+            const newClipItem: Clip = {
                 id: 'd-clip-' + Date.now(),
                 content: newClip.trim(),
                 image_url: imagePreview || undefined,
                 created_at: new Date().toISOString()
             }
-            setClips(prev => [demoClip, ...prev])
+            const session = getSessionClips() || []
+            const updated = [newClipItem, ...session]
+            saveSessionClips(updated)
+            setClips(updated)
             setNewClip('')
             setImageFile(null)
             setImagePreview(null)
@@ -179,6 +201,14 @@ export function Clipboard() {
     }
 
     const handleDelete = async (id: string) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionClips() || []
+            const updated = session.filter((c: Clip) => c.id !== id)
+            saveSessionClips(updated)
+            setClips(updated)
+            setConfirmModal(prev => ({ ...prev, open: false }))
+            return
+        }
         const { error } = await supabase
             .from('sys_clipboard')
             .delete()

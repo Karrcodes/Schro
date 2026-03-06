@@ -20,7 +20,15 @@ export function useRecurring() {
             const stored = localStorage.getItem(storageKey)
 
             if (stored) {
-                setObligations(JSON.parse(stored))
+                const parsed = JSON.parse(stored)
+                // If the user has the old "Student Loan" with 108 payments (high debt), clear it to force update
+                const hasHighDebt = parsed.some((o: any) => o.payments_left && o.payments_left > 100)
+                if (hasHighDebt) {
+                    localStorage.removeItem(storageKey)
+                    fetchObligations()
+                    return
+                }
+                setObligations(parsed)
             } else {
                 const mockData = activeProfile === 'business' ? MOCK_BUSINESS.obligations : MOCK_FINANCE.obligations
                 const obligations = mockData.map(o => ({

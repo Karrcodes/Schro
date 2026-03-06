@@ -527,6 +527,27 @@ export default function SettingsPage() {
                                 <ThemeOption icon={<Moon className="w-5 h-5" />} label="Dark" active={settings.theme === 'dark'} onClick={() => updateSetting('theme', 'dark')} />
                                 <ThemeOption icon={isPrivacyEnabled ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />} label="Privacy" active={isPrivacyEnabled} onClick={togglePrivacy} />
                             </div>
+
+                            <div className="h-px bg-black/[0.04]" />
+
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-[14px] font-bold text-black flex items-center gap-2">
+                                        <Shield className={cn("w-4 h-4", settings.is_demo_mode ? "text-purple-600" : "text-black/20")} />
+                                        Demo Mode
+                                    </p>
+                                    <p className="text-[11px] text-black/35 font-medium">Scrub sensitive GTV and finance data for presentations.</p>
+                                </div>
+                                <button
+                                    onClick={toggleDemoMode}
+                                    className={cn(
+                                        "w-11 h-6 rounded-full transition-all duration-300 relative shrink-0",
+                                        settings.is_demo_mode ? "bg-purple-600" : "bg-black/10"
+                                    )}
+                                >
+                                    <div className={cn("absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm", settings.is_demo_mode ? "left-6" : "left-1")} />
+                                </button>
+                            </div>
                         </div>
                     </section>
 

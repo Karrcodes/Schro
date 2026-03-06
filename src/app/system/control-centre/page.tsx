@@ -30,7 +30,7 @@ export default function ControlCentrePage() {
     const { plannerItems: timeline } = usePlannerEngine()
     const { projects, sparks, loading: studioLoading } = useStudio()
     const { goals, loading: goalsLoading } = useGoals()
-    const { settings, loading: settingsLoading } = useSystemSettings()
+    const { settings, loading: settingsLoading, updateSetting } = useSystemSettings()
     const [quoteIndex, setQuoteIndex] = useState(0)
     const [isMounted, setIsMounted] = useState(false)
     const [orderedModules, setOrderedModules] = useState<typeof moduleNav>([])
@@ -154,13 +154,15 @@ export default function ControlCentrePage() {
                     <h1 className="text-[22px] font-bold text-black tracking-tight">Control Centre</h1>
                     <p className="text-[12px] text-black/35 mt-0.5">System Hub</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-6">
                     {loading && (
                         <div className="flex items-center gap-1.5 text-black/30">
                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                             <span className="text-[11px]">Scanning</span>
                         </div>
                     )}
+
+
                     <div className="text-[11px] text-black/25 uppercase tracking-wider font-medium">
                         {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </div>

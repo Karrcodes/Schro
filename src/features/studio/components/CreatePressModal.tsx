@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Plus, Rocket, Target, Zap } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
+import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import type { PressType, PressStatus, StudioPress } from '../types/studio.types'
 import { cn } from '@/lib/utils'
 
@@ -30,6 +31,7 @@ const STATUSES: { value: PressStatus; label: string }[] = [
 
 export default function CreatePressModal({ isOpen, onClose }: CreatePressModalProps) {
     const { addPress, projects } = useStudio()
+    const { settings } = useSystemSettings()
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
         title: '',
@@ -232,27 +234,29 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
                                 </div>
                             </button>
 
-                            <button
-                                type="button"
-                                onClick={() => setFormData(prev => ({ ...prev, is_portfolio_item: !prev.is_portfolio_item }))}
-                                className={cn(
-                                    "p-4 rounded-3xl border flex items-center gap-4 transition-all text-left",
-                                    formData.is_portfolio_item
-                                        ? "bg-blue-50 border-blue-200 shadow-sm"
-                                        : "bg-black/[0.01] border-black/[0.05] hover:border-black/10"
-                                )}
-                            >
-                                <div className={cn(
-                                    "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
-                                    formData.is_portfolio_item ? "bg-blue-500 text-white" : "bg-black/[0.05] text-black/20"
-                                )}>
-                                    <Shield className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <p className="text-[12px] font-black text-black leading-none">Add to Portfolio</p>
-                                    <p className="text-[10px] text-black/40 mt-1 font-bold">Showcase on GTV Profile</p>
-                                </div>
-                            </button>
+                            {!settings.is_demo_mode && (
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData(prev => ({ ...prev, is_portfolio_item: !prev.is_portfolio_item }))}
+                                    className={cn(
+                                        "p-4 rounded-3xl border flex items-center gap-4 transition-all text-left",
+                                        formData.is_portfolio_item
+                                            ? "bg-blue-50 border-blue-200 shadow-sm"
+                                            : "bg-black/[0.01] border-black/[0.05] hover:border-black/10"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
+                                        formData.is_portfolio_item ? "bg-blue-500 text-white" : "bg-black/[0.05] text-black/20"
+                                    )}>
+                                        <Shield className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[12px] font-black text-black leading-none">Add to Portfolio</p>
+                                        <p className="text-[10px] text-black/40 mt-1 font-bold">Showcase on GTV Profile</p>
+                                    </div>
+                                </button>
+                            )}
                         </div>
 
                         {/* Milestone Goal */}

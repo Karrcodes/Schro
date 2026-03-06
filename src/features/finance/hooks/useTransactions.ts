@@ -18,30 +18,36 @@ export function useTransactions(profileOverride?: ProfileType | 'all') {
 
     const fetchTransactions = async () => {
         if (settings.is_demo_mode) {
-            let mockData: any[] = []
-            if (activeProfile === 'all') {
-                mockData = [
-                    ...MOCK_FINANCE.transactions.map(t => ({ ...t, profile: 'personal' })),
-                    ...MOCK_BUSINESS.transactions.map(t => ({ ...t, profile: 'business' }))
-                ]
-            } else {
-                mockData = activeProfile === 'business'
-                    ? MOCK_BUSINESS.transactions.map(t => ({ ...t, profile: 'business' }))
-                    : MOCK_FINANCE.transactions.map(t => ({ ...t, profile: 'personal' }))
-            }
+            const key = activeProfile === 'business' ? 'schrö_demo_finance_transactions_business_v1' : 'schrö_demo_finance_transactions_personal_v1'
+            const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null
 
-            setTransactions(mockData.map(t => ({
-                ...t,
-                id: t.id,
-                description: t.description,
-                amount: t.amount,
-                category: t.category,
-                type: t.type,
-                date: t.date,
-                profile: t.profile,
-                created_at: new Date().toISOString(),
-                pocket_id: t.id.startsWith('d-tx-1') ? 'd-p-2' : (t.pocket_id || null)
-            })) as Transaction[])
+            if (stored) {
+                setTransactions(JSON.parse(stored))
+            } else {
+                let mockData: any[] = []
+                if (activeProfile === 'all') {
+                    mockData = [
+                        ...MOCK_FINANCE.transactions.map(t => ({ ...t, profile: 'personal' })),
+                        ...MOCK_BUSINESS.transactions.map(t => ({ ...t, profile: 'business' }))
+                    ]
+                } else {
+                    mockData = activeProfile === 'business'
+                        ? MOCK_BUSINESS.transactions.map(t => ({ ...t, profile: 'business' }))
+                        : MOCK_FINANCE.transactions.map(t => ({ ...t, profile: 'personal' }))
+                }
+
+                const refined = mockData.map(t => ({
+                    ...t,
+                    id: t.id,
+                    created_at: new Date().toISOString(),
+                    pocket_id: t.id.startsWith('d-tx-1') ? 'd-p-2' : (t.pocket_id || null)
+                })) as Transaction[]
+
+                setTransactions(refined)
+                if (typeof window !== 'undefined' && activeProfile !== 'all') {
+                    localStorage.setItem(key, JSON.stringify(refined))
+                }
+            }
             setLoading(false)
             return
         }
@@ -82,13 +88,11 @@ export function useTransactions(profileOverride?: ProfileType | 'all') {
 
     const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
         if (settings.is_demo_mode) {
-            const currentTransactions = [...transactions]
-            const index = currentTransactions.findIndex(t => t.id === id)
-            if (index !== -1) {
-                currentTransactions[index] = { ...currentTransactions[index], ...updates }
-                setTransactions(currentTransactions)
-                const key = activeProfile === 'business' ? 'karr_demo_business_transactions' : 'karr_demo_finance_transactions'
-                sessionStorage.setItem(key, JSON.stringify(currentTransactions))
+            const updated = transactions.map(t => t.id === id ? { ...t, ...updates } : t)
+            setTransactions(updated)
+            const key = activeProfile === 'business' ? 'schrö_demo_finance_transactions_business_v1' : 'schrö_demo_finance_transactions_personal_v1'
+            if (typeof window !== 'undefined' && activeProfile !== 'all') {
+                localStorage.setItem(key, JSON.stringify(updated))
             }
             globalRefresh()
             return
@@ -106,8 +110,10 @@ export function useTransactions(profileOverride?: ProfileType | 'all') {
         if (settings.is_demo_mode) {
             const updated = transactions.filter(t => t.id !== id)
             setTransactions(updated)
-            const key = activeProfile === 'business' ? 'karr_demo_business_transactions' : 'karr_demo_finance_transactions'
-            sessionStorage.setItem(key, JSON.stringify(updated))
+            const key = activeProfile === 'business' ? 'schrö_demo_finance_transactions_business_v1' : 'schrö_demo_finance_transactions_personal_v1'
+            if (typeof window !== 'undefined' && activeProfile !== 'all') {
+                localStorage.setItem(key, JSON.stringify(updated))
+            }
             globalRefresh()
             return
         }

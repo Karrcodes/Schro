@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { StudioProject, StudioSpark, StudioMilestone, StudioContent, StudioPress, StudioNetwork } from '../types/studio.types'
+import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
+import { MOCK_STUDIO } from '@/lib/demoData'
 
 interface StudioContextType {
     projects: StudioProject[]
@@ -36,7 +38,10 @@ interface StudioContextType {
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined)
 
+const LOCAL_STORAGE_KEY = 'schrö_demo_studio_v2'
+
 export function StudioProvider({ children }: { children: React.ReactNode }) {
+    const { settings } = useSystemSettings()
     const [projects, setProjects] = useState<StudioProject[]>([])
     const [sparks, setSparks] = useState<StudioSpark[]>([])
     const [milestones, setMilestones] = useState<StudioMilestone[]>([])
@@ -46,7 +51,52 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
+    const getSessionStudio = useCallback(() => {
+        try {
+            if (typeof window === 'undefined') return null
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY)
+            if (stored) return JSON.parse(stored)
+        } catch (e) {
+            console.error('Failed to load studio from local storage', e)
+        }
+        return null
+    }, [])
+
+    const saveSessionStudio = useCallback((data: any) => {
+        try {
+            if (typeof window === 'undefined') return
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data))
+        } catch (e) {
+            console.error('Failed to save studio to local storage', e)
+        }
+    }, [])
+
     const fetchData = useCallback(async () => {
+        if (settings.is_demo_mode) {
+            let sessionData = getSessionStudio()
+            if (!sessionData) {
+                sessionData = {
+                    projects: MOCK_STUDIO.projects,
+                    content: MOCK_STUDIO.content,
+                    press: MOCK_STUDIO.press,
+                    sparks: [],
+                    milestones: [],
+                    networks: []
+                }
+                saveSessionStudio(sessionData)
+            }
+
+            setProjects(sessionData.projects as any)
+            setContent(sessionData.content as any)
+            setPress(sessionData.press as any)
+            setMilestones(sessionData.milestones as any)
+            setNetworks(sessionData.networks as any)
+            setSparks(sessionData.sparks || [])
+
+            setLoading(false)
+            return
+        }
+
         try {
             setLoading(true)
             const [projectsRes, sparksRes, milestonesRes, contentRes, pressRes, networksRes] = await Promise.all([
@@ -78,16 +128,30 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [settings.is_demo_mode, getSessionStudio, saveSessionStudio])
 
     useEffect(() => {
         fetchData()
     }, [fetchData])
 
     const addProject = async (project: Partial<StudioProject>, initialMilestones?: { title: string; impact_score?: number; category?: string; target_date?: string }[], coverFile?: File) => {
+        if (settings.is_demo_mode) {
+            const newProject: StudioProject = {
+                ...project,
+                id: `demo-p-${Date.now()}`,
+                created_at: new Date().toISOString(),
+                status: project.status || 'active',
+                type: project.type || 'Technology'
+            } as StudioProject
+            const session = getSessionStudio()
+            const updated = { ...session, projects: [newProject, ...(session.projects || [])] }
+            saveSessionStudio(updated)
+            setProjects(updated.projects)
+            return newProject
+        }
+
         let finalCoverUrl = project.cover_url;
 
-        // Handle Image Upload if file provided
         if (coverFile) {
             const fileExt = coverFile.name.split('.').pop();
             const fileName = `${Math.random().toString(36).substring(2, 11)}_${Date.now()}.${fileExt}`;
@@ -97,21 +161,15 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
                 .from('studio-assets')
                 .upload(filePath, coverFile);
 
-            if (uploadError) {
-                console.error('Error uploading cover:', uploadError);
-                // Continue without image or throw? Let's throw for now to be safe
-                throw new Error(`Failed to upload cover image: ${uploadError.message}`);
-            }
+            if (uploadError) throw new Error(`Failed to upload cover image: ${uploadError.message}`);
 
             const { data: urlData } = supabase.storage.from('studio-assets').getPublicUrl(filePath);
             finalCoverUrl = urlData.publicUrl;
         }
 
-        // Sanitize date
         const sanitizedProject = { ...project, cover_url: finalCoverUrl }
         if (sanitizedProject.target_date === '') sanitizedProject.target_date = null as any
 
-        // Insert Project
         const { data: projectData, error: projectError } = await supabase
             .from('studio_projects')
             .insert([sanitizedProject])
@@ -121,7 +179,6 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         if (projectError) throw projectError;
         if (!projectData) throw new Error('No data returned from project creation');
 
-        // Insert Milestones if provided
         if (initialMilestones && initialMilestones.length > 0) {
             const milestonesToInsert = initialMilestones.map(m => ({
                 project_id: projectData.id,
@@ -146,6 +203,15 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     };
 
     const updateProject = async (id: string, updates: Partial<StudioProject>, coverFile?: File) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedProjects = session.projects.map((p: any) => p.id === id ? { ...p, ...updates } : p)
+            const updated = { ...session, projects: updatedProjects }
+            saveSessionStudio(updated)
+            setProjects(updatedProjects)
+            return updatedProjects.find((p: any) => p.id === id)
+        }
+
         let finalUpdates = { ...updates };
 
         if (coverFile) {
@@ -175,12 +241,32 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     };
 
     const deleteProject = async (id: string) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedProjects = session.projects.filter((p: any) => p.id !== id)
+            const updated = { ...session, projects: updatedProjects }
+            saveSessionStudio(updated)
+            setProjects(updatedProjects)
+            return
+        }
         const { error } = await supabase.from('studio_projects').delete().eq('id', id)
         if (error) throw error
         setProjects(prev => prev.filter(p => p.id !== id))
     }
 
     const addSpark = async (spark: Partial<StudioSpark>) => {
+        if (settings.is_demo_mode) {
+            const newSpark = {
+                ...spark,
+                id: `demo-s-${Date.now()}`,
+                created_at: new Date().toISOString()
+            } as StudioSpark
+            const session = getSessionStudio()
+            const updated = { ...session, sparks: [newSpark, ...(session.sparks || [])] }
+            saveSessionStudio(updated)
+            setSparks(updated.sparks)
+            return newSpark
+        }
         const { data, error } = await supabase.from('studio_sparks').insert([spark]).select()
         if (error) throw error
         const inserted = data?.[0]
@@ -190,6 +276,14 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     const updateSpark = async (id: string, updates: Partial<StudioSpark>) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedSparks = session.sparks.map((s: any) => s.id === id ? { ...s, ...updates } : s)
+            const updated = { ...session, sparks: updatedSparks }
+            saveSessionStudio(updated)
+            setSparks(updatedSparks)
+            return updatedSparks.find((s: any) => s.id === id)
+        }
         if (!updates || Object.keys(updates).length === 0) return sparks.find(s => s.id === id)!
         const { data, error } = await supabase.from('studio_sparks').update(updates).eq('id', id).select()
         if (error) throw error
@@ -200,18 +294,33 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     const deleteSpark = async (id: string) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedSparks = session.sparks.filter((s: any) => s.id !== id)
+            const updated = { ...session, sparks: updatedSparks }
+            saveSessionStudio(updated)
+            setSparks(updatedSparks)
+            return
+        }
         const { error } = await supabase.from('studio_sparks').delete().eq('id', id)
         if (error) throw error
         setSparks(prev => prev.filter(s => s.id !== id))
     }
 
     const addMilestone = async (milestone: Partial<StudioMilestone>) => {
+        if (settings.is_demo_mode) {
+            const newMilestone = { ...milestone, id: `demo-ms-${Date.now()}` } as StudioMilestone
+            const session = getSessionStudio()
+            const updated = { ...session, milestones: [...(session.milestones || []), newMilestone] }
+            saveSessionStudio(updated)
+            setMilestones(updated.milestones)
+            return newMilestone
+        }
         const { data, error } = await supabase.from('studio_milestones').insert([milestone]).select()
         if (error) {
-            console.warn('addMilestone select error (schema cache), falling back:', error.message)
             const { error: insertError } = await supabase.from('studio_milestones').insert([milestone])
             if (insertError) throw insertError
-            await fetchData() // Refresh to get the record
+            await fetchData()
             return milestone as StudioMilestone
         }
         const inserted = data?.[0]
@@ -221,10 +330,17 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     const updateMilestone = async (id: string, updates: Partial<StudioMilestone>) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedMilestones = session.milestones.map((m: any) => m.id === id ? { ...m, ...updates } : m)
+            const updated = { ...session, milestones: updatedMilestones }
+            saveSessionStudio(updated)
+            setMilestones(updatedMilestones)
+            return updatedMilestones.find((m: any) => m.id === id)
+        }
         if (!updates || Object.keys(updates).length === 0) return milestones.find(m => m.id === id)!
         const { data, error } = await supabase.from('studio_milestones').update(updates).eq('id', id).select()
         if (error) {
-            console.warn('updateMilestone select error (schema cache), applying optimistic update:', error.message)
             setMilestones(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m))
             return { ...milestones.find(m => m.id === id)!, ...updates }
         }
@@ -234,24 +350,36 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         return updated
     }
 
-
     const deleteMilestone = async (id: string) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedMilestones = session.milestones.filter((m: any) => m.id !== id)
+            const updated = { ...session, milestones: updatedMilestones }
+            saveSessionStudio(updated)
+            setMilestones(updatedMilestones)
+            return
+        }
         const { error } = await supabase.from('studio_milestones').delete().eq('id', id)
         if (error) throw error
         setMilestones(prev => prev.filter(m => m.id !== id))
     }
 
     const addContent = async (item: Partial<StudioContent>) => {
+        if (settings.is_demo_mode) {
+            const newItem = { ...item, id: `demo-c-${Date.now()}`, created_at: new Date().toISOString() }
+            const session = getSessionStudio()
+            const updated = { ...session, content: [newItem, ...(session.content || [])] }
+            saveSessionStudio(updated)
+            setContent(updated.content)
+            return newItem as StudioContent
+        }
         const sanitizedItem = { ...item }
         if (sanitizedItem.deadline === '') sanitizedItem.deadline = null as any
 
         const { data, error } = await supabase.from('studio_content').insert([sanitizedItem]).select()
         if (error) {
-            // Schema cache may not have new columns yet — do an insert-only and refresh
-            console.warn('addContent select error (schema cache), falling back:', error.message)
             const { error: insertError } = await supabase.from('studio_content').insert([item])
             if (insertError) throw insertError
-            // Refresh to get the newly created record
             await fetchData()
             return item as StudioContent
         }
@@ -262,31 +390,52 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     const updateContent = async (id: string, updates: Partial<StudioContent>) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedContent = session.content.map((c: any) => c.id === id ? { ...c, ...updates } : c)
+            const updated = { ...session, content: updatedContent }
+            saveSessionStudio(updated)
+            setContent(updatedContent)
+            return updatedContent.find((c: any) => c.id === id)
+        }
         const sanitizedUpdates = { ...updates }
         if (sanitizedUpdates.deadline === '') sanitizedUpdates.deadline = null as any
 
         if (!sanitizedUpdates || Object.keys(sanitizedUpdates).length === 0) return content.find(c => c.id === id)!
         const { data, error } = await supabase.from('studio_content').update(sanitizedUpdates).eq('id', id).select()
         if (error) {
-            // Schema cache may not have new columns yet — fall back to optimistic local update
-            console.warn('updateContent select error (schema cache), applying optimistic update:', error.message)
             setContent(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
             return { ...content.find(c => c.id === id)!, ...updates }
         }
         const updated = data?.[0]
-        if (!updated) throw new Error('Update failed')
+        if (!updated) throw new Error('Update failed');
         setContent(prev => prev.map(c => c.id === id ? updated : c))
         return updated
-    }
-
+    };
 
     const deleteContent = async (id: string) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedContent = session.content.filter((c: any) => c.id !== id)
+            const updated = { ...session, content: updatedContent }
+            saveSessionStudio(updated)
+            setContent(updatedContent)
+            return
+        }
         const { error } = await supabase.from('studio_content').delete().eq('id', id)
         if (error) throw error
         setContent(prev => prev.filter(c => c.id !== id))
     }
 
     const addPress = async (item: Partial<StudioPress>) => {
+        if (settings.is_demo_mode) {
+            const newItem = { ...item, id: `demo-pr-${Date.now()}` }
+            const session = getSessionStudio()
+            const updated = { ...session, press: [newItem, ...(session.press || [])] }
+            saveSessionStudio(updated)
+            setPress(updated.press)
+            return newItem as StudioPress
+        }
         const { data, error } = await supabase.from('studio_press').insert([item]).select()
         if (error) throw error
         const inserted = data?.[0]
@@ -296,6 +445,14 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     const updatePress = async (id: string, updates: Partial<StudioPress>) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedPress = session.press.map((p: any) => p.id === id ? { ...p, ...updates } : p)
+            const updated = { ...session, press: updatedPress }
+            saveSessionStudio(updated)
+            setPress(updatedPress)
+            return updatedPress.find((p: any) => p.id === id)
+        }
         if (!updates || Object.keys(updates).length === 0) return press.find(p => p.id === id)!
         const { data, error } = await supabase.from('studio_press').update(updates).eq('id', id).select()
         if (error) throw error
@@ -306,12 +463,28 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     const deletePress = async (id: string) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedPress = session.press.filter((p: any) => p.id !== id)
+            const updated = { ...session, press: updatedPress }
+            saveSessionStudio(updated)
+            setPress(updatedPress)
+            return
+        }
         const { error } = await supabase.from('studio_press').delete().eq('id', id)
         if (error) throw error
         setPress(prev => prev.filter(p => p.id !== id))
     }
 
     const addNetwork = async (item: Partial<StudioNetwork>) => {
+        if (settings.is_demo_mode) {
+            const newItem = { ...item, id: `demo-n-${Date.now()}` } as StudioNetwork
+            const session = getSessionStudio()
+            const updated = { ...session, networks: [newItem, ...(session.networks || [])] }
+            saveSessionStudio(updated)
+            setNetworks(updated.networks)
+            return newItem
+        }
         const { data, error } = await supabase.from('studio_networks').insert([item]).select()
         if (error) throw error
         const inserted = data?.[0]
@@ -321,6 +494,14 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     const updateNetwork = async (id: string, updates: Partial<StudioNetwork>) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedNetworks = session.networks.map((n: any) => n.id === id ? { ...n, ...updates } : n)
+            const updated = { ...session, networks: updatedNetworks }
+            saveSessionStudio(updated)
+            setNetworks(updatedNetworks)
+            return updatedNetworks.find((n: any) => n.id === id)
+        }
         if (!updates || Object.keys(updates).length === 0) return networks.find(n => n.id === id)!
         const { data, error } = await supabase.from('studio_networks').update(updates).eq('id', id).select()
         if (error) throw error
@@ -331,6 +512,14 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     const deleteNetwork = async (id: string) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedNetworks = session.networks.filter((n: any) => n.id !== id)
+            const updated = { ...session, networks: updatedNetworks }
+            saveSessionStudio(updated)
+            setNetworks(updatedNetworks)
+            return
+        }
         const { error } = await supabase.from('studio_networks').delete().eq('id', id)
         if (error) throw error
         setNetworks(prev => prev.filter(n => n.id !== id))

@@ -1,24 +1,23 @@
 export const MOCK_FINANCE = {
     pockets: [
-        { id: 'd-p-1', name: 'Living & Bills', target_budget: 1800, balance: 1850.50, type: 'general', sort_order: 1 },
-        { id: 'd-p-2', name: 'Specialty Coffee', target_budget: 80, balance: 42.20, type: 'general', sort_order: 2 },
-        { id: 'd-p-3', name: 'Commute (TfL)', target_budget: 180, balance: 122.00, type: 'general', sort_order: 3 },
-        { id: 'd-p-4', name: 'Dining & Social', target_budget: 400, balance: 212.30, type: 'general', sort_order: 4 },
-        { id: 'd-p-5', name: 'Deposit Savings', target_budget: 25000, balance: 12500.00, type: 'savings', sort_order: 5 },
-        { id: 'd-p-6', name: 'Investment (Index)', target_budget: 5000, balance: 4200.00, type: 'savings', sort_order: 6 },
+        { id: 'd-p-1', name: 'General Account', target_budget: 2000, target_amount: 0, balance: 842.50, current_balance: 842.50, type: 'general', sort_order: 1, profile: 'personal' },
+        { id: 'd-p-2', name: 'Living & Bills', target_budget: 1200, target_amount: 0, balance: 420.20, current_balance: 420.20, type: 'general', sort_order: 2, profile: 'personal' },
+        { id: 'd-p-3', name: 'Subscriptions', target_budget: 100, target_amount: 0, balance: 45.00, current_balance: 45.00, type: 'general', sort_order: 3, profile: 'personal' },
+        { id: 'd-p-4', name: 'Liabilities Buffer', target_budget: 1000, target_amount: 0, balance: 650.00, current_balance: 650.00, type: 'buffer', sort_order: 4, profile: 'personal' },
+        { id: 'd-p-5', name: 'Emergency Fund', target_budget: 5000, target_amount: 0, balance: 1200.00, current_balance: 1200.00, type: 'savings', sort_order: 5, profile: 'personal' },
+        { id: 'd-p-6', name: 'Travel Savings', target_budget: 2000, target_amount: 0, balance: 350.00, current_balance: 350.00, type: 'savings', sort_order: 6, profile: 'personal' },
     ],
     obligations: [
-        { id: 'd-o-1', name: 'Clapham Apartment Rent', amount: 1450, frequency: 'monthly', due_day: 1 },
-        { id: 'd-o-2', name: 'Council Tax (Lambeth)', amount: 165, frequency: 'monthly', due_day: 15 },
-        { id: 'd-o-3', name: 'Octopus Energy', amount: 140, frequency: 'monthly', due_day: 20 },
-        { id: 'd-o-4', name: 'Hyperoptic Fiber', amount: 45, frequency: 'monthly', due_day: 12 },
-        { id: 'd-o-5', name: 'Equinox Gym Membership', amount: 220, frequency: 'monthly', due_day: 5 },
-        { id: 'd-o-6', name: 'Student Loan (Plan 2)', amount: 240, frequency: 'monthly', due_day: 28, payments_left: 108 },
-        { id: 'd-o-7', name: 'Car Finance (Audi A3)', amount: 325, frequency: 'monthly', due_day: 25, payments_left: 24 },
-        { id: 'd-o-8', name: 'Klarna: Studio Gear', amount: 85, frequency: 'monthly', due_day: 14, payments_left: 4 },
-        { id: 'd-o-9', name: 'Netflix Premium', amount: 17.99, frequency: 'monthly', due_day: 10 },
-        { id: 'd-o-10', name: 'Spotify Family', amount: 19.99, frequency: 'monthly', due_day: 18 },
-        { id: 'd-o-11', name: 'Adobe Creative Cloud', amount: 52.00, frequency: 'monthly', due_day: 22 },
+        { id: 'd-o-1', name: 'Apartment Rent', amount: 1200, frequency: 'monthly', due_day: 1 },
+        { id: 'd-o-2', name: 'Council Tax', amount: 145, frequency: 'monthly', due_day: 15 },
+        { id: 'd-o-3', name: 'Utility Bill', amount: 120, frequency: 'monthly', due_day: 20 },
+        { id: 'd-o-4', name: 'Broadband', amount: 35, frequency: 'monthly', due_day: 12 },
+        { id: 'd-o-5', name: 'Gym Membership', amount: 45, frequency: 'monthly', due_day: 5 },
+        { id: 'd-o-6', name: 'Education Loan', amount: 120, frequency: 'monthly', due_day: 28, payments_left: 24 },
+        { id: 'd-o-7', name: 'Equipment Finance', amount: 115, frequency: 'monthly', due_day: 25, payments_left: 12 },
+        { id: 'd-o-8', name: 'Netflix', amount: 15.99, frequency: 'monthly', due_day: 10 },
+        { id: 'd-o-9', name: 'Spotify', amount: 10.99, frequency: 'monthly', due_day: 18 },
+        { id: 'd-o-10', name: 'Adobe Creative Cloud', amount: 52.00, frequency: 'monthly', due_day: 22 },
     ],
     income: {
         raw: 3750.00, // Monthly gross (£45k)
@@ -54,8 +53,8 @@ export const MOCK_FINANCE = {
 export const MOCK_BUSINESS = {
     name: 'Karrtesian Media',
     pockets: [
-        { id: 'd-bp-1', name: 'KM: Operational', target_budget: 2000, balance: 3450.20, type: 'general', sort_order: 1 },
-        { id: 'd-bp-2', name: 'KM: Tax Reserve', target_budget: 10000, balance: 4120.00, type: 'savings', sort_order: 2 },
+        { id: 'd-bp-1', name: 'KM: Operational', target_budget: 2000, target_amount: 0, balance: 3450.20, current_balance: 3450.20, type: 'general', sort_order: 1, profile: 'business' },
+        { id: 'd-bp-2', name: 'KM: Tax Reserve', target_budget: 10000, target_amount: 0, balance: 4120.00, current_balance: 4120.00, type: 'savings', sort_order: 2, profile: 'business' },
     ],
     transactions: [
         { id: 'd-btx-1', description: 'Client Payment: Vertex Inc', amount: 1250.00, category: 'income', type: 'income', date: '2026-02-10' },
@@ -74,26 +73,26 @@ export const MOCK_BUSINESS = {
 
 export const MOCK_TASKS = {
     todo: [
-        { id: 'd-t-1', title: 'Review Q1 Creative Strategy for Vertex', priority: 'high', is_completed: false, due_date: new Date().toISOString(), strategic_category: 'career' },
-        { id: 'd-t-2', title: 'Schedule Studio session for podcast recording', priority: 'mid', is_completed: false, strategic_category: 'career' },
-        { id: 'd-t-3', title: 'Send invoice to Aura Agency', priority: 'high', is_completed: true, strategic_category: 'finance' },
-        { id: 'd-t-4', title: 'Research specialty coffee beans for office', priority: 'low', is_completed: false, strategic_category: 'personal' },
-        { id: 'd-t-5', title: 'Update portfolio with latest photography work', priority: 'mid', is_completed: false, strategic_category: 'career' },
-        { id: 'd-t-6', title: 'Book dentist appointment', priority: 'low', is_completed: true, strategic_category: 'health' },
-        { id: 'd-t-7', title: 'Refactor Intelligence context builders', priority: 'urgent', is_completed: false, strategic_category: 'career' },
+        { id: 'd-t-1', title: 'Finalize Helios UI v1.2 Release Notes', priority: 'high', is_completed: false, due_date: new Date().toISOString().split('T')[0], strategic_category: 'career', profile: 'business' },
+        { id: 'd-t-2', title: 'Client Workshop: Vertex Brand Evolution', priority: 'urgent', is_completed: false, strategic_category: 'career', profile: 'business', start_time: '10:00', estimated_duration: 120 },
+        { id: 'd-t-3', title: 'Monthly Revenue Audit & Forecasting', priority: 'high', is_completed: true, strategic_category: 'finance', profile: 'business' },
+        { id: 'd-t-4', title: 'Source new high-fidelity audio gear for Studio', priority: 'mid', is_completed: false, strategic_category: 'career', profile: 'business' },
+        { id: 'd-t-5', title: 'Quarterly Portfolio Refresh (Photography)', priority: 'mid', is_completed: false, strategic_category: 'career', profile: 'personal' },
+        { id: 'd-t-6', title: 'Morning Run (Zone 2 - 45 mins)', priority: 'mid', is_completed: true, strategic_category: 'health', profile: 'personal' },
+        { id: 'd-t-7', title: 'Refactor Core Intelligence Context Builders', priority: 'urgent', is_completed: false, strategic_category: 'career', profile: 'business' },
+        { id: 'd-t-8', title: 'Prepare TechCrunch Disrupt Pitch Deck', priority: 'high', is_completed: false, strategic_category: 'career', profile: 'business' },
     ],
     grocery: [
-        { id: 'd-g-1', title: 'Oat Milk (Barista Edition)', amount: 'x2', priority: 'mid', is_completed: false },
-        { id: 'd-g-2', title: 'Organic Avocados', amount: 'x4', priority: 'low', is_completed: false },
-        { id: 'd-g-3', title: 'Specialty Coffee Beans (Ethiopian)', amount: 'x1', priority: 'high', is_completed: false },
-        { id: 'd-g-4', title: 'Sourdough Bread', amount: 'x1', priority: 'low', is_completed: true },
-        { id: 'd-g-5', title: 'Fresh Pasta', amount: 'x2', priority: 'mid', is_completed: false },
-        { id: 'd-g-6', title: 'Sea Salt Dark Chocolate', amount: 'x1', priority: 'low', is_completed: false },
+        { id: 'd-g-1', title: 'Oat Milk (Barista Edition)', amount: 'x2', priority: 'mid', is_completed: false, profile: 'personal' },
+        { id: 'd-g-2', title: 'Organic Avocados', amount: 'x4', priority: 'low', is_completed: false, profile: 'personal' },
+        { id: 'd-g-3', title: 'Specialty Coffee Beans (Ethiopian)', amount: 'x1', priority: 'high', is_completed: false, profile: 'personal' },
+        { id: 'd-g-4', title: 'Sourdough Bread', amount: 'x1', priority: 'low', is_completed: true, profile: 'personal' },
+        { id: 'd-g-5', title: 'Fresh Pasta', amount: 'x2', priority: 'mid', is_completed: false, profile: 'personal' },
     ],
     reminder: [
-        { id: 'd-r-1', title: 'Submit Self-Assessment Tax Return', priority: 'urgent', is_completed: false, due_date: '2026-01-31' },
-        { id: 'd-r-2', title: 'Renew Apartment Insurance', priority: 'high', is_completed: false, due_date: new Date(Date.now() + 86400000 * 5).toISOString() },
-        { id: 'd-r-3', title: 'Quarterly review with financial advisor', priority: 'mid', is_completed: false },
+        { id: 'd-r-1', title: 'Submit Self-Assessment Tax Return', priority: 'urgent', is_completed: false, due_date: '2026-01-31', profile: 'personal' },
+        { id: 'd-r-2', title: 'Renew Apartment Insurance', priority: 'high', is_completed: false, due_date: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0], profile: 'personal' },
+        { id: 'd-r-3', title: 'Quarterly review with financial advisor', priority: 'mid', is_completed: false, profile: 'personal' },
     ]
 }
 
@@ -191,3 +190,153 @@ export const MOCK_MILESTONES = [
     { id: 'd-m-11', goal_id: 'd-g-4', title: 'Completer Half Marathon sub-2hr', is_completed: false, position: 2 },
     { id: 'd-m-12', goal_id: 'd-g-4', title: 'Full 42km run', is_completed: false, position: 3 }
 ]
+
+export const MOCK_STUDIO = {
+    projects: [
+        {
+            id: 'd-sp-1',
+            title: 'Project Helios',
+            tagline: 'Solar-Powered UI Framework',
+            description: 'A comprehensive design system and component library built for low-power high-efficiency displays.',
+            status: 'active',
+            type: 'Technology',
+            platforms: ['web', 'x'],
+            cover_url: 'https://images.unsplash.com/photo-1506399558188-daf6f892f764?w=800&q=80',
+            gtv_featured: false,
+            priority: 'high',
+            created_at: new Date().toISOString()
+        },
+        {
+            id: 'd-sp-2',
+            title: 'Karrtesian Automata',
+            tagline: 'Generative Motion Graphics',
+            description: 'Exploring the intersection of fluid dynamics and vector mathematics in real-time browser environments.',
+            status: 'active',
+            type: 'Media',
+            platforms: ['youtube', 'instagram'],
+            cover_url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80',
+            gtv_featured: false,
+            priority: 'mid',
+            created_at: new Date().toISOString()
+        },
+        {
+            id: 'd-sp-3',
+            title: 'The Obsidian Library',
+            tagline: 'Digital Archive System',
+            description: 'A physical-digital hybrid library system for archiving 21st-century digital humanities.',
+            status: 'idea',
+            type: 'Architectural Design',
+            platforms: ['web'],
+            cover_url: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80',
+            gtv_featured: false,
+            priority: 'low',
+            created_at: new Date().toISOString()
+        }
+    ],
+    content: [
+        {
+            id: 'd-sc-1',
+            title: 'Why Minimalist OS Design is the Future',
+            status: 'published',
+            platforms: ['youtube'],
+            category: 'Thoughts',
+            publish_date: '2026-02-15',
+            cover_url: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&q=80',
+            notes: 'Script focus: Mental clarity and cognitive load.'
+        },
+        {
+            id: 'd-sc-2',
+            title: 'Building Helios: Part 1',
+            status: 'editing',
+            platforms: ['youtube', 'x'],
+            category: 'Showcase',
+            deadline: '2026-03-10',
+            cover_url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+            notes: 'Technical deep dive into the shader logic.'
+        }
+    ],
+    press: [
+        {
+            id: 'd-spr-1',
+            title: 'Forbes 30 Under 30 nominee',
+            organization: 'Forbes',
+            type: 'feature',
+            status: 'achieved',
+            date_achieved: '2025-11-20',
+            url: 'https://forbes.com',
+            notes: 'Recognized for innovation in personal operating systems.'
+        },
+        {
+            id: 'd-spr-2',
+            title: 'TechCrunch Disrupt Showcase',
+            organization: 'TechCrunch',
+            type: 'feature',
+            status: 'submitted',
+            deadline: '2026-05-15',
+            url: 'https://techcrunch.com',
+            notes: 'Presenting the KarrOS architecture.'
+        }
+    ],
+    canvas: [
+        {
+            id: 'd-sce-1',
+            title: 'Vision: The Transparent Layer',
+            body: 'Focus on removing the abstraction between intent and execution in digital tools.',
+            color: 'blue',
+            pinned: true,
+            created_at: new Date().toISOString()
+        },
+        {
+            id: 'd-sce-2',
+            title: 'Resource: Shader Toy Library',
+            body: 'A collection of optimized WebGL shaders for the Helios project.',
+            color: 'green',
+            pinned: false,
+            created_at: new Date().toISOString()
+        },
+        {
+            id: 'd-sce-3',
+            title: 'Note: HSL Color Systems',
+            body: 'Why HSL is superior for programmatic UI theming compared to RGB/Hex.',
+            color: 'orange',
+            pinned: true,
+            created_at: new Date().toISOString()
+        }
+    ],
+    maps: [
+        { id: 'd-map-1', name: 'Helios Architecture', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), is_archived: false }
+    ],
+    map_nodes: [
+        { id: 'dn-1', map_id: 'd-map-1', entry_id: 'd-sce-1', x: 400, y: 300 },
+        { id: 'dn-2', map_id: 'd-map-1', entry_id: 'd-sce-2', x: 650, y: 450 },
+        { id: 'dn-3', map_id: 'd-map-1', project_id: 'd-sp-1', x: 200, y: 150 }
+    ],
+    connections: [
+        { id: 'dc-1', map_id: 'd-map-1', from_id: 'd-sce-1', to_id: 'd-sp-1', created_at: new Date().toISOString() },
+        { id: 'dc-2', map_id: 'd-map-1', from_id: 'd-sce-2', to_id: 'd-sp-1', created_at: new Date().toISOString() }
+    ],
+    drafts: [
+        {
+            id: 'd-dr-1',
+            title: 'The Future of Agentic OS',
+            body: 'A deep dive into how LLMs will replace traditional file explorers and menu systems...',
+            status: 'draft',
+            pinned: true,
+            is_archived: false,
+            node_references: [],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        },
+        {
+            id: 'd-dr-2',
+            title: 'Helios v2: Shader-First Design',
+            body: 'Technical specification for moving all UI rendering to GPU-accelerated fragments...',
+            status: 'draft',
+            pinned: false,
+            is_archived: false,
+            node_references: [{ node_id: 'd-sp-1', node_type: 'project' }],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }
+    ]
+}
