@@ -481,6 +481,7 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                             onChange={setBody}
                             onDropNode={handleDropNode}
                             showAssistant={showContext}
+                            showScaffold={showScaffold}
                         />
                     </div>
                 </section>

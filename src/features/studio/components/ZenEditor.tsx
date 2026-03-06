@@ -14,6 +14,7 @@ interface ZenEditorProps {
     onChange: (content: string) => void;
     onDropNode: (data: any, plainText?: string) => void;
     showAssistant?: boolean;
+    showScaffold?: boolean;
 }
 
 export interface ZenEditorRef {
@@ -73,7 +74,7 @@ const AILoaderView = (props: any) => {
     )
 }
 
-export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, onChange, onDropNode, showAssistant = true }, ref) => {
+export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, onChange, onDropNode, showAssistant = true, showScaffold = true }, ref) => {
     const [isExpanding, setIsExpanding] = useState(false)
     const [expandPreview, setExpandPreview] = useState<string | null>(null)
     const [isGeneratingImage, setIsGeneratingImage] = useState(false)
@@ -328,23 +329,27 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
 
     return (
         <div className="w-full relative studio-editor-wrapper">
-            {/* Dynamic Dual-Mode Sticky Toolbar */}
+            {/* Dynamic Dual-Mode Sticky Toolbar - Centered to Middle Pane */}
             <div
                 className={cn(
                     "fixed z-50 transition-all duration-500 ease-in-out flex gap-2",
-                    showAssistant
-                        ? "bottom-[10px] left-1/2 -translate-x-1/2 flex-row animate-in slide-in-from-bottom-4"
+                    (showAssistant || showScaffold)
+                        ? "bottom-[10px] left-1/2 flex-row animate-in slide-in-from-bottom-4"
                         : "top-1/2 right-[10px] -translate-y-1/2 flex-col animate-in slide-in-from-right-4"
                 )}
+                style={(showAssistant || showScaffold) ? {
+                    transform: 'translateX(-50%)',
+                    marginLeft: `${(showScaffold ? 170 : 0) - (showAssistant ? 170 : 0)}px`
+                } : undefined}
             >
                 <div className={cn(
                     "flex bg-white/90 backdrop-blur-2xl border border-black/10 p-1.5 rounded-[24px] shadow-2xl shadow-indigo-500/10 ring-1 ring-black/5",
-                    showAssistant ? "flex-row items-center" : "flex-col"
+                    (showAssistant || showScaffold) ? "flex-row items-center" : "flex-col"
                 )}>
                     {/* Text Formatting Group */}
                     <div className={cn(
                         "flex gap-1",
-                        showAssistant ? "flex-row pr-2 mr-2 border-r" : "flex-col pb-2 mb-2 border-b",
+                        (showAssistant || showScaffold) ? "flex-row pr-2 mr-2 border-r" : "flex-col pb-2 mb-2 border-b",
                         "border-black/[0.05]"
                     )}>
                         <button
@@ -380,7 +385,7 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
                     {/* AI Actions Group */}
                     <div className={cn(
                         "flex gap-1",
-                        showAssistant ? "flex-row pr-2 mr-2 border-r" : "flex-col pb-2 mb-2 border-b",
+                        (showAssistant || showScaffold) ? "flex-row pr-2 mr-2 border-r" : "flex-col pb-2 mb-2 border-b",
                         "border-black/[0.05]"
                     )}>
                         <button
@@ -411,7 +416,7 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
                             {/* Tooltip */}
                             <div className={cn(
                                 "absolute px-3 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover/ai-image:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl z-[60]",
-                                showAssistant ? "bottom-full mb-3 left-1/2 -translate-x-1/2" : "right-full mr-3 top-1/2 -translate-y-1/2"
+                                (showAssistant || showScaffold) ? "bottom-full mb-3 left-1/2 -translate-x-1/2" : "right-full mr-3 top-1/2 -translate-y-1/2"
                             )}>
                                 AI Photo Search
                             </div>
@@ -440,7 +445,7 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
                 {/* Status Dot */}
                 <div className={cn(
                     "flex justify-center",
-                    showAssistant ? "items-center" : "mt-1"
+                    (showAssistant || showScaffold) ? "items-center" : "mt-1"
                 )}>
                     <div className={cn(
                         "w-1.5 h-1.5 rounded-full transition-all duration-500",
