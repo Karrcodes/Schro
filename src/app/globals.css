@@ -13,6 +13,33 @@
   }
 }
 
+/* Premium Scrollbars */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 
 @custom-variant dark (&:is(.dark *));
 
@@ -101,6 +128,10 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    background: black;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -142,6 +173,11 @@
 
   .icon-btn:hover {
     @apply bg-black/[0.06];
+  }
+
+  /* Smooth Pane Transitions */
+  .pane-transition {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Privacy Mode Utility */
@@ -186,8 +222,5 @@
     opacity: 0;
     position: absolute;
     right: 0;
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
   }
 }

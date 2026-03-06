@@ -187,7 +187,7 @@ export default function CanvasDashboard() {
     const handleCompose = (nodes: PolymorphicNode[]) => {
         if (nodes.length === 0) return
         setSynthesisModalNodes(nodes)
-        setSynthesisTitle(`Synthesis: ${nodes.length} Items`)
+        setSynthesisTitle(nodes[0].title || `Synthesis: ${nodes.length} Items`)
     }
 
     const startComposition = async (nodes: PolymorphicNode[], title: string) => {
@@ -327,19 +327,6 @@ export default function CanvasDashboard() {
                         </button>
                     )}
 
-                    {/* Import toggle */}
-                    {viewMode === 'web' && currentMapId && !showBrowser && (
-                        <button
-                            onClick={() => setIsImporting(!isImporting)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-1.5 rounded-xl text-[12px] font-bold transition-all border",
-                                isImporting ? "bg-black text-white border-black" : "bg-white text-black/50 border-black/[0.06] hover:border-black/20"
-                            )}
-                        >
-                            <LayoutGrid className="w-3.5 h-3.5" />
-                            {isImporting ? "Close Library" : "Import Node"}
-                        </button>
-                    )}
 
                     {/* View toggle */}
                     <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/[0.04] items-center gap-0.5">
@@ -618,34 +605,50 @@ export default function CanvasDashboard() {
                                 </div>
                             )}
 
-                            <div className="flex-1 flex flex-col min-h-0 bg-[#f7f7f7]">
+                            <div className="flex-1 flex flex-col min-h-0 bg-[#f7f7f7] relative">
                                 {currentMapId ? (
-                                    <CanvasWebView
-                                        entries={entriesInMap}
-                                        connections={connections}
-                                        isLibraryOpen={isImporting}
-                                        onOverLibraryChange={setIsNodeOverLibrary}
-                                        onNodeClick={(node) => {
-                                            if (node.node_type === 'entry') {
-                                                setSelectedEntry(node as StudioCanvasEntry)
-                                            } else if (node.node_type === 'project') {
-                                                setSelectedProjectId(node.id)
-                                            } else if (node.node_type === 'content') {
-                                                setSelectedContentId(node.id)
-                                            }
-                                        }}
-                                        onCreateConnection={createConnection}
-                                        onDeleteConnection={deleteConnection}
-                                        onUpdatePosition={updateNodePosition}
-                                        onDeleteNode={(id) => setConfirmAction({ type: 'delete_note', id, title: 'Note' })}
-                                        onRemoveNode={deleteMapNode}
-                                        onDropNode={addNodeToMap}
-                                        onArchiveNode={(id) => setConfirmAction({ type: 'archive_note', id, title: 'Note' })}
-                                        onCreateNode={(data) => createEntry({ ...data })}
-                                        onCompose={handleCompose}
-                                        selectedIds={selectedIds}
-                                        onSelectionChange={setSelectedIds}
-                                    />
+                                    <>
+                                        <div className="absolute top-6 left-6 z-30 flex flex-col gap-2">
+                                            <button
+                                                onClick={() => setIsImporting(!isImporting)}
+                                                className={cn(
+                                                    "w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl transition-all active:scale-90 border group",
+                                                    isImporting
+                                                        ? "bg-indigo-600 text-white border-indigo-700"
+                                                        : "bg-white text-black/40 border-black/[0.08] hover:border-indigo-200 hover:text-indigo-600"
+                                                )}
+                                                title={isImporting ? "Close Library" : "Import Node (Quick Add)"}
+                                            >
+                                                <LayoutGrid className={cn("w-5 h-5 transition-transform group-hover:scale-110", isImporting && "rotate-90")} />
+                                            </button>
+                                        </div>
+                                        <CanvasWebView
+                                            entries={entriesInMap}
+                                            connections={connections}
+                                            isLibraryOpen={isImporting}
+                                            onOverLibraryChange={setIsNodeOverLibrary}
+                                            onNodeClick={(node) => {
+                                                if (node.node_type === 'entry') {
+                                                    setSelectedEntry(node as StudioCanvasEntry)
+                                                } else if (node.node_type === 'project') {
+                                                    setSelectedProjectId(node.id)
+                                                } else if (node.node_type === 'content') {
+                                                    setSelectedContentId(node.id)
+                                                }
+                                            }}
+                                            onCreateConnection={createConnection}
+                                            onDeleteConnection={deleteConnection}
+                                            onUpdatePosition={updateNodePosition}
+                                            onDeleteNode={(id) => setConfirmAction({ type: 'delete_note', id, title: 'Note' })}
+                                            onRemoveNode={deleteMapNode}
+                                            onDropNode={addNodeToMap}
+                                            onArchiveNode={(id) => setConfirmAction({ type: 'archive_note', id, title: 'Note' })}
+                                            onCreateNode={(data) => createEntry({ ...data })}
+                                            onCompose={handleCompose}
+                                            selectedIds={selectedIds}
+                                            onSelectionChange={setSelectedIds}
+                                        />
+                                    </>
                                 ) : (
                                     <div className="flex-1 flex flex-col items-center justify-center gap-4">
                                         <div className="p-10 bg-white border border-black/[0.05] rounded-[48px] shadow-2xl shadow-black/5 text-center max-w-sm">
@@ -940,9 +943,14 @@ export default function CanvasDashboard() {
                 <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-8 duration-500">
                     <button
                         onClick={() => {
-                            const nodesToCompose = entriesInMap.filter(e => selectedIds.includes(e.id))
-                            const finalNodes = nodesToCompose.length > 0 ? nodesToCompose : entries.filter(e => selectedIds.includes(e.id))
-                            handleCompose(finalNodes as PolymorphicNode[])
+                            // Map over selectedIds to preserve the chronological selection order
+                            const orderedNodes = selectedIds.map(id => {
+                                const inMap = entriesInMap.find(e => e.id === id)
+                                if (inMap) return inMap
+                                return entries.find(e => e.id === id) || projects.find(p => p.id === id) || content.find(c => c.id === id)
+                            }).filter(Boolean) as PolymorphicNode[]
+
+                            handleCompose(orderedNodes)
                         }}
                         className="flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-[24px] font-black uppercase text-[12px] tracking-widest shadow-[0_20px_60px_rgba(79,70,229,0.4)] hover:bg-indigo-700 hover:-translate-y-1 transition-all active:scale-95 group border-2 border-white/20"
                     >
