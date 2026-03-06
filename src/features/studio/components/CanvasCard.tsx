@@ -92,17 +92,31 @@ export default function CanvasCard({ entry, connections, onClick, onPin, onDelet
                     )}
                 </div>
 
-                {/* Image thumbnail (right side) */}
+                {/* Stacked Image thumbnails (right side) */}
                 {entry.images && entry.images.length > 0 && (
-                    <div className="flex flex-col gap-1.5 shrink-0">
-                        {entry.images.slice(0, 2).map((url, i) => (
-                            <img key={i} src={url} alt="" className="w-14 h-14 rounded-xl object-cover border border-black/[0.06] shadow-sm" />
-                        ))}
-                        {entry.images.length > 2 && (
-                            <div className="w-14 h-14 rounded-xl bg-black/[0.04] flex items-center justify-center text-[10px] font-bold text-black/40">
-                                +{entry.images.length - 2}
-                            </div>
-                        )}
+                    <div className="shrink-0 pt-1">
+                        <div className="relative w-14 h-14 flex items-center justify-center">
+                            {entry.images.slice(0, 3).map((url, i) => (
+                                <div
+                                    key={i}
+                                    className="absolute w-12 h-12 rounded-xl overflow-hidden shadow-md transition-all duration-500 border border-white"
+                                    style={{
+                                        zIndex: 10 - i,
+                                        transform: `translateX(${i * 6}px) translateY(${i * -2}px) rotate(${i * 6 - 6}deg) scale(${1 - i * 0.08})`,
+                                        opacity: 1 - i * 0.2
+                                    }}
+                                >
+                                    <img src={url} alt="" className="w-full h-full object-cover" />
+                                </div>
+                            ))}
+                            {entry.images.length > 3 && (
+                                <div
+                                    className="absolute bottom-0 right-[-4px] w-6 h-6 rounded-lg bg-black/80 backdrop-blur-md flex items-center justify-center text-[8px] font-black text-white border border-white/20 z-20 shadow-lg"
+                                >
+                                    +{entry.images.length - 3}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
