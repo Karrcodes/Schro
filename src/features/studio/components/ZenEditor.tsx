@@ -328,16 +328,25 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
 
     return (
         <div className="w-full relative studio-editor-wrapper">
-            {/* Persistent Vertical Floating Toolbar - Sticky & Docked to Assistant */}
+            {/* Dynamic Dual-Mode Sticky Toolbar */}
             <div
-                className="fixed top-1/2 -translate-y-1/2 flex flex-col gap-2 z-50 transition-all duration-300 ease-in-out"
-                style={{
-                    right: showAssistant ? '345px' : '5px'
-                }}
+                className={cn(
+                    "fixed z-50 transition-all duration-500 ease-in-out flex gap-2",
+                    showAssistant
+                        ? "bottom-[10px] left-1/2 -translate-x-1/2 flex-row animate-in slide-in-from-bottom-4"
+                        : "top-1/2 right-[10px] -translate-y-1/2 flex-col animate-in slide-in-from-right-4"
+                )}
             >
-                <div className="flex flex-col gap-1 bg-white/90 backdrop-blur-2xl border border-black/10 p-1.5 rounded-[24px] shadow-2xl shadow-indigo-500/10 ring-1 ring-black/5">
+                <div className={cn(
+                    "flex bg-white/90 backdrop-blur-2xl border border-black/10 p-1.5 rounded-[24px] shadow-2xl shadow-indigo-500/10 ring-1 ring-black/5",
+                    showAssistant ? "flex-row items-center" : "flex-col"
+                )}>
                     {/* Text Formatting Group */}
-                    <div className="flex flex-col gap-1 mb-2 pb-2 border-b border-black/[0.05]">
+                    <div className={cn(
+                        "flex gap-1",
+                        showAssistant ? "flex-row pr-2 mr-2 border-r" : "flex-col pb-2 mb-2 border-b",
+                        "border-black/[0.05]"
+                    )}>
                         <button
                             onClick={() => editor.chain().focus().toggleBold().run()}
                             className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90", editor.isActive('bold') ? "bg-black text-white shadow-lg" : "hover:bg-black/5 text-black/40 hover:text-black")}
@@ -369,7 +378,11 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
                     </div>
 
                     {/* AI Actions Group */}
-                    <div className="flex flex-col gap-1 mb-2 pb-2 border-b border-black/[0.05]">
+                    <div className={cn(
+                        "flex gap-1",
+                        showAssistant ? "flex-row pr-2 mr-2 border-r" : "flex-col pb-2 mb-2 border-b",
+                        "border-black/[0.05]"
+                    )}>
                         <button
                             onClick={handleExpandSelection}
                             disabled={isExpanding || editor.state.selection.empty}
@@ -395,15 +408,18 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
                                 {isFindingImage ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <Search className="w-4.5 h-4.5" />}
                             </button>
 
-                            {/* Hidden Tooltip/Label */}
-                            <div className="absolute left-full ml-3 px-3 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover/ai-image:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl">
+                            {/* Tooltip */}
+                            <div className={cn(
+                                "absolute px-3 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover/ai-image:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl z-[60]",
+                                showAssistant ? "bottom-full mb-3 left-1/2 -translate-x-1/2" : "right-full mr-3 top-1/2 -translate-y-1/2"
+                            )}>
                                 AI Photo Search
                             </div>
                         </div>
                     </div>
 
                     {/* Local Actions Group */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex gap-1">
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -422,7 +438,10 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
                 </div>
 
                 {/* Status Dot */}
-                <div className="flex justify-center mt-1">
+                <div className={cn(
+                    "flex justify-center",
+                    showAssistant ? "items-center" : "mt-1"
+                )}>
                     <div className={cn(
                         "w-1.5 h-1.5 rounded-full transition-all duration-500",
                         (isExpanding || isFindingImage) ? "bg-indigo-500 animate-pulse scale-125 shadow-[0_0_10px_rgba(79,70,229,0.5)]" : "bg-black/10"
