@@ -254,6 +254,34 @@ export default function PressDetailModal({ isOpen, onClose, item }: PressDetailM
                         </button>
                     </div>
 
+                    {(editedData.is_portfolio_item ?? item.is_portfolio_item) && (
+                        <div className="p-6 bg-blue-50/50 border border-blue-100 rounded-[32px] space-y-4 animate-in slide-in-from-top-2 duration-200">
+                            <div className="flex items-center gap-2 ml-1">
+                                <Shield className="w-4 h-4 text-blue-600" />
+                                <label className="text-[10px] font-black uppercase tracking-widest text-blue-900/60 block">Select GTV Category</label>
+                            </div>
+                            <div className="flex gap-2">
+                                {(['innovation', 'impact', 'recognition'] as const).map((cat) => (
+                                    <button
+                                        key={cat}
+                                        type="button"
+                                        disabled={!isEditing}
+                                        onClick={() => setEditedData(prev => ({ ...prev, gtv_category: cat }))}
+                                        className={cn(
+                                            "flex-1 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider border transition-all",
+                                            (editedData.gtv_category ?? item.gtv_category ?? 'recognition') === cat
+                                                ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20"
+                                                : "bg-white border-blue-100 text-blue-400 hover:bg-blue-50",
+                                            !isEditing && "opacity-100 cursor-default"
+                                        )}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Milestone / Requirement */}
                     <div className="space-y-3">
                         <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Requirements / Achievement Goal</label>

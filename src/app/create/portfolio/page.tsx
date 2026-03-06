@@ -1,9 +1,11 @@
 'use client'
 
-import { Shield, ExternalLink, Calendar, Award, CheckCircle2, Plus } from 'lucide-react'
+import React, { useState } from 'react'
+import { Shield, ExternalLink, Calendar, Award, CheckCircle2, Plus, Rocket, Globe, X, Orbit } from 'lucide-react'
 
 import { useStudio } from '@/features/studio/hooks/useStudio'
 import Link from 'next/link'
+import type { StudioProject, StudioPress } from '@/features/studio/types/studio.types'
 
 export default function PortfolioPage() {
     const { projects, press } = useStudio()
@@ -13,14 +15,6 @@ export default function PortfolioPage() {
 
     const evidenceCount = portfolioProjects.length + portfolioPress.length
 
-    // Helper to filter evidence by predefined categories
-    const getEvidenceCount = (categoryStr: string) => {
-        const cat = categoryStr.toLowerCase()
-        const pCount = portfolioPress.filter(p => p.gtv_category === cat).length
-        // Assign gtv_featured projects to 'innovation' by default for now
-        const prjCount = cat === 'innovation' ? portfolioProjects.length : 0
-        return pCount + prjCount
-    }
     return (
         <main className="pb-24 pt-4 px-4 md:px-8">
             <div className="max-w-7xl mx-auto space-y-8">
@@ -63,21 +57,76 @@ export default function PortfolioPage() {
 
                 {/* Portfolio Sections */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {['Innovation', 'Impact', 'Recognition'].map(category => (
-                        <div key={category} className="space-y-4">
-                            <div className="flex items-center justify-between px-2">
-                                <h2 className="text-[12px] font-black text-black/40 uppercase tracking-[0.2em]">{category}</h2>
-                                <span className="text-[11px] font-bold text-black/20">{getEvidenceCount(category)} pieces</span>
-                            </div>
-                            <div className="aspect-[3/4] rounded-[32px] bg-white border border-black/[0.05] p-8 flex flex-col items-center justify-center text-center group hover:border-blue-200 transition-all cursor-pointer">
-                                <div className="w-16 h-16 rounded-full bg-black/[0.02] border-2 border-dashed border-black/[0.05] flex items-center justify-center mb-6 group-hover:bg-blue-50 group-hover:border-blue-200 transition-all">
-                                    <Plus className="w-8 h-8 text-black/10 group-hover:text-blue-400" />
+                    {['Innovation', 'Impact', 'Recognition'].map(category => {
+                        const isInnovation = category.toLowerCase() === 'innovation';
+                        const activeProjects = isInnovation ? portfolioProjects : [];
+                        const activePress = portfolioPress.filter(p => p.gtv_category === category.toLowerCase());
+                        const totalCount = activeProjects.length + activePress.length;
+
+                        return (
+                            <div key={category} className="space-y-4">
+                                <div className="flex items-center justify-between px-2">
+                                    <h2 className="text-[12px] font-black text-black/40 uppercase tracking-[0.2em]">{category}</h2>
+                                    <span className="text-[11px] font-bold text-black/20">{totalCount} pieces</span>
                                 </div>
-                                <h3 className="text-[13px] font-bold text-black/30">Add {category} Evidence</h3>
-                                <p className="text-[11px] text-black/20 mt-2">Tag active projects as 'gtv_featured' to curate your portfolio.</p>
+                                <div className="rounded-[32px] bg-white border border-black/[0.05] p-3 flex flex-col min-h-[500px] h-[600px] overflow-hidden">
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+                                        {totalCount === 0 ? (
+                                            <div className="h-full flex flex-col items-center justify-center text-center">
+                                                <div className="w-16 h-16 rounded-full bg-black/[0.02] border-2 border-dashed border-black/[0.05] flex items-center justify-center mb-6">
+                                                    <Plus className="w-8 h-8 text-black/10" />
+                                                </div>
+                                                <h3 className="text-[13px] font-bold text-black/30">Add {category} Evidence</h3>
+                                                <p className="text-[11px] text-black/20 mt-2 px-4">Tag active projects as 'gtv_featured' to curate your portfolio.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {activeProjects.map(project => (
+                                                    <div key={project.id} className="p-4 bg-black/[0.02] rounded-[24px] border border-black/[0.05] flex justify-between items-start gap-3 hover:border-blue-200 transition-colors group">
+                                                        <div className="flex gap-3">
+                                                            <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                                                                <Rocket className="w-4 h-4" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md">Project</span>
+                                                                </div>
+                                                                <h3 className="text-[13px] font-black text-black group-hover:text-blue-600 transition-colors leading-tight mb-1">{project.title}</h3>
+                                                                {project.description && <p className="text-[11px] font-medium text-black/60 line-clamp-2">{project.description}</p>}
+                                                            </div>
+                                                        </div>
+                                                        <Link href="/create/projects" className="p-2 rounded-xl text-black/20 hover:text-black hover:bg-black/5 bg-white shrink-0 transition-colors shadow-sm">
+                                                            <ExternalLink className="w-3.5 h-3.5" />
+                                                        </Link>
+                                                    </div>
+                                                ))}
+
+                                                {activePress.map(p => (
+                                                    <div key={p.id} className="p-4 bg-black/[0.02] rounded-[24px] border border-black/[0.05] flex justify-between items-start gap-3 hover:border-blue-200 transition-colors group">
+                                                        <div className="flex gap-3">
+                                                            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                                                <Globe className="w-4 h-4" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">Press & Media</span>
+                                                                </div>
+                                                                <h3 className="text-[13px] font-black text-black group-hover:text-blue-600 transition-colors leading-tight mb-1">{p.title}</h3>
+                                                                <p className="text-[11px] font-bold text-black/40">{p.organization} • {p.type}</p>
+                                                            </div>
+                                                        </div>
+                                                        <Link href="/create/press" className="p-2 rounded-xl text-black/20 hover:text-black hover:bg-black/5 bg-white shrink-0 transition-colors shadow-sm">
+                                                            <ExternalLink className="w-3.5 h-3.5" />
+                                                        </Link>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
 
                 {/* Resources */}

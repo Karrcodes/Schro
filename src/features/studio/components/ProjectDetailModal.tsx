@@ -164,7 +164,8 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                 start_date: project.start_date,
                 priority: project.priority,
                 impact_score: project.impact_score,
-                gtv_featured: project.gtv_featured
+                gtv_featured: project.gtv_featured,
+                gtv_category: project.gtv_category
             })
         }
         setIsEditing(!isEditing)
@@ -490,6 +491,29 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                             )} />
                                                         </div>
                                                     </button>
+
+                                                    {(editedData.gtv_featured ?? project.gtv_featured) && (
+                                                        <div className="mt-2 pl-4 pr-2 py-3 bg-blue-50/50 border border-blue-100 rounded-xl space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                                            <label className="text-[9px] font-black uppercase tracking-widest text-blue-900/40 block ml-1">Select Category</label>
+                                                            <div className="flex gap-2">
+                                                                {(['innovation', 'impact', 'recognition'] as const).map((cat) => (
+                                                                    <button
+                                                                        key={cat}
+                                                                        type="button"
+                                                                        onClick={() => setEditedData(prev => ({ ...prev, gtv_category: cat }))}
+                                                                        className={cn(
+                                                                            "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all",
+                                                                            (editedData.gtv_category ?? project.gtv_category ?? 'innovation') === cat
+                                                                                ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200"
+                                                                                : "bg-white border-blue-100 text-blue-400 hover:bg-blue-50"
+                                                                        )}
+                                                                    >
+                                                                        {cat}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -880,24 +904,26 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                     </section>
 
                     {/* Action Footer (if editing) */}
-                    {isEditing && (
-                        <div className="flex gap-3 justify-end pt-4 border-t border-black/[0.05]">
-                            <button
-                                onClick={() => setIsEditing(false)}
-                                className="px-6 py-2.5 rounded-xl text-[12px] font-black text-black/40 hover:bg-black/5 transition-all"
-                            >
-                                Discard
-                            </button>
-                            <button
-                                onClick={handleSaveMetadata}
-                                className="px-8 py-2.5 bg-black text-white rounded-xl text-[12px] font-black hover:scale-105 transition-transform shadow-lg shadow-black/10"
-                            >
-                                Save Changes
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
+                    {
+                        isEditing && (
+                            <div className="flex gap-3 justify-end pt-4 border-t border-black/[0.05]">
+                                <button
+                                    onClick={() => setIsEditing(false)}
+                                    className="px-6 py-2.5 rounded-xl text-[12px] font-black text-black/40 hover:bg-black/5 transition-all"
+                                >
+                                    Discard
+                                </button>
+                                <button
+                                    onClick={handleSaveMetadata}
+                                    className="px-8 py-2.5 bg-black text-white rounded-xl text-[12px] font-black hover:scale-105 transition-transform shadow-lg shadow-black/10"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        )
+                    }
+                </div >
+            </div >
 
             <ConfirmationModal
                 isOpen={showPromoteConfirm}
@@ -939,6 +965,6 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                 confirmText="Delete"
                 type="danger"
             />
-        </div>
+        </div >
     )
 }

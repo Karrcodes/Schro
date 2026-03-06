@@ -97,6 +97,8 @@ export interface StudioPress {
     milestone_goal?: string;
     is_strategy_goal: boolean;
     is_portfolio_item: boolean;
+    is_archived?: boolean;
+    is_pinned?: boolean;
     gtv_category?: 'innovation' | 'impact' | 'recognition' | null;
     project_id?: string | null;
     created_at: string;
