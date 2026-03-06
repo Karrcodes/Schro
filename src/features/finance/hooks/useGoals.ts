@@ -20,7 +20,7 @@ export function useGoals() {
             setLoading(false)
             return
         }
-        setLoading(true)
+        if (goals.length === 0) setLoading(true)
         const { data, error } = await supabase
             .from('fin_goals')
             .select('*')

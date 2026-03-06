@@ -20,58 +20,7 @@ import { useFinanceProfile } from '@/features/finance/contexts/FinanceProfileCon
 import { useSettings } from '@/features/finance/hooks/useSettings'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 
-const navItems = [
-    { label: 'Control Centre', href: '/system/control-centre', icon: LayoutDashboard },
-    { label: 'Intelligence', href: '/intelligence', icon: Brain },
-    {
-        label: 'Operations',
-        href: '/tasks',
-        icon: Activity,
-        sub: [
-            { label: 'Planner', href: '/tasks/planner', icon: LayoutDashboard },
-            { label: 'Matrix', href: '/tasks/matrix', icon: SlidersHorizontal },
-            { label: 'Calendar', href: '/tasks/calendar', icon: Calendar }
-        ]
-    },
-    {
-        label: 'Vault',
-        href: '/vault',
-        icon: Shield,
-        sub: [
-            { label: 'Clipboard', href: '/vault/clipboard', icon: ClipboardIcon },
-            { label: 'Secrets Manager', href: '/vault/secrets', icon: Key }
-        ]
-    },
-    {
-        label: 'Finances',
-        href: '/finances',
-        icon: BarChart3,
-        sub: [
-            { label: 'Projections', href: '/finances/projections', icon: Calendar, caps: ['P'] },
-            { label: 'Transactions', href: '/finances/transactions', icon: Receipt, caps: ['P', 'B'], disabled: true },
-            { label: 'Analytics', href: '/finances/analytics', icon: TrendingUp, caps: ['P'] },
-            { label: 'Liabilities', href: '/finances/liabilities', icon: CreditCard, caps: ['P', 'B'] },
-            { label: 'Savings', href: '/finances/savings', icon: PiggyBank, caps: ['P', 'B'] },
-            { label: 'Settings', href: '/finances/settings', icon: SlidersHorizontal, caps: ['P', 'B'] }
-        ],
-    },
-    {
-        label: 'Studio',
-        href: '/create',
-        icon: Sparkles,
-        sub: [
-            { label: 'Projects', href: '/create/projects', icon: Rocket },
-            { label: 'Content', href: '/create/content', icon: Video },
-            { label: 'Canvas', href: '/create/canvas', icon: PenLine },
-            { label: 'Sparks', href: '/create/sparks', icon: Target },
-            { label: 'Network', href: '/create/network', icon: Users },
-            { label: 'Press', href: '/create/press', icon: Award },
-            { label: 'Portfolio', href: '/create/portfolio', icon: Shield }
-        ]
-    },
-    { label: 'Manifest', href: '/goals', icon: Target },
-    { label: 'Wellbeing', href: '/health', icon: Heart, disabled: true },
-]
+import { navItems } from '@/lib/navConfig'
 
 function CapBadge({ cap }: { cap: 'P' | 'B' }) {
     return (
@@ -429,11 +378,6 @@ export function Sidebar() {
                         <Link
                             href={item.href}
                             draggable={false}
-                            onMouseEnter={() => {
-                                if ('sub' in item && item.sub) {
-                                    setExpandedFolders({ [item.href]: true });
-                                }
-                            }}
                             className={cn(
                                 'flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-150 relative group',
                                 isActive ? 'bg-black/10 text-black' : 'text-black/50 hover:text-black/80 hover:bg-black/[0.04]'

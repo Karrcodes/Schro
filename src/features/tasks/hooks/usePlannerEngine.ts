@@ -124,7 +124,7 @@ export function usePlannerEngine(date: Date = new Date()) {
     useEffect(() => {
         fetchData()
         // Request Notification Permission
-        if (typeof window !== 'undefined' && Notification.permission === 'default') {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission()
         }
     }, [fetchData])

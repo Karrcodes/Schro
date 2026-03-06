@@ -166,7 +166,7 @@ export class MonzoService {
 
         const syncedMonzoIds = new Set<string>()
 
-        for (const account of activeAccounts) {
+        await Promise.all(activeAccounts.map(async (account: any) => {
             try {
                 // Determine which profile this belongs to
                 const profile = account.type === 'uk_business' ? 'business' : 'personal'
@@ -212,14 +212,14 @@ export class MonzoService {
                 if (!potsRes.ok) {
                     const err = await potsRes.text()
                     console.error(`[MonzoService] Pots fetch failed for account ${account.id}:`, potsRes.status, err)
-                    continue
+                    return
                 }
 
                 const potsData = await potsRes.json()
                 const pots = potsData.pots || []
 
-                for (const pot of pots) {
-                    if (pot.deleted) continue
+                await Promise.all(pots.map(async (pot: any) => {
+                    if (pot.deleted) return
                     syncedMonzoIds.add(pot.id)
 
                     // Determine which profile this belongs to
@@ -263,11 +263,11 @@ export class MonzoService {
                     } else {
                         console.log(`Synced Pot: ${pot.name} (£${pot.balance / 100}) to profile: ${profile}`)
                     }
-                }
+                }))
             } catch (accError) {
                 console.error(`Failed to sync account ${account.id}:`, accError)
             }
-        }
+        }))
 
         // 3. Source of Truth Cleanup: Delete Schrö pots that weren't in the Monzo response
         // We skip pots that don't have a monzo_id IF they are protected (General/Liabilities)
@@ -404,22 +404,41 @@ export class MonzoService {
 
         const supabase = this.getServerSupabase()
 
-        for (const account of accounts) {
-            if (account.closed) continue
+        await Promise.all(accounts.map(async (account: any) => {
+            if (account.closed) return
 
             console.log(`[MonzoService] Syncing transactions for account ${account.id}...`)
-            const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-            const txRes = await fetch(`https://api.monzo.com/transactions?account_id=${account.id}&since=${since}&limit=200&expand[]=merchant`, {
+            const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+            const txRes = await fetch(`https://api.monzo.com/transactions?account_id=${account.id}&since=${since}&limit=100&expand[]=merchant`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
-            if (!txRes.ok) continue
+            if (!txRes.ok) return
             const txData = await txRes.json()
             const transactions = txData.transactions || []
 
             const profile: 'personal' | 'business' = account.type === 'uk_business' ? 'business' : 'personal'
 
-            for (const tx of transactions) {
+            // PRE-FILTER: Avoid hundreds of redundant slow RPC calls on every sync
+            const txIds = transactions.map((t: any) => t.id)
+
+            const { data: existingTxs } = await supabase
+                .from('fin_transactions')
+                .select('provider_tx_id')
+                .in('provider_tx_id', txIds)
+
+            const existingIds = new Set(existingTxs?.map(t => t.provider_tx_id) || [])
+            const twoDaysAgo = Date.now() - (2 * 24 * 60 * 60 * 1000)
+
+            const txsToProcess = transactions.filter((tx: any) => {
+                const isRecent = new Date(tx.created).getTime() > twoDaysAgo
+                // Process if it doesn't exist yet OR if it's very recent (to catch settlements)
+                return !existingIds.has(tx.id) || isRecent
+            })
+
+            console.log(`[MonzoService] Account ${account.id}: Found ${transactions.length} txs. Processing ${txsToProcess.length} (skipped ${transactions.length - txsToProcess.length} existing).`)
+
+            for (const tx of txsToProcess) {
                 if (tx.decline_reason) continue
 
                 const amount = Math.abs(tx.amount / 100)
@@ -488,6 +507,6 @@ export class MonzoService {
 
                 console.log(`[MonzoService] Synced tx ${tx.id}: ${rpcStatus}`)
             }
-        }
+        }))
     }
 }

@@ -40,12 +40,12 @@ export async function GET(request: Request) {
         let inserted = 0
         let skipped = 0
 
-        for (const account of accounts) {
+        await Promise.all(accounts.map(async (account: any) => {
             const profile: 'personal' | 'business' = account.type === 'uk_business' ? 'business' : 'personal'
             const url = `https://api.monzo.com/transactions?account_id=${account.id}&since=${since}&limit=100&expand[]=merchant`
 
             const txRes = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-            if (!txRes.ok) continue
+            if (!txRes.ok) return
 
             const txData = await txRes.json()
             const transactions = txData.transactions || []
@@ -105,7 +105,7 @@ export async function GET(request: Request) {
                     skipped++
                 }
             }
-        }
+        }))
 
         return NextResponse.json({ success: true, inserted, skipped, since })
     } catch (err: any) {

@@ -49,7 +49,7 @@ export function Clipboard() {
             setLoading(false)
             return
         }
-        setLoading(true)
+        if (clips.length === 0) setLoading(true)
         const { data, error } = await supabase
             .from('sys_clipboard')
             .select('*')

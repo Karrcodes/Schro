@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, CheckSquare, Clipboard, Loader2, Sparkles, ListChecks, Calendar, Info, Clock, Heart, Briefcase, User, Beaker, Factory, Tv, TrendingUp, Building2, User2 } from 'lucide-react'
+import { Plus, X, CheckSquare, Clipboard, Loader2, Sparkles, ListChecks, Calendar, Info, Clock, Heart, Briefcase, User, Beaker, Factory, Tv, Video, TrendingUp, Building2, User2, Lock, PenLine, Youtube, Instagram, Music2, Twitter } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { usePathname } from 'next/navigation'
 
-type ActionType = 'task' | 'vault' | 'spark' | null
+type ActionType = 'task' | 'clipboard' | 'network' | 'note' | 'content' | 'meal' | 'gym' | null
 
 const PERSONAL_STRATEGIC = [
     { id: 'finance', label: 'Finance', icon: Heart, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
@@ -37,8 +37,8 @@ export function GlobalQuickAction() {
     const [activeAction, setActiveAction] = useState<ActionType>(null)
     const [loading, setLoading] = useState(false)
     const [success, setSuccess] = useState(false)
+    const [showTaskExtras, setShowTaskExtras] = useState(false)
 
-    // Form States
     const [form, setForm] = useState({
         taskTitle: '',
         taskProfile: 'personal' as 'personal' | 'business',
@@ -50,35 +50,30 @@ export function GlobalQuickAction() {
         endDate: '',
         taskDuration: '30',
         taskImpact: '5',
-        vaultText: '',
-        sparkTitle: '',
-        sparkType: 'idea' as any,
-        sparkUrl: '',
-        sparkNotes: ''
+        clipboardText: '',
+        networkName: '',
+        networkUrl: '',
+        networkNotes: '',
+        networkStatus: 'interested' as any,
+        noteTitle: '',
+        noteBody: '',
+        noteMode: 'note' as 'note' | 'article',
+        contentTitle: '',
+        contentStatus: 'idea' as any,
+        contentCategory: 'Other' as any,
+        contentPlatform: 'web' as any
     })
-    const [showTaskExtras, setShowTaskExtras] = useState(false)
 
-    useEffect(() => {
-        setMounted(true)
-    }, [])
+    useEffect(() => { setMounted(true) }, [])
 
     const resetForm = () => {
         setForm({
-            taskTitle: '',
-            taskProfile: 'personal',
-            taskCategory: 'todo',
-            taskPriority: 'mid',
-            strategicCategory: 'personal',
-            dueDate: '',
-            dueDateMode: 'none',
-            endDate: '',
-            taskDuration: '30',
-            taskImpact: '5',
-            vaultText: '',
-            sparkTitle: '',
-            sparkType: 'idea',
-            sparkUrl: '',
-            sparkNotes: ''
+            taskTitle: '', taskProfile: 'personal', taskCategory: 'todo', taskPriority: 'mid',
+            strategicCategory: 'personal', dueDate: '', dueDateMode: 'none', endDate: '',
+            taskDuration: '30', taskImpact: '5', clipboardText: '', networkName: '',
+            networkUrl: '', networkNotes: '', networkStatus: 'interested', noteTitle: '',
+            noteBody: '', noteMode: 'note', contentTitle: '', contentStatus: 'idea',
+            contentCategory: 'Other', contentPlatform: 'web'
         })
         setShowTaskExtras(false)
         setSuccess(false)
@@ -86,12 +81,8 @@ export function GlobalQuickAction() {
     }
 
     const toggleMenu = () => {
-        if (activeAction) {
-            setActiveAction(null)
-            resetForm()
-        } else {
-            setIsOpen(!isOpen)
-        }
+        if (activeAction) { setActiveAction(null); resetForm() }
+        else setIsOpen(prev => !prev)
     }
 
     const handleSubmit = async () => {
@@ -101,129 +92,123 @@ export function GlobalQuickAction() {
             if (activeAction === 'task') {
                 if (!form.taskTitle.trim()) throw new Error('Task title required')
                 const { error } = await supabase.from('fin_tasks').insert({
-                    title: form.taskTitle,
-                    category: form.taskCategory,
-                    priority: form.taskPriority,
+                    title: form.taskTitle, category: form.taskCategory, priority: form.taskPriority,
                     strategic_category: form.strategicCategory,
                     due_date: form.dueDateMode !== 'none' ? form.dueDate || null : null,
                     due_date_mode: form.dueDateMode !== 'none' ? form.dueDateMode : null,
                     end_date: form.dueDateMode === 'range' ? form.endDate || null : null,
-                    estimated_duration: parseInt(form.taskDuration),
-                    impact_score: parseInt(form.taskImpact),
-                    profile: form.taskProfile,
-                    is_completed: false,
-                    position: Date.now() // Simple position for quick task
+                    estimated_duration: parseInt(form.taskDuration), impact_score: parseInt(form.taskImpact),
+                    profile: form.taskProfile, is_completed: false, position: Date.now()
                 })
                 if (error) throw error
-            } else if (activeAction === 'vault') {
-                if (!form.vaultText.trim()) throw new Error('Note required')
-                const { error } = await supabase.from('sys_clipboard').insert({
-                    content: form.vaultText.trim(),
-                    profile: 'personal'
+            } else if (activeAction === 'clipboard') {
+                if (!form.clipboardText.trim()) throw new Error('Content required')
+                const { error } = await supabase.from('sys_clipboard').insert({ content: form.clipboardText.trim(), profile: 'personal' })
+                if (error) throw error
+            } else if (activeAction === 'network') {
+                if (!form.networkName.trim()) throw new Error('Name required')
+                const { error } = await supabase.from('studio_networks').insert({
+                    name: form.networkName.trim(), url: form.networkUrl.trim() || null,
+                    notes: form.networkNotes.trim() || null, status: form.networkStatus, type: 'person'
                 })
                 if (error) throw error
-            } else if (activeAction === 'spark') {
-                if (!form.sparkTitle.trim()) throw new Error('Spark title required')
-                const { error } = await supabase.from('studio_sparks').insert({
-                    title: form.sparkTitle.trim(),
-                    type: form.sparkType,
-                    url: form.sparkUrl.trim() || null,
-                    notes: form.sparkNotes.trim() || null,
-                    status: 'new'
+            } else if (activeAction === 'note') {
+                if (!form.noteTitle.trim()) throw new Error('Title required')
+                const { error } = await supabase.from('studio_drafts').insert({
+                    title: form.noteTitle.trim(), body: form.noteBody.trim() || '',
+                    status: form.noteMode === 'article' ? 'completed' : 'draft',
+                    is_archived: false, last_snapshot_at: new Date().toISOString(), node_references: []
+                })
+                if (error) throw error
+            } else if (activeAction === 'content') {
+                if (!form.contentTitle.trim()) throw new Error('Title required')
+                const { error } = await supabase.from('studio_content').insert({
+                    title: form.contentTitle.trim(), status: form.contentStatus, category: form.contentCategory,
+                    platforms: [form.contentPlatform], is_archived: false
                 })
                 if (error) throw error
             }
-
             setSuccess(true)
-            setTimeout(() => {
-                setActiveAction(null)
-                setIsOpen(false)
-                resetForm()
-            }, 1200)
+            setTimeout(() => { setActiveAction(null); setIsOpen(false); resetForm() }, 1200)
         } catch (err) {
             console.error(err)
-            alert('Failed to save action')
+            alert('Failed to save')
         } finally {
             setLoading(false)
         }
     }
 
     const actions = useMemo(() => [
-        { id: 'task', label: 'Task', icon: CheckSquare, color: 'bg-violet-600', glow: 'shadow-violet-600/40' },
-        { id: 'spark', label: 'Spark', icon: Sparkles, color: 'bg-emerald-500', glow: 'shadow-emerald-500/40' },
-        { id: 'vault', label: 'Vault', icon: Clipboard, color: 'bg-amber-500', glow: 'shadow-amber-500/40' },
+        { id: 'gym', label: 'Workout', icon: TrendingUp, color: 'bg-rose-500', glow: 'shadow-rose-500/40', locked: true },
+        { id: 'meal', label: 'Meal', icon: Heart, color: 'bg-emerald-500', glow: 'shadow-emerald-500/40', locked: true },
+        { id: 'content', label: 'Content', icon: Video, color: 'bg-red-500', glow: 'shadow-red-500/40', locked: false },
+        { id: 'note', label: 'Canvas', icon: PenLine, color: 'bg-indigo-500', glow: 'shadow-indigo-500/40', locked: false },
+        { id: 'network', label: 'Connect', icon: User2, color: 'bg-blue-500', glow: 'shadow-blue-500/40', locked: false },
+        { id: 'clipboard', label: 'Vault', icon: Clipboard, color: 'bg-amber-500', glow: 'shadow-amber-500/40', locked: false },
+        { id: 'task', label: 'Task', icon: CheckSquare, color: 'bg-violet-600', glow: 'shadow-violet-600/40', locked: false },
     ], [])
 
-    // Early return for SSR and excluded routes AFTER all hook calls
-    if (!mounted || pathname === '/intelligence' || pathname === '/home') return null
+    if (!mounted || pathname === '/intelligence' || pathname === '/home' || pathname === '/') return null
 
-    // Radial Positioning constants
-    const radius = 90
-    const startAngle = 180
-    const endAngle = 270
-    // If only one action, it should be at the center of the arc, but here we have at least 2 usually.
-    // If we have 2, angleStep will be 90.
-    const angleStep = actions.length > 1 ? (endAngle - startAngle) / (actions.length - 1) : 0
-
-    // Shared UI classes for absolute symmetry
-    const inputHeight = "h-[48px]"
-    const inputBase = cn(inputHeight, "w-full bg-black/[0.03] border border-black/5 rounded-2xl px-4 text-[13px] font-bold outline-none transition-all flex items-center box-border focus:ring-4 focus:ring-black/5 focus:border-black/10")
+    const inputHeight = 'h-[48px]'
+    const inputBase = cn(inputHeight, 'w-full bg-black/[0.03] border border-black/5 rounded-2xl px-4 text-[13px] font-bold outline-none transition-all flex items-center box-border focus:ring-4 focus:ring-black/5 focus:border-black/10')
 
     return (
         <div
-            className="fixed bottom-6 right-6 md:right-8 z-[300] flex flex-col items-end pointer-events-none"
+            className="fixed bottom-6 right-6 md:right-8 z-[310] flex flex-col items-end pointer-events-none"
             style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
         >
-            {/* Action Popup Context - Portaled for full screen centering */}
+            {/* Backdrop */}
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        onClick={() => { setIsOpen(false); setActiveAction(null); resetForm() }}
+                        className="fixed inset-0 bg-black/10 backdrop-blur-[4px] z-[295] pointer-events-auto"
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* Action detail popup */}
             <AnimatePresence>
                 {activeAction && (
                     <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 md:p-6 pointer-events-none">
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 30, filter: 'blur(10px)' }}
+                            initial={{ opacity: 0, scale: 0.92, y: 24, filter: 'blur(8px)' }}
                             animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-                            exit={{ opacity: 0, scale: 0.9, y: 30, filter: 'blur(10px)' }}
-                            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                            exit={{ opacity: 0, scale: 0.92, y: 24, filter: 'blur(8px)' }}
+                            transition={{ type: 'spring', damping: 22, stiffness: 300 }}
                             className="bg-white/95 backdrop-blur-3xl rounded-[32px] shadow-[0_32px_128px_-32px_rgba(0,0,0,0.4)] border border-black/5 overflow-hidden flex flex-col w-full max-w-[400px] pointer-events-auto"
                         >
                             {/* Header */}
                             <div className="px-6 py-5 border-b border-black/5 flex items-center justify-between bg-white/40">
                                 <div className="flex items-center gap-2">
-                                    <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-lg", actions.find(a => a.id === activeAction)?.color)}>
-                                        {actions.find(a => a.id === activeAction)?.icon && React.createElement(actions.find(a => a.id === activeAction)!.icon, { className: "w-4 h-4" })}
+                                    <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-lg', actions.find(a => a.id === activeAction)?.color)}>
+                                        {actions.find(a => a.id === activeAction)?.icon && React.createElement(actions.find(a => a.id === activeAction)!.icon, { className: 'w-4 h-4' })}
                                     </div>
                                     <h3 className="text-[15px] font-black text-black uppercase tracking-tighter">
                                         Quick {activeAction}
                                     </h3>
                                 </div>
-                                <button onClick={() => setActiveAction(null)} className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center text-black/40 hover:text-black transition-colors">
+                                <button onClick={() => { setActiveAction(null); resetForm() }} className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center text-black/40 hover:text-black transition-colors">
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
 
                             {/* Body */}
                             <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto no-scrollbar">
+
+                                {/* TASK FORM */}
                                 {activeAction === 'task' && (
                                     <>
-                                        {/* Primary Input - Title is top of the hierarchy again */}
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between ml-1">
                                                 <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em]">Deployment Title</label>
                                                 <div className="flex gap-1 bg-black/[0.04] p-0.5 rounded-lg">
                                                     {(['personal', 'business'] as const).map(p => (
-                                                        <button
-                                                            key={p}
-                                                            type="button"
-                                                            onClick={() => setForm({
-                                                                ...form,
-                                                                taskProfile: p,
-                                                                strategicCategory: p === 'personal' ? 'personal' : 'rnd'
-                                                            })}
-                                                            className={cn(
-                                                                "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all flex items-center gap-1",
-                                                                form.taskProfile === p
-                                                                    ? "bg-white text-black shadow-sm"
-                                                                    : "text-black/30 hover:text-black/50"
-                                                            )}
+                                                        <button key={p} type="button"
+                                                            onClick={() => setForm({ ...form, taskProfile: p, strategicCategory: p === 'personal' ? 'personal' : 'rnd' })}
+                                                            className={cn('px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all flex items-center gap-1', form.taskProfile === p ? 'bg-white text-black shadow-sm' : 'text-black/30 hover:text-black/50')}
                                                         >
                                                             {p === 'personal' ? <User2 className="w-2.5 h-2.5" /> : <Building2 className="w-2.5 h-2.5" />}
                                                             {p}
@@ -232,66 +217,34 @@ export function GlobalQuickAction() {
                                                 </div>
                                             </div>
                                             <input
-                                                autoFocus
-                                                value={form.taskTitle}
+                                                autoFocus value={form.taskTitle}
                                                 onFocus={() => setShowTaskExtras(true)}
-                                                onClick={() => setShowTaskExtras(true)}
-                                                onChange={e => {
-                                                    setForm({ ...form, taskTitle: e.target.value })
-                                                    if (!showTaskExtras) setShowTaskExtras(true)
-                                                }}
+                                                onChange={e => { setForm({ ...form, taskTitle: e.target.value }); if (!showTaskExtras) setShowTaskExtras(true) }}
                                                 placeholder="Action item details..."
-                                                className={cn(inputBase, "text-[16px] font-black bg-black/[0.03] placeholder:text-black/10 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/20 py-6 h-[56px] w-full")}
+                                                className={cn(inputBase, 'text-[16px] font-black placeholder:text-black/10 py-6 h-[56px] w-full')}
                                             />
                                         </div>
-
                                         <AnimatePresence>
                                             {showTaskExtras && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                    exit={{ opacity: 0, height: 0 }}
-                                                    className="space-y-4 overflow-hidden"
-                                                >
+                                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-4 overflow-hidden">
                                                     <div className="space-y-2">
                                                         <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Operation Type</label>
                                                         <div className="grid grid-cols-3 gap-2">
                                                             {(['todo', 'grocery', 'reminder'] as const).map(cat => (
-                                                                <button
-                                                                    key={cat}
-                                                                    type="button"
-                                                                    onClick={() => setForm({ ...form, taskCategory: cat })}
-                                                                    className={cn(
-                                                                        "py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border",
-                                                                        form.taskCategory === cat
-                                                                            ? "bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/20 scale-[1.02]"
-                                                                            : "bg-black/[0.02] text-black/40 border-black/5 hover:bg-black/[0.05]"
-                                                                    )}
-                                                                >
-                                                                    {cat}
-                                                                </button>
+                                                                <button key={cat} type="button" onClick={() => setForm({ ...form, taskCategory: cat })}
+                                                                    className={cn('py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border', form.taskCategory === cat ? 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/20 scale-[1.02]' : 'bg-black/[0.02] text-black/40 border-black/5 hover:bg-black/[0.05]')}
+                                                                >{cat}</button>
                                                             ))}
                                                         </div>
                                                     </div>
-
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <div className="space-y-2">
                                                             <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Criticality</label>
                                                             <div className="flex gap-1.5 items-center flex-wrap py-1">
                                                                 {PRIORITY_OPTS.map(p => (
-                                                                    <button
-                                                                        key={p.id}
-                                                                        type="button"
-                                                                        onClick={() => setForm({ ...form, taskPriority: p.id as any })}
-                                                                        className={cn(
-                                                                            "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all border shrink-0",
-                                                                            form.taskPriority === p.id
-                                                                                ? cn(p.color, "text-white border-transparent shadow-md scale-105")
-                                                                                : "bg-black/[0.03] text-black/40 border-black/5 hover:bg-black/[0.06]"
-                                                                        )}
-                                                                    >
-                                                                        {p.label}
-                                                                    </button>
+                                                                    <button key={p.id} type="button" onClick={() => setForm({ ...form, taskPriority: p.id as any })}
+                                                                        className={cn('px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all border shrink-0', form.taskPriority === p.id ? cn(p.color, 'text-white border-transparent shadow-md scale-105') : 'bg-black/[0.03] text-black/40 border-black/5 hover:bg-black/[0.06]')}
+                                                                    >{p.label}</button>
                                                                 ))}
                                                             </div>
                                                         </div>
@@ -299,47 +252,25 @@ export function GlobalQuickAction() {
                                                             <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Timeline</label>
                                                             <div className="flex flex-wrap gap-1 mb-2">
                                                                 {(['none', 'on', 'before', 'range'] as const).map(mode => (
-                                                                    <button
-                                                                        key={mode}
-                                                                        type="button"
-                                                                        onClick={() => setForm({ ...form, dueDateMode: mode })}
-                                                                        className={cn(
-                                                                            "px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-tighter border transition-all",
-                                                                            form.dueDateMode === mode
-                                                                                ? "bg-black text-white border-black"
-                                                                                : "bg-black/[0.02] text-black/40 border-black/5"
-                                                                        )}
-                                                                    >
-                                                                        {mode}
-                                                                    </button>
+                                                                    <button key={mode} type="button" onClick={() => setForm({ ...form, dueDateMode: mode })}
+                                                                        className={cn('px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-tighter border transition-all', form.dueDateMode === mode ? 'bg-black text-white border-black' : 'bg-black/[0.02] text-black/40 border-black/5')}
+                                                                    >{mode}</button>
                                                                 ))}
                                                             </div>
                                                             {form.dueDateMode !== 'none' && (
                                                                 <div className="flex flex-col gap-2">
                                                                     <div className="flex items-center gap-2">
                                                                         {form.dueDateMode === 'range' && <span className="text-[9px] font-black text-black/20 uppercase w-8">Start</span>}
-                                                                        <div className={cn(inputBase, "relative flex-1 focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500/20 h-[42px] py-0")}>
-                                                                            <input
-                                                                                type="date"
-                                                                                value={form.dueDate}
-                                                                                onChange={e => setForm({ ...form, dueDate: e.target.value })}
-                                                                                className="w-full bg-transparent border-none outline-none py-2 text-[12px] font-bold"
-                                                                                style={{ minWidth: 0 }}
-                                                                            />
+                                                                        <div className={cn(inputBase, 'relative flex-1 h-[42px] py-0')}>
+                                                                            <input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="w-full bg-transparent border-none outline-none py-2 text-[12px] font-bold" />
                                                                             <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/20 pointer-events-none" />
                                                                         </div>
                                                                     </div>
                                                                     {form.dueDateMode === 'range' && (
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="text-[9px] font-black text-black/20 uppercase w-8">End</span>
-                                                                            <div className={cn(inputBase, "relative flex-1 focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500/20 h-[42px] py-0")}>
-                                                                                <input
-                                                                                    type="date"
-                                                                                    value={form.endDate}
-                                                                                    onChange={e => setForm({ ...form, endDate: e.target.value })}
-                                                                                    className="w-full bg-transparent border-none outline-none py-2 text-[12px] font-bold"
-                                                                                    style={{ minWidth: 0 }}
-                                                                                />
+                                                                            <div className={cn(inputBase, 'relative flex-1 h-[42px] py-0')}>
+                                                                                <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full bg-transparent border-none outline-none py-2 text-[12px] font-bold" />
                                                                                 <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/20 pointer-events-none" />
                                                                             </div>
                                                                         </div>
@@ -348,20 +279,13 @@ export function GlobalQuickAction() {
                                                             )}
                                                         </div>
                                                     </div>
-
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <div className="space-y-2">
                                                             <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Duration</label>
                                                             <div className="relative">
-                                                                <select
-                                                                    value={form.taskDuration}
-                                                                    onChange={e => setForm({ ...form, taskDuration: e.target.value })}
-                                                                    className={cn(inputBase, "appearance-none cursor-pointer focus:ring-4 focus:ring-indigo-500/10")}
-                                                                >
+                                                                <select value={form.taskDuration} onChange={e => setForm({ ...form, taskDuration: e.target.value })} className={cn(inputBase, 'appearance-none cursor-pointer')}>
                                                                     {Array.from({ length: 16 }, (_, i) => (i + 1) * 15).map(mins => (
-                                                                        <option key={mins} value={mins}>
-                                                                            {mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? `${mins % 60}m` : ''}` : `${mins}m`}
-                                                                        </option>
+                                                                        <option key={mins} value={mins}>{mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? `${mins % 60}m` : ''}` : `${mins}m`}</option>
                                                                     ))}
                                                                 </select>
                                                                 <Clock className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/20 pointer-events-none" />
@@ -370,34 +294,18 @@ export function GlobalQuickAction() {
                                                         <div className="space-y-2">
                                                             <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Impact ({form.taskImpact}/10)</label>
                                                             <div className="flex items-center gap-3 bg-black/[0.03] border border-black/5 rounded-2xl px-4 py-2 h-[48px]">
-                                                                <input
-                                                                    type="range"
-                                                                    min="1"
-                                                                    max="10"
-                                                                    value={form.taskImpact}
-                                                                    onChange={e => setForm({ ...form, taskImpact: e.target.value })}
-                                                                    className="flex-1 accent-indigo-500 h-1 bg-black/10 rounded-lg appearance-none cursor-pointer"
-                                                                />
+                                                                <input type="range" min="1" max="10" value={form.taskImpact} onChange={e => setForm({ ...form, taskImpact: e.target.value })} className="flex-1 accent-indigo-500 h-1 bg-black/10 rounded-lg appearance-none cursor-pointer" />
                                                             </div>
                                                         </div>
                                                     </div>
-
                                                     <div className="space-y-2">
                                                         <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Strategic Alignment</label>
                                                         <div className="grid grid-cols-2 gap-2">
                                                             {(form.taskProfile === 'personal' ? PERSONAL_STRATEGIC : BUSINESS_STRATEGIC).map(strat => (
-                                                                <button
-                                                                    key={strat.id}
-                                                                    type="button"
-                                                                    onClick={() => setForm({ ...form, strategicCategory: strat.id as any })}
-                                                                    className={cn(
-                                                                        "px-3 py-2.5 rounded-xl text-[10px] font-bold border transition-all flex items-center gap-2",
-                                                                        form.strategicCategory === strat.id
-                                                                            ? strat.color
-                                                                            : "bg-black/[0.02] border-black/5 text-black/40 hover:bg-black/[0.04]"
-                                                                    )}
+                                                                <button key={strat.id} type="button" onClick={() => setForm({ ...form, strategicCategory: strat.id as any })}
+                                                                    className={cn('px-3 py-2.5 rounded-xl text-[10px] font-bold border transition-all flex items-center gap-2', form.strategicCategory === strat.id ? strat.color : 'bg-black/[0.02] border-black/5 text-black/40 hover:bg-black/[0.04]')}
                                                                 >
-                                                                    <strat.icon className={cn("w-3.5 h-3.5", form.strategicCategory === strat.id ? strat.color.split(' ')[0] : "text-black/10")} />
+                                                                    <strat.icon className={cn('w-3.5 h-3.5', form.strategicCategory === strat.id ? strat.color.split(' ')[0] : 'text-black/10')} />
                                                                     {strat.label}
                                                                 </button>
                                                             ))}
@@ -409,204 +317,224 @@ export function GlobalQuickAction() {
                                     </>
                                 )}
 
-                                {activeAction === 'vault' && (
+                                {/* CLIPBOARD FORM */}
+                                {activeAction === 'clipboard' && (
                                     <div className="space-y-4">
                                         <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4 flex gap-3">
                                             <Info className="w-5 h-5 text-amber-500 shrink-0" />
-                                            <p className="text-[11px] font-medium text-amber-900/60 leading-relaxed">
-                                                Vault assets are saved to your global system clipboard for cross-device retrieval.
-                                            </p>
+                                            <p className="text-[11px] font-medium text-amber-900/60 leading-relaxed">Vault assets are saved to your global clipboard for cross-device retrieval.</p>
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Asset Transfer</label>
-                                            <textarea
-                                                autoFocus
-                                                value={form.vaultText}
-                                                onChange={e => setForm({ ...form, vaultText: e.target.value })}
-                                                placeholder="Secure message or link..."
-                                                className="w-full h-40 bg-black/[0.03] border border-black/5 rounded-2xl px-4 py-4 text-[14px] font-bold outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500/20 transition-all resize-none no-scrollbar"
-                                            />
+                                            <textarea autoFocus value={form.clipboardText} onChange={e => setForm({ ...form, clipboardText: e.target.value })} placeholder="Secure message or link..." className="w-full h-40 bg-black/[0.03] border border-black/5 rounded-2xl px-4 py-4 text-[14px] font-bold outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500/20 transition-all resize-none no-scrollbar" />
                                         </div>
                                     </div>
                                 )}
 
-                                {activeAction === 'spark' && (
+                                {/* NETWORK FORM */}
+                                {activeAction === 'network' && (
                                     <div className="space-y-5">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Spark Type</label>
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Connection Name</label>
+                                            <input autoFocus value={form.networkName} onChange={e => setForm({ ...form, networkName: e.target.value })} placeholder="Who are we connecting with?" className={cn(inputBase, 'text-[15px] font-black')} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Link / Portfolio (optional)</label>
+                                            <input value={form.networkUrl} onChange={e => setForm({ ...form, networkUrl: e.target.value })} placeholder="https://..." className={cn(inputBase, 'text-[12px]')} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Status</label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {['interested', 'contacted', 'connected'].map(status => (
+                                                    <button key={status} type="button" onClick={() => setForm({ ...form, networkStatus: status as any })}
+                                                        className={cn('py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border', form.networkStatus === status ? 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/20' : 'bg-black/[0.03] text-black/40 border-black/5 hover:bg-black/[0.06]')}
+                                                    >{status}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Internal Notes</label>
+                                            <textarea value={form.networkNotes} onChange={e => setForm({ ...form, networkNotes: e.target.value })} placeholder="Context about this person..." className="w-full h-24 bg-black/[0.03] border border-black/5 rounded-2xl px-4 py-3 text-[13px] font-medium outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/20 transition-all resize-none no-scrollbar" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* NOTE FORM */}
+                                {activeAction === 'note' && (
+                                    <div className="space-y-5">
+                                        <div className="flex items-center justify-between ml-1">
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em]">Asset Mode</label>
+                                            <div className="flex gap-1 bg-black/[0.04] p-0.5 rounded-lg">
+                                                {(['note', 'article'] as const).map(m => (
+                                                    <button key={m} type="button" onClick={() => setForm({ ...form, noteMode: m })}
+                                                        className={cn('px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all', form.noteMode === m ? 'bg-white text-black shadow-sm' : 'text-black/30 hover:text-black/50')}
+                                                    >{m}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Title</label>
+                                            <input autoFocus value={form.noteTitle} onChange={e => setForm({ ...form, noteTitle: e.target.value })} placeholder="Focus of this asset..." className={cn(inputBase, 'text-[15px] font-black')} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Body</label>
+                                            <textarea value={form.noteBody} onChange={e => setForm({ ...form, noteBody: e.target.value })} placeholder="Loose thoughts or outline..." className="w-full h-40 bg-black/[0.03] border border-black/5 rounded-2xl px-4 py-4 text-[14px] font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/20 transition-all resize-none no-scrollbar" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* CONTENT FORM */}
+                                {activeAction === 'content' && (
+                                    <div className="space-y-5">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Category</label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {['Vlog', 'Thoughts', 'Showcase', 'Concept', 'Update', 'Other'].map(cat => (
+                                                    <button key={cat} type="button" onClick={() => setForm({ ...form, contentCategory: cat as any })}
+                                                        className={cn('py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border', form.contentCategory === cat ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-black/[0.03] text-black/40 border-black/5 hover:bg-black/[0.06]')}
+                                                    >{cat}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Title</label>
+                                            <input autoFocus value={form.contentTitle} onChange={e => setForm({ ...form, contentTitle: e.target.value })} placeholder="Heading..." className={cn(inputBase, 'text-[15px] font-black')} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Primary Platform</label>
                                             <div className="grid grid-cols-4 gap-2">
-                                                {['idea', 'tool', 'resource', 'event'].map(type => (
-                                                    <button
-                                                        key={type}
-                                                        type="button"
-                                                        onClick={() => setForm({ ...form, sparkType: type as any })}
-                                                        className={cn(
-                                                            "py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border",
-                                                            form.sparkType === type
-                                                                ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20"
-                                                                : "bg-black/[0.03] text-black/40 border-black/5 hover:bg-black/[0.06]"
-                                                        )}
+                                                {([
+                                                    { id: 'youtube', Icon: Youtube },
+                                                    { id: 'instagram', Icon: Instagram },
+                                                    { id: 'tiktok', Icon: Music2 },
+                                                    { id: 'x', Icon: Twitter },
+                                                ] as const).map(({ id, Icon }) => (
+                                                    <button key={id} type="button" onClick={() => setForm({ ...form, contentPlatform: id as any })}
+                                                        className={cn('py-3 rounded-xl flex items-center justify-center transition-all border', form.contentPlatform === id ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-black/[0.03] text-black/30 border-black/5 hover:bg-black/[0.06] hover:text-black/50')}
                                                     >
-                                                        {type}
+                                                        <Icon className="w-4 h-4" strokeWidth={2} />
                                                     </button>
                                                 ))}
                                             </div>
                                         </div>
-
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Spark Title</label>
-                                                <input
-                                                    autoFocus
-                                                    value={form.sparkTitle}
-                                                    onChange={e => setForm({ ...form, sparkTitle: e.target.value })}
-                                                    placeholder="What's the spark?"
-                                                    className={cn(inputBase, "text-[15px] font-black")}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Resource URL (optional)</label>
-                                                <input
-                                                    value={form.sparkUrl}
-                                                    onChange={e => setForm({ ...form, sparkUrl: e.target.value })}
-                                                    placeholder="https://..."
-                                                    className={cn(inputBase, "text-[12px]")}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] ml-1">Notes</label>
-                                                <textarea
-                                                    value={form.sparkNotes}
-                                                    onChange={e => setForm({ ...form, sparkNotes: e.target.value })}
-                                                    placeholder="Capture any loose thoughts..."
-                                                    className="w-full h-24 bg-black/[0.03] border border-black/5 rounded-2xl px-4 py-3 text-[13px] font-medium outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/20 transition-all resize-none no-scrollbar"
-                                                />
-                                            </div>
-                                        </div>
                                     </div>
                                 )}
 
-                                {/* Submit Button */}
-                                <div className="pt-2">
-                                    <button
-                                        onClick={handleSubmit}
-                                        disabled={loading || success}
-                                        className={cn(
-                                            "w-full py-5 rounded-2xl text-white font-black text-[14px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 overflow-hidden relative group",
-                                            success ? "bg-emerald-500" :
-                                                actions.find(a => a.id === activeAction)?.color,
-                                            (loading || success) && "opacity-80 scale-[0.98]"
-                                        )}
-                                    >
-                                        <span className="relative z-10 flex items-center gap-2">
-                                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> :
-                                                success ? <><ListChecks className="w-5 h-5" /> Authorized</> :
-                                                    <><Sparkles className="w-4 h-4" /> Finalize Operation</>}
-                                        </span>
-                                    </button>
-                                </div>
+                                {/* LOCKED FORM (meal/gym) */}
+                                {(activeAction === 'meal' || activeAction === 'gym') && (
+                                    <div className="py-12 flex flex-col items-center text-center space-y-4">
+                                        <div className="w-16 h-16 rounded-[28px] bg-black/5 flex items-center justify-center text-black/20">
+                                            <Lock className="w-8 h-8" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <h4 className="text-[16px] font-black uppercase tracking-tighter">Feature Restricted</h4>
+                                            <p className="text-[11px] text-black/35 font-bold max-w-[240px] leading-relaxed">The Wellbeing Module is currently under construction. This action will be unlocked soon.</p>
+                                        </div>
+                                        <button onClick={() => setActiveAction(null)} className="px-6 py-2 bg-black text-white rounded-full text-[10px] font-black uppercase tracking-widest">Return</button>
+                                    </div>
+                                )}
+
+                                {/* SUBMIT */}
+                                {activeAction !== 'meal' && activeAction !== 'gym' && (
+                                    <div className="pt-2">
+                                        <button onClick={handleSubmit} disabled={loading || success}
+                                            className={cn('w-full py-5 rounded-2xl text-white font-black text-[14px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 overflow-hidden relative group',
+                                                success ? 'bg-emerald-500' : actions.find(a => a.id === activeAction)?.color,
+                                                (loading || success) && 'opacity-80 scale-[0.98]'
+                                            )}
+                                        >
+                                            <span className="relative z-10 flex items-center gap-2">
+                                                {loading ? <Loader2 className="w-5 h-5 animate-spin" />
+                                                    : success ? <><ListChecks className="w-5 h-5" /> Saved</>
+                                                        : <><Plus className="w-4 h-4" /> Finalize</>}
+                                            </span>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     </div>
                 )}
             </AnimatePresence>
 
-            <div className="relative w-16 h-16 flex items-center justify-center pointer-events-none">
+            {/* Vertical stack + toggle button */}
+            <div className="flex flex-col items-end gap-3 pointer-events-none">
                 <AnimatePresence>
                     {isOpen && !activeAction && (
-                        <>
-                            {actions.map((action, i) => {
-                                const angle = startAngle + i * angleStep
-                                const radian = (angle * Math.PI) / 180
-                                const tx = radius * Math.cos(radian)
-                                const ty = radius * Math.sin(radian)
-
-                                return (
+                        <motion.div
+                            className="flex flex-col-reverse gap-2.5 items-end"
+                            initial="hidden"
+                            animate="visible"
+                            exit="hidden"
+                        >
+                            {actions.map((action, i) => (
+                                <motion.div
+                                    key={action.id}
+                                    className="flex items-center gap-3"
+                                    variants={{
+                                        hidden: { opacity: 0, y: 10, scale: 0.9 },
+                                        visible: {
+                                            opacity: 1, y: 0, scale: 1,
+                                            transition: { type: 'spring', damping: 22, stiffness: 300, delay: i * 0.04 }
+                                        }
+                                    }}
+                                >
+                                    <span className="px-3 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-xl whitespace-nowrap pointer-events-none select-none">
+                                        {action.label}
+                                    </span>
                                     <motion.button
-                                        key={action.id}
-                                        initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
-                                        animate={{
-                                            opacity: 1,
-                                            scale: 1,
-                                            x: tx,
-                                            y: ty,
-                                            transition: {
-                                                type: 'spring',
-                                                damping: 14,
-                                                stiffness: 220,
-                                                delay: i * 0.04
-                                            }
-                                        }}
-                                        exit={{
-                                            opacity: 0,
-                                            scale: 0,
-                                            x: 0,
-                                            y: 0,
-                                            transition: { duration: 0.2, delay: (actions.length - 1 - i) * 0.04 }
-                                        }}
-                                        whileHover={{ scale: 1.15 }}
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={() => setActiveAction(action.id as ActionType)}
+                                        whileHover={{ scale: action.locked ? 1 : 1.08 }}
+                                        whileTap={{ scale: action.locked ? 1 : 0.92 }}
+                                        onClick={() => !action.locked && setActiveAction(action.id as ActionType)}
                                         className={cn(
-                                            "absolute w-14 h-14 rounded-full flex items-center justify-center text-white shadow-2xl pointer-events-auto z-[315]",
-                                            action.color, action.glow
+                                            'w-12 h-12 rounded-full flex items-center justify-center text-white shadow-xl pointer-events-auto relative flex-shrink-0',
+                                            action.color, action.glow,
+                                            action.locked && 'opacity-60 cursor-not-allowed'
                                         )}
                                     >
-                                        <action.icon className="w-6 h-6" strokeWidth={2.5} />
+                                        {action.locked && (
+                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-black rounded-full flex items-center justify-center shadow border border-white/20">
+                                                <Lock className="w-2 h-2 text-white" />
+                                            </div>
+                                        )}
+                                        <action.icon className="w-5 h-5" strokeWidth={2.5} />
                                     </motion.button>
-                                )
-                            })}
-                        </>
+                                </motion.div>
+                            ))}
+                        </motion.div>
                     )}
                 </AnimatePresence>
 
+                {/* Main toggle */}
                 <motion.button
-                    layout
                     onClick={toggleMenu}
-                    whileHover={{ scale: 1.05 }}
+                    whileHover={{ scale: 1.06 }}
                     whileTap={{ scale: 0.9 }}
                     className={cn(
-                        "w-16 h-16 rounded-[24px] shadow-2xl flex items-center justify-center transition-all z-[320] relative overflow-hidden pointer-events-auto",
-                        isOpen ? "bg-white text-black ring-1 ring-black/5" : "bg-black text-white hover:shadow-black/20"
+                        'w-14 h-14 rounded-[20px] shadow-2xl flex items-center justify-center z-[320] relative overflow-hidden pointer-events-auto flex-shrink-0 transition-colors',
+                        isOpen ? 'bg-white text-black ring-1 ring-black/10' : 'bg-black text-white'
                     )}
                 >
-                    {isOpen ? (
-                        <motion.div initial={{ rotate: -90 }} animate={{ rotate: 0 }}>
-                            <X className="w-7 h-7" strokeWidth={2.5} />
-                        </motion.div>
-                    ) : (
-                        <motion.div initial={{ rotate: 90 }} animate={{ rotate: 0 }}>
-                            <Plus className="w-7 h-7" strokeWidth={2.5} />
-                        </motion.div>
-                    )}
-                    {!isOpen && (
-                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 opacity-50" />
-                    )}
+                    <AnimatePresence mode="wait" initial={false}>
+                        {isOpen ? (
+                            <motion.div key="close" initial={{ rotate: -45, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 45, opacity: 0 }} transition={{ duration: 0.15 }}>
+                                <X className="w-6 h-6" strokeWidth={2.5} />
+                            </motion.div>
+                        ) : (
+                            <motion.div key="open" initial={{ rotate: 45, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -45, opacity: 0 }} transition={{ duration: 0.15 }}>
+                                <Plus className="w-6 h-6" strokeWidth={2.5} />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                    {!isOpen && <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 opacity-50" />}
                 </motion.button>
             </div>
-
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => { setIsOpen(false); setActiveAction(null); resetForm(); }}
-                        className="fixed inset-0 bg-black/[0.12] backdrop-blur-[6px] z-[290] pointer-events-auto"
-                    />
-                )}
-            </AnimatePresence>
 
             <style jsx global>{`
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
                 input[type="date"]::-webkit-calendar-picker-indicator {
-                    opacity: 0;
-                    position: absolute;
-                    right: 0;
-                    width: 100%;
-                    height: 100%;
-                    cursor: pointer;
+                    opacity: 0; position: absolute; right: 0; width: 100%; height: 100%; cursor: pointer;
                 }
             `}</style>
         </div>
