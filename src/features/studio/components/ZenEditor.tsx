@@ -13,6 +13,7 @@ interface ZenEditorProps {
     content: string;
     onChange: (content: string) => void;
     onDropNode: (data: any, plainText?: string) => void;
+    showAssistant?: boolean;
 }
 
 export interface ZenEditorRef {
@@ -72,7 +73,7 @@ const AILoaderView = (props: any) => {
     )
 }
 
-export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, onChange, onDropNode }, ref) => {
+export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, onChange, onDropNode, showAssistant = true }, ref) => {
     const [isExpanding, setIsExpanding] = useState(false)
     const [expandPreview, setExpandPreview] = useState<string | null>(null)
     const [isGeneratingImage, setIsGeneratingImage] = useState(false)
@@ -327,8 +328,13 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
 
     return (
         <div className="w-full relative studio-editor-wrapper">
-            {/* Persistent Vertical Floating Toolbar - Moved to left to avoid being covered by Assistant */}
-            <div className="absolute top-0 -left-24 flex flex-col gap-2 z-50 animate-in slide-in-from-left-4 duration-500">
+            {/* Persistent Vertical Floating Toolbar - Sticky & Docked to Assistant */}
+            <div
+                className="fixed top-1/2 -translate-y-1/2 flex flex-col gap-2 z-50 transition-all duration-300 ease-in-out"
+                style={{
+                    right: showAssistant ? '345px' : '5px'
+                }}
+            >
                 <div className="flex flex-col gap-1 bg-white/90 backdrop-blur-2xl border border-black/10 p-1.5 rounded-[24px] shadow-2xl shadow-indigo-500/10 ring-1 ring-black/5">
                     {/* Text Formatting Group */}
                     <div className="flex flex-col gap-1 mb-2 pb-2 border-b border-black/[0.05]">

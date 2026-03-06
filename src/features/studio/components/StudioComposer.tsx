@@ -29,7 +29,6 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
     const [isSaving, setIsSaving] = useState(false)
     const [showScaffold, setShowScaffold] = useState(true)
     const [showContext, setShowContext] = useState(true)
-    const [isMinimized, setIsMinimized] = useState(false)
     const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
 
     // Library State
@@ -224,7 +223,7 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
     }, [body, title, nodeRefs, draft?.id])
 
     return (
-        <div className="fixed inset-0 bg-[#fafafa]/50 backdrop-blur-sm z-[100] flex flex-col transition-all duration-500 ease-in-out">
+        <div className="fixed inset-0 bg-[#fafafa] z-[100] flex flex-col animate-in fade-in duration-300">
             {/* Header */}
             <header className="h-[72px] border-b border-black/[0.05] bg-white flex items-center justify-between px-6 shrink-0 z-20 shadow-sm relative">
                 <div className="flex items-center gap-4">
@@ -446,68 +445,43 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                     )}
                 </aside>
 
-                {/* Center: Zen Editor - Floating Docked Card */}
-                <section className="flex-1 overflow-hidden flex justify-end relative transition-all duration-500">
-                    <div className={cn(
-                        "transition-all duration-500 ease-in-out flex flex-col bg-white shadow-[0_40px_100px_rgba(0,0,0,0.1)] border border-black/5 relative shrink-0",
-                        isMinimized
-                            ? "w-[420px] h-[80px] mt-auto mb-10 mr-10 rounded-[28px] overflow-hidden"
-                            : "w-[820px] h-[calc(100vh-120px)] mt-6 mr-6 rounded-[40px] overflow-y-auto"
-                    )}>
-                        {/* Editor Card Header (Always visible) */}
-                        <div className="shrink-0 flex items-center justify-between px-8 py-6 border-b border-black/[0.03]">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-indigo-50 rounded-xl">
-                                    <BookOpen className="w-4 h-4 text-indigo-500" />
-                                </div>
-                                <h3 className="text-[12px] font-black uppercase tracking-widest">{isMinimized ? title : 'Editing Draft'}</h3>
+                {/* Center: Zen Editor */}
+                <section className="flex-1 overflow-y-auto bg-white flex flex-col items-center relative">
+                    <div className="w-full max-w-[720px] pb-[60vh] pt-[64px] px-8 flex flex-col">
+                        {/* Title & Metadata Area */}
+                        <div className="mb-8">
+                            <textarea
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                className="w-full text-[42px] font-black tracking-[-0.03em] text-black bg-transparent outline-none border-none placeholder:text-black/20 font-serif leading-tight mb-2 resize-none overflow-hidden"
+                                placeholder="Draft Title"
+                                rows={1}
+                                onInput={(e) => {
+                                    const target = e.target as HTMLTextAreaElement;
+                                    target.style.height = 'auto';
+                                    target.style.height = `${target.scrollHeight}px`;
+                                }}
+                                ref={(el) => {
+                                    if (el) {
+                                        el.style.height = 'auto';
+                                        el.style.height = `${el.scrollHeight}px`;
+                                    }
+                                }}
+                            />
+                            <div className="flex items-center gap-3 text-[13px] font-medium text-black/40">
+                                <span>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                                <span className="w-1 h-1 rounded-full bg-black/20" />
+                                <span>{Math.ceil(body.split(' ').length / 200)} min read</span>
                             </div>
-                            <button
-                                onClick={() => setIsMinimized(!isMinimized)}
-                                className="p-2.5 bg-black/[0.03] border border-black/5 rounded-xl text-black/40 hover:text-black transition-all active:scale-90"
-                                title={isMinimized ? "Expand Editor" : "Minimize Editor"}
-                            >
-                                {isMinimized ? <Maximize2 className="w-4.5 h-4.5" /> : <Minimize2 className="w-4.5 h-4.5" />}
-                            </button>
                         </div>
 
-                        {!isMinimized && (
-                            <div className="flex-1 w-full max-w-[820px] mx-auto pb-64 pt-12 px-12 flex flex-col">
-                                {/* Title & Metadata Area */}
-                                <div className="mb-8">
-                                    <textarea
-                                        value={title}
-                                        onChange={(e) => setTitle(e.target.value)}
-                                        className="w-full text-[42px] font-black tracking-[-0.03em] text-black bg-transparent outline-none border-none placeholder:text-black/20 font-serif leading-tight mb-3 resize-none overflow-hidden"
-                                        placeholder="Draft Title"
-                                        rows={1}
-                                        onInput={(e) => {
-                                            const target = e.target as HTMLTextAreaElement;
-                                            target.style.height = 'auto';
-                                            target.style.height = `${target.scrollHeight}px`;
-                                        }}
-                                        ref={(el) => {
-                                            if (el) {
-                                                el.style.height = 'auto';
-                                                el.style.height = `${el.scrollHeight}px`;
-                                            }
-                                        }}
-                                    />
-                                    <div className="flex items-center gap-3 text-[13px] font-medium text-black/40">
-                                        <span>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                                        <span className="w-1 h-1 rounded-full bg-black/20" />
-                                        <span>{Math.ceil(body.split(' ').length / 200)} min read</span>
-                                    </div>
-                                </div>
-
-                                <ZenEditor
-                                    ref={editorRef}
-                                    content={body}
-                                    onChange={setBody}
-                                    onDropNode={handleDropNode}
-                                />
-                            </div>
-                        )}
+                        <ZenEditor
+                            ref={editorRef}
+                            content={body}
+                            onChange={setBody}
+                            onDropNode={handleDropNode}
+                            showAssistant={showContext}
+                        />
                     </div>
                 </section>
 
