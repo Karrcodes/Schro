@@ -95,42 +95,37 @@ export default function IntelligencePage() {
     }
 
     return (
-        <div className="fixed md:left-[220px] top-14 md:top-0 h-[calc(100vh-3.5rem)] md:h-screen lg:h-screen bottom-0 right-0 bg-[#fafafa] flex flex-col overflow-hidden">
+        <div className="h-[calc(100vh-3.5rem)] md:h-screen lg:h-screen bg-[#fafafa] flex flex-col overflow-hidden relative">
             {/* Header */}
-            <div className="bg-white border-b border-black/[0.06] px-6 py-4 z-20 shadow-sm shrink-0">
-                <div className="max-w-4xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center shadow-sm">
-                            <Sparkles className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-[18px] font-bold text-black tracking-tight flex items-center gap-2">
-                                Karr Intelligence
-                                <span className="bg-emerald-500/10 text-emerald-600 text-[9px] px-1.5 py-0.5 rounded font-mono uppercase tracking-widest border border-emerald-500/20">Active</span>
-                            </h1>
-                            <p className="text-[12px] text-black/35 mt-0.5">System Hub</p>
-                        </div>
+            <div className="flex items-center justify-between px-6 py-5 h-[96px] border-b border-black/[0.06] bg-[#fafafa] z-20 shadow-sm shrink-0">
+                <div className="flex items-center gap-3">
+                    <div>
+                        <h1 className="text-[22px] font-bold text-black tracking-tight flex items-center gap-2">
+                            Karr Intelligence
+                            <span className="bg-emerald-500/10 text-emerald-600 text-[9px] px-1.5 py-0.5 rounded font-mono uppercase tracking-widest border border-emerald-500/20">Active</span>
+                        </h1>
+                        <p className="text-[12px] text-black/35 mt-0.5">System Hub</p>
                     </div>
+                </div>
 
-                    <div className="flex items-center gap-2 sm:gap-4 text-[10px] font-mono uppercase tracking-widest">
-                        <div className="flex items-center gap-1.5 text-emerald-600">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="hidden xs:inline">System Sync: 100%</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-black/30">
-                            {isSynced ? (
-                                <div className="flex items-center gap-1.5 text-blue-500">
-                                    <Database className="w-3 h-3" /> <span className="hidden sm:inline">Drive Online</span>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={() => window.location.href = '/api/auth/google'}
-                                    className="flex items-center gap-1.5 hover:text-black transition-colors"
-                                >
-                                    <Database className="w-3 h-3" /> <span className="hidden sm:inline">Sync Drive</span>
-                                </button>
-                            )}
-                        </div>
+                <div className="flex items-center gap-2 sm:gap-4 text-[10px] font-mono uppercase tracking-widest">
+                    <div className="flex items-center gap-1.5 text-emerald-600">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="hidden xs:inline">System Sync: 100%</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-black/30">
+                        {isSynced ? (
+                            <div className="flex items-center gap-1.5 text-blue-500">
+                                <Database className="w-3 h-3" /> <span className="hidden sm:inline">Drive Online</span>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => window.location.href = '/api/auth/google'}
+                                className="flex items-center gap-1.5 hover:text-black transition-colors"
+                            >
+                                <Database className="w-3 h-3" /> <span className="hidden sm:inline">Sync Drive</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
