@@ -74,6 +74,10 @@ export function useDrafts(projectId?: string) {
         return updateDraft(id, { is_archived: true })
     }
 
+    const togglePin = async (id: string, currentPinned: boolean) => {
+        return updateDraft(id, { pinned: !currentPinned })
+    }
+
     return {
         drafts,
         loading,
@@ -81,6 +85,7 @@ export function useDrafts(projectId?: string) {
         updateDraft,
         deleteDraft,
         archiveDraft,
+        togglePin,
         refresh: fetchDrafts
     }
 }

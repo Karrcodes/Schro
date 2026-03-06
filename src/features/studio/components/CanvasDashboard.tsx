@@ -1,11 +1,12 @@
 'use client'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw, Video, Rocket, ArrowUpRight, SlidersHorizontal, Zap, BookOpen } from 'lucide-react'
+import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw, Video, Rocket, ArrowUpRight, SlidersHorizontal, Zap, BookOpen, List } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import CanvasCard from './CanvasCard'
 import CanvasEntryModal from './CanvasEntryModal'
 import CanvasWebView from './CanvasWebView'
 import StudioComposer from './StudioComposer'
+import ArticleCard from './ArticleCard'
 import ProjectDetailModal from './ProjectDetailModal'
 import ContentDetailModal from './ContentDetailModal'
 import { useStudioContext } from '../context/StudioContext'
@@ -27,9 +28,10 @@ export default function CanvasDashboard() {
     } = useCanvas()
 
     const { projects, content, loading: studioLoading } = useStudioContext()
-    const { createDraft } = useDrafts()
+    const { drafts, createDraft, deleteDraft: deleteDraftData, archiveDraft: archiveDraftData, togglePin: toggleDraftPin, refresh: refreshDrafts } = useDrafts()
 
     const [viewMode, setViewMode] = useState<ViewMode>('board')
+    const [boardTab, setBoardTab] = useState<'notes' | 'articles'>('notes')
     const [composingNodes, setComposingNodes] = useState<PolymorphicNode[] | null>(null)
     const [activeDraft, setActiveDraft] = useState<StudioDraft | null>(null)
     const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active')
@@ -48,7 +50,7 @@ export default function CanvasDashboard() {
     const [pinnedFirst, setPinnedFirst] = useState(true)
     const [quickTitle, setQuickTitle] = useState('')
     const [confirmAction, setConfirmAction] = useState<{
-        type: 'delete_note' | 'archive_note' | 'delete_map' | 'archive_map' | 'rename_map',
+        type: 'delete_note' | 'archive_note' | 'delete_map' | 'archive_map' | 'rename_map' | 'delete_draft' | 'archive_draft',
         id: string,
         title: string
     } | null>(null)
@@ -91,9 +93,23 @@ export default function CanvasDashboard() {
         return list
     }, [entries, search, filterTag, pinnedFirst, activeTab])
 
+    const filteredDrafts = useMemo(() => {
+        let list = drafts.filter(d => d.is_archived === (activeTab === 'archived'))
+        if (search) {
+            const q = search.toLowerCase()
+            list = list.filter(d => d.title.toLowerCase().includes(q) || d.body?.toLowerCase().includes(q))
+        }
+        if (pinnedFirst && activeTab === 'active') list = [...list.filter(d => d.pinned), ...list.filter(d => !d.pinned)]
+        return list
+    }, [drafts, search, pinnedFirst, activeTab])
+
     const handleQuickCreate = async () => {
         if (!quickTitle.trim()) return
-        await createEntry({ title: quickTitle.trim() })
+        if (boardTab === 'notes') {
+            await createEntry({ title: quickTitle.trim() })
+        } else {
+            await createDraft({ title: quickTitle.trim() })
+        }
         setQuickTitle('')
     }
 
@@ -257,6 +273,8 @@ export default function CanvasDashboard() {
                     onBack={() => {
                         setActiveDraft(null)
                         setComposingNodes(null)
+                        // Refresh both notes and drafts to ensure titles/edits are reflected
+                        refreshDrafts()
                         refreshCanvas()
                     }}
                 />
@@ -675,6 +693,32 @@ export default function CanvasDashboard() {
             ) : (
                 <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
                     <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-20 flex-1 flex flex-col gap-6">
+                        {/* Tab Toggle (Only for Board View) */}
+                        {viewMode === 'board' && activeTab === 'active' && (
+                            <div className="flex items-center justify-between">
+                                <div className="flex bg-black/[0.03] p-1 rounded-2xl border border-black/[0.04] items-center gap-0.5">
+                                    {([
+                                        { label: 'Notes', value: 'notes' as const, icon: List },
+                                        { label: 'Articles', value: 'articles' as const, icon: BookOpen },
+                                    ] as const).map(({ label, value, icon: Icon }) => (
+                                        <button
+                                            key={value}
+                                            onClick={() => setBoardTab(value)}
+                                            className={cn(
+                                                "flex items-center gap-2 px-6 py-2 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all",
+                                                boardTab === value
+                                                    ? 'bg-white text-black shadow-lg shadow-black/5'
+                                                    : 'text-black/30 hover:text-black/60'
+                                            )}
+                                        >
+                                            <Icon className="w-3.5 h-3.5" />
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Quick Capture Bar */}
                         {activeTab === 'active' && (
                             <div className="flex items-center gap-3 bg-white border border-black/[0.07] rounded-2xl px-4 py-3 shadow-sm hover:border-black/10 transition-all focus-within:border-orange-200 focus-within:shadow-orange-500/5">
@@ -746,12 +790,22 @@ export default function CanvasDashboard() {
 
                         {/* Stats */}
                         <div className="flex items-center gap-4 text-[11px] text-black/30 font-medium">
-                            <span>{entries.length} {entries.length === 1 ? 'idea' : 'ideas'}</span>
-                            {entries.filter(e => e.pinned).length > 0 && (
-                                <span>· {entries.filter(e => e.pinned).length} pinned</span>
+                            {boardTab === 'notes' ? (
+                                <>
+                                    <span>{entries.length} {entries.length === 1 ? 'idea' : 'ideas'}</span>
+                                    {entries.filter(e => e.pinned).length > 0 && (
+                                        <span>· {entries.filter(e => e.pinned).length} pinned</span>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <span>{drafts.length} {drafts.length === 1 ? 'article' : 'articles'}</span>
+                                    {drafts.filter(d => d.pinned).length > 0 && (
+                                        <span>· {drafts.filter(d => d.pinned).length} pinned</span>
+                                    )}
+                                </>
                             )}
                             {connections.length > 0 && <span>· {connections.length} connection{connections.length !== 1 ? 's' : ''}</span>}
-                            {filtered.length !== entries.length && <span>· showing {filtered.length}</span>}
                         </div>
 
                         {/* Grid */}
@@ -761,34 +815,58 @@ export default function CanvasDashboard() {
                                     <div key={i} className="h-32 bg-black/[0.02] rounded-2xl animate-pulse" />
                                 ))}
                             </div>
-                        ) : filtered.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-24 gap-3">
-                                <div className="w-12 h-12 rounded-2xl bg-black/[0.03] flex items-center justify-center">
-                                    <PenLine className="w-5 h-5 text-black/20" />
-                                </div>
-                                <p className="text-[13px] font-bold text-black/20">
-                                    {search || filterTag ? 'No matching ideas' : 'Your canvas is empty'}
-                                </p>
-                                <p className="text-[11px] text-black/15">
-                                    {search || filterTag ? 'Try different filters' : 'Capture your first idea above'}
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 space-y-3">
-                                {filtered.map(entry => (
-                                    <div key={entry.id} className="break-inside-avoid mb-3">
-                                        <CanvasCard
-                                            entry={entry}
-                                            connections={connectionDataMap[entry.id]}
-                                            onClick={() => setSelectedEntry(entry)}
-                                            onPin={() => togglePin(entry.id, entry.pinned)}
-                                            onArchive={() => setConfirmAction({ type: 'archive_note', id: entry.id, title: entry.title })}
-                                            onDelete={() => setConfirmAction({ type: 'delete_note', id: entry.id, title: entry.title })}
-                                            onColorChange={(c: CanvasColor) => updateEntry(entry.id, { color: c })}
-                                        />
+                        ) : boardTab === 'notes' ? (
+                            filtered.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-24 gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-black/[0.03] flex items-center justify-center">
+                                        <PenLine className="w-5 h-5 text-black/20" />
                                     </div>
-                                ))}
-                            </div>
+                                    <p className="text-[13px] font-bold text-black/20">
+                                        {search || filterTag ? 'No matching ideas' : 'Your canvas is empty'}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 space-y-3">
+                                    {filtered.map(entry => (
+                                        <div key={entry.id} className="break-inside-avoid mb-3">
+                                            <CanvasCard
+                                                entry={entry}
+                                                connections={connectionDataMap[entry.id]}
+                                                onClick={() => setSelectedEntry(entry)}
+                                                onPin={() => togglePin(entry.id, entry.pinned)}
+                                                onArchive={() => setConfirmAction({ type: 'archive_note', id: entry.id, title: entry.title })}
+                                                onDelete={() => setConfirmAction({ type: 'delete_note', id: entry.id, title: entry.title })}
+                                                onColorChange={(c) => updateEntry(entry.id, { color: c })}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )
+                        ) : (
+                            filteredDrafts.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-24 gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-black/[0.03] flex items-center justify-center">
+                                        <BookOpen className="w-5 h-5 text-black/20" />
+                                    </div>
+                                    <p className="text-[13px] font-bold text-black/20">
+                                        {search ? 'No matching articles' : 'No articles found'}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 space-y-3">
+                                    {filteredDrafts.map(draft => (
+                                        <div key={draft.id} className="break-inside-avoid mb-3">
+                                            <ArticleCard
+                                                draft={draft}
+                                                onClick={() => setActiveDraft(draft)}
+                                                onPin={() => toggleDraftPin(draft.id, !!draft.pinned)}
+                                                onDelete={() => setConfirmAction({ type: 'delete_draft', id: draft.id, title: draft.title })}
+                                                onArchive={() => setConfirmAction({ type: 'archive_draft', id: draft.id, title: draft.title })}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )
                         )}
                     </main>
                 </div>
@@ -855,6 +933,8 @@ export default function CanvasDashboard() {
                                         else if (confirmAction.type === 'delete_map') await deleteMap(confirmAction.id)
                                         else if (confirmAction.type === 'archive_map') await archiveMap(confirmAction.id)
                                         else if (confirmAction.type === 'rename_map') await renameMap(confirmAction.id, renameValue)
+                                        else if (confirmAction.type === 'delete_draft') await deleteDraftData(confirmAction.id)
+                                        else if (confirmAction.type === 'archive_draft') await archiveDraftData(confirmAction.id)
                                         setConfirmAction(null)
                                     }}
                                     className={cn(

@@ -228,6 +228,7 @@ export interface StudioDraft {
     node_references: NodeReference[];
     status: 'draft' | 'revision' | 'completed';
     is_archived: boolean;
+    pinned?: boolean;
     last_snapshot_at: string;
     created_at: string;
     updated_at: string;

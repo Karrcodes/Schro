@@ -3,11 +3,12 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { ArrowLeft, Save, Sparkles, BookOpen, Layers, Settings2, Trash2, Archive, Share2, MoreVertical, Maximize2, Minimize2, Plus, Bold, Italic, Highlighter, List, Heading1, Heading2, Wand2, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDrafts } from '../hooks/useDrafts'
-import { StudioDraft, PolymorphicNode, ProjectType } from '../types/studio.types'
+import { StudioDraft, PolymorphicNode, ProjectType, NodeReference } from '../types/studio.types'
 import { ZenEditor, type ZenEditorRef } from './ZenEditor'
 import { useStudioContext } from '../context/StudioContext'
 import { useCanvas } from '../hooks/useCanvas'
 import { Search, Filter, Hash, Image as ImageIcon, FileText, Check } from 'lucide-react'
+import { PublishModal } from './PublishModal'
 
 interface StudioComposerProps {
     draftId?: string
@@ -24,9 +25,11 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
     const [draft, setDraft] = useState<StudioDraft | null>(initialDraft || null)
     const [body, setBody] = useState(initialDraft?.body || '')
     const [title, setTitle] = useState(initialDraft?.title || 'Untitled Draft')
+    const [nodeRefs, setNodeRefs] = useState<NodeReference[]>(initialDraft?.node_references || [])
     const [isSaving, setIsSaving] = useState(false)
     const [showScaffold, setShowScaffold] = useState(true)
     const [showContext, setShowContext] = useState(true)
+    const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
 
     // Library State
     const [leftTab, setLeftTab] = useState<'scaffold' | 'library'>('scaffold')
@@ -45,10 +48,11 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
             const existing = drafts.find(d => d.id === draftId)
             if (existing) {
                 setDraft(existing)
-                // Only update body/title if they are currently empty or if it's a completely different draft
-                if (!body || draftId !== draft?.id) {
+                // Only update local states if it's a completely different draft
+                if (draftId !== draft?.id) {
                     setBody(existing.body || '')
                     setTitle(existing.title || 'Untitled Draft')
+                    setNodeRefs(existing.node_references || [])
                 }
             }
         } else if (!draftId && initialNodes.length > 0 && (!title || title === 'Untitled Draft')) {
@@ -57,15 +61,18 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
         }
     }, [draftId, drafts.length, initialNodes])
 
-    const handleSave = async () => {
-        if (!draft || isSaving) return
+    const handleSave = async (currentId?: string, currentBody?: string, currentTitle?: string, currentRefs?: NodeReference[]) => {
+        const id = currentId || draft?.id
+        if (!id || isSaving) return
+
         setIsSaving(true)
         try {
-            await updateDraft(draft.id, {
-                body,
-                title,
-                node_references: draft.node_references
+            const updated = await updateDraft(id, {
+                body: currentBody ?? body,
+                title: currentTitle ?? title,
+                node_references: currentRefs ?? nodeRefs
             })
+            if (updated) setDraft(updated)
         } catch (err) {
             console.error('Save failed:', err)
         }
@@ -97,17 +104,10 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
             insertText(plainText)
         }
         if (data && data.id && data.type) {
-            setDraft(prev => {
-                if (!prev) return prev
-                const exists = prev.node_references?.some(r => r.node_id === data.id)
+            setNodeRefs(prev => {
+                const exists = prev.some(r => r.node_id === data.id)
                 if (exists) return prev
-                return {
-                    ...prev,
-                    node_references: [
-                        ...(prev.node_references || []),
-                        { node_id: data.id, node_type: data.type }
-                    ]
-                }
+                return [...prev, { node_id: data.id, node_type: data.type }]
             })
         }
     }
@@ -132,17 +132,10 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                 insertText(data.text)
 
                 // Add to node references
-                setDraft(prev => {
-                    if (!prev) return prev
-                    const exists = prev.node_references?.some(r => r.node_id === node.id)
+                setNodeRefs(prev => {
+                    const exists = prev.some(r => r.node_id === node.id)
                     if (exists) return prev
-                    return {
-                        ...prev,
-                        node_references: [
-                            ...(prev.node_references || []),
-                            { node_id: node.id, node_type: node.node_type }
-                        ]
-                    }
+                    return [...prev, { node_id: node.id, node_type: node.node_type }]
                 })
             }
         } catch (err) {
@@ -202,14 +195,32 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
     // Auto-save logic
     useEffect(() => {
         const timer = setTimeout(() => {
-            const hasBodyChanged = body !== draft?.body
-            const hasTitleChanged = title !== draft?.title
-            if (hasBodyChanged || hasTitleChanged) {
-                handleSave()
+            const hasBodyChanged = body !== (draft?.body || '')
+            const hasTitleChanged = title !== (draft?.title || 'Untitled Draft')
+            const hasRefsChanged = JSON.stringify(nodeRefs) !== JSON.stringify(draft?.node_references || [])
+
+            if (hasBodyChanged || hasTitleChanged || hasRefsChanged) {
+                handleSave(draft?.id, body, title, nodeRefs)
             }
         }, 1500)
         return () => clearTimeout(timer)
-    }, [body, title, draft?.node_references])
+    }, [body, title, nodeRefs, draft?.id])
+
+    // Final save on unmount or refresh
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (draft?.id) {
+                // We use a simplified version for synchronous-ish unload if possible,
+                // but usually handleSave is enough for normal navigation
+                handleSave(draft.id, body, title, nodeRefs)
+            }
+        }
+        window.addEventListener('beforeunload', handleBeforeUnload)
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload)
+            handleBeforeUnload()
+        }
+    }, [body, title, nodeRefs, draft?.id])
 
     return (
         <div className="fixed inset-0 bg-[#fafafa] z-[100] flex flex-col animate-in fade-in duration-300">
@@ -240,8 +251,8 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <div className="flex bg-black/[0.03] p-1.5 rounded-2xl border border-black/5 mr-2">
+                <div className="flex items-center gap-4">
+                    <div className="flex bg-black/[0.03] p-1.5 rounded-2xl border border-black/5 mr-4 gap-1.5">
                         <button
                             onClick={() => setShowScaffold(!showScaffold)}
                             className={cn(
@@ -263,7 +274,10 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                             <Sparkles className="w-5 h-5" />
                         </button>
                     </div>
-                    <button className="px-6 py-3 bg-black text-white rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl hover:bg-black/80 transition-all active:scale-95 touch-manipulation">
+                    <button
+                        onClick={() => setIsPublishModalOpen(true)}
+                        className="px-6 py-3 bg-black text-white rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl hover:bg-black/80 transition-all active:scale-95 touch-manipulation"
+                    >
                         Publish
                     </button>
                 </div>
@@ -565,6 +579,14 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                     </div>
                 </aside>
             </main>
+
+            {/* Modals */}
+            <PublishModal
+                isOpen={isPublishModalOpen}
+                onClose={() => setIsPublishModalOpen(false)}
+                title={title}
+                htmlContent={body}
+            />
         </div>
     )
 }
@@ -585,7 +607,13 @@ function ResearchNodeCard({ node, onInsert, insertImage, onAIInsert, isAdded, is
 
     const typeLabel = node.node_type === 'entry' ? 'Note' : node.node_type === 'project' ? 'Project' : 'Content'
     const bodyContent = node.node_type === 'entry' ? (node as any).body : (node as any).tagline || (node as any).description || ''
-    const coverImage = (node as any).cover_image || (node as any).thumbnail || (node as any).image_url
+    const coverImage = (node as any).cover_url || (node as any).images?.[0] || (
+        node.node_type === 'project'
+            ? `/api/studio/cover?title=${encodeURIComponent(node.title)}&tagline=${encodeURIComponent((node as any).tagline || '')}&type=project&id=${node.id}&w=600&h=400`
+            : node.node_type === 'content'
+                ? `/api/studio/cover?title=${encodeURIComponent(node.title)}&tagline=${encodeURIComponent((node as any).category || 'Content')}&type=content&id=${node.id}&w=600&h=400`
+                : null
+    )
 
     const handlePointerDown = (e: React.PointerEvent) => {
         if (e.button !== 0 && e.pointerType !== 'touch') return
@@ -711,18 +739,6 @@ function ResearchNodeCard({ node, onInsert, insertImage, onAIInsert, isAdded, is
                         {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                     </button>
 
-                    {coverImage && (
-                        <button
-                            onPointerDown={(e) => {
-                                e.stopPropagation()
-                                insertImage(coverImage, node.title)
-                            }}
-                            className="w-11 h-11 bg-white border border-black/5 rounded-xl flex items-center justify-center text-emerald-500 hover:bg-emerald-50 hover:border-emerald-100 transition-all active:scale-95"
-                            title="Insert Image"
-                        >
-                            <ImageIcon className="w-4 h-4" />
-                        </button>
-                    )}
 
                     <button
                         onPointerDown={(e) => {
