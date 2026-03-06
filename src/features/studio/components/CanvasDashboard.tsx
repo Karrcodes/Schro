@@ -774,19 +774,28 @@ export default function CanvasDashboard() {
                                     placeholder="Capture an idea... press Enter to save"
                                     className="flex-1 text-[14px] font-medium text-black bg-transparent outline-none placeholder:text-black/25"
                                 />
-                                {quickTitle && (
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        {boardTab === 'notes' && (
-                                            <button onClick={handleQuickTweet} className="flex items-center gap-1 flex-shrink-0 px-3 py-1.5 bg-blue-500 text-white text-[11px] font-black rounded-xl hover:bg-blue-600 transition-all shadow-sm shadow-blue-500/20">
-                                                Tweet
-                                            </button>
-                                        )}
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    {boardTab === 'notes' && (
+                                        <button
+                                            onClick={handleQuickTweet}
+                                            disabled={!quickTitle.trim()}
+                                            className={cn(
+                                                "flex items-center gap-1 flex-shrink-0 px-3 py-1.5 text-[11px] font-black rounded-xl transition-all",
+                                                quickTitle.trim()
+                                                    ? "bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/20"
+                                                    : "bg-blue-50 text-blue-300 cursor-not-allowed"
+                                            )}
+                                        >
+                                            Tweet
+                                        </button>
+                                    )}
+                                    {quickTitle && (
                                         <button onClick={handleQuickCreate} className="flex items-center gap-1.5 px-3 py-1.5 bg-black text-white text-[11px] font-black rounded-xl hover:bg-black/80 transition-all">
                                             <Plus className="w-3.5 h-3.5" />
                                             Save
                                         </button>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         )}
 
