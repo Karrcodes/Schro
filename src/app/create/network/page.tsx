@@ -153,7 +153,7 @@ export default function NetworkPage() {
                             key={type}
                             onClick={() => setFilterType(type)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border",
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border",
                                 filterType === type
                                     ? "bg-black text-white border-black"
                                     : "bg-white border-black/[0.05] text-black/40 hover:border-black/20"
@@ -185,7 +185,7 @@ export default function NetworkPage() {
                                         isActive
                                             ? "bg-white text-black shadow-sm"
                                             : "text-black/30 hover:text-black/60",
-                                        isOver && "bg-purple-50 text-purple-600 scale-[1.05] z-10 shadow-md ring-1 ring-purple-200"
+                                        isOver && "bg-purple-50 text-purple-600 z-10 shadow-md ring-1 ring-purple-200"
                                     )}
                                 >
                                     <Icon className={cn("w-3.5 h-3.5", isActive ? column.color.split(' ')[0] : "text-current")} />
@@ -385,7 +385,7 @@ function NetworkCard({
             onClick={() => { if (!isDraggingThis) onClick() }}
             style={{ touchAction: 'none' }}
             className={cn(
-                "p-4 bg-white border border-black/[0.05] rounded-[32px] hover:border-purple-200 hover:shadow-xl transition-all group cursor-pointer flex flex-col select-none",
+                "p-4 bg-white border border-black/[0.05] rounded-[32px] hover:border-purple-200 hover:shadow-xl transition-all group flex flex-col cursor-pointer select-none h-fit",
                 isDraggingThis && "opacity-30 scale-95 shadow-none"
             )}
         >
@@ -400,17 +400,6 @@ function NetworkCard({
                             <MessageCircle className="w-3 h-3" />
                             {item.platform}
                         </div>
-                    )}
-                    {onDelete && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDelete(item);
-                            }}
-                            className="p-1 rounded-md text-red-400 hover:bg-red-50 hover:text-red-500 transition-all flex items-center justify-center shrink-0"
-                        >
-                            <Trash2 className="w-3.5 h-3.5" />
-                        </button>
                     )}
                 </div>
             </div>
@@ -444,7 +433,7 @@ function NetworkCard({
                 </div>
             )}
 
-            <div className="mt-auto pt-4 border-t border-black/[0.05] flex items-center justify-between">
+            <div className="mt-4 pt-4 border-t border-black/[0.05] flex items-center justify-between">
                 {(() => {
                     let label = item.status.replace('_', ' ')
                     let colorClass = "bg-black/[0.04] text-black/30"
@@ -479,10 +468,22 @@ function NetworkCard({
 
                 <div className="flex items-center gap-2">
                     {item.event_date && item.type === 'event' && (
-                        <div className="flex items-center gap-1 text-[10px] font-black text-black/40">
+                        <div className="flex items-center gap-1 text-[10px] font-black text-black/40 pr-2 border-r border-black/[0.05]">
                             <Calendar className="w-3 h-3" />
                             {new Date(item.event_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
                         </div>
+                    )}
+                    {onDelete && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(item);
+                            }}
+                            className="p-1 rounded-md text-red-400 hover:bg-red-50 hover:text-red-500 transition-all flex items-center justify-center shrink-0"
+                            title="Delete Contact"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                     )}
                 </div>
             </div>

@@ -204,28 +204,28 @@ export default function NetworkDetailModal({ isOpen, onClose, item }: NetworkDet
                         {currentTypeVal === 'event' ? (
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Event Date</label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                                <div className="flex items-center gap-3 w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl h-[46px] focus-within:border-purple-200 transition-colors">
+                                    <Calendar className="w-4 h-4 text-black/20 shrink-0" />
                                     <input
                                         readOnly={!isEditing}
                                         type="date"
                                         value={editedData.event_date ?? item.event_date ?? ''}
                                         onChange={e => setEditedData(prev => ({ ...prev, event_date: e.target.value }))}
-                                        className="w-full pl-12 pr-4 py-3.5 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-purple-200"
+                                        className="flex-1 text-[13px] font-bold bg-transparent focus:outline-none cursor-pointer appearance-none min-w-0"
                                     />
                                 </div>
                             </div>
                         ) : (
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Last Contact Date</label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                                <div className="flex items-center gap-3 w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl h-[46px] focus-within:border-purple-200 transition-colors">
+                                    <Calendar className="w-4 h-4 text-black/20 shrink-0" />
                                     <input
                                         readOnly={!isEditing}
                                         type="date"
                                         value={editedData.last_contact ?? item.last_contact ?? ''}
                                         onChange={e => setEditedData(prev => ({ ...prev, last_contact: e.target.value }))}
-                                        className="w-full pl-12 pr-4 py-3.5 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-purple-200"
+                                        className="flex-1 text-[13px] font-bold bg-transparent focus:outline-none cursor-pointer appearance-none min-w-0"
                                     />
                                 </div>
                             </div>

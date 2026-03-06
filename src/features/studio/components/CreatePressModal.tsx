@@ -111,7 +111,7 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
                                         className={cn(
                                             "flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-all",
                                             formData.type === t.value
-                                                ? "bg-black border-black text-white scale-105 shadow-lg shadow-black/10"
+                                                ? "bg-black border-black text-white shadow-lg shadow-black/10"
                                                 : "bg-black/[0.02] border-black/[0.05] text-black/40 hover:border-black/10"
                                         )}
                                     >
@@ -183,13 +183,13 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-[11px] font-black uppercase tracking-widest text-black/30 ml-2">Deadline / Achievement Date</label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                                <div className="flex items-center gap-3 w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl h-[46px] focus-within:border-orange-200 transition-colors">
+                                    <Calendar className="w-4 h-4 text-black/20 shrink-0" />
                                     <input
                                         type="date"
                                         value={formData.deadline}
                                         onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                                        className="w-full pl-12 pr-4 py-3.5 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-orange-200 cursor-pointer"
+                                        className="flex-1 text-[12px] font-bold bg-transparent focus:outline-none cursor-pointer appearance-none min-w-0"
                                     />
                                 </div>
                             </div>

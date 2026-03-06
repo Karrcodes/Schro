@@ -168,14 +168,14 @@ export default function PressDetailModal({ isOpen, onClose, item }: PressDetailM
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-3">
                             <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Deadline / Achievement Date</label>
-                            <div className="relative">
-                                <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                            <div className="flex items-center gap-3 w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl h-[46px] focus-within:border-orange-200 transition-colors">
+                                <Calendar className="w-4 h-4 text-black/20 shrink-0" />
                                 <input
                                     readOnly={!isEditing}
                                     type="date"
                                     value={editedData.deadline ?? item.deadline ?? ''}
                                     onChange={e => setEditedData(prev => ({ ...prev, deadline: e.target.value }))}
-                                    className="w-full pl-12 pr-4 py-3.5 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-orange-200"
+                                    className="flex-1 text-[13px] font-bold bg-transparent focus:outline-none cursor-pointer appearance-none min-w-0"
                                 />
                             </div>
                         </div>
