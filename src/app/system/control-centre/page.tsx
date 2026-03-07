@@ -5,7 +5,8 @@ import { moduleNav } from '@/lib/navConfig'
 
 import { KarrFooter } from '@/components/KarrFooter'
 import Link from 'next/link'
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { Task } from '@/features/tasks/types/tasks.types'
 import { useTasks } from '@/features/tasks/hooks/useTasks'
 import { useTransactions } from '@/features/finance/hooks/useTransactions'
 import { cn, timeToMinutes, formatTime } from '@/lib/utils'
@@ -27,7 +28,7 @@ export default function ControlCentrePage() {
     const { tasks, loading: tasksLoading } = useTasks('todo', 'all')
     const { transactions, loading: txLoading } = useTransactions('all')
     const { pots, loading: potsLoading } = usePots()
-    const { plannerItems: timeline } = usePlannerEngine()
+    const { anchors, fluidTasks, plannerItems: timeline } = usePlannerEngine()
     const { projects, sparks, loading: studioLoading } = useStudio()
     const { goals, loading: goalsLoading } = useGoals()
     const { settings, loading: settingsLoading, updateSetting } = useSystemSettings()
@@ -88,7 +89,7 @@ export default function ControlCentrePage() {
     // Motivation Rotation
     useEffect(() => {
         const interval = setInterval(() => {
-            setQuoteIndex((prev) => (prev + 1) % MOTIVATION_QUOTES.length)
+            setQuoteIndex((prev: number) => (prev + 1) % MOTIVATION_QUOTES.length)
         }, 10000)
         return () => clearInterval(interval)
     }, [])
@@ -132,12 +133,21 @@ export default function ControlCentrePage() {
     }, [tasks, transactions])
 
     const activeTimelineItem = useMemo(() => {
+        // 1. Check for started flow task first
+        const activeProp = fluidTasks.find(t => t.is_active)
+        if (activeProp) return activeProp
+
+        // 2. Check current time block in timeline (anchors)
         const nowMins = timeToMinutes(formatTime(new Date()))
-        return timeline.find(item => {
+        const currentBlock = timeline.find(item => {
             const startMins = timeToMinutes(item.time)
             return nowMins >= startMins && nowMins < startMins + item.duration
-        }) || timeline.find(item => timeToMinutes(item.time) > nowMins)
-    }, [timeline])
+        })
+        if (currentBlock) return currentBlock
+
+        // 3. Fallback to next upcoming block
+        return timeline.find(item => timeToMinutes(item.time) > nowMins)
+    }, [timeline, fluidTasks])
 
     const activeProjects = useMemo(() => projects.filter(p => p.status === 'active'), [projects])
 

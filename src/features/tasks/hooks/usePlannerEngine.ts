@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { useRota } from '@/features/finance/hooks/useRota'
@@ -238,8 +238,8 @@ export function usePlannerEngine(date: Date = new Date()) {
         return { anchors: anchorItems, fluidTasks, zones, reminders }
     }, [settings, initialization, isWorkDay, allPersonalTasks, allBusinessTasks, dateStr, isFlowActive, activeTaskId])
 
-    const plannerItems = plannerData.items
-    const reminders = plannerData.reminders
+    const { anchors, fluidTasks, zones, reminders } = plannerData
+    const plannerItems = useMemo(() => [...anchors, ...fluidTasks].filter(i => i.time), [anchors, fluidTasks])
 
     // 2.5 Watch for transitions
     useEffect(() => {
@@ -380,6 +380,7 @@ export function usePlannerEngine(date: Date = new Date()) {
         fluidTasks: plannerData.fluidTasks,
         zones: plannerData.zones,
         reminders: plannerData.reminders,
+        plannerItems,
         loading,
         settings,
         initialization,
