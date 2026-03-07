@@ -31,7 +31,7 @@ export default function ContentCalendar() {
     const [currentDate, setCurrentDate] = useState(new Date())
     const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
 
-    const selectedItem = useMemo(() => content.find(i => i.id === selectedContentId) || null, [content, selectedContentId])
+    const selectedItem = useMemo(() => content.find((i: StudioContent) => i.id === selectedContentId) || null, [content, selectedContentId])
 
     const calendarData = useMemo(() => {
         const year = currentDate.getFullYear()
@@ -86,7 +86,7 @@ export default function ContentCalendar() {
     const resetToToday = () => setCurrentDate(new Date())
 
     const getItemsForDay = (day: number, month: number, year: number) => {
-        return content.filter(item => {
+        return content.filter((item: StudioContent) => {
             const dateStr = item.publish_date || item.deadline
             if (!dateStr) return false
             const d = new Date(dateStr)
@@ -98,105 +98,122 @@ export default function ContentCalendar() {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Calendar Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-[28px] font-black text-black tracking-tight flex items-center gap-3">
-                        {monthName} <span className="text-black/10">{currentDate.getFullYear()}</span>
+            <div className="rounded-2xl border border-black/[0.08] bg-white overflow-hidden shadow-sm">
+                {/* Calendar Header */}
+                <div className="p-5 border-b border-black/[0.04] flex items-center justify-between bg-black/[0.01]">
+                    <h2 className="text-[16px] font-bold text-black flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4" />
+                        Content Timeline
                     </h2>
-                    <div className="flex items-center gap-1 bg-black/[0.03] p-1 rounded-xl border border-black/[0.04]">
-                        <button onClick={prevMonth} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-black/40 hover:text-black">
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <button onClick={resetToToday} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:shadow-sm rounded-lg transition-all text-black/40 hover:text-black">
-                            Today
-                        </button>
-                        <button onClick={nextMonth} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-black/40 hover:text-black">
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={prevMonth}
+                                className="p-1.5 rounded-lg hover:bg-black/5 text-black/40"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <span className="text-[13px] font-bold text-black min-w-[120px] text-center">
+                                {currentDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                            </span>
+                            <button
+                                onClick={resetToToday}
+                                className="px-2 py-1 text-[9px] font-black uppercase tracking-tight bg-black/[0.03] hover:bg-black/5 rounded-md transition-all text-black/40"
+                            >
+                                Today
+                            </button>
+                            <button
+                                onClick={nextMonth}
+                                className="p-1.5 rounded-lg hover:bg-black/5 text-black/40"
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 w-full sm:w-auto overflow-x-auto no-scrollbar pb-1 sm:pb-0">
-                    <div className="flex items-center gap-3 px-3 py-1.5 bg-black/[0.02] border border-black/[0.05] rounded-xl">
+                <div className="p-4 sm:p-6">
+                    {/* Calendar Grid */}
+                    <div className="grid grid-cols-7 mb-2">
+                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+                            <div key={d} className="text-center text-[10px] font-bold text-black/25 uppercase tracking-wider py-2">{d}</div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-px bg-black/[0.05] rounded-xl overflow-hidden border border-black/[0.05]">
+                        {calendarData.map((data, i) => {
+                            const dayItems = getItemsForDay(data.day, data.month, data.year)
+                            const isToday = new Date().toDateString() === new Date(data.year, data.month, data.day).toDateString()
+                            const isPast = new Date(data.year, data.month, data.day) < new Date(new Date().setHours(0, 0, 0, 0))
+
+                            return (
+                                <div
+                                    key={i}
+                                    className={cn(
+                                        "min-h-[100px] bg-white p-2 flex flex-col gap-1.5 transition-all relative",
+                                        !data.isCurrentMonth && "bg-black/[0.01] opacity-40",
+                                        data.isCurrentMonth && isPast && !isToday && "bg-black/[0.005]",
+                                        data.isCurrentMonth && "hover:bg-black/[0.01]"
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between px-1">
+                                        <span className={cn(
+                                            "text-[10px] sm:text-[12px] font-bold w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full mb-1 transition-all",
+                                            isToday ? "bg-black text-white" : "text-black/30"
+                                        )}>
+                                            {data.day}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex flex-col gap-1 overflow-y-auto max-h-[80px] custom-scrollbar">
+                                        {dayItems.map(item => {
+                                            const StatusIcon = item.platforms && item.platforms.length > 0 ? PLATFORM_ICONS[item.platforms[0]] : Clock
+                                            const config = STATUS_CONFIG[item.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.idea
+
+                                            return (
+                                                <button
+                                                    key={item.id}
+                                                    onClick={() => setSelectedContentId(item.id)}
+                                                    className={cn(
+                                                        "w-full text-left px-1.5 py-0.5 rounded font-bold border truncate text-[8px] sm:text-[10px] transition-all",
+                                                        config.color
+                                                    )}
+                                                >
+                                                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                                                        <div className="flex items-center gap-1">
+                                                            {StatusIcon && <StatusIcon className="w-2.5 h-2.5 opacity-40" />}
+                                                            <span style={{ fontSize: '7px' }} className="font-bold uppercase tracking-widest opacity-60">
+                                                                {item.status}
+                                                            </span>
+                                                        </div>
+                                                        {item.impact_score && (
+                                                            <div className="flex items-center gap-0.5 text-[8px] font-black text-amber-600">
+                                                                <Zap className="w-2.5 h-2.5 fill-current" />
+                                                                {item.impact_score}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <h4 style={{ fontSize: '10px' }} className="font-semibold leading-tight tracking-tight line-clamp-1">
+                                                        {item.title}
+                                                    </h4>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap items-center gap-6 p-4 bg-black/[0.02] rounded-xl border border-black/[0.04]">
                         {Object.entries(STATUS_CONFIG).map(([status, config]) => (
-                            <div key={status} className="flex items-center gap-1.5 shrink-0">
-                                <div className={cn("w-1.5 h-1.5 rounded-full", config.color.split(' ')[0])} />
-                                <span className="text-[9px] font-bold text-black/40 uppercase tracking-widest">{status}</span>
+                            <div key={status} className="flex items-center gap-2">
+                                <div className={cn("w-2.5 h-2.5 rounded-full shadow-sm", config.color.split(' ')[0])} />
+                                <span className="text-[10px] font-bold text-black/40 uppercase tracking-widest">{status}</span>
                             </div>
                         ))}
                     </div>
                 </div>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-px bg-black/[0.08] rounded-[24px] overflow-hidden border border-black/[0.08] shadow-sm">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="bg-black/[0.02] py-2 text-center">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/30">{day}</span>
-                    </div>
-                ))}
-
-                {calendarData.map((data, i) => {
-                    const dayItems = getItemsForDay(data.day, data.month, data.year)
-                    const isToday = new Date().toDateString() === new Date(data.year, data.month, data.day).toDateString()
-
-                    return (
-                        <div
-                            key={i}
-                            className={cn(
-                                "min-h-[100px] bg-white p-2 transition-colors flex flex-col gap-1.5",
-                                !data.isCurrentMonth && "bg-black/[0.01] opacity-40",
-                                data.isCurrentMonth && "hover:bg-black/[0.01]"
-                            )}
-                        >
-                            <div className="flex items-center justify-between px-1">
-                                <span className={cn(
-                                    "text-[12px] font-black tracking-tight",
-                                    isToday ? "flex items-center justify-center w-6 h-6 bg-black text-white rounded-full -ml-1" : "text-black/40"
-                                )}>
-                                    {data.day}
-                                </span>
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                {dayItems.map(item => {
-                                    const StatusIcon = item.platforms && item.platforms.length > 0 ? PLATFORM_ICONS[item.platforms[0]] : Clock
-                                    const config = STATUS_CONFIG[item.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.idea
-
-                                    return (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => setSelectedContentId(item.id)}
-                                            className={cn(
-                                                "w-full text-left p-1.5 rounded-lg border transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] group",
-                                                config.color
-                                            )}
-                                        >
-                                            <div className="flex items-center justify-between gap-1 mb-0.5">
-                                                <div className="flex items-center gap-1.5">
-                                                    {StatusIcon && <StatusIcon className="w-2.5 h-2.5 opacity-40" />}
-                                                    <span style={{ fontSize: '7px' }} className="font-bold uppercase tracking-widest opacity-60">
-                                                        {item.status}
-                                                    </span>
-                                                </div>
-                                                {item.impact_score && (
-                                                    <div className="flex items-center gap-0.5 text-[8px] font-black text-amber-600">
-                                                        <Zap className="w-2.5 h-2.5 fill-current" />
-                                                        {item.impact_score}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <h4 style={{ fontSize: '10px' }} className="font-semibold leading-tight tracking-tight line-clamp-2 text-black/90">
-                                                {item.title}
-                                            </h4>
-                                        </button>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    )
-                })}
             </div>
 
             <ContentDetailModal

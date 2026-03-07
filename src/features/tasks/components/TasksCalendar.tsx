@@ -102,139 +102,126 @@ export function TasksCalendar() {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Calendar Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-[28px] font-black text-black tracking-tight flex items-center gap-3">
-                        {calMonth.toLocaleString('default', { month: 'long' })} <span className="text-black/10">{calMonth.getFullYear()}</span>
+            <div className="rounded-2xl border border-black/[0.08] bg-white overflow-hidden shadow-sm">
+                {/* Calendar Header */}
+                <div className="p-5 border-b border-black/[0.04] flex items-center justify-between bg-black/[0.01]">
+                    <h2 className="text-[16px] font-bold text-black flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4" />
+                        Focus Schedule
                     </h2>
-                    <div className="flex items-center gap-1 bg-black/[0.03] p-1 rounded-xl border border-black/[0.04]">
-                        <button
-                            onClick={() => setCalMonth((m: Date) => { const n = new Date(m); n.setMonth(n.getMonth() - 1); return n })}
-                            className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-black/40 hover:text-black"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={resetToToday}
-                            className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:shadow-sm rounded-lg transition-all text-black/40 hover:text-black"
-                        >
-                            Today
-                        </button>
-                        <button
-                            onClick={() => setCalMonth((m: Date) => { const n = new Date(m); n.setMonth(n.getMonth() + 1); return n })}
-                            className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-black/40 hover:text-black"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCalMonth((m: Date) => { const n = new Date(m); n.setMonth(n.getMonth() - 1); return n })}
+                                className="p-1.5 rounded-lg hover:bg-black/5 text-black/40"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <span className="text-[13px] font-bold text-black min-w-[120px] text-center">
+                                {calMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                            </span>
+                            <button
+                                onClick={resetToToday}
+                                className="px-2 py-1 text-[9px] font-black uppercase tracking-tight bg-black/[0.03] hover:bg-black/5 rounded-md transition-all text-black/40"
+                            >
+                                Today
+                            </button>
+                            <button
+                                onClick={() => setCalMonth((m: Date) => { const n = new Date(m); n.setMonth(n.getMonth() + 1); return n })}
+                                className="p-1.5 rounded-lg hover:bg-black/5 text-black/40"
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 w-full sm:w-auto overflow-x-auto no-scrollbar pb-1 sm:pb-0">
-                    <div className="flex items-center gap-4 px-3 py-1.5 bg-black/[0.02] border border-black/[0.05] rounded-xl">
+                <div className="p-4 sm:p-6">
+                    {/* Calendar Grid */}
+                    <div className="grid grid-cols-7 mb-2">
+                        {DAY_LABELS.map(d => (
+                            <div key={d} className="text-center text-[10px] font-bold text-black/25 uppercase tracking-wider py-2">{d}</div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-px bg-black/[0.05] rounded-xl overflow-hidden border border-black/[0.05]">
+                        {Array.from({ length: calendarData.startDow }).map((_, i) => (
+                            <div key={`empty-${i}`} className="bg-white min-h-[100px]" />
+                        ))}
+
+                        {Array.from({ length: calendarData.daysInMonth }).map((_, i) => {
+                            const day = i + 1
+                            const items = calendarData.byDay[day] || []
+                            const currentDayDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), day)
+                            const isToday = today.toDateString() === currentDayDate.toDateString()
+                            const isPast = currentDayDate < today
+
+                            return (
+                                <div
+                                    key={day}
+                                    onClick={() => {
+                                        setSelectedQuickAdd({ day, date: currentDayDate })
+                                    }}
+                                    className={cn(
+                                        "bg-white min-h-[100px] p-2 flex flex-col gap-1.5 transition-all relative cursor-pointer group",
+                                        isPast && !isToday && "bg-black/[0.005]",
+                                        !isPast && "hover:bg-black/[0.01]"
+                                    )}
+                                >
+                                    <span className={cn(
+                                        "text-[10px] sm:text-[12px] font-bold w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full mb-1 transition-all",
+                                        isToday ? "bg-black text-white" : "text-black/30 group-hover:text-black/60"
+                                    )}>
+                                        {day}
+                                    </span>
+
+                                    <div className="flex flex-col gap-1 overflow-y-auto max-h-[80px] custom-scrollbar">
+                                        {items.map((item: ScheduleItem, idx: number) => {
+                                            const isBusiness = item.profile === 'business'
+                                            const isDone = item.is_completed
+                                            return (
+                                                <button
+                                                    key={item.id + idx}
+                                                    onClick={(e: MouseEvent) => {
+                                                        e.stopPropagation()
+                                                        setSelectedItem(item)
+                                                        setIsEditing(false)
+                                                        setEditedTitle(item.title)
+                                                        setEditedDate(item.date.toISOString().split('T')[0])
+                                                        setEditedPriority((item.priority as any) || 'mid')
+                                                    }}
+                                                    className={cn(
+                                                        "w-full text-left px-1.5 py-0.5 rounded font-bold border truncate text-[8px] sm:text-[10px] transition-all",
+                                                        item.type === 'shift' && "bg-blue-50 text-blue-700 border-blue-100",
+                                                        item.type === 'overtime' && "bg-orange-50 text-orange-700 border-orange-100",
+                                                        item.type === 'holiday' && "bg-purple-50 text-purple-700 border-purple-100",
+                                                        item.type === 'task' && isBusiness && !isDone && "bg-rose-50 text-rose-600 border-rose-100",
+                                                        item.type === 'task' && !isBusiness && !isDone && "bg-black text-white border-black",
+                                                        isDone && "bg-emerald-50 text-emerald-600 border-emerald-100 opacity-50"
+                                                    )}
+                                                >
+                                                    {item.type === 'shift' ? 'Work' : item.title}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )
+                        })}
+
+                        {/* Trailing empty cells */}
+                        {Array.from({ length: (7 - (calendarData.startDow + calendarData.daysInMonth) % 7) % 7 }).map((_, i) => (
+                            <div key={`empty-end-${i}`} className="bg-white min-h-[100px]" />
+                        ))}
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap items-center gap-6 p-4 bg-black/[0.02] rounded-xl border border-black/[0.04]">
                         <LegendItem color="bg-black" label="Personal" />
                         <LegendItem color="bg-rose-500" label="Business" />
                         <LegendItem color="bg-blue-500" label="Shift" />
                         <LegendItem color="bg-emerald-500" label="Done" />
                     </div>
                 </div>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-px bg-black/[0.08] rounded-[24px] overflow-hidden border border-black/[0.08] shadow-sm">
-                {DAY_LABELS.map(day => (
-                    <div key={day} className="bg-black/[0.02] py-2 text-center">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/30">{day}</span>
-                    </div>
-                ))}
-
-                {Array.from({ length: calendarData.startDow }).map((_, i) => (
-                    <div key={`empty-${i}`} className="bg-white/40 min-h-[100px]" />
-                ))}
-
-                {Array.from({ length: calendarData.daysInMonth }).map((_, i) => {
-                    const day = i + 1
-                    const items = calendarData.byDay[day] || []
-                    const currentDayDate = new Date(calMonth.getFullYear(), calMonth.getMonth(), day)
-                    const isToday = today.toDateString() === currentDayDate.toDateString()
-                    const isPast = currentDayDate < today
-
-                    return (
-                        <div
-                            key={day}
-                            onClick={() => {
-                                setSelectedQuickAdd({ day, date: currentDayDate })
-                            }}
-                            className={cn(
-                                "bg-white min-h-[100px] p-2 flex flex-col gap-1.5 transition-all relative cursor-pointer group",
-                                isPast && !isToday && "bg-black/[0.01]",
-                                !isPast && "hover:bg-black/[0.01]"
-                            )}
-                        >
-                            <div className="flex items-center justify-between px-1">
-                                <span className={cn(
-                                    "text-[12px] font-black tracking-tight transition-all",
-                                    isToday ? "flex items-center justify-center w-6 h-6 bg-black text-white rounded-full -ml-1" : "text-black/40 group-hover:text-black/60"
-                                )}>
-                                    {day}
-                                </span>
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                {items.map((item: ScheduleItem, idx: number) => {
-                                    const isBusiness = item.profile === 'business'
-                                    const isDone = item.is_completed
-                                    return (
-                                        <button
-                                            key={item.id + idx}
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                setSelectedItem(item)
-                                                setIsEditing(false)
-                                                setEditedTitle(item.title)
-                                                setEditedDate(item.date.toISOString().split('T')[0])
-                                                setEditedPriority((item.priority as any) || 'mid')
-                                            }}
-                                            className={cn(
-                                                "w-full text-left p-1.5 rounded-lg border transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] group/item",
-                                                item.type === 'shift' && "bg-blue-50 text-blue-600 border-blue-100",
-                                                item.type === 'overtime' && "bg-orange-50 text-orange-600 border-orange-100",
-                                                item.type === 'holiday' && "bg-purple-50 text-purple-600 border-purple-100",
-                                                item.type === 'task' && isBusiness && !isDone && "bg-rose-50 text-rose-600 border-rose-100",
-                                                item.type === 'task' && !isBusiness && !isDone && "bg-black text-white border-black",
-                                                isDone && "bg-emerald-50 text-emerald-600 border-emerald-100 opacity-50"
-                                            )}
-                                        >
-                                            <div className="flex items-center justify-between gap-1 mb-0.5">
-                                                <div className="flex items-center gap-1">
-                                                    {item.type === 'shift' ? (
-                                                        <Briefcase className="w-2.5 h-2.5 opacity-40" />
-                                                    ) : (
-                                                        <Clock className="w-2.5 h-2.5 opacity-40" />
-                                                    )}
-                                                    <span style={{ fontSize: '7px' }} className="font-bold uppercase tracking-widest opacity-60">
-                                                        {item.type}
-                                                    </span>
-                                                </div>
-                                                {item.priority === 'urgent' && (
-                                                    <Zap className="w-2.5 h-2.5 text-amber-500 fill-current" />
-                                                )}
-                                            </div>
-                                            <h4 style={{ fontSize: '10px' }} className="font-semibold leading-tight tracking-tight line-clamp-1 group-hover/item:line-clamp-none">
-                                                {item.type === 'shift' ? 'Work' : item.title}
-                                            </h4>
-                                        </button>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    )
-                })}
-
-                {/* Trailing empty cells */}
-                {Array.from({ length: (7 - (calendarData.startDow + calendarData.daysInMonth) % 7) % 7 }).map((_, i) => (
-                    <div key={`empty-end-${i}`} className="bg-white/40 min-h-[100px]" />
-                ))}
             </div>
 
             {/* Quick Add Overlay */}
@@ -254,7 +241,7 @@ export function TasksCalendar() {
                                 autoFocus
                                 type="text"
                                 value={quickAddTitle}
-                                onChange={(e) => setQuickAddTitle(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuickAddTitle(e.target.value)}
                                 placeholder="Task title..."
                                 className="w-full bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 text-[14px] font-medium outline-none focus:border-black/20 focus:bg-white transition-all transition-colors"
                             />
@@ -307,7 +294,7 @@ export function TasksCalendar() {
                                             autoFocus
                                             type="text"
                                             value={editedTitle}
-                                            onChange={(e) => setEditedTitle(e.target.value)}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedTitle(e.target.value)}
                                             className="w-full bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 text-[14px] font-medium outline-none focus:border-black/20 focus:bg-white transition-all"
                                         />
                                     </div>
@@ -316,7 +303,7 @@ export function TasksCalendar() {
                                         <input
                                             type="date"
                                             value={editedDate}
-                                            onChange={(e) => setEditedDate(e.target.value)}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedDate(e.target.value)}
                                             className="block w-full min-w-full appearance-none bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 text-[14px] font-medium outline-none focus:border-black/20 focus:bg-white transition-all min-h-[46px]"
                                         />
                                     </div>
@@ -434,8 +421,6 @@ export function TasksCalendar() {
                     </div>
                 </div>
             )}
-
-            {/* Content has been moved to top-right legend for cleaner UI */}
         </div>
     )
 }
