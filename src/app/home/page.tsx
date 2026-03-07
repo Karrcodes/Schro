@@ -60,7 +60,7 @@ export default function LandingPage() {
                         by intelligence.
                     </h1>
                     <p className="text-lg md:text-xl text-black/50 font-medium max-w-2xl mx-auto leading-relaxed animate-slide-up delay-100">
-                        Schrö is the premium personal operating system designed to harmonize your finances, creativity, and legacy in one unified workspace.
+                        Schrö is the premium life management system designed to harmonize your finances, creativity, and legacy in one unified workspace.
                     </p>
 
                     <form onSubmit={handleSubmit} className="max-w-md mx-auto relative group animate-slide-up delay-200" id="waitlist">

@@ -280,8 +280,8 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                         src={!isClearingImage ? (project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=project&id=${project.id}&w=1200&h=630`) : ''}
                         alt=""
                         className={cn(
-                            "w-full h-full object-cover transition-opacity duration-500",
-                            (!project.cover_url || isClearingImage) && "opacity-40"
+                            "w-full h-full object-cover transition-all duration-500",
+                            (!project.cover_url || isClearingImage) && "scale-[1.15]"
                         )}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />

@@ -414,7 +414,7 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                     onLoad={() => setImageLoading(false)}
                     className={cn(
                         "w-full h-full object-cover transition-all duration-700 group-hover:scale-110",
-                        !item.cover_url && "opacity-80",
+                        !item.cover_url && "scale-[1.15]",
                         imageLoading ? "opacity-0" : "opacity-100"
                     )}
                 />
@@ -423,7 +423,10 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                         <div className="w-full h-full bg-gradient-to-r from-transparent via-black/[0.03] to-transparent bg-[length:200%_100%] animate-shimmer" />
                     </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-60" />
+                <div className={cn(
+                    "absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent",
+                    item.cover_url ? "opacity-60" : "opacity-20"
+                )} />
             </div>
 
             <div className="p-4">

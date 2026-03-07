@@ -19,7 +19,7 @@ export default function PrivacyPage() {
                 <section>
                     <h2 className="text-xl font-bold text-black mb-4">1. Overview</h2>
                     <p>
-                        Schrö is a personal operating system designed for private financial management.
+                        Schrö is a life management system designed for private financial management.
                         This privacy policy explains how we handle your data when you connect your bank
                         accounts via Enable Banking.
                     </p>

@@ -178,38 +178,41 @@ export default function StudioDashboard() {
                                         onClick={() => setSelectedProjectId(project.id)}
                                         className="bg-white border border-black/[0.05] rounded-2xl hover:border-orange-200 hover:shadow-lg transition-all group cursor-pointer overflow-hidden flex flex-col"
                                     >
-                                        {project.cover_url && (
-                                            <div className="h-24 w-full relative shrink-0">
-                                                <img
-                                                    src={project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=${encodeURIComponent(project.type || '')}&id=${project.id}&w=1200&h=630`}
-                                                    alt=""
-
-                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                                />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-60" />
-
-                                                {/* Platform icons overlay */}
-                                                {project.platforms && project.platforms.length > 0 && (
-                                                    <div className="absolute top-2 left-2 flex -space-x-1 ring-1 ring-white/20 rounded-full p-0.5 bg-black/10 backdrop-blur-md">
-                                                        {project.platforms.map(p => (
-                                                            <div
-                                                                key={p}
-                                                                className="w-4 h-4 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]"
-                                                                title={p}
-                                                            >
-                                                                <PlatformIcon platform={p} className="w-2 h-2" />
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                        <div className="h-24 w-full relative shrink-0 bg-black/[0.02]">
+                                            <img
+                                                src={project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=${encodeURIComponent(project.type || '')}&id=${project.id}&w=1200&h=630`}
+                                                alt=""
+                                                className={cn(
+                                                    "w-full h-full object-cover transition-transform duration-500 group-hover:scale-110",
+                                                    !project.cover_url && "scale-[1.15]"
                                                 )}
-                                            </div>
-                                        )}
+                                            />
+                                            <div className={cn(
+                                                "absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent",
+                                                project.cover_url ? "opacity-60" : "opacity-20"
+                                            )} />
+
+                                            {/* Platform icons overlay */}
+                                            {project.platforms && project.platforms.length > 0 && (
+                                                <div className="absolute top-2 left-2 flex -space-x-1 ring-1 ring-white/20 rounded-full p-0.5 bg-black/10 backdrop-blur-md">
+                                                    {project.platforms.map(p => (
+                                                        <div
+                                                            key={p}
+                                                            className="w-4 h-4 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]"
+                                                            title={p}
+                                                        >
+                                                            <PlatformIcon platform={p} className="w-2 h-2" />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                         <div className="p-4 flex flex-col flex-1">
                                             <div className="flex justify-between items-start mb-3">
 
                                                 <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                                                     <div className="flex flex-wrap items-center gap-1.5">
-                                                        {!project.cover_url && project.platforms && project.platforms.length > 0 && (
+                                                        {project.platforms && project.platforms.length > 0 && (
                                                             <div className="flex -space-x-1 mr-1">
                                                                 {project.platforms.map(p => (
                                                                     <div
@@ -267,7 +270,7 @@ export default function StudioDashboard() {
                     <div className="space-y-4">
                         <div className="flex items-center justify-between px-2">
                             <h2 className="text-[13px] font-bold uppercase tracking-wider flex items-center gap-2 text-black">
-                                <Video className="w-4 h-4 text-blue-500" />
+                                < Video className="w-4 h-4 text-blue-500" />
                                 Active Content
                             </h2>
                             <Link href="/create/content" className="text-[11px] font-bold text-black/40 hover:text-black transition-colors">See Pipeline</Link>
@@ -296,9 +299,15 @@ export default function StudioDashboard() {
                                             <img
                                                 src={item.cover_url || `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || 'Content')}&type=${encodeURIComponent(item.type || '')}&id=${item.id}&w=1200&h=630`}
                                                 alt=""
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                className={cn(
+                                                    "w-full h-full object-cover transition-transform duration-500 group-hover:scale-110",
+                                                    !item.cover_url && "scale-[1.15]"
+                                                )}
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-60" />
+                                            <div className={cn(
+                                                "absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent",
+                                                item.cover_url ? "opacity-60" : "opacity-20"
+                                            )} />
                                             {item.platforms && item.platforms.length > 0 && (
                                                 <div className="absolute top-2 left-2 flex -space-x-1 ring-1 ring-white/20 rounded-full p-0.5 bg-black/10 backdrop-blur-md">
                                                     {item.platforms.map(p => (

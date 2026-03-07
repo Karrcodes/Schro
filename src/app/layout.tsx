@@ -6,7 +6,7 @@ import { Sidebar } from '@/components/Sidebar'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Schrö — Personal Operating System',
+  title: 'Schrö — Life Management System',
   description: 'Studio Karrtesian personal finance and life management system.',
   manifest: '/manifest.json',
   appleWebApp: {

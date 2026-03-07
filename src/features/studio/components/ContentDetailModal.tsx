@@ -256,8 +256,8 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                         src={!isClearingImage ? (coverSrc || `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${item.id}&w=1200&h=630`) : ''}
                         alt={item.title}
                         className={cn(
-                            "w-full h-full object-cover transition-opacity duration-500",
-                            (!coverSrc || isClearingImage) && "opacity-40"
+                            "w-full h-full object-cover transition-all duration-500",
+                            (!coverSrc || isClearingImage) && "scale-[1.15]"
                         )}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />

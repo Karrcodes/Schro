@@ -1,7 +1,7 @@
 {
     "name": "Schrö",
     "short_name": "Schrö",
-    "description": "Schrö Personal Operating System",
+    "description": "Schrö Life Management System",
     "start_url": "/system/control-centre",
     "scope": "/",
     "display": "standalone",
