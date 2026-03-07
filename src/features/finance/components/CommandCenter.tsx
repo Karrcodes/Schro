@@ -107,7 +107,7 @@ export function CommandCenter() {
                 created_at: p.created_at
             }))
 
-        return [...goals, ...potGoals]
+        return [...goals, ...potGoals].sort((a, b) => (b.current_amount || 0) - (a.current_amount || 0))
     }, [pots, goals])
 
     const displayPockets = useMemo(() => {
@@ -116,7 +116,7 @@ export function CommandCenter() {
             p.type !== 'savings' &&
             p.target_amount <= 0 &&
             !p.name.toLowerCase().includes('goal')
-        )
+        ).sort((a, b) => (b.balance || 0) - (a.balance || 0))
     }, [pots])
 
     const loading = pLoading || oLoading || gLoading
