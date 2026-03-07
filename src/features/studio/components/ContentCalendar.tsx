@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useMemo, type ChangeEvent } from 'react'
-import React from 'react'
+import React, { useState, useMemo, type ChangeEvent } from 'react'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Video, Instagram, Hash, Globe, Mail, Clock, Zap, ExternalLink } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import { cn } from '@/lib/utils'
@@ -167,8 +166,8 @@ export default function ContentCalendar() {
                                     </div>
 
                                     <div className="flex flex-col gap-1 overflow-y-auto max-h-[80px] custom-scrollbar">
-                                        {dayItems.map((item: any) => {
-                                            const StatusIcon = item.platforms && item.platforms.length > 0 ? PLATFORM_ICONS[item.platforms[0]] : Clock
+                                        {dayItems.map((item: StudioContent) => {
+                                            const StatusIcon = item.platforms && item.platforms.length > 0 ? PLATFORM_ICONS[item.platforms[0] as Platform] : Clock
                                             const config = STATUS_CONFIG[item.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.idea
 
                                             return (

@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useMemo, type FormEvent, type MouseEvent, type ChangeEvent } from 'react'
-import React from 'react'
+import React, { useState, useMemo, type FormEvent, type MouseEvent, type ChangeEvent } from 'react'
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, Clock, Briefcase } from 'lucide-react'
 import { useSchedule, ScheduleItem } from '@/hooks/useSchedule'
 import { cn } from '@/lib/utils'
