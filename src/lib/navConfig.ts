@@ -38,7 +38,7 @@ export const navItems: NavItem[] = [
         icon: Activity,
         color: 'blue',
         sub: [
-            { label: 'Planner', href: '/tasks/planner', icon: LayoutDashboard },
+            { label: 'Planner', href: '/tasks/planner', icon: LayoutDashboard, disabled: true },
             { label: 'Matrix', href: '/tasks/matrix', icon: SlidersHorizontal },
             { label: 'Calendar', href: '/tasks/calendar', icon: Calendar }
         ]
