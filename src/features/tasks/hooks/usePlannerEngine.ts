@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import * as React from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { useRota } from '@/features/finance/hooks/useRota'
@@ -45,6 +46,7 @@ interface PlannerData {
     fluidTasks: PlannerItem[]
     zones: FluidZone[]
     reminders: Task[]
+    items: PlannerItem[]
 }
 
 export function usePlannerEngine(date: Date = new Date()) {
@@ -142,8 +144,7 @@ export function usePlannerEngine(date: Date = new Date()) {
 
     // 3. Algorithm: The Engine
     const plannerData = useMemo<PlannerData>(() => {
-        if (!settings) return { items: [], reminders: [] }
-        const items: PlannerItem[] = []
+        if (!settings) return { anchors: [], fluidTasks: [], zones: [], reminders: [], items: [] }
 
         // Filter tasks based on date and profile
         const personalTasks = allPersonalTasks.filter((t: Task) =>
@@ -235,11 +236,13 @@ export function usePlannerEngine(date: Date = new Date()) {
             sort_priority: 50
         }))
 
-        return { anchors: anchorItems, fluidTasks, zones, reminders }
+        // D. Consolidate for Timeline (Backward Compatibility)
+        const items = [...anchorItems, ...fluidTasks].filter(i => i.time)
+
+        return { anchors: anchorItems, fluidTasks, zones, reminders, items }
     }, [settings, initialization, isWorkDay, allPersonalTasks, allBusinessTasks, dateStr, isFlowActive, activeTaskId])
 
-    const { anchors, fluidTasks, zones, reminders } = plannerData
-    const plannerItems = useMemo(() => [...anchors, ...fluidTasks].filter(i => i.time), [anchors, fluidTasks])
+    const { anchors, fluidTasks, zones, reminders, items: plannerItems } = plannerData
 
     // 2.5 Watch for transitions
     useEffect(() => {

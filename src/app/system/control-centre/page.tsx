@@ -5,14 +5,15 @@ import { moduleNav } from '@/lib/navConfig'
 
 import { KarrFooter } from '@/components/KarrFooter'
 import Link from 'next/link'
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import * as React from 'react'
 import { Task } from '@/features/tasks/types/tasks.types'
 import { useTasks } from '@/features/tasks/hooks/useTasks'
 import { useTransactions } from '@/features/finance/hooks/useTransactions'
 import { cn, timeToMinutes, formatTime } from '@/lib/utils'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { useGoals } from '@/features/goals/hooks/useGoals'
-import { usePlannerEngine } from '@/features/tasks/hooks/usePlannerEngine'
+import { usePlannerEngine, PlannerItem } from '@/features/tasks/hooks/usePlannerEngine'
 import { usePots } from '@/features/finance/hooks/usePots'
 import { useStudio } from '@/features/studio/hooks/useStudio'
 
@@ -98,18 +99,18 @@ export default function ControlCentrePage() {
     const stats = useMemo(() => {
         const now = new Date()
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        const weeklyTasks = tasks.filter(t => new Date(t.created_at) >= oneWeekAgo)
+        const weeklyTasks = tasks.filter((t: Task) => new Date(t.created_at) >= oneWeekAgo)
         const taskCompletion = weeklyTasks.length > 0
-            ? (weeklyTasks.filter(t => t.is_completed).length / weeklyTasks.length) * 100
+            ? (weeklyTasks.filter((t: Task) => t.is_completed).length / weeklyTasks.length) * 100
             : 0
 
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
         const monthlyInflow = transactions
-            .filter(t => t.type === 'income' && new Date(t.date) >= thirtyDaysAgo)
-            .reduce((s, t) => s + t.amount, 0)
+            .filter((t: any) => t.type === 'income' && new Date(t.date) >= thirtyDaysAgo)
+            .reduce((s: number, t: any) => s + t.amount, 0)
         const monthlyOutflow = transactions
-            .filter(t => t.type === 'spend' && new Date(t.date) >= thirtyDaysAgo)
-            .reduce((s, t) => s + t.amount, 0)
+            .filter((t: any) => t.type === 'spend' && new Date(t.date) >= thirtyDaysAgo)
+            .reduce((s: number, t: any) => s + t.amount, 0)
 
         const budgetScore = monthlyInflow > 0
             ? Math.max(0, 100 - (monthlyOutflow / monthlyInflow) * 100)
@@ -118,14 +119,14 @@ export default function ControlCentrePage() {
         const score = Math.round((taskCompletion * 0.5) + (budgetScore * 0.5))
 
         let nextAction = "System optimal. No high-priority items."
-        const highPriorityTask = tasks.find(t => !t.is_completed && (t.priority === 'urgent' || t.priority === 'high'))
+        const highPriorityTask = (tasks as Task[]).find((t: Task) => !t.is_completed && (t.priority === 'urgent' || t.priority === 'high'))
 
         if (highPriorityTask) {
             nextAction = `High Priority: ${highPriorityTask.title}`
         } else if (monthlyOutflow > monthlyInflow && monthlyInflow > 0) {
             nextAction = "Spending exceeds income — Review budget."
         } else {
-            const nextPending = tasks.find(t => !t.is_completed)
+            const nextPending = (tasks as Task[]).find((t: Task) => !t.is_completed)
             if (nextPending) nextAction = `Next Up: ${nextPending.title}`
         }
 
@@ -139,20 +140,20 @@ export default function ControlCentrePage() {
 
         // 2. Check current time block in timeline (anchors)
         const nowMins = timeToMinutes(formatTime(new Date()))
-        const currentBlock = timeline.find(item => {
+        const currentBlock = (timeline as PlannerItem[]).find((item: PlannerItem) => {
             const startMins = timeToMinutes(item.time)
             return nowMins >= startMins && nowMins < startMins + item.duration
         })
         if (currentBlock) return currentBlock
 
         // 3. Fallback to next upcoming block
-        return timeline.find(item => timeToMinutes(item.time) > nowMins)
+        return (timeline as PlannerItem[]).find((item: PlannerItem) => timeToMinutes(item.time) > nowMins)
     }, [timeline, fluidTasks])
 
-    const activeProjects = useMemo(() => projects.filter(p => p.status === 'active'), [projects])
+    const activeProjects = useMemo(() => projects.filter((p: any) => p.status === 'active'), [projects])
 
-    const totalLiquid = useMemo(() => pots.filter(p => p.type !== 'savings' && p.type !== 'buffer').reduce((acc, p) => acc + p.balance, 0), [pots])
-    const totalLiabilities = useMemo(() => pots.filter(p => p.type === 'buffer').reduce((acc, p) => acc + p.balance, 0), [pots])
+    const totalLiquid = useMemo(() => pots.filter((p: any) => p.type !== 'savings' && p.type !== 'buffer').reduce((acc: number, p: any) => acc + p.balance, 0), [pots])
+    const totalLiabilities = useMemo(() => pots.filter((p: any) => p.type === 'buffer').reduce((acc: number, p: any) => acc + p.balance, 0), [pots])
 
     const loading = tasksLoading || txLoading || potsLoading || studioLoading || goalsLoading
 
@@ -183,7 +184,7 @@ export default function ControlCentrePage() {
                 <div className="max-w-5xl mx-auto w-full space-y-8 pb-12">
                     {/* Quick Actions */}
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                        {isMounted && orderedModules.map((item) => (
+                        {isMounted && (orderedModules as any[]).map((item: any) => (
                             <Link
                                 key={item.href}
                                 href={item.disabled ? '#' : item.href}
@@ -279,7 +280,7 @@ export default function ControlCentrePage() {
                                 {/* Studio Active Ops */}
                                 <SectionBlock title="Studio Ops" desc="Creative Pipeline" className="h-full">
                                     <div className="p-1 space-y-3">
-                                        {activeProjects.slice(0, 3).map(p => (
+                                        {activeProjects.slice(0, 3).map((p: any) => (
                                             <Link key={p.id} href={`/create/projects?id=${p.id}`} className="group flex items-center justify-between p-3 rounded-xl hover:bg-black/[0.02] transition-colors border border-transparent hover:border-black/[0.05]">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center text-black/40">
@@ -342,9 +343,9 @@ export default function ControlCentrePage() {
 
                             <SectionBlock title="Strategic Focus" desc="Top Objectives" className="flex-1">
                                 <div className="space-y-4 p-1">
-                                    {goals.slice(0, 3).map(goal => {
+                                    {goals.slice(0, 3).map((goal: any) => {
                                         const total = goal.milestones?.length || 0
-                                        const completed = goal.milestones?.filter(m => m.is_completed).length || 0
+                                        const completed = goal.milestones?.filter((m: any) => m.is_completed).length || 0
                                         const perc = total > 0 ? (completed / total) * 100 : 0
 
                                         return (
