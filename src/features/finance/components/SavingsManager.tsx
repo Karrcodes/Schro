@@ -24,7 +24,8 @@ export function SavingsManager() {
     const monzoGoals = pots.filter(p =>
         p.type === 'savings' ||
         p.target_amount > 0 ||
-        p.name.toLowerCase().includes('goal')
+        p.name.toLowerCase().includes('goal') ||
+        p.name.toLowerCase().includes('challenge')
     )
 
     const allGoals = [

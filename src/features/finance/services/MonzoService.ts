@@ -242,8 +242,10 @@ export class MonzoService {
                         type: (
                             pot.type?.toLowerCase().includes('savings') ||
                             pot.type?.toLowerCase().includes('interest') ||
+                            pot.type?.toLowerCase().includes('challenge') ||
                             pot.savings_account_id ||
-                            pot.name.toLowerCase().includes('savings')
+                            pot.name.toLowerCase().includes('savings') ||
+                            pot.name.toLowerCase().includes('challenge')
                         ) ? 'savings' : 'general',
                         profile: profile
                     }
