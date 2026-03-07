@@ -1,11 +1,33 @@
-'use client'
-
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, Coffee, ShowerHead as ShowerHeadIcon, Bed, Dumbbell, Utensils, Zap, Settings2, Activity, Play, CheckCircle2, AlertCircle, Bus, MapPin, Footprints, Moon, Star, Sparkles, AlertTriangle, RefreshCw, Bell, Check, Pause, BedDouble, Calendar, X, CalendarDays } from 'lucide-react'
+import {
+    Clock, Coffee, ShowerHead as ShowerHeadIcon, Bed, Dumbbell, Utensils, Zap, Settings2,
+    Activity, Play, CheckCircle2, AlertCircle, Bus, MapPin, Footprints, Moon, Star,
+    Sparkles, AlertTriangle, RefreshCw, Bell, Check, Pause, BedDouble, Calendar, X,
+    CalendarDays, UtensilsCrossed, ChevronRight, Hourglass
+} from 'lucide-react'
 import { usePlannerEngine, PlannerItem } from '../hooks/usePlannerEngine'
 import { getNextOffPeriod, isShiftDay } from '@/features/finance/utils/rotaUtils'
 import { cn } from '@/lib/utils'
+
+function getIcon(id: string, type: string, isStalled?: boolean) {
+    const iconProps = { className: "w-4 h-4" }
+    if (isStalled) return <AlertTriangle {...iconProps} className="w-4 h-4 text-white" />
+    if (type === 'shift') return <Zap {...iconProps} />
+    if (type === 'transit') return <Bus {...iconProps} />
+    if (type === 'task') return <Activity {...iconProps} />
+    if (type === 'sleep') return <Moon {...iconProps} />
+    if (type === 'meal') return <Utensils {...iconProps} />
+
+    const lowerId = id.toLowerCase()
+    if (lowerId.includes('wake')) return <Coffee {...iconProps} />
+    if (lowerId.includes('shower')) return <ShowerHeadIcon {...iconProps} />
+    if (lowerId.includes('meal') || lowerId.includes('break') || lowerId.includes('oats')) return <Utensils {...iconProps} />
+    if (lowerId.includes('sleep')) return <Moon {...iconProps} />
+    if (lowerId.includes('gym') || lowerId.includes('workout')) return <Dumbbell {...iconProps} />
+
+    return <Clock {...iconProps} />
+}
 
 const isPast = (timeStr: string) => {
     const [hours, minutes] = timeStr.split(':').map(Number)
@@ -24,13 +46,43 @@ const addMinsToTime = (timeStr: string, mins: number): string => {
 }
 
 const PRIORITY_PILL: Record<string, string> = {
-    urgent: 'bg-purple-100 text-purple-700',
-    high: 'bg-red-100 text-red-700',
-    mid: 'bg-yellow-100 text-yellow-700',
+    urgent: 'bg-rose-100 text-rose-700',
+    high: 'bg-amber-100 text-amber-700',
+    mid: 'bg-blue-100 text-blue-700',
     low: 'bg-black/5 text-black/40',
 }
 
-function NowIndicator({ plannerItems }: { plannerItems: PlannerItem[] }) {
+function TaskBubble({ task, onClick }: { task: PlannerItem, onClick: () => void }) {
+    return (
+        <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onClick}
+            className={cn(
+                "group relative flex flex-col items-center gap-2 p-3 rounded-3xl transition-all border-2",
+                task.is_active
+                    ? "bg-black border-black text-white shadow-xl shadow-black/20"
+                    : "bg-white border-black/5 hover:border-black/10 text-black shadow-sm"
+            )}
+        >
+            <div className={cn(
+                "w-10 h-10 rounded-2xl flex items-center justify-center transition-colors",
+                task.is_active ? "bg-white/20 text-white" : "bg-black/5 text-black/40 group-hover:bg-black/10"
+            )}>
+                {getIcon(task.id, task.type)}
+            </div>
+            <div className="text-center">
+                <div className="text-[11px] font-bold leading-tight line-clamp-2 px-1">{task.title}</div>
+                <div className="text-[9px] font-black opacity-40 mt-1 uppercase tracking-widest">{task.duration}m</div>
+            </div>
+            {task.is_active && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full border-2 border-black animate-pulse" />
+            )}
+        </motion.button>
+    )
+}
+
+function NowIndicator({ anchors }: { anchors: PlannerItem[] }) {
     const [now, setNow] = useState(new Date())
 
     useEffect(() => {
@@ -41,24 +93,25 @@ function NowIndicator({ plannerItems }: { plannerItems: PlannerItem[] }) {
     const currentTimeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 
     const calculateTopOffset = () => {
-        let totalHeight = 24 // initial top padding
+        let totalHeight = 32 // Initial padding
         const currentMins = now.getHours() * 60 + now.getMinutes()
 
-        for (const item of plannerItems) {
+        for (let i = 0; i < anchors.length; i++) {
+            const item = anchors[i]
             const [h, m] = item.time.split(':').map(Number)
             const itemStartMins = h * 60 + m
 
             if (currentMins >= itemStartMins + item.duration) {
-                // Item is fully in the past
-                totalHeight += Math.max(80, item.duration * 1.5) + 32
+                // Item in past: Card (flexible height, min 80) + Gap/Zone (160)
+                totalHeight += Math.max(80, item.duration * 1.5) + 160
             } else if (currentMins >= itemStartMins) {
-                // Item is currently happening, add proportional height
+                // Item current
                 const itemHeight = Math.max(80, item.duration * 1.5)
                 const progress = (currentMins - itemStartMins) / item.duration
-                totalHeight += (itemHeight * progress) + 16 // 16px to reach top of card
-                break // Stop adding height once we reach the current item
+                totalHeight += (itemHeight * progress) + 16
+                break
             } else {
-                break // We haven't reached this item yet
+                break
             }
         }
         return totalHeight
@@ -199,7 +252,7 @@ function RescheduleModal({ task, onClose, onConfirm }: { task: PlannerItem, onCl
 }
 
 export function DayPlanner() {
-    const { settings, loading, plannerItems, reminders, initializeDay, reinitializeDay, endDay, initialization, isWorkDay, startTask, completeTask, rescheduleTask, isFlowActive, toggleFlow, updateSettings } = usePlannerEngine()
+    const { settings, loading, anchors, fluidTasks, zones, reminders, initializeDay, reinitializeDay, endDay, initialization, isWorkDay, startTask, completeTask, rescheduleTask, isFlowActive, toggleFlow, updateSettings } = usePlannerEngine()
     const [activeTab, setActiveTab] = useState<'timeline' | 'settings'>('timeline')
     const [rescheduleData, setRescheduleData] = useState<PlannerItem | null>(null)
 
@@ -283,43 +336,44 @@ export function DayPlanner() {
             </div>
 
             {activeTab === 'timeline' ? (
-                <div className="space-y-2 relative">
+                <div className="space-y-0 relative">
                     {/* Vertical timeline line */}
                     <div className="absolute left-[55px] top-6 bottom-6 w-px bg-gradient-to-b from-black/5 via-black/[0.06] to-black/5" />
 
                     {/* Now Indicator */}
-                    <NowIndicator plannerItems={plannerItems} />
+                    <NowIndicator anchors={anchors} />
 
-                    {/* Reminders */}
+                    {/* Reminders section restored */}
                     {reminders && reminders.length > 0 && (
-                        <div className="px-2 mb-6">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
-                                        <Bell className="w-4 h-4" />
+                        <div className="px-3 mb-8 relative z-10">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600 shadow-sm">
+                                        <Bell className="w-5 h-5 border-none" />
                                     </div>
-                                    <h3 className="text-[14px] font-black text-black uppercase tracking-tight">Today's Reminders</h3>
+                                    <div>
+                                        <h3 className="text-[14px] font-black text-black uppercase tracking-tight">Focus List</h3>
+                                        <p className="text-[10px] font-bold text-black/30">Priority tasks for today</p>
+                                    </div>
                                 </div>
-                                <span className="text-[10px] font-black text-black/20 uppercase tracking-widest">{reminders.length} Pending</span>
+                                <span className="px-3 py-1 bg-black/5 rounded-full text-[10px] font-black text-black/40 uppercase tracking-widest">{reminders.length} Pending</span>
                             </div>
-                            <div className="grid gap-2">
+                            <div className="grid gap-3">
                                 {reminders.map(reminder => (
-                                    <div key={reminder.id} className="group flex items-center gap-3 p-3 bg-white border border-black/5 rounded-2xl hover:border-black/10 transition-all shadow-sm">
+                                    <div key={reminder.id} className="group flex items-center gap-4 p-4 bg-white border border-black/[0.06] rounded-[24px] hover:border-black/10 transition-all shadow-sm">
                                         <button
                                             onClick={() => completeTask(reminder.id)}
-                                            className="w-6 h-6 rounded-lg border-2 border-black/10 hover:border-black/30 transition-all flex items-center justify-center text-transparent hover:text-black/20"
+                                            className="w-8 h-8 rounded-xl border-2 border-black/10 hover:border-black/30 transition-all flex items-center justify-center text-transparent hover:text-black/20 shrink-0"
                                         >
-                                            <Check className="w-3.5 h-3.5" />
+                                            <Check className="w-4 h-4" />
                                         </button>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[13px] font-bold text-black truncate">{reminder.title}</span>
+                                                <span className="text-[14px] font-bold text-black truncate">{reminder.title}</span>
                                                 {reminder.priority && (
                                                     <span className={cn(
-                                                        "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
-                                                        reminder.priority === 'urgent' ? "bg-rose-500 text-white" :
-                                                            reminder.priority === 'high' ? "bg-amber-500 text-white" :
-                                                                "bg-black/5 text-black/40"
+                                                        "px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest",
+                                                        PRIORITY_PILL[reminder.priority] || "bg-black/5 text-black/40"
                                                     )}>
                                                         {reminder.priority}
                                                     </span>
@@ -332,14 +386,15 @@ export function DayPlanner() {
                         </div>
                     )}
 
-                    {plannerItems.length > 0 ? (
-                        (plannerItems as PlannerItem[]).map((item, idx) => {
-                            const endTime = item.end_time || addMinsToTime(item.time, item.duration)
-                            const isTask = item.type === 'task'
+                    {/* Interleaved Anchors and Fluid Zones */}
+                    {anchors.map((item, idx) => {
+                        const endTime = item.end_time || addMinsToTime(item.time, item.duration)
+                        const zone = zones.find(z => z.id === `zone-${item.id}-${anchors[idx + 1]?.id}`)
 
-                            return (
-                                <div key={item.id} className="flex gap-3 group">
-                                    {/* Left time column: start aligned strictly to top, end aligned strictly to bottom of card */}
+                        return (
+                            <div key={item.id}>
+                                {/* Anchor Card */}
+                                <div className="flex gap-3 group mb-0">
                                     <div className="w-14 shrink-0 flex flex-col justify-between items-end pr-3">
                                         <span className={cn(
                                             "text-[10px] font-black tabular-nums transition-colors duration-500 pt-1.5",
@@ -351,171 +406,76 @@ export function DayPlanner() {
                                         )}>{endTime}</span>
                                     </div>
 
-                                    {/* Card */}
-                                    <div className="relative flex-1 pb-3">
+                                    <div className="relative flex-1 pb-4">
                                         <div className={cn(
-                                            "p-4 rounded-[20px] border border-black/[0.06] bg-white shadow-sm transition-all duration-500 relative overflow-hidden",
+                                            "p-5 rounded-[24px] border border-black/[0.06] bg-white shadow-sm transition-all duration-500 relative overflow-hidden",
+                                            item.type === 'sleep' && "bg-black text-white border-black ring-4 ring-black/5",
                                             item.type === 'shift' && "bg-blue-50/30 border-blue-100",
-                                            item.type === 'transit' && "bg-amber-50/20 border-amber-100",
-                                            item.is_stalled && "border-amber-400 bg-amber-50/30 ring-2 ring-amber-500/20",
                                             item.is_active && "border-rose-400 bg-rose-50/10 ring-2 ring-rose-500/20 shadow-lg shadow-rose-500/10",
                                             item.is_current && !item.is_active && "border-rose-200 ring-1 ring-rose-200",
                                             isPast(item.time) && !item.is_completed && !item.is_active && !item.is_current && "opacity-35 grayscale-[0.5]"
                                         )}>
-                                            {/* Animated glow for active */}
-                                            {item.is_active && (
-                                                <motion.div
-                                                    layoutId="active-glow"
-                                                    className="absolute inset-0 bg-rose-500/5 animate-pulse"
-                                                />
-                                            )}
-
-                                            {/* Pills row */}
-                                            {isTask && (item.profile || item.priority || item.strategic_category) && (
-                                                <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-                                                    {item.profile && (
-                                                        <span className={cn(
-                                                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
-                                                            item.profile === 'business' ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"
-                                                        )}>
-                                                            {item.profile}
-                                                        </span>
-                                                    )}
-                                                    {item.priority && (
-                                                        <span className={cn(
-                                                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
-                                                            PRIORITY_PILL[item.priority] || 'bg-black/5 text-black/40'
-                                                        )}>
-                                                            {item.priority}
-                                                        </span>
-                                                    )}
-                                                    {item.strategic_category && (
-                                                        <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-black/5 text-black/50">
-                                                            {item.strategic_category}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-
                                             <div className="flex items-start justify-between gap-3">
-                                                <div className="flex items-center gap-3 min-w-0">
+                                                <div className="flex items-center gap-4 min-w-0">
                                                     <div className={cn(
-                                                        "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-                                                        item.class === 'A' ? "bg-black text-white" :
-                                                            item.class === 'B' ? "bg-blue-50 text-blue-600" :
-                                                                "bg-amber-50 text-amber-600"
+                                                        "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-colors shadow-sm",
+                                                        item.type === 'sleep' ? "bg-white/10 text-white" : "bg-black text-white"
                                                     )}>
                                                         {getIcon(item.id, item.type, item.is_stalled)}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <h3 className="text-[14px] font-bold text-black tracking-tight leading-tight">{item.title}</h3>
-                                                            {item.is_stalled && (
-                                                                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black animate-pulse">
-                                                                    <AlertTriangle className="w-2 h-2 fill-white" />
-                                                                    STALLED
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        {/* Duration + impact */}
-                                                        <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="text-[10px] font-bold text-black/25 tabular-nums">
+                                                        <h3 className={cn("text-[15px] font-bold tracking-tight leading-tight", item.type === 'sleep' && "text-white")}>{item.title}</h3>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className={cn("text-[10px] font-bold tabular-nums opacity-30", item.type === 'sleep' && "text-white")}>
                                                                 {item.time} — {endTime}
                                                             </span>
-                                                            {isTask && item.impact_score && (
-                                                                <span className="text-[10px] font-black text-amber-600 flex items-center gap-0.5">
-                                                                    <Zap className="w-3 h-3 fill-current" />
-                                                                    {item.impact_score}
-                                                                </span>
-                                                            )}
-                                                            {item.class === 'A' && <span className="text-[8px] px-1 bg-black text-white rounded font-black">RIGID</span>}
+                                                            {item.class === 'A' && <span className="text-[8px] px-1.5 py-0.5 bg-black text-white rounded-md font-black ring-1 ring-white/10">FIXED</span>}
                                                         </div>
-                                                        {item.location && (
-                                                            <div className="flex items-center gap-1 mt-1 text-[10px] font-bold text-black/35">
-                                                                <MapPin className="w-3 h-3" />
-                                                                <span className="truncate max-w-[160px]">{item.location}</span>
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 </div>
-
-                                                {/* Action buttons */}
-                                                {isTask && !item.is_completed && (
-                                                    <div className="flex gap-1.5 shrink-0">
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                startTask(item.id)
-                                                            }}
-                                                            className={cn(
-                                                                "w-8 h-8 rounded-full flex items-center justify-center transition-all",
-                                                                item.is_active
-                                                                    ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30"
-                                                                    : "bg-black/5 hover:bg-black text-black/50 hover:text-white"
-                                                            )}
-                                                        >
-                                                            {item.is_active ? (
-                                                                <Pause className="w-3.5 h-3.5 fill-current" />
-                                                            ) : (
-                                                                <Play className="w-3.5 h-3.5 fill-current" />
-                                                            )}
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                setRescheduleData(item)
-                                                            }}
-                                                            className="w-8 h-8 rounded-full flex items-center justify-center bg-black/5 hover:bg-blue-500 text-black/50 hover:text-white transition-all"
-                                                            title="Reschedule to Tomorrow"
-                                                        >
-                                                            <Calendar className="w-3.5 h-3.5" />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                completeTask(item.id)
-                                                            }}
-                                                            className="w-8 h-8 rounded-full flex items-center justify-center bg-black/5 hover:bg-green-500 text-black/50 hover:text-white transition-all"
-                                                        >
-                                                            <CheckCircle2 className="w-3.5 h-3.5" />
-                                                        </button>
-                                                    </div>
-                                                )}
-
-                                                {item.is_completed && (
-                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-600 border border-green-100 shrink-0">
-                                                        <CheckCircle2 className="w-3 h-3" />
-                                                        <span className="text-[9px] font-black uppercase tracking-widest">Done</span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {isPast(item.time) && !item.is_completed && isTask && !item.is_active && (
-                                                <div className="mt-2 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-black/[0.03] border border-black/[0.05]">
-                                                    <AlertCircle className="w-3 h-3 text-black/30" />
-                                                    <span className="text-[9px] font-bold text-black/30 uppercase tracking-tight">Time passed — will reschedule</span>
-                                                </div>
-                                            )}
-                                            {/* End timestamp */}
-                                            <div className="flex justify-end mt-2">
-                                                <span className="text-[9px] font-black text-black/15 tabular-nums uppercase tracking-widest">
-                                                    ↑ {endTime}
-                                                </span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            )
-                        })
-                    ) : (
-                        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 px-12 opacity-40">
-                            <Sparkles className="w-8 h-8 text-black/20" />
-                            <p className="text-[12px] font-bold text-black uppercase tracking-widest">Day Clear</p>
-                        </div>
-                    )}
+
+                                {/* Fluid Zone if exists */}
+                                {zone && (
+                                    <div className="flex gap-3 h-[180px] overflow-hidden">
+                                        <div className="w-14 shrink-0 flex flex-col items-center justify-center">
+                                            <div className="w-px h-full bg-dashed border-l border-dashed border-black/10" />
+                                        </div>
+                                        <div className="flex-1 py-4">
+                                            <div className="h-full rounded-[32px] bg-black/[0.02] border-2 border-dashed border-black/5 flex flex-col relative group/zone">
+                                                <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 bg-white border border-black/5 rounded-full shadow-sm">
+                                                    <Sparkles className="w-3 h-3 text-amber-500 animate-pulse" />
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-black/40">
+                                                        Fluid {zone.duration}m
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex-1 flex items-center justify-center gap-4 px-6 mt-4">
+                                                    {fluidTasks
+                                                        .filter(t => t.duration <= zone.duration)
+                                                        .slice(0, 3) // Show top 3 fitting bubbles
+                                                        .map(task => (
+                                                            <TaskBubble
+                                                                key={task.id}
+                                                                task={task}
+                                                                onClick={() => startTask(task.id)}
+                                                            />
+                                                        ))
+                                                    }
+                                                    {fluidTasks.filter(t => t.duration <= zone.duration).length === 0 && (
+                                                        <div className="text-[10px] font-bold text-black/20 italic">No tasks fit this gap</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
                 </div>
             ) : (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
@@ -617,19 +577,4 @@ export function DayPlanner() {
     )
 }
 
-function getIcon(id: string, type: string, isStalled?: boolean) {
-    if (isStalled) return <AlertTriangle className="w-4 h-4 text-white" />
-    if (type === 'shift') return <Zap className="w-4 h-4" />
-    if (type === 'transit') return <Bus className="w-4 h-4" />
-    if (type === 'task') return <Activity className="w-4 h-4" />
-    if (type === 'sleep') return <Moon className="w-4 h-4" />
-    if (type === 'meal') return <Utensils className="w-4 h-4" />
 
-    if (id.includes('wake')) return <Coffee className="w-4 h-4" />
-    if (id.includes('shower')) return <ShowerHeadIcon className="w-4 h-4" />
-    if (id.includes('meal') || id.includes('break') || id.includes('oats')) return <Utensils className="w-4 h-4" />
-    if (id.includes('sleep')) return <Moon className="w-4 h-4" />
-    if (id.includes('gym') || id.includes('workout')) return <Dumbbell className="w-4 h-4" />
-
-    return <Clock className="w-4 h-4" />
-}

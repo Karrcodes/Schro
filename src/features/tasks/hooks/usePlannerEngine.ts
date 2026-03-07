@@ -32,8 +32,18 @@ export interface PlannerItem {
     priority?: string
 }
 
+export interface FluidZone {
+    id: string
+    start_time: string
+    end_time: string
+    duration: number
+    center_time: string
+}
+
 interface PlannerData {
-    items: PlannerItem[]
+    anchors: PlannerItem[]
+    fluidTasks: PlannerItem[]
+    zones: FluidZone[]
     reminders: Task[]
 }
 
@@ -165,89 +175,67 @@ export function usePlannerEngine(date: Date = new Date()) {
         // A. Base Anchor Blocks (The Skeleton)
         const activeAnchors: RoutineAnchor[] = isWorkDay ? (settings.anchors_work || []) : (settings.anchors_off || [])
 
-        activeAnchors.forEach(anchor => {
-            items.push({
-                id: anchor.id,
-                title: anchor.name,
-                time: anchor.start_time,
-                end_time: anchor.end_time,
-                duration: timeToMinutes(anchor.end_time) < timeToMinutes(anchor.start_time)
-                    ? (timeToMinutes(anchor.end_time) + 24 * 60) - timeToMinutes(anchor.start_time)
-                    : timeToMinutes(anchor.end_time) - timeToMinutes(anchor.start_time),
-                type: anchor.type as any,
-                class: anchor.is_flexible ? 'B' : 'A',
-                is_current: isCurrentItem(anchor.start_time, timeToMinutes(anchor.end_time) < timeToMinutes(anchor.start_time) ? (timeToMinutes(anchor.end_time) + 24 * 60) - timeToMinutes(anchor.start_time) : timeToMinutes(anchor.end_time) - timeToMinutes(anchor.start_time)),
-                sort_priority: anchor.type === 'sleep' ? 999 : 0
-            })
-        })
+        const anchorItems: PlannerItem[] = activeAnchors.map(anchor => ({
+            id: anchor.id,
+            title: anchor.name,
+            time: anchor.start_time,
+            end_time: anchor.end_time,
+            duration: timeToMinutes(anchor.end_time) < timeToMinutes(anchor.start_time)
+                ? (timeToMinutes(anchor.end_time) + 24 * 60) - timeToMinutes(anchor.start_time)
+                : timeToMinutes(anchor.end_time) - timeToMinutes(anchor.start_time),
+            type: anchor.type as PlannerItem['type'],
+            class: (anchor.is_flexible ? 'B' : 'A') as PlannerItem['class'],
+            is_current: isCurrentItem(anchor.start_time, timeToMinutes(anchor.end_time) < timeToMinutes(anchor.start_time) ? (timeToMinutes(anchor.end_time) + 24 * 60) - timeToMinutes(anchor.start_time) : timeToMinutes(anchor.end_time) - timeToMinutes(anchor.start_time)),
+            sort_priority: anchor.type === 'sleep' ? 999 : 0
+        })).sort((a, b) => a.time.localeCompare(b.time))
 
-        // B. Fluid Tasks (The River)
-        // For Phase 2, we just load them into the items array as floating tasks without hardcoding times.
-        // The UI will handle rendering them as bubbles in the fluid zones in Phase 3.
-        const backlog = [...personalTasks, ...businessTasks].sort((a, b) => {
+        // B. Calculate Fluid Zones (Gaps between anchors)
+        const zones: FluidZone[] = []
+        for (let i = 0; i < anchorItems.length - 1; i++) {
+            const current = anchorItems[i]
+            const next = anchorItems[i + 1]
+
+            const currentEndMins = timeToMinutes(current.end_time || addMinutes(current.time, current.duration))
+            const nextStartMins = timeToMinutes(next.time)
+
+            if (nextStartMins > currentEndMins + 15) { // Minimum 15 mins for a zone
+                const duration = nextStartMins - currentEndMins
+                zones.push({
+                    id: `zone-${current.id}-${next.id}`,
+                    start_time: minutesToTime(currentEndMins),
+                    end_time: next.time,
+                    duration,
+                    center_time: minutesToTime(currentEndMins + Math.floor(duration / 2))
+                })
+            }
+        }
+
+        // C. Fluid Tasks (The River)
+        const fluidTasks: PlannerItem[] = [...personalTasks, ...businessTasks].sort((a, b) => {
             const weights = { urgent: 4, high: 3, mid: 2, low: 1 }
             const weightA = weights[a.priority as keyof typeof weights] || 0
             const weightB = weights[b.priority as keyof typeof weights] || 0
             if (a.priority !== b.priority) return weightB - weightA
             return (b.impact_score || 0) - (a.impact_score || 0)
-        })
+        }).map(task => ({
+            id: task.id,
+            title: task.title,
+            time: '',
+            duration: task.estimated_duration || 30,
+            type: 'task',
+            class: 'C',
+            is_completed: task.is_completed,
+            project_id: task.project_id,
+            impact_score: task.impact_score,
+            is_active: activeTaskId === task.id || activeTaskId === `${task.id}-${dateStr}`,
+            location: task.location,
+            profile: task.profile,
+            strategic_category: task.strategic_category,
+            priority: task.priority,
+            sort_priority: 50
+        }))
 
-        backlog.forEach(task => {
-            items.push({
-                id: task.id,
-                title: task.title,
-                time: '', // Fluid tasks don't have fixed times initially
-                duration: task.estimated_duration || 30,
-                type: 'task',
-                class: 'C',
-                is_completed: task.is_completed,
-                project_id: task.project_id,
-                impact_score: task.impact_score,
-                is_active: activeTaskId === task.id || activeTaskId === `${task.id}-${dateStr}`,
-                location: task.location,
-                profile: task.profile,
-                strategic_category: task.strategic_category,
-                priority: task.priority,
-                sort_priority: 50 // Keep floating tasks below fixed anchors when sorting without times
-            })
-        })
-
-        let sleepItems = items.filter(i => i.id.startsWith('sleep'))
-        const nonSleepItems = items.filter(i => !i.id.startsWith('sleep'))
-
-        // Sort all non-sleep items
-        const sorted = nonSleepItems.sort((a, b) => {
-            // Un-timed items (e.g., fluid tasks) go at the end of their priority section
-            if (!a.time && b.time) return 1
-            if (a.time && !b.time) return -1
-            if (a.time !== b.time) return a.time.localeCompare(b.time)
-            return (a.sort_priority || 0) - (b.sort_priority || 0)
-        })
-
-        // Ensure sleep starts no earlier than the end of the last item
-        if (sorted.length > 0 && sleepItems.length > 0) {
-            const lastItem = sorted[sorted.length - 1]
-            const lastEndTime = lastItem.end_time || addMinutes(lastItem.time, lastItem.duration)
-
-            // Basic check: if last end time is structurally later than bedtime (adjusting for next-day midnight logic)
-            // For simplicity, we just use the string comparison, but treat 00:xx - 05:xx as being > 21:xx - 23:xx
-            const isLastNextDay = lastEndTime >= '00:00' && lastEndTime <= '06:00'
-            const isSleepNextDay = sleepItems[0].time >= '00:00' && sleepItems[0].time <= '06:00'
-
-            let pushSleepForward = false
-            if (isLastNextDay && !isSleepNextDay) {
-                pushSleepForward = true
-            } else if (isLastNextDay === isSleepNextDay) {
-                if (lastEndTime > sleepItems[0].time) pushSleepForward = true
-            }
-
-            if (pushSleepForward) {
-                sleepItems[0] = { ...sleepItems[0], time: lastEndTime }
-            }
-        }
-
-        const finalItems = [...sorted, ...sleepItems]
-        return { items: finalItems, reminders }
+        return { anchors: anchorItems, fluidTasks, zones, reminders }
     }, [settings, initialization, isWorkDay, allPersonalTasks, allBusinessTasks, dateStr, isFlowActive, activeTaskId])
 
     const plannerItems = plannerData.items
@@ -388,8 +376,10 @@ export function usePlannerEngine(date: Date = new Date()) {
 
     return {
         isWorkDay,
-        plannerItems,
-        reminders,
+        anchors: plannerData.anchors,
+        fluidTasks: plannerData.fluidTasks,
+        zones: plannerData.zones,
+        reminders: plannerData.reminders,
         loading,
         settings,
         initialization,
