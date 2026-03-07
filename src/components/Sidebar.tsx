@@ -21,6 +21,7 @@ import { useSettings } from '@/features/finance/hooks/useSettings'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 
 import { navItems } from '@/lib/navConfig'
+import { useAuth } from '@/contexts/AuthContext'
 
 function CapBadge({ cap }: { cap: 'P' | 'B' }) {
     return (
@@ -72,6 +73,7 @@ function ProfileMenu() {
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [isRefreshHovered, setIsRefreshHovered] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
+    const { signOut, profile } = useAuth()
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -90,8 +92,19 @@ function ProfileMenu() {
             {isOpen && (
                 <div className="absolute bottom-full left-4 mb-2 w-52 bg-white border border-black/[0.08] rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-[50]">
                     <div className="p-3">
-                        <p className="text-[12px] font-bold text-black">{settings.user_name || 'Schrö Admin'}</p>
-                        <p className="text-[10px] text-black/40">{settings.user_email || 'karr@studiokarrtesian.com'}</p>
+                        <p className="text-[12px] font-bold text-black">{settings.user_name || profile?.display_name || 'Schrö Admin'}</p>
+                        <p className="text-[10px] text-black/40">{profile?.email || settings.user_email || 'admin@schro.app'}</p>
+                    </div>
+                    <div className="border-t border-black/[0.05] p-1.5">
+                        <button
+                            onClick={signOut}
+                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] text-red-500/80 hover:text-red-600 hover:bg-red-50 transition-colors text-left"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Sign out
+                        </button>
                     </div>
                 </div>
             )}
