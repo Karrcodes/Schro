@@ -3,25 +3,18 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
-    const { searchParams, origin } = new URL(request.url)
+    const { searchParams, origin: requestOrigin } = new URL(request.url)
     const code = searchParams.get('code')
     const next = searchParams.get('next') ?? '/system/control-centre'
-    const bridgeTarget = searchParams.get('bridge_target')
+
+    // Determine the actual origin from headers to support local network IPs
+    const host = request.headers.get('host')
+    const protocol = request.headers.get('x-forwarded-proto') || (requestOrigin.startsWith('https') ? 'https' : 'http')
+    const origin = host ? `${protocol}://${host}` : requestOrigin
 
     console.log('[Auth Callback] Request received')
-    console.log('[Auth Callback] Origin:', origin)
+    console.log('[Auth Callback] Origin (Detected):', origin)
     console.log('[Auth Callback] Next:', next)
-    if (bridgeTarget) console.log('[Auth Callback] Bridge Target:', bridgeTarget)
-
-    // Handle Bridge Redirect: If we are on production and have a bridge target, 
-    // bounce back to the local device.
-    if (bridgeTarget && code && (origin.includes('schro.app') || origin.includes('vercel.app'))) {
-        console.log('[Auth Callback] Bouncing to local target:', bridgeTarget)
-        const localUrl = new URL(`http://${bridgeTarget}/api/auth/callback`)
-        localUrl.searchParams.set('code', code)
-        localUrl.searchParams.set('next', next)
-        return NextResponse.redirect(localUrl.toString())
-    }
 
     if (code) {
         // Use anon client to exchange code for session (sets cookies)

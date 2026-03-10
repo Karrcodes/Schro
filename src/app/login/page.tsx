@@ -23,20 +23,7 @@ export default function LoginPage() {
         const redirectTo = searchParams.get('redirectTo') ?? '/system/control-centre'
 
         const currentOrigin = typeof window !== 'undefined' ? window.location.origin : ''
-
-        // Detect if we are on a local IP (192.168.x.x, 10.x.x.x, etc.)
-        // Supabase blocks http redirects to IPs, so we bridge through production.
-        const isLocalIP = /^(https?:\/\/)?(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[0-1]))/.test(currentOrigin)
-
-        let finalRedirectTo = `${currentOrigin}/api/auth/callback`
-
-        if (isLocalIP && !currentOrigin.includes('localhost')) {
-            const host = currentOrigin.replace(/^https?:\/\//, '')
-            // We use production schro.app as a trusted bridge to bypass HTTP IP restriction
-            finalRedirectTo = `https://schro.app/api/auth/callback?bridge_target=${encodeURIComponent(host)}&next=${encodeURIComponent(redirectTo)}`
-        } else {
-            finalRedirectTo = `${currentOrigin}/api/auth/callback?next=${encodeURIComponent(redirectTo)}`
-        }
+        const finalRedirectTo = `${currentOrigin}/api/auth/callback?next=${encodeURIComponent(redirectTo)}`
 
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -97,6 +84,14 @@ export default function LoginPage() {
                     <p className="mt-4 text-center text-xs text-white/25">
                         Access is by invitation only during beta.
                     </p>
+
+                    <div className="mt-6 pt-6 border-t border-white/5 space-y-2">
+                        <p className="text-[10px] text-white/20 uppercase font-black tracking-widest">Network Debug</p>
+                        <div className="bg-black/20 rounded-lg p-3 font-mono text-[9px] text-white/40 break-all space-y-1">
+                            <div>Origin: {typeof window !== 'undefined' && window.location.origin}</div>
+                            <div>Final RD: {typeof window !== 'undefined' ? `${window.location.origin}/api/auth/callback` : ''}</div>
+                        </div>
+                    </div>
                 </div>
 
                 <p className="text-center text-xs text-white/20 mt-6">
