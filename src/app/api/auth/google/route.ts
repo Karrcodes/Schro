@@ -3,6 +3,7 @@ import { google } from 'googleapis'
 
 export async function GET(req: NextRequest) {
     const origin = req.nextUrl.origin
+    console.log('[Google Auth] Initiating auth from origin:', origin)
     const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,

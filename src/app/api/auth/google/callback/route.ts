@@ -9,6 +9,7 @@ const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
 export async function GET(req: NextRequest) {
     const origin = req.nextUrl.origin
+    console.log('[Google Callback] Incoming callback to origin:', origin)
     const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,

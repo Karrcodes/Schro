@@ -7,6 +7,10 @@ export async function GET(request: Request) {
     const code = searchParams.get('code')
     const next = searchParams.get('next') ?? '/system/control-centre'
 
+    console.log('[Auth Callback] Request received')
+    console.log('[Auth Callback] Origin:', origin)
+    console.log('[Auth Callback] Next:', next)
+
     if (code) {
         // Use anon client to exchange code for session (sets cookies)
         const supabase = await createClient()
