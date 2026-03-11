@@ -8,11 +8,16 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, Save, Trash2, Dumbbell, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export function RoutineBuilder() {
-    const { addRoutine } = useWellbeing()
-    const [name, setName] = useState('')
-    const [day, setDay] = useState('')
-    const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([])
+interface RoutineBuilderProps {
+    initialRoutine?: WorkoutRoutine
+    onSave?: () => void
+}
+
+export function RoutineBuilder({ initialRoutine, onSave }: RoutineBuilderProps) {
+    const { addRoutine, updateRoutine } = useWellbeing()
+    const [name, setName] = useState(initialRoutine?.name || '')
+    const [day, setDay] = useState(initialRoutine?.day || '')
+    const [selectedExercises, setSelectedExercises] = useState<Exercise[]>(initialRoutine?.exercises || [])
     const [showLibrary, setShowLibrary] = useState(false)
 
     const handleAddExercise = (exercise: Exercise) => {
@@ -23,21 +28,33 @@ export function RoutineBuilder() {
         }
     }
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!name || selectedExercises.length === 0) return
 
-        const routine: WorkoutRoutine = {
-            id: Math.random().toString(36).substr(2, 9),
-            name,
-            day,
-            exercises: selectedExercises
+        if (initialRoutine) {
+            await updateRoutine(initialRoutine.id, {
+                name,
+                day,
+                exercises: selectedExercises
+            })
+        } else {
+            const routine: WorkoutRoutine = {
+                id: Math.random().toString(36).substr(2, 9),
+                name,
+                day,
+                exercises: selectedExercises
+            }
+            await addRoutine(routine)
         }
 
-        addRoutine(routine)
-        // Reset form
-        setName('')
-        setDay('')
-        setSelectedExercises([])
+        onSave?.()
+        
+        // Reset form if not in a modal context (though usually it will be)
+        if (!initialRoutine) {
+            setName('')
+            setDay('')
+            setSelectedExercises([])
+        }
     }
 
     return (

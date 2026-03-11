@@ -45,6 +45,9 @@ interface WellbeingContextType extends WellbeingState {
     updateSessionSet: (exerciseId: string, setIndex: number, updates: Partial<WorkoutSet>) => void
     finishSession: () => Promise<void>
     cancelSession: () => void
+    setActiveRoutineId: (id: string) => Promise<void>
+    updateRoutine: (id: string, updates: Partial<WorkoutRoutine>) => Promise<void>
+    deleteRoutine: (id: string) => Promise<void>
 }
 
 export const WellbeingContext = createContext<WellbeingContextType | undefined>(undefined)
@@ -402,6 +405,26 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
         const activeRoutineId = state.activeRoutineId || routine.id
         setState(prev => ({ ...prev, routines, activeRoutineId }))
         await persistData({ routines, activeRoutineId })
+    }
+
+    const updateRoutine = async (id: string, updates: Partial<WorkoutRoutine>) => {
+        const routines = state.routines.map(r => r.id === id ? { ...r, ...updates } : r)
+        setState(prev => ({ ...prev, routines }))
+        await persistData({ routines })
+    }
+
+    const deleteRoutine = async (id: string) => {
+        const routines = state.routines.filter(r => r.id !== id)
+        const activeRoutineId = state.activeRoutineId === id 
+            ? (routines.length > 0 ? routines[0].id : null)
+            : state.activeRoutineId
+        setState(prev => ({ ...prev, routines, activeRoutineId }))
+        await persistData({ routines, activeRoutineId })
+    }
+
+    const setActiveRoutineId = async (id: string) => {
+        setState(prev => ({ ...prev, activeRoutineId: id }))
+        await persistData({ activeRoutineId: id })
     }
 
     const updateGymStats = async (stats: Partial<TheGymGroupStats>) => {
@@ -884,6 +907,9 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
         updateSessionSet,
         finishSession,
         cancelSession,
+        setActiveRoutineId,
+        updateRoutine,
+        deleteRoutine,
         macros,
         dailyNutrition,
         gymRecommendation,
