@@ -132,7 +132,7 @@ export function WorkoutSession() {
     return (
         <div className="max-w-xl mx-auto flex flex-col p-2 sm:p-4">
             {/* Transparent Header - Pins further up */}
-            <header className="flex flex-col items-center text-center space-y-1.5 shrink-0 pt-1 pb-2">
+            <header className="flex flex-col items-center text-center space-y-1 shrink-0 pt-0 pb-1.5">
                 <div className="space-y-0.5">
                     <div className="flex items-center justify-center gap-1.5">
                         <span className={cn("w-1 h-1 rounded-full", activeSession.isPaused ? "bg-amber-500" : "bg-rose-500 animate-pulse")} />

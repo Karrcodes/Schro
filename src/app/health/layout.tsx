@@ -153,10 +153,25 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                     isSessionRoute ? "h-[100dvh] fixed inset-0 overflow-hidden flex flex-col p-0 bg-white" : "p-6 md:p-10 space-y-8"
                 )}
                 style={isSessionRoute ? { 
-                    paddingTop: 'env(safe-area-inset-top)', 
+                    paddingTop: 'calc(env(safe-area-inset-top) + 20px)', 
                     paddingBottom: 'env(safe-area-inset-bottom)' 
                 } : {}}
             >
+                {isSessionRoute && (
+                    <style jsx global>{`
+                        html, body {
+                            overflow: hidden !important;
+                            height: 100% !important;
+                        }
+                        *::-webkit-scrollbar {
+                            display: none !important;
+                        }
+                        * {
+                            -ms-overflow-style: none !important;
+                            scrollbar-width: none !important;
+                        }
+                    `}</style>
+                )}
                 {/* Header */}
                 {!isSessionRoute && (
                     <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
