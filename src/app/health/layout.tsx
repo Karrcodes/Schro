@@ -153,7 +153,7 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                     isSessionRoute ? "h-[100dvh] fixed inset-0 overflow-hidden flex flex-col p-0 bg-white" : "p-6 md:p-10 space-y-8"
                 )}
                 style={isSessionRoute ? { 
-                    paddingTop: 'calc(env(safe-area-inset-top) + 20px)', 
+                    paddingTop: 'calc(env(safe-area-inset-top) + 40px)', 
                     paddingBottom: 'env(safe-area-inset-bottom)' 
                 } : {}}
             >
