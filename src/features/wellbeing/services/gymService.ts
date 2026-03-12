@@ -24,7 +24,7 @@ export const GymService = {
         }
         if (accessToken) headers['x-gym-token'] = accessToken
 
-        const res = await fetch(url.toString(), { headers })
+        const res = await fetch(url.toString(), { headers, cache: 'no-store' })
         if (!res.ok) {
             const errorData = await res.json().catch(() => ({}))
             throw new Error(`Failed to fetch busyness: ${res.status} ${res.statusText} - ${JSON.stringify(errorData)}`)
@@ -34,7 +34,8 @@ export const GymService = {
 
     async getHistory(uuid: string, cookie: string): Promise<any> {
         const res = await fetch(`/api/wellbeing/gym/history?uuid=${uuid}`, {
-            headers: { 'x-gym-cookie': cookie }
+            headers: { 'x-gym-cookie': cookie },
+            cache: 'no-store'
         })
         if (!res.ok) {
             const text = await res.text()

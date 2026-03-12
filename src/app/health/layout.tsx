@@ -62,8 +62,10 @@ function GymOccupancySwitcher({ allBusyness, gymLocationId, gymStats }: {
                         <div className="flex items-center gap-2 px-4 py-3">
                             <div className={cn("w-2 h-2 rounded-full shrink-0", busynessColor(b?.currentPercentage), "animate-pulse")} />
                             <div className="flex flex-col leading-none">
-                                <span className="text-[10px] font-black uppercase tracking-tight text-black">
-                                    {b?.currentPercentage ?? '—'}% Full
+                                <span className="text-[10px] font-black uppercase tracking-tight text-black flex items-center gap-1.5">
+                                    <span>{b?.currentCapacity ?? '—'} Inside</span>
+                                    <span className="text-black/20">•</span>
+                                    <span className={busynessColor(b?.currentPercentage).replace('bg-', 'text-')}>{b?.currentPercentage ?? 0}%</span>
                                 </span>
                                 <span className="text-[8px] font-bold uppercase tracking-widest mt-0.5 text-black/30">
                                     {gymStats.gymLocationNames?.[id] || labelFor(id)}
@@ -215,7 +217,7 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                         })}
                     </div>
 
-                    {gymStats.isIntegrated && (
+                    {gymStats.isIntegrated ? (
                         <div className="flex items-center gap-3">
                             {/* Multi-gym occupancy switcher */}
                             {gymStats.allBusyness && Object.keys(gymStats.allBusyness).length > 0 && (
@@ -227,19 +229,21 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                             )}
                             {/* Single-gym fallback */}
                             {gymStats.busyness && !gymStats.allBusyness && (
-                                <div className="flex items-center gap-2 px-5 py-3 bg-white border border-black/5 rounded-2xl shadow-sm">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-black uppercase tracking-tight leading-none">
-                                            {gymStats.busyness.currentPercentage}% Full
+                                <div className="flex items-center gap-3 px-5 py-3 bg-white border border-black/5 rounded-2xl shadow-sm">
+                                    <div className={cn("w-2 h-2 rounded-full shrink-0 animate-pulse", busynessColor(gymStats.busyness.currentPercentage))} />
+                                    <div className="flex flex-col leading-none">
+                                        <span className="text-[10px] font-black text-black uppercase tracking-tight flex items-center gap-1.5">
+                                            <span>{gymStats.busyness.currentCapacity} Inside</span>
+                                            <span className="text-black/20">•</span>
+                                            <span className={busynessColor(gymStats.busyness.currentPercentage).replace('bg-', 'text-')}>{gymStats.busyness.currentPercentage}%</span>
                                         </span>
-                                        <span className="text-[8px] font-bold text-black/30 uppercase tracking-widest">Gym Capacity</span>
+                                        <span className="text-[8px] font-bold text-black/30 uppercase tracking-widest mt-1">Live Occupancy</span>
                                     </div>
                                 </div>
                             )}
                             <button
                                 onClick={() => syncGymData()}
-                                disabled={isSyncingGym || justSynced}
+                                disabled={isSyncingGym}
                                 className={cn(
                                     "flex items-center gap-2 px-5 py-3 rounded-2xl shadow-sm transition-all duration-300 border",
                                     isSyncingGym ? "bg-white border-black/5 cursor-not-allowed opacity-50" : 
@@ -272,6 +276,14 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                                 <Settings className="w-4 h-4" />
                             </button>
                         </div>
+                    ) : (
+                        <button
+                            onClick={() => setIsGymModalOpen(true)}
+                            className="flex items-center gap-2 px-5 py-3 bg-white border border-black/5 hover:bg-black/[0.02] rounded-2xl shadow-sm transition-all text-black/40 hover:text-black group"
+                        >
+                            <Settings className="w-4 h-4 transition-transform group-hover:rotate-180" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Connect Gym</span>
+                        </button>
                     )}
                 </div>
 

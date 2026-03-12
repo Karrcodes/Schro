@@ -40,6 +40,7 @@ export function FitnessTab() {
 
     return (
         <div className="space-y-6">
+
             {/* Recommendation Banner */}
             <motion.div 
                 initial={{ opacity: 0, y: -20 }}
@@ -80,6 +81,93 @@ export function FitnessTab() {
                     </div>
                 ) : (
                     <>
+                        {/* Active Protocol (Minimalist Launchpad) */}
+                        <section className="bg-black text-white rounded-[32px] p-6 md:p-8 relative overflow-hidden flex flex-col group shadow-2xl h-auto md:h-[320px] lg:h-auto lg:min-h-full lg:col-span-1 max-w-[400px] mx-auto lg:max-w-none lg:mx-0 w-full">
+                            <div className="flex items-center gap-2 relative z-10 shrink-0 mb-3">
+                                <Dumbbell className="w-4 h-4 text-emerald-500" />
+                                <h3 className="text-[10px] font-black text-white/50 uppercase tracking-[0.4em]">Active Protocol</h3>
+                            </div>
+
+                            <div className="flex flex-col flex-1 min-h-0 justify-between">
+                                <div className="flex flex-col items-start gap-1 relative z-10 w-full mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter leading-none">{displayTitle}</h2>
+                                    </div>
+                                    <p className="text-rose-500 text-[9px] md:text-[10px] font-black uppercase tracking-widest leading-snug line-clamp-2">{displayMuscles}</p>
+                                </div>
+                                
+                                {/* TEMPORARILY DISABLED FOR DESIGN WORK */}
+                                {false && hasVisitedGymToday ? (
+                                    <div className="flex flex-col items-center justify-center pt-4 pb-2 space-y-3 text-center">
+                                        <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-4 border-emerald-500/30 flex items-center justify-center mb-2 relative">
+                                            <div className="absolute inset-0 rounded-full animate-ping bg-emerald-500/20" style={{ animationDuration: '3s' }} />
+                                            <CheckCircle2 className="w-8 h-8 text-emerald-400 relative z-10" />
+                                        </div>
+                                        <h3 className="text-xl font-black uppercase tracking-tight text-white">Session Complete</h3>
+                                        <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest max-w-[200px]">
+                                            You've already crushed your workout today. Enjoy your recovery!
+                                        </p>
+                                        
+                                        <div className="pt-2 w-full">
+                                            <button 
+                                                onClick={() => {
+                                                    if (!activeSession) {
+                                                        startSession(activeRoutine.id)
+                                                    }
+                                                    router.push('/health/fitness/session')
+                                                }}
+                                                className="w-full py-3 bg-white/5 text-white/60 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2 group border border-white/5"
+                                            >
+                                                Log Extra Session <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Minimalist Play Button Layout */}
+                                        <div className="w-full flex flex-col items-center justify-center relative z-10 flex-1 my-4">
+                                            <div className="flex items-center justify-center gap-4 md:gap-6 w-full">
+                                                <button 
+                                                    onClick={() => setIsEditModalOpen(true)}
+                                                    className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors group/btn shrink-0 shadow-lg shadow-black/20"
+                                                    title="View/Edit Routine"
+                                                >
+                                                    <List className="w-5 h-5 md:w-6 md:h-6 text-white/50 group-hover/btn:text-white transition-colors" />
+                                                </button>
+
+                                                <button 
+                                                    onClick={() => {
+                                                        if (!activeSession) {
+                                                            startSession(activeRoutine.id)
+                                                        }
+                                                        router.push('/health/fitness/session')
+                                                    }}
+                                                    className="w-20 h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 rounded-full bg-white text-black flex flex-col items-center justify-center hover:scale-[1.05] active:scale-[0.95] transition-all shadow-[0_0_50px_rgba(255,255,255,0.2)] group shrink-0"
+                                                >
+                                                    {activeSession ? (
+                                                        <ArrowRight className="w-10 h-10 md:w-12 md:h-12 text-black group-hover:translate-x-2 transition-transform" />
+                                                    ) : (
+                                                        <Play className="w-10 h-10 md:w-12 md:h-12 text-black fill-black ml-1.5 md:ml-2" />
+                                                    )}
+                                                </button>
+
+                                                <button 
+                                                    onClick={() => setIsSwitcherOpen(true)}
+                                                    className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors group/btn shrink-0 shadow-lg shadow-black/20"
+                                                    title="Switch Routine"
+                                                >
+                                                    <Repeat className="w-5 h-5 md:w-6 md:h-6 text-white/50 group-hover/btn:text-white transition-colors" />
+                                                </button>
+                                            </div>
+                                            <p className="text-[9px] md:text-[10px] font-black text-white/40 uppercase tracking-widest mt-6">
+                                                {activeSession ? 'Resume Session' : 'Start Session'}
+                                            </p>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </section>
+
                         {/* Operational Flow (Weekly Split) */}
                         <div className="bg-white border border-black/5 rounded-[32px] p-8 shadow-sm flex flex-col space-y-6 lg:col-span-1 h-auto md:h-[320px] lg:h-auto max-w-[400px] mx-auto lg:max-w-none lg:mx-0 w-full">
                             <div className="flex items-center justify-between">
@@ -89,94 +177,6 @@ export function FitnessTab() {
 
                             <FitnessHeatmap />
                         </div>
-
-                        {/* Active Protocol (Minimalist Launchpad) */}
-                        <section className="bg-black text-white rounded-[32px] p-8 relative overflow-hidden flex flex-col space-y-2 group shadow-2xl h-auto md:h-[320px] lg:h-0 lg:min-h-full min-h-0 lg:col-span-1 max-w-[400px] mx-auto lg:max-w-none lg:mx-0 w-full">
-                            <div className="flex items-center justify-between relative z-10">
-                                <h3 className="text-[10px] font-black text-white/50 uppercase tracking-[0.4em]">Active Protocol</h3>
-                                <div className="w-10 h-10 rounded-[14px] bg-white/10 backdrop-blur-md flex items-center justify-center">
-                                    <Dumbbell className="w-5 h-5 text-white" />
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col space-y-4 pt-2">
-                                <div className="flex flex-row items-start justify-between space-y-0 relative z-10 w-full">
-                                    <div className="space-y-0.5 flex flex-col">
-                                        <h2 className="text-3xl font-black uppercase tracking-tighter leading-none">{displayTitle}</h2>
-                                        <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest leading-snug pr-4">{displayMuscles}</p>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <button 
-                                            onClick={() => setIsEditModalOpen(true)}
-                                            className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors group/btn"
-                                            title="View/Edit Routine"
-                                        >
-                                            <List className="w-5 h-5 text-white/30 group-hover/btn:text-white transition-colors" />
-                                        </button>
-                                        <button 
-                                            onClick={() => setIsSwitcherOpen(true)}
-                                            className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors group/btn"
-                                            title="Switch Routine"
-                                        >
-                                            <Repeat className="w-5 h-5 text-white/30 group-hover/btn:text-white transition-colors" />
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                {/* TEMPORARILY DISABLED FOR DESIGN WORK */}
-                                {false && hasVisitedGymToday ? (
-                                    <div className="flex flex-col items-center justify-center pt-8 pb-4 space-y-4 text-center">
-                                        <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-4 border-emerald-500/30 flex items-center justify-center mb-4 relative">
-                                            <div className="absolute inset-0 rounded-full animate-ping bg-emerald-500/20" style={{ animationDuration: '3s' }} />
-                                            <CheckCircle2 className="w-10 h-10 text-emerald-400 relative z-10" />
-                                        </div>
-                                        <h3 className="text-2xl font-black uppercase tracking-tight text-white">Session Complete</h3>
-                                        <p className="text-[12px] font-bold text-white/40 uppercase tracking-widest max-w-[250px]">
-                                            You've already crushed your workout today. Enjoy your recovery!
-                                        </p>
-                                        
-                                        <div className="pt-4 w-full">
-                                            <button 
-                                                onClick={() => {
-                                                    if (!activeSession) {
-                                                        startSession(activeRoutine.id)
-                                                    }
-                                                    router.push('/health/fitness/session')
-                                                }}
-                                                className="w-full py-3 bg-white/5 text-white/60 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2 group border border-white/5"
-                                            >
-                                                Log Extra Session <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {/* Minimalist Play Button Layout */}
-                                        <div className="w-full flex flex-col items-center relative z-10 pt-2">
-                                            <button 
-                                                onClick={() => {
-                                                    if (!activeSession) {
-                                                        startSession(activeRoutine.id)
-                                                    }
-                                                    router.push('/health/fitness/session')
-                                                }}
-                                                className="w-24 h-24 lg:w-32 lg:h-32 rounded-full bg-white text-black flex flex-col items-center justify-center hover:scale-[1.05] active:scale-[0.95] transition-all shadow-[0_0_50px_rgba(255,255,255,0.2)] group"
-                                            >
-                                                {activeSession ? (
-                                                    <ArrowRight className="w-12 h-12 text-black group-hover:translate-x-2 transition-transform" />
-                                                ) : (
-                                                    <Play className="w-12 h-12 text-black fill-black ml-2" />
-                                                )}
-                                            </button>
-                                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mt-4">
-                                                {activeSession ? 'Resume Session' : 'Start Session'}
-                                            </p>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </section>
 
                         {/* Milestones (1/3 width) */}
                         <div className="lg:col-span-1 h-auto md:h-[320px] lg:h-0 lg:min-h-full min-h-0 relative max-w-[400px] mx-auto lg:max-w-none lg:mx-0 w-full">

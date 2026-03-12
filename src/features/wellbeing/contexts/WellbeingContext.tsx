@@ -755,8 +755,12 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
             
             setState(prev => ({ ...prev, gymStats, isSyncingGym: false }))
             await persistData({ gymStats })
-        } catch (e) { 
+        } catch (e: any) { 
             console.error('Gym sync failed:', e) 
+            if (e.message?.includes('403') || e.message?.includes('401')) {
+                // If token is invalid across devices, forcibly disconnect to prompt a re-link
+                disconnectGym()
+            }
             setState(prev => ({ ...prev, isSyncingGym: false }))
         }
     }

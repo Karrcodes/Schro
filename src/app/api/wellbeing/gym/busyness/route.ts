@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url)
@@ -52,7 +54,35 @@ export async function GET(req: Request) {
 
             const response = await fetch(busynessUrl, { headers })
             if (response.ok) {
-                const data = await response.json()
+                let data = await response.json()
+                
+                // Attempt to fetch live occupancy via probing multiple endpoints
+                const probes: Record<string, any> = {}
+                const endpoints = [
+                    `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gyms/${locationId}/live-occupancy`,
+                    `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gyms/${locationId}/activity`,
+                    `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gym-locations/${locationId}/busyness`,
+                    `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gyms/${locationId}/occupancy`,
+                    `https://thegymgroup.netpulse.com/np/thegymgroup/v2.0/gyms/${locationId}/busyness`
+                ]
+                
+                await Promise.allSettled(endpoints.map(async (url) => {
+                    try {
+                        const res = await fetch(url, { headers })
+                        if (res.ok) probes[url] = await res.json()
+                        else probes[url] = `Error ${res.status}`
+                    } catch (e: any) {
+                        probes[url] = e.message
+                    }
+                }))
+                
+                try {
+                    const liveUrl = `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gyms/${locationId}`
+                    const liveRes = await fetch(liveUrl, { headers })
+                    if (liveRes.ok) probes['baseGymDetails'] = await liveRes.json()
+                } catch (e) {}
+
+                data._debugProbes = probes
                 console.log('Gym Busyness Raw Data:', JSON.stringify(data))
                 return NextResponse.json(data)
             }
@@ -78,6 +108,35 @@ export async function GET(req: Request) {
 
         if (fallbackResponse.ok) {
             const data = await fallbackResponse.json()
+            
+            // Attempt to fetch live occupancy via probing multiple endpoints
+            const probes: Record<string, any> = {}
+            const endpoints = [
+                `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gyms/${locationId}/live-occupancy`,
+                `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gyms/${locationId}/activity`,
+                `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gym-locations/${locationId}/busyness`,
+                `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gyms/${locationId}/occupancy`,
+                `https://thegymgroup.netpulse.com/np/thegymgroup/v2.0/gyms/${locationId}/busyness`
+            ]
+            
+            await Promise.allSettled(endpoints.map(async (url) => {
+                try {
+                    const res = await fetch(url, { headers: fallbackHeaders })
+                    if (res.ok) probes[url] = await res.json()
+                    else probes[url] = `Error ${res.status}`
+                } catch (e: any) {
+                    probes[url] = e.message
+                }
+            }))
+            
+            try {
+                const liveUrl = `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gyms/${locationId}`
+                const liveRes = await fetch(liveUrl, { headers: fallbackHeaders })
+                if (liveRes.ok) probes['baseGymDetails'] = await liveRes.json()
+            } catch (e) {}
+
+            data._debugProbes = probes
+            
             console.log('Gym Busyness Raw Data (Fallback):', JSON.stringify(data))
             return NextResponse.json(data)
         }
