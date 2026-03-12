@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ComboEmojiStack } from './ComboEmojiStack'
-import { X, Flame, Database, Plus, Trash2, GripVertical, Coffee, UtensilsCrossed, Moon, Apple, Zap } from 'lucide-react'
+import { X, Flame, Database, Plus, Trash2, GripVertical, Coffee, UtensilsCrossed, Moon, Apple, Zap, Refrigerator, BookMarked } from 'lucide-react'
 import { useWellbeing } from '../contexts/WellbeingContext'
 import { cn } from '@/lib/utils'
 import type { LibraryMeal } from '../types'
@@ -125,7 +125,7 @@ export function NutritionLibraryModal({ isOpen, onClose }: NutritionLibraryModal
                 <div className="p-8 pb-6 flex items-center justify-between shrink-0 border-b border-black/5">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-black/[0.03] rounded-2xl flex items-center justify-center">
-                            <Database className="w-6 h-6 text-black/60" />
+                            <BookMarked className="w-6 h-6 text-black/60" />
                         </div>
                         <div>
                             <h2 className="text-2xl font-black uppercase tracking-tighter">Nutrition Library</h2>
@@ -209,7 +209,7 @@ export function NutritionLibraryModal({ isOpen, onClose }: NutritionLibraryModal
                 <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar bg-black/[0.01]">
                     {filteredLibrary.length === 0 ? (
                         <div className="text-center py-12">
-                            <Database className="w-12 h-12 text-black/10 mx-auto mb-4" />
+                            <BookMarked className="w-12 h-12 text-black/10 mx-auto mb-4" />
                             <h3 className="text-sm font-black text-black/60 uppercase tracking-widest mb-1">Library Empty</h3>
                             <p className="text-xs font-bold text-black/40 uppercase tracking-wider">No meals found in this category</p>
                         </div>
@@ -704,7 +704,7 @@ function LibraryMealCard({
                     className="w-10 h-10 rounded-xl bg-black/[0.03] text-black border border-black/5 hover:bg-black/5 hover:scale-105 active:scale-95 transition-all flex items-center justify-center shrink-0"
                     title="Prep 4 portions into Fridge"
                 >
-                    <Database className="w-4 h-4" />
+                    <Refrigerator className="w-4 h-4" />
                 </button>
                 <button
                     type="button"

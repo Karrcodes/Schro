@@ -34,7 +34,7 @@ export function ComboEmojiStack({
         return (
             <div className={cn(
                 currentStyle.container, 
-                "bg-white rounded-2xl flex items-center justify-center shadow-sm text-2xl text-rose-500", 
+                "bg-white rounded-2xl flex items-center justify-center shadow-sm text-2xl", 
                 size === 'xs' && "text-[10px]",
                 size === 'sm' && "text-sm",
                 size === 'lg' && "text-4xl",

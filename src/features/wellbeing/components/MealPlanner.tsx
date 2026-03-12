@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useState } from 'react'
 import { useWellbeing } from '../contexts/WellbeingContext'
-import { Plus, Utensils, X, Clock, Flame, ChevronRight, Trash2, Database, CheckCircle2 } from 'lucide-react'
+import { Plus, Utensils, X, Clock, Flame, ChevronRight, Trash2, BookMarked, CheckCircle2 } from 'lucide-react'
 import { QuickLogModal } from './QuickLogModal'
 import { NutritionLibraryModal } from './NutritionLibraryModal'
 import ConfirmationModal from '@/components/ConfirmationModal'
@@ -80,7 +80,7 @@ export function MealPlanner() {
                             className="p-3 xl:px-6 xl:py-3 bg-black/5 text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black/10 transition-all flex items-center justify-center gap-2"
                             title="Library"
                         >
-                            <Database className="h-4 w-4" /> <span className="hidden xl:inline">Library</span>
+                            <BookMarked className="h-4 w-4" /> <span className="hidden xl:inline">Library</span>
                         </button>
                     </div>
                 </div>
@@ -195,7 +195,7 @@ export function MealPlanner() {
                                                                                 )}
                                                                                 title={isSaved ? "Remove from Library" : "Save to Library"}
                                                                             >
-                                                                                {isSaved ? <CheckCircle2 className="h-4 w-4" /> : <Database className="h-4 w-4" />}
+                                                                                {isSaved ? <CheckCircle2 className="h-4 w-4" /> : <BookMarked className="h-4 w-4" />}
                                                                             </button>
                                                                         )
                                                                     })()}
@@ -319,15 +319,16 @@ export function MealPlanner() {
                         if (libraryActionMeal.isSaved && libraryActionMeal.libraryMealId) {
                             await removeMealFromLibrary(libraryActionMeal.libraryMealId)
                         } else {
-                            await addMealToLibrary({
-                                name: libraryActionMeal.meal.name,
-                                type: libraryActionMeal.meal.type ? [libraryActionMeal.meal.type] : ['snack'],
-                                calories: libraryActionMeal.meal.calories,
-                                protein: libraryActionMeal.meal.protein,
-                                carbs: libraryActionMeal.meal.carbs,
-                                fat: libraryActionMeal.meal.fat,
-                                ingredients: []
-                            })
+                                await addMealToLibrary({
+                                    name: libraryActionMeal.meal.name,
+                                    type: libraryActionMeal.meal.type ? [libraryActionMeal.meal.type] : ['snack'],
+                                    emoji: libraryActionMeal.meal.emoji,
+                                    calories: libraryActionMeal.meal.calories,
+                                    protein: libraryActionMeal.meal.protein,
+                                    carbs: libraryActionMeal.meal.carbs,
+                                    fat: libraryActionMeal.meal.fat,
+                                    ingredients: []
+                                })
                         }
                         setLibraryActionMeal(null)
                     }
