@@ -149,7 +149,7 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="bg-[#FAFAFA] flex flex-col min-h-screen">
             <div className={cn(
                 "max-w-7xl mx-auto w-full flex-grow",
-                isSessionRoute ? "h-screen overflow-hidden flex flex-col p-0" : "p-6 md:p-10 space-y-8"
+                isSessionRoute ? "h-screen overflow-hidden flex flex-col p-0 bg-white" : "p-6 md:p-10 space-y-8"
             )}>
                 {/* Header */}
                 {!isSessionRoute && (
@@ -318,7 +318,7 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                 isOpen={isFridgeOpen}
                 onClose={() => setIsFridgeOpen(false)}
             />
-            <KarrFooter />
+            {!isSessionRoute && <KarrFooter />}
         </div>
     )
 }

@@ -130,9 +130,9 @@ export function WorkoutSession() {
     const currentSetData = exSession?.sets[currentSetIndex]
 
     return (
-        <div className="max-w-xl mx-auto flex flex-col p-2 sm:p-4 min-h-[80vh]">
+        <div className="max-w-xl mx-auto flex flex-col p-2 sm:p-4">
             {/* Transparent Header - Pins further up */}
-            <header className="flex flex-col items-center text-center space-y-3 shrink-0 pt-0 pb-6">
+            <header className="flex flex-col items-center text-center space-y-3 shrink-0 pt-0 pb-3">
                 <div className="space-y-0.5">
                     <div className="flex items-center justify-center gap-1.5">
                         <span className={cn("w-1 h-1 rounded-full", activeSession.isPaused ? "bg-amber-500" : "bg-rose-500 animate-pulse")} />
@@ -173,7 +173,7 @@ export function WorkoutSession() {
                 </div>
 
                 {/* Minimal Progress Pipeline - Relocated */}
-                <div className="pt-6 pb-2 flex justify-center gap-1.5 w-full">
+                <div className="pt-3 pb-2 flex justify-center gap-1.5 w-full">
                     {routine.exercises.map((_, idx) => (
                         <div 
                             key={idx}
