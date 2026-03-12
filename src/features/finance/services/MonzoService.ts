@@ -130,221 +130,207 @@ export class MonzoService {
     }
 
     static async syncPots(userId: string) {
-        console.log(`[MonzoService] SyncPots called for userId: ${userId}`)
-        const token = await this.getValidToken(userId)
-
+        console.log(`[MonzoService] syncPots started for user ${userId}`);
+        const token = await this.getValidToken(userId);
         if (!token) {
-            console.error(`[MonzoService] No valid token found for userId: ${userId}`)
-            throw new Error('No Monzo connection found in database. Please log in again.')
+            console.error('[MonzoService] No valid token found');
+            throw new Error('No Monzo connection found');
         }
 
-        console.log(`[MonzoService] Valid token retrieved. Fetching accounts...`)
-
-        // 1. Get ALL accounts (Personal, Joint, Business)
+        // 1. Get Accounts
         const accountsRes = await fetch('https://api.monzo.com/accounts', {
             headers: { Authorization: `Bearer ${token}` }
-        })
+        });
+        if (!accountsRes.ok) throw new Error(`Monzo API error: ${accountsRes.status}`);
+        
+        const accountsData = await accountsRes.json();
+        const accounts = (accountsData.accounts || []).filter((a: any) => !a.closed);
+        
+        const supabase = this.getServerSupabase();
+        const syncedMonzoIds = new Set<string>();
 
-        if (!accountsRes.ok) {
-            const errBody = await accountsRes.text()
-            console.error('Monzo accounts fetch failed:', accountsRes.status, errBody)
-            throw new Error(`Monzo API error: ${accountsRes.status}`)
-        }
-
-        const accountsData = await accountsRes.json()
-        const accounts = accountsData.accounts || []
-
-        const activeAccounts = accounts.filter((a: any) => !a.closed)
-        console.log(`Syncing ${activeAccounts.length} Monzo accounts...`)
-
-        const supabase = this.getServerSupabase()
-
-        // 2. Fetch all existing Schrö pots to help with matching and cleanup
-        const { data: existingKarrPots } = await supabase
-            .from('fin_pockets')
-            .select('*')
-
-        const syncedMonzoIds = new Set<string>()
-
-        await Promise.all(activeAccounts.map(async (account: any) => {
+        // 2. Process each account sequentially
+        for (const account of accounts) {
             try {
-                // Determine which profile this belongs to
-                const profile = account.type === 'uk_business' ? 'business' : 'personal'
+                // RE-FETCH existing pots every loop to avoid stale matches between accounts
+                const { data: currentPots } = await supabase
+                    .from('fin_pockets')
+                    .select('*');
 
-                // A. Sync the MAIN account balance to the "General" pot
-                console.log(`Fetching balance for account: ${account.id} (${account.type})`)
-                const balancerRes = await fetch(`https://api.monzo.com/balance?account_id=${account.id}`, {
+                const profile = account.type === 'uk_business' ? 'business' : 'personal';
+                
+                // A. Sync Main Balance
+                console.log(`[MonzoService] Syncing balance for ${profile} account ${account.id} (${account.type})`);
+                const balRes = await fetch(`https://api.monzo.com/balance?account_id=${account.id}`, {
                     headers: { Authorization: `Bearer ${token}` }
-                })
+                });
 
-                if (balancerRes.ok) {
-                    const balanceData = await balancerRes.json()
-                    const mainBalance = balanceData.balance / 100
+                if (balRes.ok) {
+                    const balData = await balRes.json();
+                    
+                    // ACCURACY: 
+                    // current_balance = Raw Total (Settled + Pending)
+                    // balance = Available to spend (MINUS any authorized overdraft)
+                    const totalBalance = balData.balance / 100;
+                    const rawAvailable = balData.available_balance ?? balData.balance;
+                    
+                    // Monzo account balances include the overdraft limit, which can be misleading.
+                    // We subtract it to show 'Real Money'.
+                    const overdraftLimit = balData.overdraft_limit_authorized ?? 0;
+                    const actualAvailable = (rawAvailable - overdraftLimit) / 100;
 
-                    // Find or ensure the "General" pot for this profile
-                    const { data: generalPot } = await supabase
-                        .from('fin_pockets')
-                        .select('id')
-                        .eq('profile', profile)
-                        .ilike('name', 'General')
-                        .single()
+                    const isJoint = account.type === 'uk_retail_joint';
+                    const defaultName = isJoint ? 'Joint Account' : 'General';
+                    
+                    const existingPrimary = currentPots?.find(p => p.monzo_id === account.id) ||
+                        currentPots?.find(p => p.profile === profile && p.name.toLowerCase().includes(defaultName.toLowerCase()) && !p.monzo_id);
 
-                    if (generalPot) {
-                        await supabase
-                            .from('fin_pockets')
-                            .update({
-                                monzo_id: account.id, // Store account ID for webhook routing
-                                balance: mainBalance,
-                                current_balance: mainBalance,
-                                last_synced_at: new Date().toISOString()
-                            })
-                            .eq('id', generalPot.id)
-                        console.log(`Synced Main ${profile} Balance: £${mainBalance} (Mapped to account: ${account.id})`)
+                    // DEDUPLICATION: If we found an unlinked pot (no monzo_id) but we now have 
+                    // a linked one for this account, we should probably delete any other 
+                    // unlinked placeholders to prevent summing duplicates.
+                    if (existingPrimary && !existingPrimary.monzo_id) {
+                        console.log(`[MonzoService] Linking existing placeholder "${existingPrimary.name}" to account ${account.id}`);
                     }
+
+                    const primaryData: any = {
+                        monzo_id: account.id,
+                        name: existingPrimary?.name || defaultName,
+                        balance: actualAvailable,
+                        current_balance: totalBalance,
+                        last_synced_at: new Date().toISOString(),
+                        type: 'general',
+                        profile: profile,
+                        sort_order: existingPrimary?.sort_order ?? (isJoint ? 1 : 0)
+                    };
+
+                    if (existingPrimary?.id) primaryData.id = existingPrimary.id;
+
+                    await supabase
+                        .from('fin_pockets')
+                        .upsert(primaryData, existingPrimary?.id ? {} : { onConflict: 'monzo_id' });
+                    
+                    syncedMonzoIds.add(account.id);
+                    console.log(`[MonzoService] Updated ${defaultName}: Total £${totalBalance}, Available £${actualAvailable} (Overdraft £${overdraftLimit/100} ignored)`);
                 }
 
                 // B. Sync Pots
-                console.log(`Fetching pots for account: ${account.id}`)
+                console.log(`[MonzoService] Syncing pots for account ${account.id}`);
                 const potsRes = await fetch(`https://api.monzo.com/pots?current_account_id=${account.id}`, {
                     headers: { Authorization: `Bearer ${token}` }
-                })
+                });
 
-                if (!potsRes.ok) {
-                    const err = await potsRes.text()
-                    console.error(`[MonzoService] Pots fetch failed for account ${account.id}:`, potsRes.status, err)
-                    return
+                if (potsRes.ok) {
+                    const potsData = await potsRes.json();
+                    const pots = potsData.pots || [];
+
+                    for (const pot of pots) {
+                        if (pot.deleted) continue;
+                        syncedMonzoIds.add(pot.id);
+
+                        const existing = currentPots?.find(p => p.monzo_id === pot.id) ||
+                            currentPots?.find(p => p.name === pot.name && p.profile === profile && !p.monzo_id);
+
+                        const pocketData: any = {
+                            monzo_id: pot.id,
+                            name: pot.name,
+                            balance: pot.balance / 100,
+                            current_balance: pot.balance / 100,
+                            target_budget: existing?.target_budget || 0,
+                            target_amount: (pot.goal_amount && pot.goal_amount > 0) 
+                                ? (pot.goal_amount / 100) 
+                                : (existing?.target_amount || 0),
+                            last_synced_at: new Date().toISOString(),
+                            type: (
+                                pot.type?.toLowerCase().includes('savings') ||
+                                pot.name.toLowerCase().includes('savings') ||
+                                pot.savings_account_id
+                            ) ? 'savings' : 'general',
+                            profile: profile
+                        };
+
+                        if (existing?.id) pocketData.id = existing.id;
+
+                        await supabase
+                            .from('fin_pockets')
+                            .upsert(pocketData, existing?.id ? {} : { onConflict: 'monzo_id' });
+                        
+                        console.log(`[MonzoService] Synced pot: ${pot.name}`);
+                    }
                 }
-
-                const potsData = await potsRes.json()
-                const pots = potsData.pots || []
-
-                await Promise.all(pots.map(async (pot: any) => {
-                    if (pot.deleted) return
-                    syncedMonzoIds.add(pot.id)
-
-                    // Determine which profile this belongs to
-                    const profile = account.type === 'uk_business' ? 'business' : 'personal'
-
-                    // Smart Matching:
-                    // 1. Try to find by monzo_id
-                    // 2. Fallback: Try to find by name within the same profile (that isn't linked yet)
-                    const existing = existingKarrPots?.find(p => p.monzo_id === pot.id) ||
-                        existingKarrPots?.find(p => p.name === pot.name && p.profile === profile && !p.monzo_id)
-
-                    const pocketData: any = {
-                        monzo_id: pot.id,
-                        name: pot.name,
-                        balance: pot.balance / 100,
-                        current_balance: pot.balance / 100,
-                        target_budget: existing?.target_budget || 0, // Preserve manual weekly allocation
-                        target_amount: (pot.goal_amount && pot.goal_amount > 0)
-                            ? (pot.goal_amount / 100)
-                            : (existing?.target_amount || 0), // Use Monzo goal if set, otherwise preserve manual override
-                        last_synced_at: new Date().toISOString(),
-                        type: (
-                            pot.type?.toLowerCase().includes('savings') ||
-                            pot.type?.toLowerCase().includes('interest') ||
-                            pot.type?.toLowerCase().includes('challenge') ||
-                            pot.savings_account_id ||
-                            pot.name.toLowerCase().includes('savings') ||
-                            pot.name.toLowerCase().includes('challenge')
-                        ) ? 'savings' : 'general',
-                        profile: profile
-                    }
-
-                    if (existing?.id) {
-                        pocketData.id = existing.id
-                    }
-
-                    // If we have an ID (linking by name or existing sync), default upsert uses ID (PK)
-                    // If we don't have an ID, we use onConflict: 'monzo_id' to avoid duplicates
-                    const { error } = await supabase
-                        .from('fin_pockets')
-                        .upsert(pocketData, existing?.id ? {} : { onConflict: 'monzo_id' })
-
-                    if (error) {
-                        console.error(`Failed to sync Pot ${pot.name}:`, error)
-                    } else {
-                        console.log(`Synced Pot: ${pot.name} (£${pot.balance / 100}) to profile: ${profile}`)
-                    }
-                }))
-            } catch (accError) {
-                console.error(`Failed to sync account ${account.id}:`, accError)
+            } catch (err) {
+                console.error(`[MonzoService] Error syncing account ${account.id}:`, err);
             }
-        }))
-
-        // 3. Source of Truth Cleanup: Delete Schrö pots that weren't in the Monzo response
-        // We skip pots that don't have a monzo_id IF they are protected (General/Liabilities)
-        const potsToDelete = existingKarrPots?.filter(p => {
-            // Never delete protected system pots
-            const nameLower = p.name.toLowerCase()
-            if (nameLower.includes('general') || nameLower.includes('liabilities')) return false
-
-            // If it has a monzo_id but that ID wasn't in the latest sync, it's been deleted in Monzo
-            if (p.monzo_id && !syncedMonzoIds.has(p.monzo_id)) {
-                console.log(`[MonzoService] Marking pot for deletion (Monzo ID not found in sync): ${p.name} (ID: ${p.id}, Monzo ID: ${p.monzo_id})`)
-                return true
-            }
-
-            // If it doesn't have a monzo_id, it's a local-only pot that we now want to remove
-            // to ensure Monzo is the absolute source of truth
-            if (!p.monzo_id) {
-                console.log(`[MonzoService] Marking pot for deletion (no Monzo ID, local-only): ${p.name} (ID: ${p.id})`)
-                return true
-            }
-
-            return false
-        }) || []
-
-        if (potsToDelete.length > 0) {
-            console.log(`[MonzoService] Preparing to delete ${potsToDelete.length} orphaned pots:`, potsToDelete.map(p => p.name).join(', '))
-
-            // 1. Re-assign dependencies to "General" to avoid FK errors
-            for (const pot of potsToDelete) {
-                // Find the "General" pot for this profile
-                const generalPot = existingKarrPots?.find(p =>
-                    p.profile === pot.profile &&
-                    p.name.toLowerCase().includes('general')
-                )
-
-                if (generalPot && generalPot.id !== pot.id) {
-                    console.log(`[MonzoService] Re-assigning deps from ${pot.name} to ${generalPot.name}...`)
-                    // Transactions
-                    const { error: txError } = await supabase
-                        .from('fin_transactions')
-                        .update({ pocket_id: generalPot.id })
-                        .eq('pocket_id', pot.id)
-
-                    if (txError) console.error(`[MonzoService] Failed to re-assign transactions for ${pot.name}:`, txError)
-
-                    // Income
-                    const { error: incomeError } = await supabase
-                        .from('fin_income')
-                        .update({ pocket_id: generalPot.id })
-                        .eq('pocket_id', pot.id)
-
-                    if (incomeError) console.error(`[MonzoService] Failed to re-assign income for ${pot.name}:`, incomeError)
-                }
-            }
-
-            // 2. Now attempt to delete
-            console.log(`[MonzoService] Deleting ${potsToDelete.length} orphaned pots...`)
-            const { error: deleteError } = await supabase
-                .from('fin_pockets')
-                .delete()
-                .in('id', potsToDelete.map(p => p.id))
-
-            if (deleteError) {
-                console.error('[MonzoService] Failed to cleanup orphaned pots:', deleteError)
-            } else {
-                console.log('[MonzoService] Cleanup successful.')
-            }
-        } else {
-            console.log('[MonzoService] No orphaned pots to delete.')
         }
 
-        // 4. Sync Transactions for all active accounts
-        await this.syncTransactions(userId)
+        // 4. Cleanup (Only if we have a robust set of synced IDs)
+        if (syncedMonzoIds.size > 0) {
+            const { data: finalPockets } = await supabase.from('fin_pockets').select('*');
+            if (!finalPockets) return;
+
+            const potsToDelete = finalPockets.filter(p => {
+                const nameLower = p.name.toLowerCase();
+                
+                // Keep liabilities (local only)
+                if (nameLower.includes('liabilities')) return false;
+
+                // AGGRESSIVE DEDUPLICATION:
+                // If a pot has NO monzo_id, but we now have a pot with the SAME NAME 
+                // that DOES have a monzo_id, the unlinked one is a "Ghost Pot".
+                if (!p.monzo_id) {
+                    const hasSyncedDuplicate = finalPockets.some(other => 
+                        other.monzo_id && 
+                        other.name === p.name && 
+                        other.profile === p.profile
+                    );
+                    if (hasSyncedDuplicate) return true;
+
+                    // Also cleanup old unlinked "General" or "Joint Account" placeholders
+                    const isPrimaryPlaceholder = nameLower.includes('general') || nameLower.includes('joint account');
+                    if (isPrimaryPlaceholder) {
+                        const hasLinkedPrimary = finalPockets.some(other => 
+                            other.monzo_id?.startsWith('acc_') && 
+                            other.profile === p.profile
+                        );
+                        if (hasLinkedPrimary) return true;
+                    }
+                }
+
+                // Standard cleanup: Deleted from Monzo but still in our DB
+                if (p.monzo_id && !syncedMonzoIds.has(p.monzo_id)) return true;
+                
+                return false;
+            });
+
+            if (potsToDelete.length > 0) {
+                console.log(`[MonzoService] Ghost Hunter: Deleting ${potsToDelete.length} duplicate/orphaned pots`);
+                
+                for (const pot of potsToDelete) {
+                    // Find the "True" version of this pot to migrate data to
+                    const truePot = finalPockets.find(other => 
+                        other.id !== pot.id &&
+                        other.profile === pot.profile &&
+                        (
+                            other.name === pot.name || // Same name, likely the synced version
+                            (pot.name.toLowerCase().includes('general') && other.monzo_id?.startsWith('acc_')) // General -> Account
+                        ) &&
+                        !potsToDelete.find(d => d.id === other.id) // Ensure target isn't also being deleted
+                    );
+
+                    if (truePot) {
+                        console.log(`[MonzoService] Migrating data from Ghost Pot "${pot.name}" to "${truePot.name}"`);
+                        await supabase.from('fin_transactions').update({ pocket_id: truePot.id }).eq('pocket_id', pot.id);
+                        await supabase.from('fin_income').update({ pocket_id: truePot.id }).eq('pocket_id', pot.id);
+                        await supabase.from('fin_tasks').update({ pocket_id: truePot.id }).eq('pocket_id', pot.id);
+                    }
+                }
+
+                const { error: delError } = await supabase.from('fin_pockets').delete().in('id', potsToDelete.map(p => p.id));
+                if (delError) console.error('[MonzoService] Cleanup error:', delError);
+            }
+        }
+
+        // 5. Sync Transactions
+        await this.syncTransactions(userId);
     }
 
     static async registerWebhooks(userId: string) {

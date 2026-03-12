@@ -42,6 +42,7 @@ export function CommandCenter() {
     }, [searchParams])
 
     const summary = useMemo(() => {
+        // Total Liquid is everything: Main Accounts + All Pots
         const totalLiquid = pots.reduce((s, p) => s + p.balance, 0)
         let totalDebt = 0
         let monthlyObligations = 0
@@ -111,63 +112,72 @@ export function CommandCenter() {
     }, [pots, goals])
 
     const displayPockets = useMemo(() => {
-        return pots.filter(p =>
-            !p.name.toLowerCase().includes('general') &&
-            p.type !== 'savings' &&
-            p.target_amount <= 0 &&
-            !p.name.toLowerCase().includes('goal')
-        ).sort((a, b) => (b.balance || 0) - (a.balance || 0))
+        return pots.filter(p => {
+            // A. PHYSICAL ACCOUNTS (acc_...) - These go in the big summary card
+            const isPhysicalAccount = p.monzo_id?.startsWith('acc_')
+            if (isPhysicalAccount) return false
+
+            // B. SAVINGS GOALS - These go in the savings section
+            const isSavingsGoal = p.type === 'savings' || p.target_amount > 0 || p.name.toLowerCase().includes('goal')
+            if (isSavingsGoal) return false
+
+            // C. UNLINKED LOCAL POTS - If it doesn't have a Monzo ID and is named "General", it's likely a primary account placeholder
+            if (!p.monzo_id && p.name.toLowerCase().includes('general')) return false
+
+            // D. SPENDING POTS - Everything else (starting with pot_ or local custom pots)
+            return true
+        }).sort((a, b) => (b.balance || 0) - (a.balance || 0))
     }, [pots])
 
     const loading = pLoading || oLoading || gLoading
 
     return (
         <div className="flex flex-col h-dvh bg-white">
-            {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 bg-white z-10 gap-6">
-                <div className="space-y-1">
-                    <h2 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.3em]">Financial Matrix</h2>
-                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Finance Dashboard</h1>
-                    <div className="flex items-center gap-3 pt-2">
-                        <div className="flex bg-black/[0.04] p-1 rounded-xl border border-black/[0.06] items-center w-fit">
-                            <button
-                                onClick={() => setProfile('personal')}
-                                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'personal' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
-                            >
-                                Personal
-                            </button>
-                            <button
-                                onClick={() => setProfile('business')}
-                                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'business' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
-                            >
-                                Business
-                            </button>
-                        </div>
-                        <button
-                            onClick={togglePrivacy}
-                            className={`p-2 rounded-xl border transition-all ${isPrivacyEnabled ? 'border-[#059669]/30 text-[#059669] bg-[#059669]/10 shadow-[0_2px_10px_rgba(5,150,105,0.1)]' : 'bg-white border-black/[0.1] text-black/40 hover:text-black/60 hover:border-black/[0.2] shadow-sm'}`}
-                            title={isPrivacyEnabled ? "Disable Privacy Mode" : "Enable Privacy Mode"}
-                        >
-                            {isPrivacyEnabled ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-4 h-fit mb-1">
-                    {(loading || isSyncing) && (
-                        <div className="flex items-center gap-1.5 text-black/30">
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span className="text-[11px]">{isSyncing ? 'Syncing Monzo' : 'Loading'}</span>
-                        </div>
-                    )}
-                    <div className="text-[11px] text-black/25 uppercase tracking-wider font-medium">
-                        {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-                    </div>
-                    <MonzoSyncControls />
-                </div>
-            </div>
-
             <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-[#fafafa]">
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 bg-[#fafafa] z-10 gap-6">
+                    <div className="space-y-1">
+                        <h2 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.3em]">Financial Matrix</h2>
+                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Finance Dashboard</h1>
+                        <div className="flex items-center gap-3 pt-2">
+                            <div className="flex bg-black/[0.04] p-1 rounded-xl border border-black/[0.06] items-center w-fit">
+                                <button
+                                    onClick={() => setProfile('personal')}
+                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'personal' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
+                                >
+                                    Personal
+                                </button>
+                                <button
+                                    onClick={() => setProfile('business')}
+                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'business' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
+                                >
+                                    Business
+                                </button>
+                            </div>
+                            <button
+                                onClick={togglePrivacy}
+                                className={`p-2 rounded-xl border transition-all ${isPrivacyEnabled ? 'border-[#059669]/30 text-[#059669] bg-[#059669]/10 shadow-[0_2px_10px_rgba(5,150,105,0.1)]' : 'bg-white border-black/[0.1] text-black/40 hover:text-black/60 hover:border-black/[0.2] shadow-sm'}`}
+                                title={isPrivacyEnabled ? "Disable Privacy Mode" : "Enable Privacy Mode"}
+                            >
+                                {isPrivacyEnabled ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 h-fit mb-1">
+                        {(loading || isSyncing) && (
+                            <div className="flex items-center gap-1.5 text-black/30">
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span className="text-[11px]">{isSyncing ? 'Syncing Monzo' : 'Loading'}</span>
+                            </div>
+                        )}
+                        <div className="text-[11px] text-black/25 uppercase tracking-wider font-medium">
+                            {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        </div>
+                        <MonzoSyncControls />
+                    </div>
+                </div>
+
                 <div className="flex-1 flex flex-col">
                     <div className="p-6 pb-2 select-none flex items-center gap-2 text-[13px] font-bold text-black/40 uppercase tracking-wider">
                         Quick Access
@@ -263,7 +273,13 @@ export function CommandCenter() {
                                         <div className="text-right relative z-10">
                                             <div className="text-4xl sm:text-5xl font-black text-black tracking-tighter privacy-blur">
                                                 <Skeleton show={isSyncing}>
-                                                    £{(pots.find(p => p.name.toLowerCase().includes('general'))?.balance ?? 0).toFixed(2)}
+                                                    £{pots
+                                                        .filter(p => 
+                                                            p.monzo_id?.startsWith('acc_') || 
+                                                            (!p.monzo_id && (p.name.toLowerCase().includes('general') || p.name.toLowerCase().includes('joint account')))
+                                                        )
+                                                        .reduce((sum, p) => sum + p.balance, 0)
+                                                        .toFixed(2)}
                                                 </Skeleton>
                                             </div>
                                             <p className="text-[11px] text-[#059669] font-bold uppercase tracking-wider mt-1 flex items-center justify-end gap-1">
