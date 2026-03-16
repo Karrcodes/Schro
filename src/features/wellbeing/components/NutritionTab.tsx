@@ -11,6 +11,7 @@ import { motion } from 'framer-motion'
 import { ComboEmojiStack } from './ComboEmojiStack'
 import { format } from 'date-fns'
 import { WellbeingHeader } from './WellbeingHeader'
+import { WellbeingControls } from './WellbeingControls'
 import { KarrFooter } from '@/components/KarrFooter'
 import { getNextOffPeriod } from '@/features/finance/utils/rotaUtils'
 
@@ -34,14 +35,20 @@ export function NutritionTab() {
 
     return (
         <div className="flex flex-col h-full bg-[#FAFAFA]">
-            <WellbeingHeader 
-                title="Nutrition & Fuel" 
-                subtitle="Wellbeing Protocol" 
-                activeColor="text-emerald-500" 
+            <WellbeingHeader
+                title="Nutrition & Fuel"
+                subtitle="Wellbeing Protocol"
+                activeColor="text-emerald-500"
             />
 
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-12 space-y-12">
+                    {/* Module Controls Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                        <div />
+                        <WellbeingControls />
+                    </div>
+
                     {/* Macro Summary */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {stats.map((stat, i) => (
@@ -118,7 +125,7 @@ export function NutritionTab() {
                                     <Database className="w-4 h-4 text-black/20 group-hover:text-black/40 transition-colors" />
                                 </div>
                                 <h2 className="text-3xl font-black uppercase tracking-tighter leading-none">Meal Prep Inventory</h2>
-                                
+
                                 <div className="hidden md:inline-flex items-center gap-2 px-6 py-4 bg-black/5 rounded-2xl text-[10px] font-black text-black/40 uppercase tracking-widest group-hover:bg-black group-hover:text-white transition-all w-fit mt-4">
                                     <span>Open Inventory</span>
                                     <ChevronRight className="w-4 h-4" />
@@ -156,9 +163,9 @@ export function NutritionTab() {
                                             </div>
                                         )}
                                     </div>
-                                    
+
                                     <div className="w-px h-24 bg-black/10 hidden lg:block mx-12" />
-                                    
+
                                     <div className="flex flex-col items-end justify-center">
                                         <div className="text-7xl font-black text-black leading-none tracking-tighter drop-shadow-sm">
                                             {fridge.reduce((acc, item) => acc + item.portions, 0)}

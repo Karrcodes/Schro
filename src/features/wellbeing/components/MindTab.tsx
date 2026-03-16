@@ -45,6 +45,7 @@ const TABS = [
 ]
 
 import { WellbeingHeader } from './WellbeingHeader'
+import { WellbeingControls } from './WellbeingControls'
 import { KarrFooter } from '@/components/KarrFooter'
 
 export function MindTab() {
@@ -52,31 +53,35 @@ export function MindTab() {
 
     return (
         <div className="flex flex-col h-full bg-[#FAFAFA]">
-            <WellbeingHeader 
-                title="Mind & Resilience" 
-                subtitle="Wellbeing Protocol" 
-                activeColor="text-indigo-500" 
+            <WellbeingHeader
+                title="Mind & Resilience"
+                subtitle="Wellbeing Protocol"
+                activeColor="text-indigo-500"
             />
 
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-12 space-y-10">
-                    {/* Tab Navigation */}
-                    <div className="flex items-center gap-2 bg-black/[0.03] p-1.5 rounded-[24px] w-fit border border-black/5">
-                        {TABS.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={cn(
-                                    'flex items-center gap-2 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all',
-                                    activeTab === tab.id
-                                        ? 'bg-white text-black shadow-sm border border-black/5'
-                                        : 'text-black/40 hover:text-black hover:bg-white/50'
-                                )}
-                            >
-                                <tab.icon className={cn('w-4 h-4', activeTab === tab.id ? 'text-indigo-500' : 'text-black/20')} />
-                                {tab.label}
-                            </button>
-                        ))}
+                    {/* Tab Navigation & Controls Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                        <div className="flex items-center gap-2 bg-black/[0.03] p-1.5 rounded-[24px] w-fit border border-black/5">
+                            {TABS.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={cn(
+                                        'flex items-center gap-2 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all',
+                                        activeTab === tab.id
+                                            ? 'bg-white text-black shadow-sm border border-black/5'
+                                            : 'text-black/40 hover:text-black hover:bg-white/50'
+                                    )}
+                                >
+                                    <tab.icon className={cn('w-4 h-4', activeTab === tab.id ? 'text-indigo-500' : 'text-black/20')} />
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <WellbeingControls />
                     </div>
 
                     <AnimatePresence mode="wait">

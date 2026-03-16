@@ -100,93 +100,29 @@ export function WellbeingHeader({ title, subtitle, activeColor }: WellbeingHeade
                     <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">{title}</h1>
                 </div>
 
-                <div className="flex items-center gap-6 h-fit mb-1">
-                    {/* Gym Integration Actions */}
-                    {gymStats.isIntegrated ? (
-                        <div className="flex items-center gap-3">
-                            {gymStats.allBusyness && Object.keys(gymStats.allBusyness).length > 0 && (
-                                <GymOccupancySwitcher
-                                    allBusyness={gymStats.allBusyness}
-                                    gymLocationId={gymStats.gymLocationId}
-                                    gymStats={gymStats}
-                                />
-                            )}
-                            
-                            <button
-                                onClick={() => syncGymData()}
-                                disabled={isSyncingGym}
-                                className={cn(
-                                    "flex items-center gap-2 px-5 h-11 rounded-2xl shadow-sm transition-all duration-300 border",
-                                    isSyncingGym ? "bg-white border-black/5 cursor-not-allowed opacity-50" : 
-                                    (justSynced || gymStats.lastSyncTime) ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 group" :
-                                    "bg-white border-black/5 hover:bg-black/[0.02] group"
-                                )}
-                            >
-                                {justSynced ? (
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-500 animate-in zoom-in duration-300" />
-                                ) : (
-                                    <RefreshCw className={cn(
-                                        "w-4 h-4 transition-transform duration-500",
-                                        isSyncingGym ? "animate-spin text-black/40" : 
-                                        gymStats.lastSyncTime ? "text-emerald-500 group-hover:rotate-180" : "text-black/40 group-hover:rotate-180"
-                                    )} />
-                                )}
-                                <span className={cn(
-                                    "text-[10px] font-black uppercase tracking-widest whitespace-nowrap",
-                                    (justSynced || gymStats.lastSyncTime) ? "text-emerald-700" : "text-black"
-                                )}>
-                                    {isSyncingGym ? 'Syncing...' : (justSynced || gymStats.lastSyncTime) ? 'Synced' : 'Sync'}
-                                </span>
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="hidden md:flex items-center gap-2 text-[10px] font-black text-black/20 uppercase tracking-widest">
-                            <span>Sensors Offline</span>
-                        </div>
-                    )}
-
-                    <div className="text-[11px] text-black/25 uppercase tracking-[0.2em] font-black hidden sm:block">
-                        {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                <div className="flex items-center gap-4 mb-1">
+                    <div className="flex items-center gap-1.5 p-1 bg-black/[0.03] rounded-[20px] w-fit border border-black/[0.05]">
+                        {TABS.map((tab) => {
+                            const isTabActive = pathname.startsWith(tab.href)
+                            return (
+                                <Link
+                                    key={tab.id}
+                                    href={tab.href}
+                                    className={cn(
+                                        "flex items-center gap-2 px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all",
+                                        isTabActive
+                                            ? "bg-white text-black shadow-sm border border-black/5"
+                                            : "text-black/30 hover:text-black/60 hover:bg-white/50"
+                                    )}
+                                >
+                                    <tab.icon className={cn("w-3.5 h-3.5", isTabActive ? tab.color : "text-black/20")} />
+                                    {tab.label}
+                                </Link>
+                            )
+                        })}
                     </div>
                 </div>
-            </div>
 
-            {/* Tab Navigation & Settings Row */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-2 bg-black/[0.03] p-1.5 rounded-[24px] w-fit border border-black/5">
-                    {TABS.map((tab) => {
-                        const isTabActive = pathname.startsWith(tab.href)
-                        return (
-                            <Link
-                                key={tab.id}
-                                href={tab.href}
-                                className={cn(
-                                    "flex items-center gap-2 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all",
-                                    isTabActive
-                                        ? "bg-white text-black shadow-sm border border-black/5"
-                                        : "text-black/40 hover:text-black hover:bg-white/50"
-                                )}
-                            >
-                                <tab.icon className={cn("w-4 h-4", isTabActive ? tab.color : "text-black/20")} />
-                                {tab.label}
-                            </Link>
-                        )
-                    })}
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => router.push('/health/settings')}
-                        className={cn(
-                            "w-11 h-11 rounded-2xl flex items-center justify-center transition-all border",
-                            pathname.includes('/settings')
-                                ? "bg-black text-white border-black"
-                                : "bg-white border-black/5 text-black/30 hover:text-black/60 shadow-sm"
-                        )}
-                    >
-                        <Settings className="w-4 h-4" />
-                    </button>
-                </div>
             </div>
         </header>
     )

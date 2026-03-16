@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { KarrFooter } from '@/components/KarrFooter'
 
 import { WellbeingHeader } from './WellbeingHeader'
+import { WellbeingControls } from './WellbeingControls'
 
 export function FitnessTab() {
     const { routines, activeRoutineId, activeSession, startSession, gymStats, syncGymData, gymRecommendation, logWorkout, workoutLogs, profile } = useWellbeing()
@@ -39,30 +40,36 @@ export function FitnessTab() {
         : cleanRoutineName;
 
     const uniqueMuscles = Array.from(new Set(activeRoutine?.exercises?.flatMap((ex: any) => ex.muscleGroups || [ex.muscleGroup] || []) || [])).filter(Boolean).map((m: any) => m.toLowerCase());
-    const displayMuscles = uniqueMuscles.length > 0 
+    const displayMuscles = uniqueMuscles.length > 0
         ? (uniqueMuscles.length === 1 ? uniqueMuscles[0] : uniqueMuscles.length === 2 ? `${uniqueMuscles[0]} and ${uniqueMuscles[1]}` : `${uniqueMuscles.slice(0, -1).join(', ')} and ${uniqueMuscles[uniqueMuscles.length - 1]}`)
         : 'Full Body';
 
     return (
         <div className="flex flex-col h-full bg-[#FAFAFA]">
-            <WellbeingHeader 
-                title="Fitness & Vitality" 
-                subtitle="Wellbeing Protocol" 
-                activeColor="text-rose-500" 
+            <WellbeingHeader
+                title="Fitness & Vitality"
+                subtitle="Wellbeing Protocol"
+                activeColor="text-rose-500"
             />
 
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-12 space-y-12">
+                    {/* Module Controls Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                        <div />
+                        <WellbeingControls />
+                    </div>
+
                     {/* Recommendation Banner */}
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className={cn(
                             "p-4 rounded-[32px] border flex items-center justify-between",
-                            gymRecommendation.status === 'completed' ? "bg-emerald-500/10 border-emerald-500/20" : 
-                            gymRecommendation.status === 'pending' ? "bg-emerald-500/5 border-emerald-500/10" :
-                            gymRecommendation.status === 'can_go' ? "bg-emerald-500/10 border-emerald-500/20" : 
-                            "bg-rose-500/10 border-rose-500/20"
+                            gymRecommendation.status === 'completed' ? "bg-emerald-500/10 border-emerald-500/20" :
+                                gymRecommendation.status === 'pending' ? "bg-emerald-500/5 border-emerald-500/10" :
+                                    gymRecommendation.status === 'can_go' ? "bg-emerald-500/10 border-emerald-500/20" :
+                                        "bg-rose-500/10 border-rose-500/20"
                         )}
                     >
                         <div className="flex items-center gap-4">
@@ -74,10 +81,10 @@ export function FitnessTab() {
                             </div>
                             <div>
                                 <h4 className="text-[12px] font-black uppercase tracking-widest leading-none mb-1">
-                                    {gymRecommendation.status === 'completed' ? 'Recommended: Hit the Gym (Goal Met)' : 
-                                    gymRecommendation.status === 'pending' ? 'Recommended: Gym Session Pending' :
-                                    gymRecommendation.status === 'can_go' ? 'Recommended: Hit the Gym' : 
-                                    'Recommended: Rest Day'}
+                                    {gymRecommendation.status === 'completed' ? 'Recommended: Hit the Gym (Goal Met)' :
+                                        gymRecommendation.status === 'pending' ? 'Recommended: Gym Session Pending' :
+                                            gymRecommendation.status === 'can_go' ? 'Recommended: Hit the Gym' :
+                                                'Recommended: Rest Day'}
                                 </h4>
                                 <p className="text-[11px] font-bold text-black/40 uppercase">{gymRecommendation.reason}</p>
                             </div>
@@ -106,7 +113,7 @@ export function FitnessTab() {
                                             <Dumbbell className="w-4 h-4 text-emerald-500" />
                                             <h3 className="text-[10px] font-black text-white/50 uppercase tracking-[0.4em]">Active Protocol</h3>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={() => setShowAnalytics(true)}
                                             className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors group/hist"
                                         >
@@ -119,17 +126,17 @@ export function FitnessTab() {
                                             <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter leading-none">{displayTitle}</h2>
                                             <p className="text-rose-500 text-[9px] md:text-[10px] font-black uppercase tracking-widest leading-snug">{displayMuscles}</p>
                                         </div>
-                                        
+
                                         <div className="w-full flex flex-col items-center justify-center relative z-10 flex-1 my-4">
                                             <div className="flex items-center justify-center gap-6 w-full">
-                                                <button 
+                                                <button
                                                     onClick={() => setIsEditModalOpen(true)}
                                                     className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors group/btn shrink-0"
                                                 >
                                                     <List className="w-5 h-5 text-white/50 group-hover/btn:text-white" />
                                                 </button>
 
-                                                <button 
+                                                <button
                                                     onClick={() => {
                                                         if (!activeSession) startSession(activeRoutine.id)
                                                         router.push('/health/fitness/session')
@@ -143,7 +150,7 @@ export function FitnessTab() {
                                                     )}
                                                 </button>
 
-                                                <button 
+                                                <button
                                                     onClick={() => setIsSwitcherOpen(true)}
                                                     className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors group/btn shrink-0"
                                                 >
