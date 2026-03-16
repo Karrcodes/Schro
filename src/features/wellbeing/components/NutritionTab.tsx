@@ -9,22 +9,15 @@ import { NutritionFridgeModal } from './NutritionFridgeModal'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { ComboEmojiStack } from './ComboEmojiStack'
-import { format } from 'date-fns'
 import { WellbeingHeader } from './WellbeingHeader'
 import { WellbeingControls } from './WellbeingControls'
-import { KarrFooter } from '@/components/KarrFooter'
-import { getNextOffPeriod } from '@/features/finance/utils/rotaUtils'
+import { WellbeingTabs } from './WellbeingTabs'
 
 export function NutritionTab() {
     const { macros, dailyNutrition, fridge, library } = useWellbeing()
 
     const [isFridgeModalOpen, setIsFridgeModalOpen] = useState(false)
 
-    const nextPrepDay = useMemo(() => {
-        // Prep day is the LAST day of the off period (the day before going back to work)
-        const nextOff = getNextOffPeriod(new Date())
-        return nextOff.end
-    }, [])
 
     const stats = [
         { label: 'CALORIES', value: Math.max(0, Math.round(macros.calories - dailyNutrition.calories)), unit: 'kcal', icon: Flame, color: 'text-orange-500', bg: 'bg-orange-50' },
@@ -34,85 +27,65 @@ export function NutritionTab() {
     ]
 
     return (
-        <div className="flex flex-col h-full bg-[#FAFAFA]">
+        <div className="flex flex-col space-y-12">
             <WellbeingHeader
                 title="Nutrition & Fuel"
                 subtitle="Wellbeing Protocol"
                 activeColor="text-emerald-500"
             />
 
-            <div className="flex-1 overflow-y-auto">
-                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-12 space-y-12">
-                    {/* Module Controls Row */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                        <div />
-                        <WellbeingControls />
-                    </div>
+            <div className="w-full space-y-12">
+                {/* Module Controls Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <WellbeingTabs />
+                    <WellbeingControls />
+                </div>
 
-                    {/* Macro Summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {stats.map((stat, i) => (
-                            <motion.div
-                                key={stat.label}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.1 }}
-                                className="bg-white border border-black/5 rounded-[32px] p-6 shadow-sm hover:shadow-md transition-all group"
-                            >
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className={cn("p-3 rounded-2xl", stat.bg)}>
-                                        <stat.icon className={cn("w-5 h-5", stat.color)} />
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-black/30 uppercase tracking-widest">{stat.label} REMAINING</p>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-3xl font-black text-black">{stat.value}</span>
-                                        <span className="text-[13px] font-bold text-black/40 uppercase">{stat.unit}</span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2 space-y-8">
-                            <MealPlanner />
-                        </div>
-
-                        <div className="space-y-6">
-                            {/* Nutrition Trends */}
-                            <div className="bg-white border border-black/5 rounded-[32px] p-8 space-y-6 max-w-[400px] mx-auto lg:max-w-none lg:mx-0 w-full">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-[11px] font-black text-black/30 uppercase tracking-[0.3em]">Monthly Adherence</h3>
-                                    <ActivitySquare className="w-4 h-4 text-black/20" />
-                                </div>
-                                <NutritionHeatmap />
-                            </div>
-
-                            {/* Next Prep Day Widget */}
-                            <div className="bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border border-indigo-500/20 rounded-[32px] p-8">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-600">
-                                        <Calendar className="w-6 h-6" />
-                                    </div>
-                                    <ChefHat className="w-5 h-5 text-indigo-500/30" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-[11px] font-black text-indigo-600/70 uppercase tracking-widest">Next Prep Day</p>
-                                    <h3 className="text-2xl font-black text-indigo-950 uppercase tracking-tight">
-                                        {format(nextPrepDay, 'EEEE')}
-                                    </h3>
-                                    <p className="text-[12px] font-bold text-indigo-900/40">
-                                        {format(nextPrepDay, 'do MMMM yyyy')}
-                                    </p>
+                {/* Macro Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {stats.map((stat, i) => (
+                        <motion.div
+                            key={stat.label}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.1 }}
+                            className="bg-white border border-black/5 rounded-[32px] p-6 shadow-sm hover:shadow-md transition-all group"
+                        >
+                            <div className="flex items-start justify-between mb-4">
+                                <div className={cn("p-3 rounded-2xl", stat.bg)}>
+                                    <stat.icon className={cn("w-5 h-5", stat.color)} />
                                 </div>
                             </div>
-                        </div>
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-black text-black/30 uppercase tracking-widest">{stat.label} REMAINING</p>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-3xl font-black text-black">{stat.value}</span>
+                                    <span className="text-[13px] font-bold text-black/40 uppercase">{stat.unit}</span>
+                                </div>
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                    <div className="lg:col-span-2 space-y-8">
+                        <MealPlanner />
                     </div>
 
-                    {/* The Fridge (Inventory) */}
-                    <div className="w-full h-[250px] pb-12">
+                    <div className="space-y-6">
+                        {/* Nutrition Trends */}
+                        <div className="bg-white border border-black/5 rounded-[32px] p-8 space-y-6 w-full h-[420px] overflow-y-auto no-scrollbar">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-[11px] font-black text-black/30 uppercase tracking-[0.3em]">Monthly Adherence</h3>
+                                <ActivitySquare className="w-4 h-4 text-black/20" />
+                            </div>
+                            <NutritionHeatmap />
+                        </div>
+                    </div>
+                </div>
+
+                {/* The Fridge (Inventory) */}
+                <div className="w-full h-[250px] pb-12">
                         <motion.div
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.99 }}
@@ -179,9 +152,8 @@ export function NutritionTab() {
                         </motion.div>
                     </div>
 
-                    <KarrFooter />
+
                 </div>
-            </div>
 
             <NutritionFridgeModal
                 isOpen={isFridgeModalOpen}

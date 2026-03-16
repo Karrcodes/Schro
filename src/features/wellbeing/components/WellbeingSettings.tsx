@@ -162,19 +162,18 @@ export function WellbeingSettings() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#FAFAFA]">
-            <WellbeingHeader 
-                title="Settings & Config" 
-                subtitle="Wellbeing Protocol" 
-                activeColor="text-rose-500" 
+        <div className="flex flex-col space-y-12">
+            <WellbeingHeader
+                title="Settings & Config"
+                subtitle="Wellbeing Protocol"
+                activeColor="text-rose-500"
             />
 
-            <div className="flex-1 overflow-y-auto">
-                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-12 space-y-8">
-                    {/* Profile Section - Maintains standard size for accessibility */}
-                    <div className="bg-white border border-black/5 rounded-[32px] p-6 md:p-8 shadow-sm space-y-8">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                    <div className="space-y-1">
+            <div className="w-full space-y-8">
+                {/* Profile Section - Maintains standard size for accessibility */}
+                <div className="bg-white border border-black/5 rounded-[32px] p-6 md:p-8 shadow-sm space-y-8">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                        <div className="space-y-1">
                         <div className="flex items-center gap-2">
                             <User className="w-3.5 h-3.5 text-rose-500" />
                             <h2 className="text-[10px] font-black text-black/30 uppercase tracking-[0.25em]">Personal Metrics</h2>
@@ -328,9 +327,7 @@ export function WellbeingSettings() {
                 </form>
             </div>
 
-                <KarrFooter />
             </div>
         </div>
-    </div>
     )
 }

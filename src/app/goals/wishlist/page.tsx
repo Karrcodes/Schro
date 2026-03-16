@@ -20,9 +20,9 @@ export default function WishlistPage() {
     }
 
     return (
-        <main className="min-h-screen bg-[#FAFAFA] flex flex-col">
+        <div className="flex flex-col space-y-12">
             {/* Standard Module Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 z-10 gap-6 max-w-7xl mx-auto w-full">
+            <header className="flex flex-col md:flex-row md:items-end justify-between z-10 gap-6 pb-2">
                 <div className="space-y-1">
                     <h2 className="text-[11px] font-black text-amber-500 uppercase tracking-[0.3em]">Ambitions & Desires</h2>
                     <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Wishlist</h1>
@@ -37,16 +37,13 @@ export default function WishlistPage() {
                         <span>Manifest Desire</span>
                     </button>
                 </div>
-            </div>
+            </header>
 
-            <div className="flex-1 max-w-7xl mx-auto w-full px-6 md:px-10 pb-10 space-y-8">
-                <GoalsWishlist 
-                    items={wishlist} 
-                    isCreatingExternal={isCreating}
-                    onCreatingExternalChange={setIsCreating}
-                />
-                <KarrFooter />
-            </div>
-        </main>
+            <GoalsWishlist 
+                items={wishlist} 
+                isCreatingExternal={isCreating}
+                onCreatingExternalChange={setIsCreating}
+            />
+        </div>
     )
 }

@@ -46,7 +46,7 @@ export function GoalsList({ goals, onRefresh }: GoalsListProps) {
     if (goals.length === 0) {
         return (
             <div className="rounded-xl border border-black/[0.07] bg-black/[0.02] p-6 text-center">
-                <p className="text-black/30 text-sm">No savings goals yet — add one in Settings.</p>
+                <p className="text-black/30 text-sm">No savings goals yet — create a pot with a target in Monzo.</p>
             </div>
         )
     }

@@ -86,7 +86,7 @@ export function KarrAIChat({ context, onAction }: KarrAIChatProps) {
     }
 
     return (
-        <div className="flex flex-col h-full min-h-[400px]">
+        <div className="flex flex-col h-full">
             {/* Header */}
             <div className="flex items-center gap-2 mb-4">
                 <div className="w-7 h-7 rounded-lg bg-black/10 border border-black/15 flex items-center justify-center">
@@ -105,7 +105,7 @@ export function KarrAIChat({ context, onAction }: KarrAIChatProps) {
             {/* Messages */}
             <div
                 ref={chatContainerRef}
-                className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[340px] scroll-smooth"
+                className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[220px] scroll-smooth no-scrollbar"
             >
                 {messages.map((msg, i) => (
                     <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>

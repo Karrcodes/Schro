@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Calendar as CalendarIcon, ExternalLink, Briefcase, DollarSign, ChevronLeft, ChevronRight, Info, Check, X, Trash2, Clock, CheckCircle2, AlertCircle, Receipt } from 'lucide-react'
+import { Calendar as CalendarIcon, ExternalLink, Briefcase, PoundSterling, ChevronLeft, ChevronRight, Info, Check, X, Trash2, Clock, CheckCircle2, AlertCircle, Receipt } from 'lucide-react'
 import { useRota } from '../hooks/useRota'
 import { usePayslips } from '../hooks/usePayslips'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
@@ -50,6 +50,11 @@ export function ProjectionsAnalytics() {
     const [approvalModalOpen, setApprovalModalOpen] = useState(false)
     const [itemToApprove, setItemToApprove] = useState<{ date: string, id: string } | null>(null)
 
+    // Overtime Modal State
+    const [otModalOpen, setOtModalOpen] = useState(false)
+    const [otHours, setOtHours] = useState<number>(11.5)
+    const [otBonus, setOtBonus] = useState<number>(0)
+
     // Merged overrides for calculation
     const allOverrides = useMemo(() => {
         const result: Record<string, 'overtime' | 'absence' | 'holiday'> = {}
@@ -74,15 +79,25 @@ export function ProjectionsAnalytics() {
 
     // handleOpenBooking is no longer needed
 
-    const handleConfirmStaged = async (type: 'overtime' | 'absence') => {
+    const handleConfirmStaged = async (type: 'overtime' | 'absence', hours?: number, bonus?: number) => {
         const dates = Object.keys(dayOverrides).filter(k => dayOverrides[k] === type)
         try {
-            await saveOverrides(dates.map(date => ({ date, type, status: 'approved' as const })))
+            await saveOverrides(dates.map(date => ({ 
+                date, 
+                type, 
+                status: 'approved' as const,
+                ...(type === 'overtime' ? { hours: hours || undefined, bonus: bonus || undefined } : {})
+            })))
             setDayOverrides(prev => {
                 const next = { ...prev }
                 dates.forEach(d => delete next[d])
                 return next
             })
+            if (type === 'overtime') {
+                setOtModalOpen(false)
+                setOtHours(11.5)
+                setOtBonus(0)
+            }
         } catch (err) {
             console.error(err)
             alert("Failed to confirm overrides.")
@@ -142,6 +157,8 @@ export function ProjectionsAnalytics() {
             }
 
             const override = allOverrides[dateStr]
+            const overrideRecord = bookedOverrides.find(o => o.date === dateStr)
+            
             let isWorked = isShift && override !== 'absence'
             let isOT = override === 'overtime'
             let isHol = isShift && override === 'holiday'
@@ -149,19 +166,24 @@ export function ProjectionsAnalytics() {
             let gross = 0
             if (isHol) gross += HOURS_PER_SHIFT * HOLIDAY_RATE         // Holiday: lower rate £14.38/hr
             else if (isWorked) gross += HOURS_PER_SHIFT * BASE_RATE     // Normal shift: £15.26/hr
-            if (isOT) gross += HOURS_PER_SHIFT * (BASE_RATE * 1.25)    // OT: +25%
+            
+            if (isOT) {
+                const customHours = overrideRecord?.hours ?? HOURS_PER_SHIFT
+                const customBonus = overrideRecord?.bonus ?? 0
+                gross += (customHours * 20.35) + customBonus
+            }
 
             dailyEarnings[dateStr] = gross * (1 - DEDUCTION_RATE)
 
-            // Paid in arrears: work from Monday to Sunday is paid the *following* Friday.
+            // Paid in arrears: work from Sunday to Saturday is paid on the following Friday (6 days later).
             const dayOfWeek = curr.getDay()
-            const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+            const daysSinceSunday = dayOfWeek
 
-            const currentMonday = new Date(curr)
-            currentMonday.setDate(curr.getDate() - daysSinceMonday)
+            const currentSunday = new Date(curr)
+            currentSunday.setDate(curr.getDate() - daysSinceSunday)
 
-            const paydayFri = new Date(currentMonday)
-            paydayFri.setDate(currentMonday.getDate() + 11)
+            const paydayFri = new Date(currentSunday)
+            paydayFri.setDate(currentSunday.getDate() + 12)
 
             const paydayStr = paydayFri.toISOString().split('T')[0]
 
@@ -328,7 +350,7 @@ export function ProjectionsAnalytics() {
     }
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <div className="space-y-6 w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
             {/* Quick Actions & Status Row */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 <a
@@ -353,7 +375,7 @@ export function ProjectionsAnalytics() {
                 <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="bg-white p-5 rounded-2xl border border-black/[0.06] shadow-sm flex flex-col justify-center">
                         <div className="flex items-center gap-2 text-[11px] font-bold text-black/40 uppercase tracking-widest mb-1">
-                            <DollarSign className="w-4 h-4 text-emerald-500" /> Pay Cycle
+                            <PoundSterling className="w-4 h-4 text-emerald-500" /> Pay Cycle
                         </div>
                         <div className="text-[24px] sm:text-[28px] font-black text-black">
                             {paydaysThisMonth} <span className="text-[12px] sm:text-[14px] text-black/40 font-semibold ml-1">Fridays</span>
@@ -571,10 +593,10 @@ export function ProjectionsAnalytics() {
                                 )}
                                 {activeStaged.ot.length > 0 && (
                                     <button
-                                        onClick={() => handleConfirmStaged('overtime')}
+                                        onClick={() => setOtModalOpen(true)}
                                         className="px-3 py-1.5 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 text-[12px] font-bold hover:bg-orange-100 transition-colors"
                                     >
-                                        Confirm Overtime
+                                        Review Overtime
                                     </button>
                                 )}
                             </div>
@@ -709,6 +731,63 @@ export function ProjectionsAnalytics() {
                             </button>
                             <button onClick={() => setApprovalModalOpen(false)} className="w-full py-3 rounded-xl text-black/40 font-bold text-[14px] hover:bg-black/5 transition-colors">
                                 Not Yet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Overtime Confirmation Modal */}
+            {otModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-black/[0.08] animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-5 border-b border-black/[0.04] bg-black/[0.02]">
+                            <h3 className="text-[16px] font-bold text-black text-center">Confirm Overtime</h3>
+                            <p className="text-[12px] text-center text-black/40 mt-1">Specify hours and bonus for the staged OT days.</p>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold text-black/60 uppercase tracking-widest px-1">Total Hours / Shift</label>
+                                <div className="relative">
+                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/30" />
+                                    <input 
+                                        type="number" 
+                                        value={otHours}
+                                        onChange={e => setOtHours(Number(e.target.value))}
+                                        className="w-full pl-9 pr-4 py-3 bg-black/[0.03] border border-black/[0.08] rounded-xl text-[14px] font-bold text-black focus:outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/20 transition-all"
+                                        step="0.5"
+                                        min="0"
+                                    />
+                                </div>
+                                <p className="text-[10px] text-black/40 px-1">Default full day is 11.5 hours. Half day could be 7.5 or 8.</p>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold text-black/60 uppercase tracking-widest px-1">Extra Bonus (£)</label>
+                                <div className="relative">
+                                    <PoundSterling className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/30" />
+                                    <input 
+                                        type="number" 
+                                        value={otBonus}
+                                        onChange={e => setOtBonus(Number(e.target.value))}
+                                        className="w-full pl-9 pr-4 py-3 bg-black/[0.03] border border-black/[0.08] rounded-xl text-[14px] font-bold text-black focus:outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/20 transition-all"
+                                        step="5"
+                                        min="0"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-5 bg-black/[0.02] border-t border-black/[0.04] flex items-center justify-between gap-3">
+                            <button
+                                onClick={() => setOtModalOpen(false)}
+                                className="flex-1 py-3 px-4 rounded-xl text-[13px] font-bold text-black/60 hover:text-black hover:bg-black/5 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleConfirmStaged('overtime', otHours, otBonus)}
+                                className="flex-1 py-3 px-4 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl text-[13px] font-bold transition-all shadow-sm"
+                            >
+                                Confirm
                             </button>
                         </div>
                     </div>

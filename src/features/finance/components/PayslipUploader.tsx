@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { UploadCloud, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react'
+import { UploadCloud, Loader2, CheckCircle, AlertCircle, X, Mail, RefreshCw } from 'lucide-react'
 import { usePayslips } from '../hooks/usePayslips'
 import { useIncome } from '../hooks/useIncome'
 import { cn } from '@/lib/utils'
@@ -22,6 +22,7 @@ export function PayslipUploader({ onSuccess }: PayslipUploaderProps) {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [dragging, setDragging] = useState(false)
     const [uploading, setUploading] = useState(false)
+    const [syncingGmail, setSyncingGmail] = useState(false)
     const [results, setResults] = useState<UploadResult[]>([])
 
     const processFiles = async (files: File[]) => {
@@ -85,6 +86,35 @@ export function PayslipUploader({ onSuccess }: PayslipUploaderProps) {
         processFiles(Array.from(e.target.files || []))
     }
 
+    const handleSyncGmail = async () => {
+        setSyncingGmail(true)
+        setResults([])
+        try {
+            const res = await fetch('/api/cron/sync-payslips', {
+                headers: { 'x-karr-manual': 'true' }
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || 'Failed to sync')
+            
+            if (data.processed > 0) {
+                setResults([{ file: 'Gmail Sync', status: 'ok', message: `Successfully synced ${data.processed} payslip(s). ${data.skipped?.length > 0 ? `Skipped ${data.skipped.length} existing.` : ''}` }])
+                if (onSuccess) onSuccess()
+            } else {
+                setResults([{ 
+                    file: 'Gmail Sync', 
+                    status: 'ok', 
+                    message: data.skipped?.length > 0 
+                        ? `Skipped ${data.skipped.length} already-logged payslip(s).` 
+                        : `No new payslips. Debug: ${data.debug?.join(' | ') || 'None'}`
+                }])
+            }
+        } catch (err: any) {
+            setResults([{ file: 'Gmail Sync', status: 'error', message: err.message }])
+        } finally {
+            setSyncingGmail(false)
+        }
+    }
+
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault()
         setDragging(false)
@@ -113,28 +143,44 @@ export function PayslipUploader({ onSuccess }: PayslipUploaderProps) {
                     onChange={handleInputChange}
                 />
 
-                <button
-                    onClick={() => !uploading && fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className={cn(
-                        "px-4 py-2 rounded-xl text-[12px] font-bold transition-all flex items-center gap-2",
-                        uploading
-                            ? "bg-black/[0.05] text-black/20 cursor-not-allowed"
-                            : "bg-black text-white hover:bg-black/80 shadow-sm active:scale-95"
-                    )}
-                >
-                    {uploading ? (
-                        <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            Parsing...
-                        </>
-                    ) : (
-                        <>
-                            <UploadCloud className="w-3.5 h-3.5" />
-                            Select Files
-                        </>
-                    )}
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleSyncGmail}
+                        disabled={syncingGmail || uploading}
+                        className={cn(
+                            "px-4 py-2 rounded-xl text-[12px] font-bold transition-all flex items-center gap-2 shadow-sm border",
+                            syncingGmail 
+                                ? "bg-white border-black/[0.06] text-black/40 cursor-not-allowed" 
+                                : "bg-white border-black/[0.1] text-black hover:border-black/30 hover:bg-black/[0.02] active:scale-95"
+                        )}
+                    >
+                        {syncingGmail ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                        Sync Gmail
+                    </button>
+
+                    <button
+                        onClick={() => !uploading && fileInputRef.current?.click()}
+                        disabled={uploading || syncingGmail}
+                        className={cn(
+                            "px-4 py-2 rounded-xl text-[12px] font-bold transition-all flex items-center gap-2",
+                            uploading
+                                ? "bg-black/[0.05] text-black/20 cursor-not-allowed"
+                                : "bg-black text-white hover:bg-black/80 shadow-sm active:scale-95"
+                        )}
+                    >
+                        {uploading ? (
+                            <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                Parsing...
+                            </>
+                        ) : (
+                            <>
+                                <UploadCloud className="w-3.5 h-3.5" />
+                                Select Files
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* Hidden dropzone area that wrapping the whole component might be too invasive, 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useTransactions } from '../hooks/useTransactions'
-import { ArrowUpRight, ArrowDownLeft, Lock, ExternalLink } from 'lucide-react'
+import { ArrowUpRight, ArrowDownLeft, ExternalLink } from 'lucide-react'
 import { useFinanceProfile } from '../contexts/FinanceProfileContext'
 import { usePots } from '../hooks/usePots'
 import { getCategoryById } from '../constants/categories'
@@ -29,11 +29,6 @@ export function TransactionLedger() {
             <div className="flex gap-y-2 items-center justify-between">
                 <div className="flex items-center gap-2">
                     <h3 className="text-[11px] uppercase tracking-wider font-bold text-black/40">Recent Transactions</h3>
-                    <span className="w-1 h-1 rounded-full bg-black/10" />
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-amber-500 bg-amber-50 border border-amber-200/60 px-1.5 py-0.5 rounded-full">
-                        <Lock className="w-2.5 h-2.5" />
-                        <span className="hidden sm:inline">Limited</span>
-                    </span>
                 </div>
                 {/* Open Monzo deep-link button */}
                 <a
@@ -46,21 +41,9 @@ export function TransactionLedger() {
                 </a>
             </div>
 
-            {/* Locked overlay with blurred content */}
-            <div className="relative rounded-2xl overflow-hidden">
-                {/* The lock overlay */}
-                <div className="absolute inset-0 z-10 backdrop-blur-[3px] bg-white/60 flex flex-col items-center justify-center gap-3 border border-amber-200/40 rounded-2xl">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center">
-                        <Lock className="w-5 h-5 text-amber-500" />
-                    </div>
-                    <div className="text-center px-4">
-                        <p className="text-[13px] font-bold text-black/70">Card transactions unavailable</p>
-                        <p className="text-[11px] text-black/40 mt-0.5">Monzo API restriction — tap Open Monzo above to view all</p>
-                    </div>
-                </div>
-
-                {/* Blurred content (not interactive) */}
-                <div className="space-y-2 pointer-events-none select-none" aria-hidden="true">
+            {/* Transaction List */}
+            <div className="rounded-2xl overflow-hidden">
+                <div>
                     {recentTransactions.length === 0 ? (
                         <>
                             <div className="h-14 rounded-xl bg-black/[0.02] border border-black/[0.04]" />

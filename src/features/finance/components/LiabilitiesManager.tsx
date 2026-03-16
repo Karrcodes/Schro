@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2, Pencil, Check, X, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Pencil, Check, X, Loader2, LayoutGrid, List, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRecurring } from '@/features/finance/hooks/useRecurring'
 import type { RecurringObligation } from '@/features/finance/types/finance.types'
 import { getLenderLogo } from '@/features/finance/utils/lenderLogos'
 import { Section, Spinner } from '@/features/finance/components/SharedSettingsUI'
+import { LiabilitiesServiceGrid } from './LiabilitiesServiceGrid'
+import { AikinChat } from './AikinChat'
 
 const LENDERS = [
     { id: 'klarna', name: 'Klarna', emoji: '💗', color: '#ffb3c7' },
@@ -29,8 +31,10 @@ export function LiabilitiesManager() {
 
     const [selectedLenderId, setSelectedLenderId] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
+    const [viewFilter, setViewFilter] = useState<'all' | 'debt' | 'subs'>('all')
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid')
+    const [showAI, setShowAI] = useState(false)
 
-    // Confirmation Modal State
     const [confirmModal, setConfirmModal] = useState<{
         open: boolean;
         title: string;
@@ -99,14 +103,28 @@ export function LiabilitiesManager() {
         }
     }
 
+    const startAdd = () => {
+        setAdding(true)
+        setEditId(null)
+        setSelectedLenderId('other')
+        setForm({
+            frequency: 'monthly',
+            amount: 0,
+            category: 'other',
+            emoji: '💸',
+            payments_left: null,
+            name: '',
+            description: '',
+            group_name: '',
+            next_due_date: new Date().toISOString().split('T')[0]
+        })
+    }
+
     const startEdit = (o: RecurringObligation) => {
         setEditId(o.id)
         setAdding(false)
-
-        // Find if it matches a known lender, otherwise set to 'other'
         const lender = LENDERS.find(l => l.name === o.name)
         setSelectedLenderId(lender ? lender.id : 'other')
-
         setForm({
             name: o.name,
             amount: o.amount,
@@ -121,35 +139,146 @@ export function LiabilitiesManager() {
         })
     }
 
+    const handleDeleteClick = (o: RecurringObligation) => {
+        setConfirmModal({
+            open: true,
+            title: 'Cancel Liability?',
+            message: `Are you sure you want to cancel and delete "${o.name}"? This will stop tracking its payments.`,
+            confirmText: 'Yes, Cancel',
+            type: 'danger',
+            action: async () => {
+                await deleteObligation(o.id)
+                setConfirmModal(prev => ({ ...prev, open: false }))
+            }
+        })
+    }
+
+    const LiabilityForm = ({ isEdit }: { isEdit: boolean }) => (
+        <div className="bg-white p-8 space-y-6">
+            <h3 className="text-xl font-black text-black border-b border-black/[0.04] pb-4 mb-4">
+                {isEdit ? 'Edit Liability' : 'New Liability'}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+                <div className="sm:col-span-2">
+                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-3 block">Provider</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {LENDERS.map(l => (
+                            <button key={l.id}
+                                onClick={() => {
+                                    setSelectedLenderId(l.id)
+                                    setForm({ ...form, name: l.id === 'other' ? '' : l.name, emoji: l.emoji, category: l.id === 'other' ? 'other' : 'bills' });
+                                }}
+                                className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2 ${selectedLenderId === l.id ? 'bg-black text-white border-black scale-[1.02] shadow-xl' : 'bg-white border-black/[0.05] hover:border-black/20'}`}>
+                                {getLenderLogo(l.name) ? (
+                                    <img src={getLenderLogo(l.name)!} alt={l.name} className="w-6 h-6 object-contain" />
+                                ) : (
+                                    <span className="text-xl">{l.emoji}</span>
+                                )}
+                                <span className={`text-[10px] font-bold uppercase tracking-widest ${selectedLenderId === l.id ? 'text-white/60' : 'text-black/40'}`}>{l.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                    {selectedLenderId === 'other' && (
+                        <input className="input-field w-full mt-4 bg-black/[0.03] border-none" placeholder="Service Name (e.g. Netflix)" value={form.name ?? ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                    )}
+                </div>
+
+                {/* Amount & Next Payment */}
+                <div>
+                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Amount</label>
+                    <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-black/40">£</span>
+                        <input className="input-field w-full pl-8 bg-black/[0.03] border-none text-[18px] font-black" type="number" step="0.01" value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) })} />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Next Payment</label>
+                    <input className="input-field w-full bg-black/[0.03] border-none font-bold" type="date" value={form.next_due_date ?? ''} onChange={(e) => setForm({ ...form, next_due_date: e.target.value })} />
+                </div>
+
+                {/* Frequency & Payments Left / End Date */}
+                <div>
+                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Frequency</label>
+                    <select className="input-field w-full bg-black/[0.03] border-none font-bold" value={form.frequency ?? 'monthly'} onChange={(e) => setForm({ ...form, frequency: e.target.value as any })}>
+                        <option value="weekly">Weekly</option>
+                        <option value="bi-weekly">Bi-weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+
+                <div>
+                    {(selectedLenderId === 'klarna' || selectedLenderId === 'clearpay') ? (
+                        <>
+                            <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Payments Remaining</label>
+                            <input className="input-field w-full bg-black/[0.03] border-none font-bold" type="number" placeholder="e.g. 3" value={form.payments_left ?? ''} onChange={(e) => setForm({ ...form, payments_left: parseInt(e.target.value) })} />
+                        </>
+                    ) : (
+                        <>
+                            <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">End Date (optional)</label>
+                            <input className="input-field w-full bg-black/[0.03] border-none font-bold" type="date" value={form.end_date ?? ''} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+                        </>
+                    )}
+                </div>
+
+                {/* Meta: Description & Grouping */}
+                <div>
+                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Description / Note</label>
+                    <input className="input-field w-full bg-black/[0.03] border-none font-bold" placeholder="e.g. Amazon purchase" value={form.description ?? ''} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                </div>
+
+                <div>
+                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Grouping Name</label>
+                    <input className="input-field w-full bg-black/[0.03] border-none font-bold" placeholder="e.g. Tech Purchases" value={form.group_name ?? ''} onChange={(e) => setForm({ ...form, group_name: e.target.value })} />
+                </div>
+            </div>
+
+            <div className="flex gap-3 pt-6 border-t border-black/[0.04] mt-8">
+                <button onClick={() => handleSave(isEdit)} disabled={saving} className="flex-1 bg-black text-white h-14 rounded-2xl font-black text-[13px] uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 disabled:opacity-50">
+                    {saving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : isEdit ? 'Save Changes' : 'Create Liability'}
+                </button>
+                <button onClick={() => {
+                    setAdding(false);
+                    setEditId(null);
+                    setSelectedLenderId(null);
+                    setForm({ frequency: 'monthly', amount: 0, category: 'other', emoji: '💸', payments_left: null });
+                }} className="px-8 bg-black/[0.05] text-black h-14 rounded-2xl font-black text-[13px] uppercase tracking-widest hover:bg-black/[0.1] transition-all">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    )
+
     return (
         <Section title="Active Liabilities" desc="Track active subscriptions and debt schedules">
             {/* Confirmation Modal */}
             {confirmModal.open && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
-                    <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 text-center animate-in zoom-in-95 duration-200">
+                    <div className="relative w-full max-w-sm bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col p-8 text-center animate-in zoom-in-95 duration-200">
                         <div className={cn(
-                            "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4",
-                            confirmModal.type === 'danger' ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"
+                            "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6",
+                            confirmModal.type === 'danger' ? "bg-red-50 text-red-500" : "bg-amber-50 text-amber-500"
                         )}>
-                            <Trash2 className="w-8 h-8" />
+                            <Trash2 className="w-10 h-10" />
                         </div>
-                        <h3 className="text-lg font-bold text-black mb-2">{confirmModal.title}</h3>
-                        <p className="text-[14px] text-black/60 mb-6 leading-relaxed">
+                        <h3 className="text-xl font-black text-black mb-2">{confirmModal.title}</h3>
+                        <p className="text-[14px] font-medium text-black/40 mb-8 leading-relaxed">
                             {confirmModal.message}
                         </p>
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))}
-                                className="flex-1 py-3 rounded-xl border border-black/[0.1] text-black/60 font-bold text-[14px] hover:bg-black/[0.05] transition-colors"
+                                className="flex-1 py-4 rounded-2xl bg-black/[0.05] text-black font-black text-[12px] uppercase tracking-widest hover:bg-black/[0.1] transition-colors"
                             >
                                 Back
                             </button>
                             <button
                                 onClick={confirmModal.action}
                                 className={cn(
-                                    "flex-1 py-3 rounded-xl text-white font-bold text-[14px] transition-colors shadow-lg",
-                                    confirmModal.type === 'danger' ? "bg-red-600 hover:bg-red-700 shadow-red-200" : "bg-amber-500 hover:bg-amber-600 shadow-amber-200"
+                                    "flex-1 py-4 rounded-2xl text-white font-black text-[12px] uppercase tracking-widest transition-all shadow-xl active:scale-95",
+                                    confirmModal.type === 'danger' ? "bg-red-500 hover:bg-red-600" : "bg-amber-500 hover:bg-amber-600"
                                 )}
                             >
                                 {confirmModal.confirmText}
@@ -159,174 +288,155 @@ export function LiabilitiesManager() {
                 </div>
             )}
 
+            {/* Form Modal (Add/Edit) */}
+            {(adding || editId) && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-md animate-in fade-in duration-300" 
+                        onClick={() => { setAdding(false); setEditId(null); }} />
+                    <div className="relative w-full max-w-2xl bg-white rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-300 border border-black/5">
+                        <LiabilityForm isEdit={!!editId} />
+                    </div>
+                </div>
+            )}
+
+            {/* AI Suggestions Modal */}
+            {showAI && (
+                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-md animate-in fade-in duration-300" 
+                        onClick={() => setShowAI(false)} />
+                    <div className="relative w-full max-w-xl bg-black rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-300 border border-white/10 p-6">
+                        <AikinChat initialMessage="I've analyzed your liabilities. I've noted your Klarna schedules and subscriptions. How can I help you optimize these payments today?" />
+                        <button 
+                            onClick={() => setShowAI(false)}
+                            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white/40 transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {loading ? <Spinner /> : (
-                <div className="space-y-4">
-                    {obligations.length > 0 && (
-                        <div className="space-y-2">
-                            {obligations.map((o) => (
-                                <div key={o.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-xl border border-black/[0.07] bg-white p-3 shadow-sm hover:shadow-md transition-shadow">
-                                    {(() => {
-                                        const logo = getLenderLogo(o.name)
-                                        return logo ? (
-                                            <div className="w-10 h-10 rounded-xl bg-white border border-black/[0.07] flex items-center justify-center overflow-hidden shadow-sm flex-shrink-0">
-                                                <img src={logo} alt={o.name} className="w-full h-full object-contain p-1" />
-                                            </div>
-                                        ) : (
-                                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                                                style={{ backgroundColor: LENDERS.find(l => l.name === o.name)?.color + '20' || '#00000008' }}>
-                                                {o.emoji || '💸'}
-                                            </div>
-                                        )
-                                    })()}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex flex-col min-w-0 gap-1.5 mt-0.5">
-                                            <p className="text-[14px] font-bold text-black truncate">{o.name}</p>
-                                            <div className="flex flex-wrap items-center gap-1.5">
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-black/50 bg-black/5 px-2 py-0.5 rounded-md text-nowrap">
-                                                    Next: {new Date(o.next_due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                                                </span>
-                                                {(o.payments_left ?? 0) > 0 && (
-                                                    <span className="px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 text-[10px] font-bold uppercase tracking-widest text-nowrap">
-                                                        {o.payments_left} left
-                                                    </span>
-                                                )}
-                                                {o.end_date && (
-                                                    <span className="text-black/30 text-[10px] font-semibold text-nowrap">
-                                                        Ends {new Date(o.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto sm:ml-auto bg-black/[0.02] p-2 rounded-xl border border-black/[0.04]">
-                                        <div className="flex flex-col items-start sm:items-end sm:mr-2">
-                                            <span className="text-[15px] text-red-600 font-bold tracking-tight privacy-blur">£{o.amount.toFixed(2)}</span>
-                                            <span className="text-[10px] text-black/40 font-bold uppercase tracking-widest">{o.frequency}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 border-l border-black/[0.06] pl-3">
-                                            <button onClick={() => markObligationAsPaid(o)} title="Mark as Paid" className="w-8 h-8 rounded-lg flex items-center justify-center text-black/20 hover:text-emerald-500 hover:bg-emerald-50 transition-colors"><Check className="w-4 h-4" /></button>
-                                            <button onClick={() => startEdit(o)} className="w-8 h-8 rounded-lg flex items-center justify-center text-black/20 hover:text-black/60 hover:bg-black/5 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                                            <button
-                                                onClick={() => {
-                                                    setConfirmModal({
-                                                        open: true,
-                                                        title: 'Cancel Liability?',
-                                                        message: `Are you sure you want to cancel and delete "${o.name}"? This will stop tracking its payments.`,
-                                                        confirmText: 'Yes, Cancel',
-                                                        type: 'danger',
-                                                        action: async () => {
-                                                            await deleteObligation(o.id)
-                                                            setConfirmModal(prev => ({ ...prev, open: false }))
-                                                        }
-                                                    })
-                                                }}
-                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-black/20 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                <div className="space-y-8">
+                    <div className="flex items-center justify-between">
+                        {/* Tab Controls */}
+                        <div className="flex gap-1 bg-black/[0.03] p-1.5 rounded-[20px] border border-black/[0.04]">
+                            {(['all', 'debt', 'subs'] as const).map(id => (
+                                <button
+                                    key={id}
+                                    onClick={() => setViewFilter(id)}
+                                    className={cn(
+                                        "px-6 py-2 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all",
+                                        viewFilter === id ? "bg-white text-black shadow-lg shadow-black/5" : "text-black/30 hover:text-black/50"
+                                    )}
+                                >
+                                    {id === 'all' ? 'All' : id === 'debt' ? 'Debt' : 'Subs'}
+                                </button>
                             ))}
                         </div>
-                    )}
 
-                    {(adding || editId) ? (
-                        <div className="rounded-2xl border border-black/[0.08] bg-white p-6 space-y-5 shadow-sm">
-                            <h3 className="text-[14px] font-bold text-black border-b border-black/[0.06] pb-3 mb-4">
-                                {editId ? 'Edit Liability' : 'Add New Liability'}
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                <div className="sm:col-span-2">
-                                    <label className="text-[11px] uppercase tracking-wider text-black/40 font-bold mb-2 block">Lender / Tag</label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                        {LENDERS.map(l => (
-                                            <button key={l.id}
-                                                onClick={() => {
-                                                    setSelectedLenderId(l.id)
-                                                    setForm({ ...form, name: l.id === 'other' ? '' : l.name, emoji: l.emoji, category: l.id === 'other' ? 'other' : 'bills' });
-                                                }}
-                                                className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${selectedLenderId === l.id ? 'bg-white border-black shadow-[0_2px_10px_rgba(124,58,237,0.1)] ring-1 ring-black/20' : 'bg-white border-black/[0.07] hover:border-black/[0.15] hover:bg-black/[0.01]'}`}>
-                                                {getLenderLogo(l.name) ? (
-                                                    <div className="w-8 h-8 rounded-lg bg-white border border-black/[0.07] flex items-center justify-center overflow-hidden shadow-sm flex-shrink-0">
-                                                        <img src={getLenderLogo(l.name)!} alt={l.name} className="w-full h-full object-contain p-1" />
+                        {/* Layout Switcher */}
+                        <div className="flex gap-1 bg-black/[0.03] p-1.5 rounded-[20px] border border-black/[0.04]">
+                            <button
+                                onClick={() => setViewMode('grid')}
+                                className={cn(
+                                    "p-2.5 rounded-[14px] transition-all",
+                                    viewMode === 'grid' ? "bg-white text-black shadow-lg shadow-black/5" : "text-black/30 hover:text-black/50"
+                                )}
+                            >
+                                <LayoutGrid className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={cn(
+                                    "p-2.5 rounded-[14px] transition-all",
+                                    viewMode === 'list' ? "bg-white text-black shadow-lg shadow-black/5" : "text-black/30 hover:text-black/50"
+                                )}
+                            >
+                                <List className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="relative">
+                        {viewMode === 'grid' ? (
+                            <LiabilitiesServiceGrid
+                                obligations={obligations.filter(o => {
+                                    if (viewFilter === 'all') return true
+                                    const isDebt = (o.payments_left != null && o.payments_left > 0) || o.end_date != null
+                                    if (viewFilter === 'debt') return isDebt
+                                    return !isDebt
+                                })}
+                                loading={loading}
+                                onAdd={startAdd}
+                                onEdit={startEdit}
+                                onDelete={handleDeleteClick}
+                                onShowSuggestions={() => setShowAI(true)}
+                            />
+                        ) : (
+                            <div className="space-y-3">
+                                {obligations
+                                    .filter(o => {
+                                        if (viewFilter === 'all') return true
+                                        const isDebt = (o.payments_left != null && o.payments_left > 0) || o.end_date != null
+                                        if (viewFilter === 'debt') return isDebt
+                                        return !isDebt
+                                    })
+                                    .map((o) => (
+                                        <div key={o.id} className="group flex items-center gap-4 bg-white p-4 rounded-[24px] border border-black/[0.04] hover:border-black/10 transition-all hover:shadow-xl hover:shadow-black/5">
+                                            {(() => {
+                                                const logo = getLenderLogo(o.name)
+                                                return logo ? (
+                                                    <div className="w-12 h-12 rounded-[18px] bg-black/[0.02] p-2 flex items-center justify-center shrink-0">
+                                                        <img src={logo} alt={o.name} className="w-full h-full object-contain" />
                                                     </div>
                                                 ) : (
-                                                    <span className="text-xl leading-none">{l.emoji}</span>
-                                                )}
-                                                <span className="text-[12px] font-bold text-black/70 tracking-tight">{l.name}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                    {selectedLenderId === 'other' && (
-                                        <input className="input-field w-full mt-3 bg-white" placeholder="Custom lender or service name..." value={form.name ?? ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                                    )}
-                                </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-[11px] uppercase tracking-wider text-black/40 font-bold mb-2 block">Amount (£)</label>
-                                        <input className="input-field w-full bg-white text-[16px] font-bold" type="number" placeholder="0.00" value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) })} />
-                                    </div>
-                                    <div>
-                                        <label className="text-[11px] uppercase tracking-wider text-black/40 font-bold mb-2 block">Frequency</label>
-                                        <select className="input-field w-full bg-white" value={form.frequency ?? 'monthly'} onChange={(e) => setForm({ ...form, frequency: e.target.value as any })}>
-                                            <option value="weekly">Weekly</option>
-                                            <option value="bi-weekly">Bi-weekly</option>
-                                            <option value="monthly">Monthly</option>
-                                            <option value="yearly">Yearly</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-[11px] uppercase tracking-wider text-black/40 font-bold mb-2 block">Next Payment Date</label>
-                                        <input className="input-field w-full bg-white" type="date" value={form.next_due_date ?? ''} onChange={(e) => setForm({ ...form, next_due_date: e.target.value })} />
-                                    </div>
-                                </div>
-                                <div className="space-y-4 bg-white p-4 rounded-xl border border-black/[0.06]">
-                                    <div>
-                                        <label className="text-[11px] uppercase tracking-wider text-black/40 font-bold mb-2 block">Description / Note</label>
-                                        <input className="input-field w-full bg-white" placeholder="e.g. Amazon purchase, Dominoes" value={form.description ?? ''} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                                    </div>
-                                    {(selectedLenderId === 'klarna' || selectedLenderId === 'clearpay') ? (
-                                        <div>
-                                            <label className="text-[11px] uppercase tracking-wider text-black/40 font-bold mb-2 block">Payments Left</label>
-                                            <input className="input-field w-full bg-white" type="number" placeholder="e.g. 3" value={form.payments_left ?? ''} onChange={(e) => setForm({ ...form, payments_left: parseInt(e.target.value) })} />
+                                                    <div className="w-12 h-12 rounded-[18px] bg-black/[0.02] flex items-center justify-center text-xl shrink-0">
+                                                        {o.emoji || '💸'}
+                                                    </div>
+                                                )
+                                            })()}
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-black text-black tracking-tight truncate">{o.name}</h4>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-black/30 bg-black/[0.03] px-2 py-0.5 rounded-full">
+                                                        Next: {new Date(o.next_due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                                    </span>
+                                                    {(o.payments_left ?? 0) > 0 && (
+                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                                            {o.payments_left} left
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-black text-black tracking-tighter text-lg">£{o.amount.toFixed(2)}</p>
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-black/20">{o.frequency}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-4">
+                                                <button onClick={() => markObligationAsPaid(o)} className="p-2 rounded-xl hover:bg-emerald-50 text-emerald-500 hover:scale-110 transition-all"><Check className="w-4 h-4" /></button>
+                                                <button onClick={() => startEdit(o)} className="p-2 rounded-xl hover:bg-black/5 text-black/40 hover:text-black transition-all"><Pencil className="w-4 h-4" /></button>
+                                                <button onClick={() => handleDeleteClick(o)} className="p-2 rounded-xl hover:bg-red-50 text-red-400 hover:text-red-500 transition-all"><Trash2 className="w-4 h-4" /></button>
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <div className={selectedLenderId === 'currys' ? '' : 'opacity-40 grayscale pointer-events-none'}>
-                                            <label className="text-[11px] uppercase tracking-wider text-black/40 font-bold mb-2 block">End Date (optional)</label>
-                                            <input className="input-field w-full bg-white" type="date" value={form.end_date ?? ''} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+                                    ))}
+                                
+                                {!adding && (
+                                    <button onClick={() => {
+                                        setAdding(true);
+                                        setEditId(null);
+                                        setSelectedLenderId('other');
+                                        setForm({ frequency: 'monthly', amount: 0, category: 'other', emoji: '💸', payments_left: null });
+                                    }} className="w-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-black/[0.06] rounded-[32px] hover:border-black/20 hover:bg-black/[0.01] transition-all group gap-2 mt-4">
+                                        <div className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <Plus className="w-5 h-5 text-black/40" />
                                         </div>
-                                    )}
-                                    <div>
-                                        <label className="text-[11px] uppercase tracking-wider text-black/40 font-bold mb-2 block">Grouping Name (optional)</label>
-                                        <input className="input-field w-full bg-white" placeholder="e.g. Tech Purchases" value={form.group_name ?? ''} onChange={(e) => setForm({ ...form, group_name: e.target.value })} />
-                                    </div>
-                                </div>
+                                        <span className="text-[12px] font-black uppercase tracking-widest text-black/30">Add Liability</span>
+                                    </button>
+                                )}
                             </div>
-
-                            <div className="flex gap-3 pt-4 border-t border-black/[0.06] mt-6">
-                                <button onClick={() => handleSave(!!editId)} disabled={saving} className="btn-primary flex-1 h-12 text-[14px]">
-                                    {saving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : editId ? 'Save Changes' : 'Create Liability'}
-                                </button>
-                                <button onClick={() => {
-                                    setAdding(false);
-                                    setEditId(null);
-                                    setSelectedLenderId(null);
-                                    setForm({ frequency: 'monthly', amount: 0, category: 'other', emoji: '💸', payments_left: null });
-                                }} className="btn-secondary px-8 h-12 text-[14px]">
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <button onClick={() => {
-                            setAdding(true);
-                            setSelectedLenderId('other');
-                            setForm({ frequency: 'monthly', amount: 0, category: 'other', emoji: '💸', payments_left: null });
-                        }} className="flex items-center gap-2 text-[13px] text-black/60 hover:text-black hover:bg-black/5 font-bold transition-all border-2 border-dashed border-black/[0.08] hover:border-black/30 w-full p-6 rounded-2xl justify-center bg-white shadow-sm">
-                            <Plus className="w-5 h-5" /> Add new subscription or debt schedule
-                        </button>
-                    )}
+                        )}
+                    </div>
                 </div>
             )}
         </Section>

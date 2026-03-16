@@ -171,7 +171,11 @@ export function Sidebar() {
     const { isVaultPrivate } = useVault()
 
     const [orderedTabs, setOrderedTabs] = useState(navItems.map(item => item.label))
-    const [orderedFinanceSubTabs, setOrderedFinanceSubTabs] = useState<string[]>([])
+    const [orderedSubTabs, setOrderedSubTabs] = useState<Record<string, string[]>>(() => {
+        const init: Record<string, string[]> = {}
+        navItems.forEach(i => { if (i.sub) init[i.label] = i.sub.map(s => s.label) })
+        return init
+    })
     const [isMounted, setIsMounted] = useState(false)
     const { settings, setSetting, loading: settingsLoading } = useSettings()
     const [isCollapsed, setIsCollapsed] = useState(false)
@@ -269,20 +273,41 @@ export function Sidebar() {
             } catch (e) { }
         }
 
-        // Load finance sub-tabs order
-        const savedSubOrder = localStorage.getItem('schro_finance_subtabs_order')
-        const financeItem = navItems.find(i => i.label === 'Finances')
-        const defaultSubLabels = financeItem?.sub?.map(s => s.label) || []
+        // Load sub-tabs order
+        const savedSubOrder = localStorage.getItem('schro_sidebar_sub_order')
 
         if (savedSubOrder) {
             try {
-                const parsed = JSON.parse(savedSubOrder)
-                const validParsed = parsed.filter((label: string) => defaultSubLabels.includes(label))
-                const missing = defaultSubLabels.filter(label => !validParsed.includes(label))
-                setOrderedFinanceSubTabs([...validParsed, ...missing])
+                const parsed = JSON.parse(savedSubOrder) as Record<string, string[]>
+                setOrderedSubTabs(prev => {
+                    const next = { ...prev }
+                    navItems.forEach(item => {
+                        if (item.sub) {
+                            const defaultLabels = item.sub.map(s => s.label)
+                            const parsedLabels = parsed[item.label] || []
+                            const validParsed = parsedLabels.filter(l => defaultLabels.includes(l))
+                            const missing = defaultLabels.filter(l => !validParsed.includes(l))
+                            next[item.label] = [...validParsed, ...missing]
+                        }
+                    })
+                    return next
+                })
             } catch (e) { }
         } else {
-            setOrderedFinanceSubTabs(defaultSubLabels)
+            // Migrate legacy finance order
+            const legacyFinanceOrder = localStorage.getItem('schro_finance_subtabs_order')
+            if (legacyFinanceOrder) {
+                try {
+                    const parsed = JSON.parse(legacyFinanceOrder)
+                    const financeItem = navItems.find(i => i.label === 'Finances')
+                    if (financeItem && financeItem.sub) {
+                        const defaultLabels = financeItem.sub.map(s => s.label)
+                        const validParsed = parsed.filter((l: string) => defaultLabels.includes(l))
+                        const missing = defaultLabels.filter(l => !validParsed.includes(l))
+                        setOrderedSubTabs(prev => ({ ...prev, Finances: [...validParsed, ...missing] }))
+                    }
+                } catch(e) {}
+            }
         }
     }, [])
 
@@ -307,20 +332,25 @@ export function Sidebar() {
             } catch (e) { }
         }
 
-        const dbSubOrder = settings['schro_finance_subtabs_order']
-        const financeItem = navItems.find(i => i.label === 'Finances')
-        const defaultSubLabels = financeItem?.sub?.map(s => s.label) || []
+        const dbSubOrder = settings['schro_sidebar_sub_order']
 
         if (dbSubOrder) {
             try {
-                const parsed = JSON.parse(dbSubOrder)
-                const validParsed = parsed.filter((label: string) => defaultSubLabels.includes(label))
-                const missing = defaultSubLabels.filter(label => !validParsed.includes(label))
-                const finalSubOrder = [...validParsed, ...missing]
+                const parsed = JSON.parse(dbSubOrder) as Record<string, string[]>
+                const finalSubOrder: Record<string, string[]> = {}
+                navItems.forEach(item => {
+                    if (item.sub) {
+                        const defaultLabels = item.sub.map(s => s.label)
+                        const parsedLabels = parsed[item.label] || []
+                        const validParsed = parsedLabels.filter(l => defaultLabels.includes(l))
+                        const missing = defaultLabels.filter(l => !validParsed.includes(l))
+                        finalSubOrder[item.label] = [...validParsed, ...missing]
+                    }
+                })
 
-                if (JSON.stringify(finalSubOrder) !== localStorage.getItem('schro_finance_subtabs_order')) {
-                    setOrderedFinanceSubTabs(finalSubOrder)
-                    localStorage.setItem('schro_finance_subtabs_order', JSON.stringify(finalSubOrder))
+                if (JSON.stringify(finalSubOrder) !== localStorage.getItem('schro_sidebar_sub_order')) {
+                    setOrderedSubTabs(finalSubOrder)
+                    localStorage.setItem('schro_sidebar_sub_order', JSON.stringify(finalSubOrder))
                 }
             } catch (e) { }
         }
@@ -332,10 +362,13 @@ export function Sidebar() {
         setSetting('schro_sidebar_order', JSON.stringify(newOrder))
     }
 
-    const handleSubReorder = (newOrder: string[]) => {
-        setOrderedFinanceSubTabs(newOrder)
-        localStorage.setItem('schro_finance_subtabs_order', JSON.stringify(newOrder))
-        setSetting('schro_finance_subtabs_order', JSON.stringify(newOrder))
+    const handleSubReorder = (moduleLabel: string, newOrder: string[]) => {
+        setOrderedSubTabs(prev => {
+            const next = { ...prev, [moduleLabel]: newOrder }
+            localStorage.setItem('schro_sidebar_sub_order', JSON.stringify(next))
+            setSetting('schro_sidebar_sub_order', JSON.stringify(next))
+            return next
+        })
     }
 
 
@@ -429,119 +462,95 @@ export function Sidebar() {
                             )}
                         </Link>
 
-                        {'sub' in item && item.sub && expandedFolders[item.href] && (label === 'Finances' || label === 'Studio' || label === 'Wellbeing' || label === 'Operations') && (
-                            <div className="ml-5 mt-0.5 space-y-0.5 border-l border-black/[0.07] pl-3">
-                                {isReorderable ? (
-                                    <Reorder.Group
-                                        axis="y"
-                                        values={label === 'Finances' ? orderedFinanceSubTabs : item.sub.map(s => s.label)}
-                                        onReorder={label === 'Finances' ? handleSubReorder : () => { }}
-                                        className="list-none m-0 p-0 space-y-0.5"
-                                    >
-                                        {(label === 'Finances' ? orderedFinanceSubTabs : item.sub.map(s => s.label)).map((subLabel) => {
-                                            const subItem = item.sub?.find(s => s.label === subLabel)
-                                            if (!subItem) return null
-                                            const SubIcon = subItem.icon
-                                            const subActive = pathname === subItem.href
-                                            const isDisabled = (subItem as any).disabled
-                                            return (
-                                                <Reorder.Item key={subLabel} value={subLabel} className={cn("cursor-grab active:cursor-grabbing", isDisabled && "cursor-not-allowed")}>
-                                                    {isDisabled ? (
-                                                        <div className="flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] opacity-35 cursor-not-allowed grayscale select-none">
-                                                            <SubIcon className="w-3 h-3 shrink-0" />
-                                                            <span className="flex-1 truncate">{subItem.label}</span>
-                                                            <Lock className="w-2.5 h-2.5" />
-                                                        </div>
-                                                    ) : (
-                                                        <Link
-                                                            href={subItem.href}
-                                                            draggable={false}
-                                                            className={cn(
-                                                                'flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] transition-colors group/sub',
-                                                                subActive ? 'text-black bg-black/5 font-semibold' : 'text-black/35 hover:text-black/60'
-                                                            )}
-                                                        >
-                                                            <SubIcon className={cn("w-3 h-3 shrink-0", subActive ? (COLOR_MAP[item.color || 'black'] || 'text-black') : "text-current")} />
-                                                            <span className="flex-1 truncate">{subItem.label}</span>
-                                                            <div className="flex items-center gap-1">
-                                                                {(subItem as any).caps?.map((c: string) => (
-                                                                    <CapBadge key={c} cap={c as 'P' | 'B'} />
-                                                                ))}
-                                                            </div>
-                                                        </Link>
-                                                    )}
-                                                </Reorder.Item>
-                                            )
-                                        })}
-                                    </Reorder.Group>
-                                ) : (
-                                    <div className="list-none m-0 p-0 space-y-0.5">
-                                        {item.sub.map((subItem) => {
-                                            const SubIcon = subItem.icon
-                                            const subActive = pathname === subItem.href
-                                            const isDisabled = (subItem as any).disabled
-                                            return (
-                                                <div key={subItem.label}>
-                                                    {isDisabled ? (
-                                                        <div className="flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] opacity-35 cursor-not-allowed grayscale select-none">
-                                                            <SubIcon className="w-3 h-3 shrink-0" />
-                                                            <span className="flex-1 truncate">{subItem.label}</span>
-                                                            <Lock className="w-2.5 h-2.5" />
-                                                        </div>
-                                                    ) : (
-                                                        <Link
-                                                            href={subItem.href}
-                                                            draggable={false}
-                                                            className={cn(
-                                                                'flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] transition-colors group/sub',
-                                                                subActive ? 'text-black bg-black/5 font-semibold' : 'text-black/35 hover:text-black/60'
-                                                            )}
-                                                        >
-                                                            <SubIcon className={cn("w-3 h-3 shrink-0", subActive ? (COLOR_MAP[item.color || 'black'] || 'text-black') : "text-current")} />
-                                                            <span className="flex-1 truncate">{subItem.label}</span>
-                                                            <div className="flex items-center gap-1">
-                                                                {(subItem as any).caps?.map((c: string) => (
-                                                                    <CapBadge key={c} cap={c as 'P' | 'B'} />
-                                                                ))}
-                                                            </div>
-                                                        </Link>
-                                                    )}
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Fallback for other potential sub-tabs that aren't specialized */}
-                        {'sub' in item && item.sub && expandedFolders[item.href] && label !== 'Finances' && label !== 'Studio' && label !== 'Wellbeing' && label !== 'Operations' && (
-                            <div className="ml-5 mt-0.5 space-y-0.5 border-l border-black/[0.07] pl-3">
-                                {item.sub.map((subItem) => {
-                                    const SubIcon = subItem.icon
-                                    const subActive = pathname === subItem.href
-                                    return (
-                                        <Link
-                                            key={subItem.href}
-                                            href={subItem.href}
-                                            draggable={false}
-                                            className={cn(
-                                                'flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] transition-colors',
-                                                subActive ? 'text-black bg-black/5 font-semibold' : 'text-black/35 hover:text-black/60'
-                                            )}
+                        {'sub' in item && item.sub && expandedFolders[item.href] && (() => {
+                            const subItemsArr = orderedSubTabs[label] || item.sub.map(s => s.label)
+                            return (
+                                <div className="ml-5 mt-0.5 space-y-0.5 border-l border-black/[0.07] pl-3">
+                                    {isReorderable ? (
+                                        <Reorder.Group
+                                            axis="y"
+                                            values={subItemsArr}
+                                            onReorder={(newOrder) => handleSubReorder(label, newOrder)}
+                                            className="list-none m-0 p-0 space-y-0.5"
                                         >
-                                            <SubIcon className={cn("w-3 h-3 shrink-0", subActive ? (COLOR_MAP[item.color || 'black'] || 'text-black') : "text-current")} />
-                                            <span className="flex-1 truncate">{subItem.label}</span>
-                                            <div className="flex items-center gap-1">
-                                                {(subItem as any).caps?.map((c: string) => (
-                                                    <CapBadge key={c} cap={c as 'P' | 'B'} />
-                                                ))}
-                                            </div>
-                                        </Link>
-                                    )
-                                })}
-                            </div>
-                        )}
+                                            {subItemsArr.map((subLabel) => {
+                                                const subItem = item.sub?.find(s => s.label === subLabel)
+                                                if (!subItem) return null
+                                                const SubIcon = subItem.icon
+                                                const subActive = pathname === subItem.href
+                                                const isDisabled = (subItem as any).disabled
+                                                return (
+                                                    <Reorder.Item key={subLabel} value={subLabel} className={cn("cursor-grab active:cursor-grabbing", isDisabled && "cursor-not-allowed")}>
+                                                        {isDisabled ? (
+                                                            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] opacity-35 cursor-not-allowed grayscale select-none">
+                                                                <SubIcon className="w-3 h-3 shrink-0" />
+                                                                <span className="flex-1 truncate">{subItem.label}</span>
+                                                                <Lock className="w-2.5 h-2.5" />
+                                                            </div>
+                                                        ) : (
+                                                            <Link
+                                                                href={subItem.href}
+                                                                draggable={false}
+                                                                className={cn(
+                                                                    'flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] transition-colors group/sub',
+                                                                    subActive ? 'text-black bg-black/5 font-semibold' : 'text-black/35 hover:text-black/60'
+                                                                )}
+                                                            >
+                                                                <SubIcon className={cn("w-3 h-3 shrink-0", subActive ? (COLOR_MAP[item.color || 'black'] || 'text-black') : "text-current")} />
+                                                                <span className="flex-1 truncate">{subItem.label}</span>
+                                                                <div className="flex items-center gap-1">
+                                                                    {(subItem as any).caps?.map((c: string) => (
+                                                                        <CapBadge key={c} cap={c as 'P' | 'B'} />
+                                                                    ))}
+                                                                </div>
+                                                            </Link>
+                                                        )}
+                                                    </Reorder.Item>
+                                                )
+                                            })}
+                                        </Reorder.Group>
+                                    ) : (
+                                        <div className="list-none m-0 p-0 space-y-0.5">
+                                            {subItemsArr.map((subLabel) => {
+                                                const subItem = item.sub?.find(s => s.label === subLabel)
+                                                if (!subItem) return null
+                                                const SubIcon = subItem.icon
+                                                const subActive = pathname === subItem.href
+                                                const isDisabled = (subItem as any).disabled
+                                                return (
+                                                    <div key={subItem.label}>
+                                                        {isDisabled ? (
+                                                            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] opacity-35 cursor-not-allowed grayscale select-none">
+                                                                <SubIcon className="w-3 h-3 shrink-0" />
+                                                                <span className="flex-1 truncate">{subItem.label}</span>
+                                                                <Lock className="w-2.5 h-2.5" />
+                                                            </div>
+                                                        ) : (
+                                                            <Link
+                                                                href={subItem.href}
+                                                                draggable={false}
+                                                                className={cn(
+                                                                    'flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] transition-colors group/sub',
+                                                                    subActive ? 'text-black bg-black/5 font-semibold' : 'text-black/35 hover:text-black/60'
+                                                                )}
+                                                            >
+                                                                <SubIcon className={cn("w-3 h-3 shrink-0", subActive ? (COLOR_MAP[item.color || 'black'] || 'text-black') : "text-current")} />
+                                                                <span className="flex-1 truncate">{subItem.label}</span>
+                                                                <div className="flex items-center gap-1">
+                                                                    {(subItem as any).caps?.map((c: string) => (
+                                                                        <CapBadge key={c} cap={c as 'P' | 'B'} />
+                                                                    ))}
+                                                                </div>
+                                                            </Link>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })()}
                     </div>
                 )
             }
@@ -699,42 +708,47 @@ export function Sidebar() {
                                             className="fixed flex flex-col gap-1 p-1.5 bg-white border border-black/[0.08] rounded-2xl shadow-xl z-[300] animate-in fade-in zoom-in-95 duration-200 max-h-[calc(100vh-24px)] overflow-y-auto custom-scrollbar"
                                             style={{ left: 56, top: flyoutY + flyoutOffset, transform: 'translateY(-50%)' }}
                                         >
-                                            {item.sub.map(subItem => {
-                                                const SubIcon = subItem.icon || ((props: any) => <div className={cn("w-1.5 h-1.5 rounded-full bg-current", props.className)} />)
-                                                const isSubActive = pathname === subItem.href
-                                                return (
-                                                    <div key={subItem.href} className="relative group/sub">
-                                                        <Link
-                                                            href={subItem.href}
-                                                            onMouseEnter={(e) => {
-                                                                setHoveredSubItem(subItem.label)
-                                                                const rect = e.currentTarget.getBoundingClientRect()
-                                                                setSubFlyoutY(rect.top + rect.height / 2)
-                                                            }}
-                                                            onMouseLeave={() => setHoveredSubItem(null)}
-                                                            className={cn(
-                                                                'w-8 h-8 flex items-center justify-center rounded-xl transition-all',
-                                                                isSubActive
-                                                                    ? 'bg-black/5 text-black shadow-sm'
-                                                                    : hoveredSubItem === subItem.label
-                                                                        ? 'text-black/70 bg-black/[0.04]'
-                                                                        : 'text-black/30'
-                                                            )}
-                                                        >
-                                                            <SubIcon className={cn("w-4 h-4", isSubActive && (COLOR_MAP[item.color || 'black'] || 'text-black'))} />
-                                                        </Link>
-                                                        {isMounted && hoveredSubItem === subItem.label && createPortal(
-                                                            <div
-                                                                className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[310] shadow-xl"
-                                                                style={{ left: 56 + 44 + 12, top: subFlyoutY, transform: 'translateY(-50%)' }}
+                                            {(() => {
+                                                const subItemsArr = orderedSubTabs[item.label] || item.sub.map((s: any) => s.label)
+                                                return subItemsArr.map(subLabel => {
+                                                    const subItem = item.sub?.find((s: any) => s.label === subLabel)
+                                                    if (!subItem) return null
+                                                    const SubIcon = subItem.icon || ((props: any) => <div className={cn("w-1.5 h-1.5 rounded-full bg-current", props.className)} />)
+                                                    const isSubActive = pathname === subItem.href
+                                                    return (
+                                                        <div key={subItem.href} className="relative group/sub">
+                                                            <Link
+                                                                href={subItem.href}
+                                                                onMouseEnter={(e) => {
+                                                                    setHoveredSubItem(subItem.label)
+                                                                    const rect = e.currentTarget.getBoundingClientRect()
+                                                                    setSubFlyoutY(rect.top + rect.height / 2)
+                                                                }}
+                                                                onMouseLeave={() => setHoveredSubItem(null)}
+                                                                className={cn(
+                                                                    'w-8 h-8 flex items-center justify-center rounded-xl transition-all',
+                                                                    isSubActive
+                                                                        ? 'bg-black/5 text-black shadow-sm'
+                                                                        : hoveredSubItem === subItem.label
+                                                                            ? 'text-black/70 bg-black/[0.04]'
+                                                                            : 'text-black/30'
+                                                                )}
                                                             >
-                                                                {subItem.label}
-                                                            </div>,
-                                                            document.body
-                                                        )}
-                                                    </div>
-                                                )
-                                            })}
+                                                                <SubIcon className={cn("w-4 h-4", isSubActive && (COLOR_MAP[item.color || 'black'] || 'text-black'))} />
+                                                            </Link>
+                                                            {isMounted && hoveredSubItem === subItem.label && createPortal(
+                                                                <div
+                                                                    className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[310] shadow-xl"
+                                                                    style={{ left: 56 + 44 + 12, top: subFlyoutY, transform: 'translateY(-50%)' }}
+                                                                >
+                                                                    {subItem.label}
+                                                                </div>,
+                                                                document.body
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })
+                                            })()}
                                         </div>,
                                         document.body
                                     )}

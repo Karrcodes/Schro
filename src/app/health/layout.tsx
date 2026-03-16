@@ -100,8 +100,8 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="bg-[#FAFAFA] flex flex-col min-h-screen">
             <div
                 className={cn(
-                    "max-w-7xl mx-auto w-full flex-grow flex flex-col",
-                    isSessionRoute ? "h-[100dvh] fixed inset-0 overflow-hidden bg-white" : "px-6 md:px-10 pb-10 space-y-8"
+                    "w-full flex-grow flex flex-col",
+                    isSessionRoute ? "h-[100dvh] fixed inset-0 overflow-hidden bg-white" : "flex-1 overflow-y-auto bg-[#fafafa]"
                 )}
                 style={isSessionRoute ? {
                     paddingTop: 'calc(env(safe-area-inset-top) + 40px)',
@@ -127,15 +127,16 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
 
 
                 {/* Tab Content */}
-                <div className={cn("flex-grow flex flex-col", !isSessionRoute && "pt-6")}>
-                    {children}
-                </div>
-
-                {!isSessionRoute && (
-                    <div className="mt-auto pt-10">
-                        <KarrFooter />
+                <div className={cn("flex-grow flex flex-col", !isSessionRoute && "p-6 md:p-10")}>
+                    <div className={cn("w-full h-full flex flex-col", !isSessionRoute && "max-w-7xl mx-auto space-y-12")}>
+                        {children}
+                        {!isSessionRoute && (
+                            <div className="mt-auto pt-10">
+                                <KarrFooter />
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
 
 

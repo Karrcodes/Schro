@@ -59,12 +59,12 @@ export const navItems: NavItem[] = [
         icon: BarChart3,
         color: 'emerald',
         sub: [
-            { label: 'Projections', href: '/finances/projections', icon: Calendar, caps: ['P'] },
-            { label: 'Transactions', href: '/finances/transactions', icon: Receipt, caps: ['P', 'B'], disabled: true },
-            { label: 'Analytics', href: '/finances/analytics', icon: TrendingUp, caps: ['P'] },
+            { label: 'Projections', href: '/finances/projections', icon: TrendingUp, caps: ['P'] },
+            { label: 'Transactions', href: '/finances/transactions', icon: Receipt, caps: ['P', 'B'] },
+            { label: 'Analytics', href: '/finances/analytics', icon: BarChart3, caps: ['P', 'B'] },
             { label: 'Liabilities', href: '/finances/liabilities', icon: CreditCard, caps: ['P', 'B'] },
             { label: 'Savings', href: '/finances/savings', icon: PiggyBank, caps: ['P', 'B'] },
-            { label: 'Pots', href: '/finances/pots', icon: SlidersHorizontal, caps: ['P', 'B'] }
+            { label: 'Pot Settings', href: '/finances/pot-settings', icon: SlidersHorizontal, caps: ['P', 'B'] }
         ]
     },
     {

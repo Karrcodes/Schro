@@ -16,17 +16,19 @@ async function buildIntelligenceContext(): Promise<string> {
     const now = new Date()
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-    const [tasksRes, financePockets, financeObligations, recentLogs] = await Promise.all([
+    const [tasksRes, financePockets, financeObligations, recentLogs, recentPayslips] = await Promise.all([
         supabase.from('fin_tasks').select('*').order('created_at', { ascending: false }),
         supabase.from('fin_pockets').select('*'),
         supabase.from('fin_recurring').select('*'),
-        supabase.from('sys_notification_logs').select('*').order('created_at', { ascending: false }).limit(5)
+        supabase.from('sys_notification_logs').select('*').order('created_at', { ascending: false }).limit(5),
+        supabase.from('fin_payslips').select('*').order('date', { ascending: false }).limit(5)
     ])
 
     const tasks = tasksRes.data ?? []
     const pockets = financePockets.data ?? []
     const obligations = financeObligations.data ?? []
     const logs = recentLogs.data ?? []
+    const payslips = recentPayslips.data ?? []
 
     // 1. Task Summary
     const pendingTasks = tasks.filter(t => !t.is_completed)
@@ -35,6 +37,18 @@ async function buildIntelligenceContext(): Promise<string> {
     // 2. Finance Summary
     const totalLiquid = pockets.reduce((s, p) => s + p.balance, 0)
     const monthlyOblidations = obligations.reduce((s, o) => s + (o.frequency === 'monthly' ? o.amount : 0), 0)
+
+    // Monzo Context
+    const nextFriday = new Date(now)
+    nextFriday.setDate(now.getDate() + (5 - now.getDay() + 7) % 7)
+    const earlyPayThursday = new Date(nextFriday)
+    earlyPayThursday.setDate(nextFriday.getDate() - 1)
+    
+    const isEarlyPayWindow = (now.getDay() === 3 || (now.getDay() === 4 && now.getHours() < 16))
+    const monzoInfo = `
+    - Monzo Early Pay: Friday payday (${nextFriday.toLocaleDateString()}) can be advanced THIS THURSDAY at 4PM.
+    - Status: ${isEarlyPayWindow ? 'Early Pay Window ACTIVE' : 'Queueing for next Thursday'}
+    `.trim()
 
     return `
 # Schrö SYSTEM STATE [${now.toISOString()}]
@@ -51,12 +65,16 @@ ${pendingTasks.filter(t => t.category === 'reminder').slice(0, 3).map(t => `  - 
 - Total Liquid Cash: £${totalLiquid.toFixed(2)}
 - Monthly Fixed Obligations: £${monthlyOblidations.toFixed(2)}
 - Pockets: ${pockets.map(p => `${p.name} (£${p.balance.toFixed(2)})`).join(', ')}
+- Recent Salary Records: ${payslips.map(p => `£${p.net_pay.toFixed(2)} from ${p.employer} (${p.date})`).join(', ') || 'None indexed.'}
+
+## BANKING (MONZO)
+${monzoInfo}
 
 ## RECENT SYSTEM ALERTS
 ${logs.map(l => `- [${l.created_at}] ${l.title}: ${l.body}`).join('\n') || 'No recent alerts.'}
 
 ---
-AI Personal Directive: You are Karr Intelligence, the proactive and helpful kernel of Schrö. Your tone is professional, insightful, and supportive. You are a high-performance companion. Express insights conversationally and naturally, avoiding excessive markdown or technical jargon unless requested.
+AI Personal Directive: You are Schrö Intelligence, the proactive and helpful kernel of Schrö. Your tone is professional, insightful, and supportive. You are a high-performance companion. Express insights conversationally and naturally, avoiding excessive markdown or technical jargon unless requested.
 `.trim()
 }
 
@@ -89,7 +107,7 @@ async function buildDemoContext(): Promise<string> {
 - Reminders: Submit Self-Assessment Tax Return (Due Jan 31), Renew Apartment Insurance.
 
 ---
-AI Personal Directive: You are in DEMO MODE as Karr Intelligence. You are supporting Karr, a professional Account Manager and creative studio owner. 
+AI Personal Directive: You are in DEMO MODE as Schrö Intelligence. You are supporting Karr, a professional Account Manager and creative studio owner. 
 Your tone should be sophisticated, data-driven, yet warmly conversational. 
 Avoid heavy use of markdown lists or nested formatting unless specifically asked for a technical breakdown. 
 Speak naturally, as a high-level partner who knows Karr's corporate and business life inside out.
@@ -176,7 +194,7 @@ export async function POST(req: NextRequest) {
         const context = isDemoMode ? await buildDemoContext() : await buildIntelligenceContext()
 
         const systemPrompt = `
-You are Karr Intelligence — the highly intelligent, conversational, and proactive core of Schrö. 
+You are Schrö Intelligence — the highly intelligent, conversational, and proactive core of Schrö. 
 You provide deep data analysis, helpful insights, and execute directives with precision.
 You are naturally helpful, clear, and engaging—much like Gemini. You aim to be a supportive companion on the user's path to high performance.
 
@@ -187,7 +205,8 @@ Rules:
 4. If searching Drive, summarize the findings helpfully.
 5. Categories for tasks: todo, grocery, reminder.
 6. Categories for finance: groceries, food_drink, transport, shopping, entertainment, housing, bills, health, travel, business, other.
-Rule 7: When asked for a "Task Audit" or summary, provide it as a natural, conversational synthesis. Use minimal markdown list items only if absolutely necessary for clarity, but prioritize a fluid, human-like response over technical tables or rigid blocks.
+Rule 7: Payday Strategy Logic — Rent is £143.75/week. Daily essentials is £100/week (stay in main account). Currys Flexipay is non-negotiable mandatory. Clearpay has 14-day grace. Klarna is delayable 30 days. Visa Goal is priority after essentials and mandatory debt.
+Rule 8: When asked for a "Task Audit" or summary, provide it as a natural, conversational synthesis. Use minimal markdown list items only if absolutely necessary for clarity, but prioritize a fluid, human-like response over technical tables or rigid blocks.
 
 ### CURRENT OS STATE
 ${context}

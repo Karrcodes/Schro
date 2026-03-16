@@ -8,12 +8,17 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
 export async function GET(req: NextRequest) {
-    const origin = req.nextUrl.origin
-    console.log('[Google Callback] Incoming callback to origin:', origin)
+    // Google OAuth requires HTTPS or exactly localhost, it rejects raw IPs like 192.168.x.x
+    let appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+    if (appUrl.includes('192.168')) {
+        appUrl = appUrl.replace(/192\.168\.\d+\.\d+/, 'localhost');
+    }
+    
+    console.log('[Google Callback] Incoming callback using base URL:', appUrl)
     const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,
-        `${origin}/api/auth/google/callback`
+        `${appUrl}/api/auth/google/callback`
     )
 
     const searchParams = req.nextUrl.searchParams
@@ -39,9 +44,9 @@ export async function GET(req: NextRequest) {
 
         if (error) throw error
 
-        return NextResponse.redirect(`${origin}/intelligence?sync=success`)
+        return NextResponse.redirect(`${appUrl}/intelligence?sync=success`)
     } catch (err: any) {
         console.error('[Google Auth Callback Error]', err)
-        return NextResponse.redirect(`${origin}/intelligence?sync=error`)
+        return NextResponse.redirect(`${appUrl}/intelligence?sync=error`)
     }
 }

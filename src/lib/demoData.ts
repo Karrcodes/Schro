@@ -8,7 +8,6 @@ export const MOCK_FINANCE = {
         { id: 'd-p-6', name: 'Travel Savings', target_budget: 2000, target_amount: 0, balance: 350.00, current_balance: 350.00, type: 'savings', sort_order: 6, profile: 'personal' },
     ],
     obligations: [
-        { id: 'd-o-1', name: 'Apartment Rent', amount: 1200, frequency: 'monthly', due_day: 1 },
         { id: 'd-o-2', name: 'Council Tax', amount: 145, frequency: 'monthly', due_day: 15 },
         { id: 'd-o-3', name: 'Utility Bill', amount: 120, frequency: 'monthly', due_day: 20 },
         { id: 'd-o-4', name: 'Broadband', amount: 35, frequency: 'monthly', due_day: 12 },
@@ -20,10 +19,10 @@ export const MOCK_FINANCE = {
         { id: 'd-o-10', name: 'Adobe Creative Cloud', amount: 52.00, frequency: 'monthly', due_day: 22 },
     ],
     income: {
-        raw: 3750.00, // Monthly gross (£45k)
-        net: 2912.40, // Monthly net approx
-        label: 'Lumina Digital Salary',
-        employer: 'Lumina Digital'
+        raw: 750.00, // Weekly gross approx
+        net: 574.40, // Weekly net established by user
+        label: 'Weekly Salary',
+        employer: 'Work Portal'
     },
     transactions: [
         { id: 'd-tx-1', description: 'Monmouth Coffee Company', amount: 4.80, category: 'food_drink', type: 'spend', date: '2026-02-18' },

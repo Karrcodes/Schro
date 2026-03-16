@@ -6,6 +6,9 @@ import { useWellbeing } from '../contexts/WellbeingContext'
 import { Settings, RefreshCw, CheckCircle2 } from 'lucide-react'
 import { useRouter, usePathname } from 'next/navigation'
 import type { GymBusyness, TheGymGroupStats } from '../types'
+import { getNextOffPeriod } from '@/features/finance/utils/rotaUtils'
+import { format } from 'date-fns'
+import { Calendar } from 'lucide-react'
 
 function busynessColor(pct?: number) {
     if (!pct) return 'bg-black/10 text-black/30'
@@ -37,11 +40,11 @@ function GymOccupancySwitcher({ allBusyness, gymStats }: {
                 const b = allBusyness[id]
                 return (
                     <div key={id} className="flex items-center">
-                        <div className="flex items-center gap-2 px-4">
+                        <div className="flex items-center gap-2 px-6">
                             <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", busynessColor(b?.currentPercentage), "animate-pulse")} />
                             <div className="flex flex-col leading-none">
                                 <span className="text-[9px] font-black uppercase tracking-tight text-black flex items-center gap-1">
-                                    <span>{b?.currentCapacity ?? '—'} In</span>
+                                    <span>{b?.currentCapacity ?? '—'} Inside</span>
                                     <span className="text-black/20">•</span>
                                     <span className={busynessColor(b?.currentPercentage).replace('bg-', 'text-')}>{b?.currentPercentage ?? 0}%</span>
                                 </span>
@@ -78,11 +81,31 @@ export function WellbeingControls() {
         }
     }, [isSyncingGym, gymStats.lastSyncTime])
 
+    const nextPrepDay = React.useMemo(() => {
+        const nextOff = getNextOffPeriod(new Date())
+        return nextOff.end
+    }, [])
+
     return (
         <div className="flex items-center gap-3">
             {/* Gym Integration Actions */}
             {gymStats.isIntegrated ? (
                 <div className="flex items-center gap-3">
+                    {/* Next Prep Day Indicator */}
+                    {pathname.startsWith('/health/nutrition') && (
+                        <div className="flex items-center gap-2 px-5 h-11 bg-indigo-50 border border-indigo-100 rounded-[20px] shadow-sm">
+                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                            <div className="flex flex-col leading-none">
+                                <span className="text-[10px] font-black uppercase tracking-tight text-indigo-950">
+                                    {format(nextPrepDay, 'EEEE')}
+                                </span>
+                                <span className="text-[7px] font-bold uppercase tracking-widest text-indigo-500/60">
+                                    Next Prep Day
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     {gymStats.allBusyness && Object.keys(gymStats.allBusyness).length > 0 && (
                         <GymOccupancySwitcher
                             allBusyness={gymStats.allBusyness}

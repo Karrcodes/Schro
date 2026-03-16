@@ -1,41 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2, Pencil, Check, X, Loader2, ArrowUp, ArrowDown } from 'lucide-react'
+import { Pencil, Check, X, Loader2, ArrowUp, ArrowDown } from 'lucide-react'
 import { usePots } from '@/features/finance/hooks/usePots'
 import type { Pot } from '@/features/finance/types/finance.types'
 import { Section, Spinner } from './SharedSettingsUI'
 
 export function SavingsPotsSettings() {
-    const { pots, loading, createPot, updatePot, deletePot, updatePotsOrder } = usePots()
-    const [adding, setAdding] = useState(false)
+    const { pots, loading, updatePot, updatePotsOrder } = usePots()
     const [editId, setEditId] = useState<string | null>(null)
     const [form, setForm] = useState<Partial<Pot>>({ type: 'savings', target_budget: 0, current_balance: 0, balance: 0 })
     const [saving, setSaving] = useState(false)
 
     const savingsPots = pots.filter(p => p.type === 'savings')
 
-    const handleAdd = async () => {
-        if (!form.name) return
-        setSaving(true)
-        try {
-            await createPot({
-                name: form.name!,
-                target_budget: form.target_budget ?? 0,
-                target_amount: form.target_amount ?? 0,
-                current_balance: form.current_balance ?? 0,
-                balance: form.balance ?? 0,
-                sort_order: pots.length,
-                type: 'savings'
-            })
-            setForm({ type: 'savings', target_budget: 0, current_balance: 0, balance: 0 })
-            setAdding(false)
-        } catch (e: any) {
-            alert(`Failed to create pot: ${e.message || 'Unknown error'}`)
-        } finally {
-            setSaving(false)
-        }
-    }
 
     const movePot = async (index: number, direction: 'up' | 'down') => {
         if (direction === 'up' && index === 0) return;
@@ -112,7 +90,6 @@ export function SavingsPotsSettings() {
                             {editId === p.id ? (
                                 <>
                                     <input className="input-field flex-1" value={form.name ?? ''} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Pot Name" />
-                                    <input className="input-field w-24 text-blue-600 font-medium" type="number" value={form.balance ?? 0} onChange={(e) => setForm({ ...form, balance: parseFloat(e.target.value) })} title="Current Balance" />
                                     <input className="input-field w-28" type="number" value={form.target_amount ?? 0} onChange={(e) => setForm({ ...form, target_amount: parseFloat(e.target.value) })} title="Total Goal Target" placeholder="Target £" />
                                     <input className="input-field w-24" type="number" value={form.target_budget ?? 0} onChange={(e) => setForm({ ...form, target_budget: parseFloat(e.target.value) })} title="Weekly Allocation" placeholder="Weekly £" />
                                     <button onClick={() => handleUpdate(p.id)} disabled={saving} className="icon-btn text-emerald-600"><Check className="w-4 h-4" /></button>
@@ -133,25 +110,15 @@ export function SavingsPotsSettings() {
                                         <div className="text-[10px] text-black/30">Weekly: <span className="privacy-blur font-medium">£{p.target_budget.toFixed(2)}</span></div>
                                     </div>
                                     <button onClick={() => startEdit(p)} className="icon-btn text-black/25 hover:text-black/60"><Pencil className="w-3.5 h-3.5" /></button>
-                                    <button onClick={() => deletePot(p.id)} className="icon-btn text-black/20 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                                 </>
                             )}
                         </div>
                     ))}
 
-                    {adding ? (
-                        <div className="flex items-center gap-3 rounded-xl border border-black/20 bg-black/5 p-3">
-                            <input className="input-field flex-1" placeholder="Savings name" value={form.name ?? ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                            <input className="input-field w-24 text-blue-600 font-medium" type="number" placeholder="Start £" value={form.balance ?? ''} onChange={(e) => setForm({ ...form, balance: parseFloat(e.target.value) })} title="Starting Balance" />
-                            <input className="input-field w-28" type="number" placeholder="Target £" value={form.target_amount ?? ''} onChange={(e) => setForm({ ...form, target_amount: parseFloat(e.target.value) })} title="Total Goal Target" />
-                            <input className="input-field w-24" type="number" placeholder="Weekly £" value={form.target_budget ?? ''} onChange={(e) => setForm({ ...form, target_budget: parseFloat(e.target.value) })} title="Weekly Allocation" />
-                            <button onClick={handleAdd} disabled={saving} className="icon-btn text-emerald-600"><Check className="w-4 h-4" /></button>
-                            <button onClick={() => setAdding(false)} className="icon-btn text-black/30"><X className="w-4 h-4" /></button>
-                        </div>
-                    ) : (
-                        <button onClick={() => setAdding(true)} className="flex items-center gap-2 text-[12px] text-black/35 hover:text-black/60 transition-colors px-2 py-1.5">
-                            <Plus className="w-3.5 h-3.5" /> Add savings pot
-                        </button>
+                    {savingsPots.length === 0 && (
+                        <p className="text-[12px] text-black/30 text-center py-6 border-2 border-dashed border-black/[0.05] rounded-xl">
+                            Connect your Monzo account to manage savings pockets.
+                        </p>
                     )}
                 </div>
             )}

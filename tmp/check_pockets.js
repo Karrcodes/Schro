@@ -6,13 +6,13 @@ async function run() {
     // Check what's in fin_pockets - specifically monzo_id mapping
     const { data: pockets } = await sb
         .from('fin_pockets')
-        .select('id, name, type, profile, monzo_id, balance')
+        .select('id, name, type, profile, monzo_id, balance, user_id')
         .order('name')
 
     console.log('fin_pockets:')
     pockets?.forEach(p => {
         const hasMonzoId = p.monzo_id ? '✅' : '❌ NO MONZO ID'
-        console.log(`  ${hasMonzoId} ${p.name} (${p.type}/${p.profile}) | £${p.balance} | monzo_id: ${p.monzo_id || 'NULL'}`)
+        console.log(`  ${hasMonzoId} ${p.name} (${p.type}/${p.profile}) | £${p.balance} | monzo_id: ${p.monzo_id || 'NULL'} | user: ${p.user_id}`)
     })
 
     // For card payments, the account_id is acc_0000AjgxPvMofucaiSz62L - is that mapped?

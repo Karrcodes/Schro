@@ -58,9 +58,9 @@ export default function GoalsDashboard() {
     }
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col space-y-12">
             {/* Standard Module Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 z-10 gap-6 max-w-7xl mx-auto w-full">
+            <header className="flex flex-col md:flex-row md:items-end justify-between z-10 gap-6 pb-2">
                 <div className="space-y-1">
                     <h2 className="text-[11px] font-black text-amber-500 uppercase tracking-[0.3em]">Strategy Protocol</h2>
                     <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Goals Registry</h1>
@@ -77,14 +77,13 @@ export default function GoalsDashboard() {
                         <span className="hidden xs:block">Initiate Mission</span>
                     </button>
                 </div>
-            </div>
+            </header>
 
-            {/* Scrollable Workspace */}
-            <div className="flex-1 overflow-y-auto">
-                <div className={cn(
-                    "max-w-7xl mx-auto w-full px-6 md:px-10 pb-10 space-y-12",
-                    view === 'timeline' ? "h-full flex flex-col" : ""
-                )}>
+            {/* Workspace */}
+            <div className={cn(
+                "w-full space-y-12",
+                view === 'timeline' ? "h-full flex flex-col" : ""
+            )}>
 
                     {/* Toolbar — hidden for roadmap view */}
                     {view !== 'timeline' && (
@@ -145,9 +144,7 @@ export default function GoalsDashboard() {
                         {view === 'timeline' && <GoalsRoadmap goals={filteredGoals} onGoalClick={g => setSelectedGoalId(g.id)} />}
                         {view === 'vision' && <GoalsVisionBoard goals={filteredGoals} onGoalClick={g => setSelectedGoalId(g.id)} />}
                     </motion.div>
-                    <KarrFooter dark={view === 'timeline'} />
                 </div>
-            </div>
 
             {/* Overlays */}
             <GoalCreationModal

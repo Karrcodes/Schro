@@ -27,7 +27,6 @@ export function MoodTracker() {
     const { moodLogs, logMood } = useWellbeing()
     const [selectedMood, setSelectedMood] = useState<MoodValue | null>(null)
     const [selectedActivities, setSelectedActivities] = useState<string[]>([])
-    const [note, setNote] = useState('')
     const [isExpanded, setIsExpanded] = useState(false)
 
     const today = new Date().toISOString().split('T')[0]
@@ -35,10 +34,9 @@ export function MoodTracker() {
 
     const handleLog = () => {
         if (selectedMood) {
-            logMood(selectedMood, note, selectedActivities)
+            logMood(selectedMood, '', selectedActivities)
             setSelectedMood(null)
             setSelectedActivities([])
-            setNote('')
             setIsExpanded(false)
         }
     }
@@ -50,7 +48,7 @@ export function MoodTracker() {
     }
 
     return (
-        <div className="bg-white border border-black/5 rounded-[32px] p-8 space-y-6 shadow-sm group">
+        <div className="bg-white border border-black/5 rounded-[32px] p-8 space-y-6 shadow-sm group h-[420px] overflow-hidden">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center">
@@ -87,53 +85,44 @@ export function MoodTracker() {
                 ))}
             </div>
 
-            <AnimatePresence>
-                {selectedMood && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="space-y-4 overflow-hidden"
-                    >
-                        <div className="space-y-3">
-                            <p className="text-[10px] font-black text-black/20 uppercase tracking-widest px-1">What did you do today?</p>
-                            <div className="grid grid-cols-3 gap-2">
-                                {ACTIVITIES.map(activity => (
-                                    <button
-                                        key={activity.id}
-                                        onClick={() => toggleActivity(activity.id)}
-                                        className={cn(
-                                            "flex items-center justify-center gap-2 p-3 rounded-2xl border transition-all",
-                                            selectedActivities.includes(activity.id)
-                                                ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
-                                                : "bg-black/[0.02] border-transparent text-black/40 hover:border-black/10"
-                                        )}
-                                    >
-                                        <activity.icon className="w-4 h-4" />
-                                        <span className="text-[10px] font-black uppercase tracking-wider">{activity.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="relative">
-                            <textarea
-                                placeholder="Any specific thoughts? (Optional)"
-                                value={note}
-                                onChange={(e) => setNote(e.target.value)}
-                                className="w-full bg-black/[0.03] border border-black/5 rounded-2xl p-4 text-[13px] font-medium placeholder:text-black/20 focus:outline-none focus:ring-1 focus:ring-black min-h-[80px] resize-none"
-                            />
-                            <MessageSquare className="absolute bottom-4 right-4 w-4 h-4 text-black/10" />
-                        </div>
+            <div className="space-y-3">
+                <p className="text-[10px] font-black text-black/20 uppercase tracking-widest px-1">What did you do today?</p>
+                <div className={cn(
+                    "grid grid-cols-3 gap-2 transition-all duration-500",
+                    !selectedMood && "opacity-30 grayscale pointer-events-none"
+                )}>
+                    {ACTIVITIES.map(activity => (
                         <button
-                            onClick={handleLog}
-                            className="w-full py-4 bg-black text-white rounded-2xl text-[12px] font-black uppercase tracking-[0.2em] shadow-lg shadow-black/10 hover:scale-[1.02] transition-transform"
+                            key={activity.id}
+                            onClick={() => toggleActivity(activity.id)}
+                            className={cn(
+                                "flex items-center justify-center gap-2 p-3 rounded-2xl border transition-all",
+                                selectedActivities.includes(activity.id)
+                                    ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
+                                    : "bg-black/[0.02] border-transparent text-black/40 hover:border-black/10"
+                            )}
                         >
-                            Complete Entry
+                            <activity.icon className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-wider">{activity.label}</span>
                         </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    ))}
+                </div>
+            </div>
+
+            <div className="pt-2">
+                <button
+                    onClick={handleLog}
+                    disabled={!selectedMood}
+                    className={cn(
+                        "w-full py-4 rounded-2xl text-[12px] font-black uppercase tracking-[0.2em] transition-all duration-500",
+                        selectedMood
+                            ? "bg-black text-white shadow-lg shadow-black/10 hover:scale-[1.01] active:scale-[0.98]"
+                            : "bg-black/[0.05] text-black/20 cursor-not-allowed"
+                    )}
+                >
+                    Complete Entry
+                </button>
+            </div>
 
             {!selectedMood && !isExpanded && todayMood && (
                 <div className="pt-4 border-t border-black/5 flex items-center justify-between">

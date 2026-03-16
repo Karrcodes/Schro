@@ -35,9 +35,9 @@ export default function ManifestDashboard() {
     }
 
     return (
-        <div className="flex flex-col gap-8 pb-12">
+        <div className="flex flex-col gap-12">
             {/* Curated Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-6 md:px-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard 
                     label="Active Missions" 
                     value={stats.activeGoals.toString()} 
@@ -72,7 +72,7 @@ export default function ManifestDashboard() {
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-6 md:px-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Goals Section */}
                 <section className="space-y-4">
                     <div className="flex items-center justify-between px-2">

@@ -5,6 +5,9 @@ import { Calendar as CalendarIcon, CreditCard, ChevronLeft, ChevronRight, List, 
 import type { RecurringObligation } from '../types/finance.types'
 import { getLenderLogo, countRemainingPayments } from '../utils/lenderLogos'
 import { useRecurring } from '../hooks/useRecurring'
+import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
+import { useRota } from '../hooks/useRota'
+import { usePayslips } from '../hooks/usePayslips'
 
 interface ProjectedPayment {
     id: string
@@ -54,8 +57,18 @@ function isDebt(obs: RecurringObligation) {
     )
 }
 
+// Consistently shared constants for pay projection
+const HOURS_PER_SHIFT = 11.5
+const BASE_RATE = 15.26
+const HOLIDAY_RATE = 14.38
+const DEDUCTION_RATE = 0.1821
+const ROTA_ANCHOR_UTC = Date.UTC(2026, 1, 23)
+
 export function CalendarVisualizer({ obligations }: { obligations: RecurringObligation[] }) {
     const { markObligationAsPaid } = useRecurring()
+    const { settings } = useSystemSettings()
+    const { overrides } = useRota()
+    const { payslips } = usePayslips()
     const [view, setView] = useState<'calendar' | 'list'>('calendar')
     const [filter, setFilter] = useState<FilterMode>('all')
     const [selectedPayment, setSelectedPayment] = useState<ProjectedPayment | null>(null)
@@ -71,6 +84,83 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
         if (filter === 'debt') return obligations.filter(isDebt)
         return obligations.filter(o => !isDebt(o))
     }, [obligations, filter])
+
+    // Replicate pay projection map
+    const weeklyPayMap = useMemo(() => {
+        const year = calMonth.getFullYear()
+        const month = calMonth.getMonth()
+        const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+        const monthStart = new Date(year, month, 1)
+        const calculationStart = new Date(monthStart)
+        calculationStart.setDate(calculationStart.getDate() - 14) // 2 week lookback for arrears
+        const calculationEnd = new Date(year, month, daysInMonth + 7)
+
+        const map: Record<string, number> = {}
+        const dailyEarnings: Record<string, number> = {}
+
+        let curr = new Date(calculationStart)
+        while (curr <= calculationEnd) {
+            const dateStr = curr.toISOString().split('T')[0]
+            let isShift = false
+
+            if (settings.is_demo_mode) {
+                const day = curr.getDay()
+                isShift = day >= 1 && day <= 4
+            } else {
+                const dateUTC = Date.UTC(curr.getFullYear(), curr.getMonth(), curr.getDate())
+                const diffDays = Math.round((dateUTC - ROTA_ANCHOR_UTC) / 86400000)
+                const cycleDay = ((diffDays % 6) + 6) % 6
+                isShift = cycleDay < 3
+            }
+
+            const overrideRecord = overrides.find(o => o.date === dateStr)
+            const override = overrideRecord?.type
+            let isWorked = isShift && override !== 'absence'
+            let isOT = override === 'overtime'
+            let isHol = isShift && override === 'holiday'
+
+            let gross = 0
+            if (isHol) gross += HOURS_PER_SHIFT * HOLIDAY_RATE
+            else if (isWorked) gross += HOURS_PER_SHIFT * BASE_RATE
+            
+            if (isOT) {
+                const customHours = overrideRecord?.hours ?? HOURS_PER_SHIFT
+                const customBonus = overrideRecord?.bonus ?? 0
+                gross += (customHours * 20.35) + customBonus
+            }
+
+            dailyEarnings[dateStr] = gross * (1 - DEDUCTION_RATE)
+
+            const dayOfWeek = curr.getDay()
+            const daysSinceSunday = dayOfWeek
+            const currentSunday = new Date(curr)
+            currentSunday.setDate(curr.getDate() - daysSinceSunday)
+
+            const paydayFri = new Date(currentSunday)
+            paydayFri.setDate(currentSunday.getDate() + 12)
+            const paydayStr = paydayFri.toISOString().split('T')[0]
+
+            if (settings.is_demo_mode) {
+                const lastDay = new Date(curr.getFullYear(), curr.getMonth() + 1, 0)
+                const lastFriday = new Date(lastDay)
+                while (lastFriday.getDay() !== 5) lastFriday.setDate(lastFriday.getDate() - 1)
+                const lastFriStr = lastFriday.toISOString().split('T')[0]
+                map[lastFriStr] = (map[lastFriStr] || 0) + dailyEarnings[dateStr]
+            } else {
+                map[paydayStr] = (map[paydayStr] || 0) + dailyEarnings[dateStr]
+            }
+
+            curr.setDate(curr.getDate() + 1)
+        }
+        return map
+    }, [calMonth, overrides, settings.is_demo_mode])
+
+    const payslipByDate = useMemo(() => {
+        const map: Record<string, number> = {}
+        payslips.forEach(p => { map[p.date] = p.net_pay })
+        return map
+    }, [payslips])
 
     // Build a full set of projected payments for the displayed month
     const calendarData = useMemo(() => {
@@ -303,11 +393,37 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
                                             ${isPast && !isToday ? 'opacity-40' : ''}
                                         `}
                                     >
-                                        <span className={`text-[9px] sm:text-[11px] font-bold w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full
-                                            ${isToday ? 'bg-black text-white' : 'text-black/40'}
-                                        `}>
-                                            {day}
-                                        </span>
+                                        <div className="flex items-center justify-between w-full">
+                                            <span className={`text-[9px] sm:text-[11px] font-bold w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full
+                                                ${isToday ? 'bg-black text-white' : 'text-black/40'}
+                                            `}>
+                                                {day}
+                                            </span>
+                                            {(() => {
+                                                const date = new Date(calMonth.getFullYear(), calMonth.getMonth(), day)
+                                                const dateStr = date.toISOString().split('T')[0]
+                                                let isPayday = date.getDay() === 5
+                                                if (settings.is_demo_mode) {
+                                                    const lastDay = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0)
+                                                    const lastFriday = new Date(lastDay)
+                                                    while (lastFriday.getDay() !== 5) lastFriday.setDate(lastFriday.getDate() - 1)
+                                                    isPayday = date.getDate() === lastFriday.getDate()
+                                                }
+
+                                                if (!isPayday) return null
+
+                                                const confirmedPay = payslipByDate[dateStr]
+                                                const displayAmt = confirmedPay != null ? confirmedPay : (weeklyPayMap[dateStr] || 0)
+
+                                                return (
+                                                    <div className="flex items-center gap-1 px-1.5 py-1 rounded-md bg-emerald-50 border border-emerald-200/60 shadow-sm">
+                                                        <span className="text-[8px] sm:text-[9px] font-black text-emerald-700 privacy-blur">
+                                                            £{displayAmt.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                        </span>
+                                                    </div>
+                                                )
+                                            })()}
+                                        </div>
                                         {hasPay && (
                                             <>
                                                 {payments.slice(0, 2).map((p, pi) => (

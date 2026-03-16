@@ -140,7 +140,7 @@ export function MoodHeatmap() {
     const hoveredDay = hoveredDate ? days.find(d => d.date === hoveredDate) : null
 
     return (
-        <div className="bg-white border border-black/5 rounded-[32px] p-6 md:p-8 space-y-6 shadow-sm">
+        <div className="bg-white border border-black/5 rounded-[32px] p-6 md:p-8 space-y-6 shadow-sm h-full overflow-x-auto no-scrollbar">
             {/* Header */}
             <div className="flex items-start justify-between">
                 <div className="space-y-0.5">

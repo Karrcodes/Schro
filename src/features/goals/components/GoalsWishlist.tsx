@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, ExternalLink, Rocket, MoreVertical, Star, Tag, DollarSign, Edit2 } from 'lucide-react'
+import { Plus, Trash2, ExternalLink, Rocket, MoreVertical, Star, Tag, PoundSterling, Edit2 } from 'lucide-react'
 import type { WishlistItem, CreateWishlistItemData, GoalCategory, WishlistStatus } from '../types/goals.types'
 import { useGoals } from '../hooks/useGoals'
 import { cn } from '@/lib/utils'
@@ -278,7 +278,7 @@ function WishlistCreateModal({ onClose, onSave }: WishlistCreateModalProps) {
                                 <div>
                                     <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black/30 block mb-2 px-1">Value (GBP)</label>
                                     <div className="relative">
-                                        <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                                        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-[12px] font-black text-black/20">£</div>
                                         <input
                                             type="number"
                                             placeholder="0"

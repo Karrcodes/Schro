@@ -113,5 +113,7 @@ export interface RotaOverride {
     type: 'overtime' | 'absence' | 'holiday'
     status: 'pending' | 'approved'
     profile: 'personal' | 'business'
+    hours?: number
+    bonus?: number
     created_at: string
 }

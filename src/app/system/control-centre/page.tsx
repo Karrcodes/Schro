@@ -16,6 +16,7 @@ import { useGoals } from '@/features/goals/hooks/useGoals'
 import { usePlannerEngine, PlannerItem } from '@/features/tasks/hooks/usePlannerEngine'
 import { usePots } from '@/features/finance/hooks/usePots'
 import { useStudio } from '@/features/studio/hooks/useStudio'
+import { TransactionLedger } from '@/features/finance/components/TransactionLedger'
 import { WeatherWidget } from '@/features/system/components/WeatherWidget'
 import { AnimatePresence } from 'framer-motion'
 
@@ -343,6 +344,9 @@ export default function ControlCentrePage() {
                                         </div>
                                     </div>
                                 </Link>
+                                <div className="mt-6 pt-6 border-t border-black/[0.05]">
+                                    <TransactionLedger />
+                                </div>
                             </SectionBlock>
 
                             <SectionBlock title="Strategic Focus" desc="Top Objectives" className="flex-1">

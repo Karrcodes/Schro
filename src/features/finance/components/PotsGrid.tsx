@@ -33,7 +33,7 @@ export function PotsGrid({ pots, isSyncing }: PotsGridProps) {
     if (pots.length === 0) {
         return (
             <div className="rounded-xl border border-black/[0.07] bg-black/[0.02] p-6 text-center">
-                <p className="text-black/30 text-sm">No pots yet — create one in Settings.</p>
+                <p className="text-black/30 text-sm">No pots yet — connect your Monzo account to sync.</p>
             </div>
         )
     }

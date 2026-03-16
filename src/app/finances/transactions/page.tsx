@@ -55,46 +55,44 @@ export default function TransactionsPage() {
     })
 
     return (
-        <div className="h-screen bg-[#fafafa] flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="bg-white border-b border-black/[0.06] px-4 py-4 z-20 shadow-sm flex-shrink-0">
-                <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <a href="/finances" className="w-9 h-9 rounded-xl bg-black/[0.03] flex items-center justify-center hover:bg-black/[0.06] transition-colors flex-shrink-0">
-                            <ArrowLeft className="w-4 h-4 text-black/40" />
-                        </a>
-                        <div className="min-w-0">
-                            <h1 className="text-[18px] font-bold text-black tracking-tight">Transactions</h1>
-                            <p className="text-[11px] text-black/35 mt-0.5 truncate">{activeProfile === 'personal' ? 'Personal' : 'Business'} · {transactions.length} total</p>
+        <div className="min-h-screen bg-[#fafafa] flex flex-col">
+            <div className="flex-1 overflow-y-auto bg-[#fafafa] flex flex-col p-6 md:p-10">
+                <div className="max-w-7xl mx-auto w-full space-y-12 pb-12">
+                    {/* Header */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between z-10 gap-6 w-full flex-shrink-0">
+                        <div className="flex items-start sm:items-center gap-3 min-w-0">
+                            <a href="/finances" className="w-9 h-9 rounded-xl bg-black/[0.03] flex items-center justify-center hover:bg-black/[0.06] transition-colors flex-shrink-0">
+                                <ArrowLeft className="w-4 h-4 text-black/40" />
+                            </a>
+                            <div className="min-w-0 flex-1 space-y-1">
+                                <h2 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.3em]">{activeProfile} Matrix</h2>
+                                <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tighter uppercase grayscale truncate">Transactions</h1>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <MonzoSyncControls />
+                            <button
+                                onClick={() => setIsImportModalOpen(true)}
+                                disabled={bankSyncLoading}
+                                className="flex items-center gap-1.5 text-[12px] font-bold text-black bg-black/5 px-3 py-1.5 rounded-xl hover:bg-black/10 transition-colors disabled:opacity-50"
+                            >
+                                <RefreshCw className={`w-3.5 h-3.5 ${bankSyncLoading ? 'animate-spin' : ''}`} />
+                                <span className="hidden sm:inline">{bankSyncLoading ? 'Syncing...' : 'Sync CSV'}</span>
+                            </button>
+
+                            <button
+                                onClick={() => { if (confirm('Clear all transactions in this profile?')) clearTransactions() }}
+                                className="flex items-center gap-1.5 text-[12px] font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-xl hover:bg-red-100 transition-colors"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Clear All</span>
+                            </button>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        <MonzoSyncControls />
-                        <button
-                            onClick={() => setIsImportModalOpen(true)}
-                            disabled={bankSyncLoading}
-                            className="flex items-center gap-1.5 text-[12px] font-bold text-black bg-black/5 px-3 py-1.5 rounded-xl hover:bg-black/10 transition-colors disabled:opacity-50"
-                        >
-                            <RefreshCw className={`w-3.5 h-3.5 ${bankSyncLoading ? 'animate-spin' : ''}`} />
-                            <span className="hidden sm:inline">{bankSyncLoading ? 'Syncing...' : 'Sync CSV'}</span>
-                        </button>
-
-                        <button
-                            onClick={() => { if (confirm('Clear all transactions in this profile?')) clearTransactions() }}
-                            className="flex items-center gap-1.5 text-[12px] font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-xl hover:bg-red-100 transition-colors"
-                        >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Clear All</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-[#fafafa] pt-8">
-                <div className="w-full max-w-7xl mx-auto px-6 md:px-10 pb-10 flex-1 flex flex-col items-center">
-                    <div className="w-full max-w-4xl flex-1 space-y-4">
+                    {/* Main Content */}
+                    <div className="w-full space-y-4">
                         {/* Filters & Search */}
                         <div className="bg-white p-4 rounded-3xl border border-black/[0.06] shadow-sm flex flex-col gap-3 mb-2">
                             {/* Profile Toggle */}
@@ -155,6 +153,7 @@ export default function TransactionsPage() {
                                 />
                             </div>
                         </div>
+
                         {loading ? (
                             <div className="space-y-3 animate-pulse">
                                 {[1, 2, 3, 4, 5].map(i => (
@@ -219,24 +218,21 @@ export default function TransactionsPage() {
                             </div>
                         )}
                     </div>
-
-                    <TransactionDetailsModal
-                        transaction={selectedTx}
-                        pots={pots}
-                        isOpen={!!selectedTx}
-                        onClose={() => setSelectedTx(null)}
-                    />
-
-                    <RevolutImportModal
-                        isOpen={isImportModalOpen}
-                        onClose={() => setIsImportModalOpen(false)}
-                        onSuccess={handleSyncSuccess}
-                    />
-                </div>
-                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-10">
                     <KarrFooter />
                 </div>
             </div>
+            <TransactionDetailsModal
+                transaction={selectedTx}
+                pots={pots}
+                isOpen={!!selectedTx}
+                onClose={() => setSelectedTx(null)}
+            />
+
+            <RevolutImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onSuccess={handleSyncSuccess}
+            />
         </div>
     )
 }
