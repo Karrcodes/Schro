@@ -34,11 +34,13 @@ function LiabilitiesPage() {
                 </div>
             </div>
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
-                <div className="w-full max-w-7xl mx-auto flex-1">
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pt-8">
+                <div className="w-full max-w-7xl mx-auto px-6 md:px-10 pb-10 flex-1">
                     <LiabilitiesManager />
                 </div>
-                <KarrFooter />
+                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-10">
+                    <KarrFooter />
+                </div>
             </div>
         </div>
     )

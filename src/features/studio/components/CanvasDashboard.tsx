@@ -295,91 +295,93 @@ export default function CanvasDashboard() {
 
 
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 h-[96px] border-b border-black/[0.06] bg-[#fafafa] flex-shrink-0 shadow-sm z-30">
-                <div className="flex items-center gap-6">
-                    <div>
-                        <h1 className="text-[22px] font-bold text-black tracking-tight">Canvas</h1>
-                        <p className="text-[12px] text-black/35 mt-0.5">Brainstorm · Studio Module</p>
+            <header className="px-6 md:px-10 py-8 md:py-10 border-b border-black/[0.06] bg-[#fafafa] shrink-0 z-30">
+                <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-10">
+                        <div className="space-y-1">
+                            <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Studio Protocol</h2>
+                            <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Canvas</h1>
+                        </div>
+
+                        {viewMode === 'web' && (
+                            <div className="flex items-center gap-3 mb-1">
+                                <button
+                                    onClick={() => setShowBrowser(!showBrowser)}
+                                    className={cn(
+                                        "flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold transition-all border shadow-sm",
+                                        showBrowser ? "bg-black text-white border-black" : "bg-white text-black/50 border-black/[0.06] hover:border-black/20 hover:shadow-md"
+                                    )}
+                                >
+                                    <LayoutGrid className="w-3.5 h-3.5" />
+                                    {showBrowser ? "Back to Canvas" : "All Maps"}
+                                </button>
+                                {!showBrowser && <div className="h-4 w-px bg-black/[0.06] mx-1" />}
+                            </div>
+                        )}
+
+                        {viewMode === 'web' && !showBrowser && (
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={currentMapId || ''}
+                                    onChange={e => { setCurrentMapId(e.target.value); setShowBrowser(false); setSelectedIds([]) }}
+                                    className="bg-black/[0.03] border border-black/[0.06] rounded-xl px-3 py-1.5 text-[12px] font-bold outline-none focus:ring-2 ring-indigo-500/20"
+                                >
+                                    {maps.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                    {maps.length === 0 && <option value="">No Mindmaps</option>}
+                                </select>
+                                <button onClick={handleCreateMap} className="w-8 h-8 rounded-xl bg-black text-white flex items-center justify-center hover:bg-black/80 transition-all shadow-md active:scale-95">
+                                    <Plus className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
                     </div>
 
-                    {viewMode === 'web' && (
-                        <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        {/* View Archived Toggle for Board & Browser */}
+                        {(viewMode === 'board' || (viewMode === 'web' && showBrowser)) && (
                             <button
-                                onClick={() => setShowBrowser(!showBrowser)}
+                                onClick={() => {
+                                    if (viewMode === 'board') {
+                                        setActiveTab(activeTab === 'active' ? 'archived' : 'active')
+                                    } else {
+                                        setShowArchivedMaps(!showArchivedMaps)
+                                    }
+                                }}
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-1.5 rounded-xl text-[12px] font-bold transition-all border shadow-sm",
-                                    showBrowser ? "bg-black text-white border-black" : "bg-white text-black/50 border-black/[0.06] hover:border-black/20 hover:shadow-md"
+                                    (viewMode === 'board' ? activeTab === 'archived' : showArchivedMaps)
+                                        ? "bg-amber-500 text-white border-amber-600"
+                                        : "bg-white text-black/50 border-black/[0.06] hover:border-black/20"
                                 )}
                             >
-                                <LayoutGrid className="w-3.5 h-3.5" />
-                                {showBrowser ? "Back to Canvas" : "All Maps"}
+                                <Archive className="w-3.5 h-3.5" />
+                                {(viewMode === 'board' ? activeTab === 'archived' : showArchivedMaps) ? "View Active" : "View Archived"}
                             </button>
-                            {!showBrowser && <div className="h-4 w-px bg-black/[0.06] mx-1" />}
+                        )}
+
+
+                        {/* View toggle */}
+                        <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/[0.04] items-center gap-0.5">
+                            {([
+                                { label: 'Board', value: 'board' as const, icon: LayoutGrid },
+                                { label: 'Node', value: 'web' as const, icon: Network },
+                            ] as const).map(({ label, value, icon: Icon }) => (
+                                <button
+                                    key={value}
+                                    onClick={() => { setViewMode(value); setSelectedIds([]) }}
+                                    className={cn(
+                                        "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all",
+                                        viewMode === value ? 'bg-white text-black shadow-sm' : 'text-black/30 hover:text-black/60'
+                                    )}
+                                >
+                                    <Icon className="w-3.5 h-3.5" />
+                                    {label}
+                                </button>
+                            ))}
                         </div>
-                    )}
-
-                    {viewMode === 'web' && !showBrowser && (
-                        <div className="flex items-center gap-2">
-                            <select
-                                value={currentMapId || ''}
-                                onChange={e => { setCurrentMapId(e.target.value); setShowBrowser(false); setSelectedIds([]) }}
-                                className="bg-black/[0.03] border border-black/[0.06] rounded-xl px-3 py-1.5 text-[12px] font-bold outline-none focus:ring-2 ring-indigo-500/20"
-                            >
-                                {maps.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                {maps.length === 0 && <option value="">No Mindmaps</option>}
-                            </select>
-                            <button onClick={handleCreateMap} className="w-8 h-8 rounded-xl bg-black text-white flex items-center justify-center hover:bg-black/80 transition-all shadow-md active:scale-95">
-                                <Plus className="w-4 h-4" />
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                    {/* View Archived Toggle for Board & Browser */}
-                    {(viewMode === 'board' || (viewMode === 'web' && showBrowser)) && (
-                        <button
-                            onClick={() => {
-                                if (viewMode === 'board') {
-                                    setActiveTab(activeTab === 'active' ? 'archived' : 'active')
-                                } else {
-                                    setShowArchivedMaps(!showArchivedMaps)
-                                }
-                            }}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-1.5 rounded-xl text-[12px] font-bold transition-all border shadow-sm",
-                                (viewMode === 'board' ? activeTab === 'archived' : showArchivedMaps)
-                                    ? "bg-amber-500 text-white border-amber-600"
-                                    : "bg-white text-black/50 border-black/[0.06] hover:border-black/20"
-                            )}
-                        >
-                            <Archive className="w-3.5 h-3.5" />
-                            {(viewMode === 'board' ? activeTab === 'archived' : showArchivedMaps) ? "View Active" : "View Archived"}
-                        </button>
-                    )}
-
-
-                    {/* View toggle */}
-                    <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/[0.04] items-center gap-0.5">
-                        {([
-                            { label: 'Board', value: 'board' as const, icon: LayoutGrid },
-                            { label: 'Node', value: 'web' as const, icon: Network },
-                        ] as const).map(({ label, value, icon: Icon }) => (
-                            <button
-                                key={value}
-                                onClick={() => { setViewMode(value); setSelectedIds([]) }}
-                                className={cn(
-                                    "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all",
-                                    viewMode === value ? 'bg-white text-black shadow-sm' : 'text-black/30 hover:text-black/60'
-                                )}
-                            >
-                                <Icon className="w-3.5 h-3.5" />
-                                {label}
-                            </button>
-                        ))}
                     </div>
                 </div>
-            </div>
+            </header>
 
             {/* View Switching */}
             {viewMode === 'web' ? (
@@ -980,32 +982,48 @@ export default function CanvasDashboard() {
                                     value={renameValue}
                                     onChange={e => setRenameValue(e.target.value)}
                                     className="w-full px-4 py-3 bg-black/[0.03] border border-black/[0.06] rounded-xl text-[14px] font-medium mb-8 outline-none focus:border-indigo-500/30"
-                                    onKeyDown={e => { if (e.key === 'Enter') { renameMap(confirmAction.id, renameValue); setConfirmAction(null) } }}
+                                    onKeyDown={e => { if (e.key === 'Enter') { if (confirmAction) { renameMap(confirmAction.id, renameValue); setConfirmAction(null) } } }}
                                 />
                             )}
 
-                            <div className="flex flex-col gap-2">
+                            {confirmAction?.type === 'delete_note' && (
+                                <div className="p-4 bg-red-50 text-red-600 rounded-xl mb-6 text-[13px] font-medium border border-red-100 flex items-center gap-3 animate-in slide-in-from-top duration-300">
+                                    <Trash2 className="w-5 h-5 shrink-0" />
+                                    <p>Permanently delete note: <b>{confirmAction.title}</b>?</p>
+                                </div>
+                            )}
+                            {confirmAction?.type === 'archive_note' && (
+                                <div className="p-4 bg-amber-50 text-amber-600 rounded-xl mb-6 text-[13px] font-medium border border-amber-100 flex items-center gap-3 animate-in slide-in-from-top duration-300">
+                                    <Archive className="w-5 h-5 shrink-0" />
+                                    <p>Archive this note: <b>{confirmAction.title}</b>?</p>
+                                </div>
+                            )}
+
+                            <div className="flex gap-3">
                                 <button
                                     onClick={async () => {
+                                        if (!confirmAction) return
                                         if (confirmAction.type === 'delete_note') { await deleteEntry(confirmAction.id); setSelectedEntry(null) }
                                         else if (confirmAction.type === 'archive_note') { await archiveEntry(confirmAction.id); setSelectedEntry(null) }
-                                        else if (confirmAction.type === 'delete_map') await deleteMap(confirmAction.id)
-                                        else if (confirmAction.type === 'archive_map') await archiveMap(confirmAction.id)
-                                        else if (confirmAction.type === 'rename_map') await renameMap(confirmAction.id, renameValue)
+                                        else if (confirmAction.type === 'delete_map') { await deleteMap(confirmAction.id); setCurrentMapId(null); fetchMaps(showArchivedMaps) }
+                                        else if (confirmAction.type === 'archive_map') { await archiveMap(confirmAction.id); setCurrentMapId(null); fetchMaps(showArchivedMaps) }
                                         else if (confirmAction.type === 'delete_draft') await deleteDraftData(confirmAction.id)
                                         else if (confirmAction.type === 'archive_draft') await archiveDraftData(confirmAction.id)
+                                        else if (confirmAction.type === 'rename_map') { await renameMap(confirmAction.id, renameValue); fetchMaps(showArchivedMaps) }
                                         setConfirmAction(null)
                                     }}
                                     className={cn(
-                                        "w-full py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-lg",
-                                        confirmAction.type.includes('delete') ? "bg-red-500 text-white hover:bg-red-600" : "bg-black text-white hover:bg-neutral-800"
+                                        "flex-1 py-3 rounded-[20px] text-[12px] font-black uppercase tracking-widest text-white shadow-xl hover:-translate-y-0.5 transition-all active:translate-y-0",
+                                        confirmAction?.type.startsWith('delete') ? "bg-red-500 shadow-red-200" :
+                                            confirmAction?.type === 'rename_map' ? "bg-indigo-500 shadow-indigo-200" : "bg-amber-500 shadow-amber-200"
                                     )}
                                 >
-                                    {confirmAction.type === 'rename_map' ? 'Update Name' : 'Confirm Action'}
+                                    {confirmAction?.type === 'rename_map' ? 'Rename' :
+                                        confirmAction?.type.startsWith('delete') ? 'Confirm Delete' : 'Confirm Archive'}
                                 </button>
                                 <button
                                     onClick={() => setConfirmAction(null)}
-                                    className="w-full py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-wider text-black/40 hover:bg-black/5 transition-all"
+                                    className="flex-1 py-3 rounded-[20px] text-[12px] font-black uppercase tracking-widest text-black/40 hover:bg-black/5 transition-all"
                                 >
                                     Cancel
                                 </button>
@@ -1038,7 +1056,9 @@ export default function CanvasDashboard() {
                                     placeholder="Enter synthesis title..."
                                     className="w-full px-4 py-3 bg-black/[0.03] border border-black/[0.06] rounded-xl text-[14px] font-medium outline-none focus:border-indigo-500/30 transition-all"
                                     onKeyDown={e => {
-                                        if (e.key === 'Enter') startComposition(synthesisModalNodes, synthesisTitle)
+                                        if (e.key === 'Enter') {
+                                            if (synthesisModalNodes) startComposition(synthesisModalNodes, synthesisTitle)
+                                        }
                                         if (e.key === 'Escape') setSynthesisModalNodes(null)
                                     }}
                                 />
@@ -1047,7 +1067,9 @@ export default function CanvasDashboard() {
 
                         <div className="flex flex-col gap-2">
                             <button
-                                onClick={() => startComposition(synthesisModalNodes, synthesisTitle)}
+                                onClick={() => {
+                                    if (synthesisModalNodes) startComposition(synthesisModalNodes, synthesisTitle)
+                                }}
                                 className="w-full py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-wider transition-all active:scale-95 shadow-[0_20px_40px_rgba(79,70,229,0.2)] hover:bg-indigo-700"
                             >
                                 Start Drafting

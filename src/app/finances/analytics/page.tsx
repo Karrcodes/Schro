@@ -98,8 +98,8 @@ export default function FinanceAnalyticsPage() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
-                <div className="w-full max-w-7xl mx-auto flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pt-8">
+                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-10 flex-1 flex flex-col">
                     {loading ? (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {[1, 2, 3].map(i => (
@@ -292,7 +292,9 @@ export default function FinanceAnalyticsPage() {
                         </div>
                     )}
                 </div>
-                <KarrFooter />
+                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-10">
+                    <KarrFooter />
+                </div>
             </div>
         </div>
     )

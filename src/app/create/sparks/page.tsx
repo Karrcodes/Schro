@@ -12,16 +12,16 @@ export default function SparksPage() {
     const [searchQuery, setSearchQuery] = useState('')
 
     return (
-        <main className="pb-12 pt-4 px-4 md:px-8 flex flex-col min-h-screen">
-            <div className="mx-auto space-y-6 w-full max-w-7xl">
+        <main className="pb-12 pt-8 md:pt-10 px-6 md:px-10 flex flex-col min-h-screen">
+            <div className="mx-auto space-y-10 w-full max-w-7xl">
                 {/* Row 1: Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                    <div>
-                        <h1 className="text-[22px] font-bold text-black tracking-tight">Sparks Inbox</h1>
-                        <p className="text-[12px] text-black/35 mt-0.5">Capture and process every idea · Studio Module</p>
+                <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="space-y-1">
+                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Studio Protocol</h2>
+                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Sparks Inbox</h1>
                     </div>
 
-                    <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/[0.04] items-center gap-0.5">
+                    <div className="flex bg-black/[0.03] p-1.5 rounded-2xl border border-black/[0.05] items-center gap-0.5 h-fit mb-1">
                         {[
                             { label: 'Focused', value: 'focused' as const, icon: LayoutDashboard },
                             { label: 'List', value: 'list' as const, icon: ListIcon },
@@ -39,7 +39,7 @@ export default function SparksPage() {
                             </button>
                         ))}
                     </div>
-                </div>
+                </header>
 
                 {/* Row 2: Search */}
                 <div className="relative w-full">

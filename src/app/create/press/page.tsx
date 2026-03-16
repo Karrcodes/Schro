@@ -111,16 +111,16 @@ export default function PressPage() {
     })
 
     return (
-        <main className="pb-24 pt-4 px-4 md:px-8">
-            <div className="max-w-7xl mx-auto space-y-8">
+        <main className="pb-24 pt-8 md:pt-10 px-6 md:px-10">
+            <div className="max-w-7xl mx-auto space-y-10">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <h1 className="text-[22px] font-bold text-black tracking-tight">Press &amp; Media</h1>
-                        <p className="text-[12px] text-black/35 mt-0.5">Studio Module · {filteredPress.length} entries · Tracking achievements</p>
+                <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="space-y-1">
+                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Studio Protocol</h2>
+                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Press &amp; Media</h1>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3 mb-1">
                         <div className="relative group">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20 group-focus-within:text-orange-500 transition-colors" />
                             <input
@@ -132,7 +132,7 @@ export default function PressPage() {
                         </div>
                         <a
                             href="/create/press/archive"
-                            className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-[12px] font-bold transition-all border shadow-sm bg-white text-black/50 border-black/[0.06] hover:border-black/20 shrink-0"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold transition-all border shadow-sm bg-white text-black/50 border-black/[0.06] hover:border-black/20 shrink-0"
                         >
                             <Archive className="w-3.5 h-3.5" />
                             View Archived
@@ -145,7 +145,7 @@ export default function PressPage() {
                             Add Entry
                         </button>
                     </div>
-                </div>
+                </header>
 
                 {/* Sub Filters */}
                 <div className="flex items-center gap-2 border-b border-black/[0.05] overflow-x-auto pb-4 custom-scrollbar">

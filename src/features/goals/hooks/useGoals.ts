@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { MOCK_GOALS, MOCK_MILESTONES } from '@/lib/demoData'
-import type { Goal, Milestone, CreateGoalData } from '../types/goals.types'
+import type { Goal, Milestone, CreateGoalData, WishlistItem, CreateWishlistItemData } from '../types/goals.types'
 
 const LOCAL_STORAGE_KEY = 'schrö_demo_goals_v1'
+const WISHLIST_LOCAL_STORAGE_KEY = 'schrö_demo_wishlist_v1'
 
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -19,6 +20,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 export function useGoals() {
     const [goals, setGoals] = useState<Goal[]>([])
+    const [wishlist, setWishlist] = useState<WishlistItem[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const { settings } = useSystemSettings()
@@ -34,8 +36,19 @@ export function useGoals() {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data))
     }, [])
 
+    const getSessionWishlist = useCallback(() => {
+        if (typeof window === 'undefined') return null
+        const stored = localStorage.getItem(WISHLIST_LOCAL_STORAGE_KEY)
+        return stored ? JSON.parse(stored) : null
+    }, [])
+
+    const saveSessionWishlist = useCallback((data: WishlistItem[]) => {
+        if (typeof window === 'undefined') return
+        localStorage.setItem(WISHLIST_LOCAL_STORAGE_KEY, JSON.stringify(data))
+    }, [])
+
     const fetchGoals = useCallback(async () => {
-        if (goals.length === 0) setLoading(true)
+        if (goals.length === 0 && wishlist.length === 0) setLoading(true)
         setError(null)
 
         try {
@@ -49,17 +62,31 @@ export function useGoals() {
                     saveSessionGoals(session as Goal[])
                 }
                 setGoals(session as Goal[])
+
+                let wishlistSession = getSessionWishlist()
+                if (!wishlistSession) {
+                    wishlistSession = []
+                    saveSessionWishlist(wishlistSession)
+                }
+                setWishlist(wishlistSession)
                 setLoading(false)
                 return
             }
 
             // Real data fetch from Supabase
-            const { data: goalsData, error: goalsError } = await supabase
-                .from('sys_goals')
-                .select('*, milestones:sys_milestones(*)')
-                .order('created_at', { ascending: false })
+            const [{ data: goalsData, error: goalsError }, { data: wishlistData, error: wishlistError }] = await Promise.all([
+                supabase
+                    .from('sys_goals')
+                    .select('*, milestones:sys_milestones(*)')
+                    .order('created_at', { ascending: false }),
+                supabase
+                    .from('sys_wishlist')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+            ])
 
             if (goalsError) throw goalsError
+            if (wishlistError) throw wishlistError
 
             const sortedGoals = (goalsData || []).map((goal: any) => ({
                 ...goal,
@@ -67,13 +94,14 @@ export function useGoals() {
             }))
 
             setGoals(sortedGoals)
+            setWishlist(wishlistData || [])
         } catch (err: any) {
-            console.error('Error fetching goals:', err)
+            console.error('Error fetching data:', err)
             setError(err.message)
         } finally {
             setLoading(false)
         }
-    }, [settings.is_demo_mode, goals.length, getSessionGoals, saveSessionGoals])
+    }, [settings.is_demo_mode, goals.length, wishlist.length, getSessionGoals, saveSessionGoals, getSessionWishlist, saveSessionWishlist])
 
     const createGoal = async (data: CreateGoalData, imageFile?: File) => {
         try {
@@ -360,12 +388,118 @@ export function useGoals() {
         }
     }
 
+    const createWishlistItem = async (data: CreateWishlistItemData) => {
+        try {
+            if (settings.is_demo_mode) {
+                const newItem: WishlistItem = {
+                    id: Math.random().toString(36).substring(2, 9),
+                    user_id: 'demo-user',
+                    title: data.title,
+                    description: data.description || null,
+                    price: data.price || null,
+                    url: data.url || null,
+                    image_url: data.image_url || null,
+                    category: data.category || 'personal',
+                    priority: data.priority || 'mid',
+                    status: data.status || 'wanted',
+                    created_at: new Date().toISOString()
+                }
+                const session = getSessionWishlist() || []
+                const updated = [newItem, ...session]
+                saveSessionWishlist(updated)
+                setWishlist(updated)
+                return
+            }
+
+            const { data: { session } } = await supabase.auth.getSession()
+            const { error: insertError } = await supabase
+                .from('sys_wishlist')
+                .insert([{
+                    user_id: session?.user?.id,
+                    ...data
+                }])
+
+            if (insertError) throw insertError
+            await fetchGoals()
+        } catch (err: any) {
+            setError(err.message)
+            throw err
+        }
+    }
+
+    const updateWishlistItem = async (id: string, updates: Partial<WishlistItem>) => {
+        try {
+            if (settings.is_demo_mode) {
+                const session = getSessionWishlist() || []
+                const updated = session.map((item: WishlistItem) => 
+                    item.id === id ? { ...item, ...updates } : item
+                )
+                saveSessionWishlist(updated)
+                setWishlist(updated)
+                return
+            }
+
+            const { error: updateError } = await supabase
+                .from('sys_wishlist')
+                .update(updates)
+                .eq('id', id)
+
+            if (updateError) throw updateError
+            await fetchGoals()
+        } catch (err: any) {
+            setError(err.message)
+            throw err
+        }
+    }
+
+    const deleteWishlistItem = async (id: string) => {
+        try {
+            if (settings.is_demo_mode) {
+                const session = getSessionWishlist() || []
+                const updated = session.filter((item: WishlistItem) => item.id !== id)
+                saveSessionWishlist(updated)
+                setWishlist(updated)
+                return
+            }
+
+            const { error: deleteError } = await supabase
+                .from('sys_wishlist')
+                .delete()
+                .eq('id', id)
+
+            if (deleteError) throw deleteError
+            await fetchGoals()
+        } catch (err: any) {
+            setError(err.message)
+            throw err
+        }
+    }
+
+    const convertWishlistToGoal = async (id: string) => {
+        const item = wishlist.find(i => i.id === id)
+        if (!item) return
+
+        try {
+            await createGoal({
+                title: item.title,
+                description: item.description || `Converted from wishlist item: ${item.title}`,
+                category: item.category,
+                vision_image_url: item.image_url || undefined,
+            })
+            await deleteWishlistItem(id)
+        } catch (err: any) {
+            setError(err.message)
+            throw err
+        }
+    }
+
     useEffect(() => {
         fetchGoals()
     }, [fetchGoals])
 
     return {
         goals,
+        wishlist,
         loading,
         error,
         createGoal,
@@ -373,6 +507,10 @@ export function useGoals() {
         deleteGoal,
         toggleMilestone,
         updateMilestone,
+        createWishlistItem,
+        updateWishlistItem,
+        deleteWishlistItem,
+        convertWishlistToGoal,
         refetch: fetchGoals
     }
 }

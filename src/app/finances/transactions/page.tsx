@@ -92,8 +92,8 @@ export default function TransactionsPage() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-[#fafafa]">
-                <div className="p-4 sm:p-6 flex-1 flex flex-col items-center">
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-[#fafafa] pt-8">
+                <div className="w-full max-w-7xl mx-auto px-6 md:px-10 pb-10 flex-1 flex flex-col items-center">
                     <div className="w-full max-w-4xl flex-1 space-y-4">
                         {/* Filters & Search */}
                         <div className="bg-white p-4 rounded-3xl border border-black/[0.06] shadow-sm flex flex-col gap-3 mb-2">
@@ -233,7 +233,9 @@ export default function TransactionsPage() {
                         onSuccess={handleSyncSuccess}
                     />
                 </div>
-                <KarrFooter />
+                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-10">
+                    <KarrFooter />
+                </div>
             </div>
         </div>
     )

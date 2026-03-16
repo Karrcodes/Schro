@@ -20,8 +20,18 @@ import { useFinanceProfile } from '@/features/finance/contexts/FinanceProfileCon
 import { useSettings } from '@/features/finance/hooks/useSettings'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 
-import { navItems } from '@/lib/navConfig'
+import { navItems, NavItem } from '@/lib/navConfig'
 import { useAuth } from '@/contexts/AuthContext'
+
+const COLOR_MAP: Record<string, string> = {
+    black: 'text-black',
+    blue: 'text-blue-500',
+    purple: 'text-purple-500',
+    emerald: 'text-emerald-500',
+    orange: 'text-orange-500',
+    amber: 'text-amber-500',
+    rose: 'text-rose-500',
+}
 
 function CapBadge({ cap }: { cap: 'P' | 'B' }) {
     return (
@@ -396,7 +406,7 @@ export function Sidebar() {
                                 isActive ? 'bg-black/10 text-black' : 'text-black/50 hover:text-black/80 hover:bg-black/[0.04]'
                             )}
                         >
-                            <Icon className={cn('w-4 h-4', isActive ? 'text-black' : 'text-black/35')} />
+                            <Icon className={cn('w-4 h-4', isActive ? (COLOR_MAP[item.color || 'black'] || 'text-black') : 'text-black/35')} />
                             <span className="text-[13px] font-medium pointer-events-none">{item.label}</span>
 
                             {item.label === 'Vault' && isVaultPrivate && (
@@ -451,7 +461,7 @@ export function Sidebar() {
                                                                 subActive ? 'text-black bg-black/5 font-semibold' : 'text-black/35 hover:text-black/60'
                                                             )}
                                                         >
-                                                            <SubIcon className="w-3 h-3 shrink-0" />
+                                                            <SubIcon className={cn("w-3 h-3 shrink-0", subActive ? (COLOR_MAP[item.color || 'black'] || 'text-black') : "text-current")} />
                                                             <span className="flex-1 truncate">{subItem.label}</span>
                                                             <div className="flex items-center gap-1">
                                                                 {(subItem as any).caps?.map((c: string) => (
@@ -487,7 +497,7 @@ export function Sidebar() {
                                                                 subActive ? 'text-black bg-black/5 font-semibold' : 'text-black/35 hover:text-black/60'
                                                             )}
                                                         >
-                                                            <SubIcon className="w-3 h-3 shrink-0" />
+                                                            <SubIcon className={cn("w-3 h-3 shrink-0", subActive ? (COLOR_MAP[item.color || 'black'] || 'text-black') : "text-current")} />
                                                             <span className="flex-1 truncate">{subItem.label}</span>
                                                             <div className="flex items-center gap-1">
                                                                 {(subItem as any).caps?.map((c: string) => (
@@ -520,7 +530,7 @@ export function Sidebar() {
                                                 subActive ? 'text-black bg-black/5 font-semibold' : 'text-black/35 hover:text-black/60'
                                             )}
                                         >
-                                            <SubIcon className="w-3 h-3 shrink-0" />
+                                            <SubIcon className={cn("w-3 h-3 shrink-0", subActive ? (COLOR_MAP[item.color || 'black'] || 'text-black') : "text-current")} />
                                             <span className="flex-1 truncate">{subItem.label}</span>
                                             <div className="flex items-center gap-1">
                                                 {(subItem as any).caps?.map((c: string) => (
@@ -663,7 +673,10 @@ export function Sidebar() {
                                                         : 'text-black/35'
                                             )}
                                         >
-                                            <Icon className="w-4.5 h-4.5" />
+                                            <Icon className={cn(
+                                                "w-4.5 h-4.5",
+                                                isActive && (COLOR_MAP[item.color || 'black'] || 'text-black')
+                                            )} />
                                         </Link>
                                     </div>
 
@@ -708,7 +721,7 @@ export function Sidebar() {
                                                                         : 'text-black/30'
                                                             )}
                                                         >
-                                                            <SubIcon className="w-4 h-4" />
+                                                            <SubIcon className={cn("w-4 h-4", isSubActive && (COLOR_MAP[item.color || 'black'] || 'text-black'))} />
                                                         </Link>
                                                         {isMounted && hoveredSubItem === subItem.label && createPortal(
                                                             <div

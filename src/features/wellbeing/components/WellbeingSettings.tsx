@@ -29,6 +29,9 @@ import { useWellbeing } from '../contexts/WellbeingContext'
 import type { WellbeingGoal, ActivityLevel, Gender, DashboardComponentId } from '../types'
 import { cn } from '@/lib/utils'
 
+import { WellbeingHeader } from './WellbeingHeader'
+import { KarrFooter } from '@/components/KarrFooter'
+
 export function WellbeingSettings() {
     const { profile, updateProfile, dashboardLayout, updateLayout } = useWellbeing()
     const [isSaving, setIsSaving] = useState(false)
@@ -159,9 +162,17 @@ export function WellbeingSettings() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8 pb-16">
-            {/* Profile Section - Maintains standard size for accessibility */}
-            <div className="bg-white border border-black/5 rounded-[32px] p-6 md:p-8 shadow-sm space-y-8">
+        <div className="flex flex-col h-full bg-[#FAFAFA]">
+            <WellbeingHeader 
+                title="Settings & Config" 
+                subtitle="Wellbeing Protocol" 
+                activeColor="text-rose-500" 
+            />
+
+            <div className="flex-1 overflow-y-auto">
+                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-12 space-y-8">
+                    {/* Profile Section - Maintains standard size for accessibility */}
+                    <div className="bg-white border border-black/5 rounded-[32px] p-6 md:p-8 shadow-sm space-y-8">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -316,6 +327,10 @@ export function WellbeingSettings() {
                     </div>
                 </form>
             </div>
+
+                <KarrFooter />
+            </div>
         </div>
+    </div>
     )
 }

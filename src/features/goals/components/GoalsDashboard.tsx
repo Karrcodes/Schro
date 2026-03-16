@@ -11,11 +11,12 @@ import GoalsMatrix from './GoalsMatrix'
 import GoalsRoadmap from './GoalsRoadmap'
 import GoalsVisionBoard from './GoalsVisionBoard'
 import GoalDetailSheet from './GoalDetailSheet'
+import GoalsWishlist from './GoalsWishlist'
 import type { Goal, GoalCategory } from '../types/goals.types'
 import { KarrFooter } from '@/components/KarrFooter'
 
 export default function GoalsDashboard() {
-    const { goals, loading, createGoal, toggleMilestone, deleteGoal, updateGoal, updateMilestone } = useGoals()
+    const { goals, wishlist, loading, createGoal, toggleMilestone, deleteGoal, updateGoal, updateMilestone } = useGoals()
     const [view, setView] = useState<GoalsView>('matrix')
     const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
     const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
@@ -57,12 +58,12 @@ export default function GoalsDashboard() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-white">
+        <div className="flex flex-col h-full">
             {/* Standard Module Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 bg-white flex-shrink-0 z-10 gap-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 z-10 gap-6 max-w-7xl mx-auto w-full">
                 <div className="space-y-1">
                     <h2 className="text-[11px] font-black text-amber-500 uppercase tracking-[0.3em]">Strategy Protocol</h2>
-                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Manifest</h1>
+                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Goals Registry</h1>
                 </div>
 
                 <div className="flex items-center gap-3 h-fit mb-1">
@@ -79,8 +80,11 @@ export default function GoalsDashboard() {
             </div>
 
             {/* Scrollable Workspace */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-[#fafafa]">
-                <div className={view === 'timeline' ? "p-4 md:p-6 h-full flex flex-col" : "p-4 md:p-8 space-y-6 max-w-[1600px] mx-auto w-full"}>
+            <div className="flex-1 overflow-y-auto">
+                <div className={cn(
+                    "max-w-7xl mx-auto w-full px-6 md:px-10 pb-10 space-y-12",
+                    view === 'timeline' ? "h-full flex flex-col" : ""
+                )}>
 
                     {/* Toolbar — hidden for roadmap view */}
                     {view !== 'timeline' && (

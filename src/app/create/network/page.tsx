@@ -117,23 +117,23 @@ export default function NetworkPage() {
     })
 
     return (
-        <main className="pb-24 pt-4 px-4 md:px-8">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <main className="pb-24 pt-8 md:pt-10 px-6 md:px-10">
+            <div className="max-w-7xl mx-auto space-y-10">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-[22px] font-bold text-black tracking-tight">Creative Network</h1>
-                        <p className="text-[12px] text-black/35 mt-0.5">Studio Module · People, communities, and events</p>
+                <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="space-y-1">
+                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Studio Protocol</h2>
+                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Creative Network</h1>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3 mb-1">
                         <div className="relative group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20 group-focus-within:text-purple-500 transition-colors" />
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20 group-focus-within:text-orange-500 transition-colors" />
                             <input
                                 placeholder="Search network..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="pl-11 pr-4 py-2.5 bg-white border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-purple-200 w-full md:w-64 shadow-sm"
+                                className="pl-11 pr-4 py-2.5 bg-white border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-orange-200 w-full md:w-64 shadow-sm"
                             />
                         </div>
                         <button
@@ -144,7 +144,7 @@ export default function NetworkPage() {
                             Add Contact
                         </button>
                     </div>
-                </div>
+                </header>
 
                 {/* Tabs */}
                 <div className="flex items-center gap-2 border-b border-black/[0.05] overflow-x-auto pb-4">

@@ -163,8 +163,8 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="bg-[#FAFAFA] flex flex-col min-h-screen">
             <div 
                 className={cn(
-                    "max-w-7xl mx-auto w-full flex-grow",
-                    isSessionRoute ? "h-[100dvh] fixed inset-0 overflow-hidden flex flex-col p-0 bg-white" : "p-6 md:p-10 space-y-8"
+                    "max-w-7xl mx-auto w-full flex-grow flex flex-col",
+                    isSessionRoute ? "h-[100dvh] fixed inset-0 overflow-hidden bg-white" : "px-6 md:px-10 pb-10 space-y-8"
                 )}
                 style={isSessionRoute ? { 
                     paddingTop: 'calc(env(safe-area-inset-top) + 40px)', 
@@ -179,6 +179,7 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                         }
                         *::-webkit-scrollbar {
                             display: none !important;
+                            width: 0 !important;
                         }
                         * {
                             -ms-overflow-style: none !important;
@@ -186,58 +187,10 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                         }
                     `}</style>
                 )}
-                {/* Header */}
-                {!isSessionRoute && (
-                    <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                        <div className="space-y-1">
-                            <h2 className="text-[11px] font-black text-rose-500 uppercase tracking-[0.3em]">Health Protocol</h2>
-                            <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Wellbeing Dashboard</h1>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="bg-black/[0.03] border border-black/5 rounded-2xl px-5 py-3 flex items-center gap-4">
-                                <div className="space-y-0.5">
-                                    <p className="text-[9px] font-black text-black/30 uppercase tracking-wider">Phase</p>
-                                    <p className="text-[13px] font-black text-black uppercase">{profile.goal}</p>
-                                </div>
-                                <div className="w-px h-8 bg-black/10" />
-                                <div className="space-y-0.5">
-                                    <p className="text-[9px] font-black text-black/30 uppercase tracking-wider">Current</p>
-                                    <p className="text-[13px] font-black text-black uppercase">{latestWeight}kg</p>
-                                </div>
-                                {profile.goalWeight && (
-                                    <>
-                                        <div className="w-px h-8 bg-black/10" />
-                                        <div className="space-y-0.5">
-                                            <p className="text-[9px] font-black text-black/30 uppercase tracking-wider">Goal</p>
-                                            <p className="text-[13px] font-black text-black uppercase">{profile.goalWeight}kg</p>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => setIsQuickLogOpen(true)}
-                                className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center hover:scale-105 transition-transform shadow-lg shadow-black/10"
-                            >
-                                <Plus className="w-5 h-5" />
-                            </button>
-                            <Link
-                                href={pathname === '/health/settings' ? '/health' : '/health/settings'}
-                                className={cn(
-                                    "w-12 h-12 rounded-2xl flex items-center justify-center transition-all border",
-                                    pathname === '/health/settings'
-                                        ? "bg-black text-white border-black"
-                                        : "bg-black/[0.03] border-black/5 text-black/40 hover:bg-black/[0.05]"
-                                )}
-                            >
-                                <Settings className="w-5 h-5" />
-                            </Link>
-                        </div>
-                    </header>
-                )}
 
-                {/* Tabs Navigation & Gym Info */}
+                {/* Gym Info & Tabs (Shared Actions) */}
                 {!isSessionRoute && (
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-10">
                         <div className="flex items-center gap-2 bg-black/[0.03] p-1.5 rounded-[24px] w-fit border border-black/5">
                             {TABS.map((tab) => {
                                 const isTabActive = pathname.startsWith(tab.href)
@@ -278,7 +231,7 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                                             <span className="text-[10px] font-black text-black uppercase tracking-tight flex items-center gap-1.5">
                                                 <span>{gymStats.busyness.currentCapacity} Inside</span>
                                                 <span className="text-black/20">•</span>
-                                                <span className={busynessColor(gymStats.busyness.currentPercentage).replace('bg-', 'text-')}>{gymStats.busyness.currentPercentage}%</span>
+                                                <span className={busynessColor(gymStats.busyness.currentPercentage).replace('bg-', 'text-')}>{gymStats.busyness.currentPercentage ?? 0}%</span>
                                             </span>
                                             <span className="text-[8px] font-bold text-black/30 uppercase tracking-widest mt-1">Live Occupancy</span>
                                         </div>
@@ -310,32 +263,55 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                                         {isSyncingGym ? 'Syncing...' : (justSynced || gymStats.lastSyncTime) ? 'Synced' : 'Sync'}
                                     </span>
                                 </button>
-                                {/* Re-link gym button */}
                                 <button
-                                    onClick={() => setIsGymModalOpen(true)}
-                                    title="Manage gym connection"
-                                    className="w-11 h-11 rounded-2xl bg-white border border-black/5 shadow-sm flex items-center justify-center hover:bg-black/[0.02] transition-all text-black/30 hover:text-black/60"
+                                    onClick={() => router.push('/health/settings')}
+                                    className={cn(
+                                        "w-11 h-11 rounded-2xl flex items-center justify-center transition-all border",
+                                        pathname.includes('/settings')
+                                            ? "bg-black text-white border-black"
+                                            : "bg-white border-black/5 text-black/30 hover:text-black/60 shadow-sm"
+                                    )}
                                 >
                                     <Settings className="w-4 h-4" />
                                 </button>
                             </div>
                         ) : (
-                            <button
-                                onClick={() => setIsGymModalOpen(true)}
-                                className="flex items-center gap-2 px-5 py-3 bg-white border border-black/5 hover:bg-black/[0.02] rounded-2xl shadow-sm transition-all text-black/40 hover:text-black group"
-                            >
-                                <Settings className="w-4 h-4 transition-transform group-hover:rotate-180" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Connect Gym</span>
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setIsGymModalOpen(true)}
+                                    className="flex items-center gap-2 px-5 py-3 bg-white border border-black/5 hover:bg-black/[0.02] rounded-2xl shadow-sm transition-all text-black/40 hover:text-black group"
+                                >
+                                    <Settings className="w-4 h-4 transition-transform group-hover:rotate-180" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Connect Gym</span>
+                                </button>
+                                <button
+                                    onClick={() => router.push('/health/settings')}
+                                    className={cn(
+                                        "w-11 h-11 rounded-2xl flex items-center justify-center transition-all border",
+                                        pathname.includes('/settings')
+                                            ? "bg-black text-white border-black"
+                                            : "bg-white border-black/5 text-black/30 hover:text-black/60 shadow-sm"
+                                    )}
+                                >
+                                    <Settings className="w-4 h-4" />
+                                </button>
+                            </div>
                         )}
                     </div>
                 )}
 
                 {/* Tab Content */}
-                <div className={cn("flex-grow flex flex-col", !isSessionRoute && "pt-4")}>
+                <div className={cn("flex-grow flex flex-col", !isSessionRoute && "pt-6")}>
                     {children}
                 </div>
+
+                {!isSessionRoute && (
+                    <div className="mt-auto pt-10">
+                        <KarrFooter />
+                    </div>
+                )}
             </div>
+
 
             <GymConnectionModal
                 isOpen={isGymModalOpen}
@@ -353,7 +329,6 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                 isOpen={isFridgeOpen}
                 onClose={() => setIsFridgeOpen(false)}
             />
-            {!isSessionRoute && <KarrFooter />}
         </div>
     )
 }

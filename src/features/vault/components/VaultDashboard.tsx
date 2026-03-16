@@ -17,20 +17,20 @@ export function VaultDashboard({ defaultTab }: { defaultTab?: VaultTab }) {
     return (
         <div className="min-h-screen bg-[#FDFDFD] flex flex-col w-full overflow-x-hidden">
             {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 bg-[#fafafa] flex-shrink-0 z-10 gap-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 z-10 gap-6 max-w-7xl mx-auto w-full">
                 <div className="space-y-1">
                     <h2 className="text-[11px] font-black text-purple-500 uppercase tracking-[0.3em]">Security Protocol</h2>
                     <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Schrö Vault</h1>
                 </div>
-                <div className="flex items-center gap-3 h-fit mb-1">
-                    <div className="text-[11px] text-black/25 uppercase tracking-wider font-medium">
+                <div className="flex items-center gap-4 h-fit mb-1">
+                    <div className="text-[11px] text-black/25 uppercase tracking-[0.2em] font-black">
                         {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-[#fafafa]">
-                <main className="w-full max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-20 flex-1">
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+                <main className="w-full max-w-7xl mx-auto px-6 md:px-10 pt-6 pb-20 flex-1 space-y-12">
                     {/* Sub-navigation Tabs */}
                     <div className="flex items-center justify-end gap-3 w-full mb-8">
                         <button
@@ -100,7 +100,9 @@ export function VaultDashboard({ defaultTab }: { defaultTab?: VaultTab }) {
                     </div>
                 </main>
 
-                <KarrFooter />
+                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-10">
+                    <KarrFooter />
+                </div>
             </div>
         </div>
     )

@@ -137,9 +137,9 @@ export function CommandCenter() {
             if (isPrimaryAccount) return false;
 
             const isSavingsSide = p.type === 'savings' ||
-                                (p.target_amount || 0) > 0 ||
-                                nameLower.includes('goal') ||
-                                nameLower.includes('savings');
+                                 (p.target_amount || 0) > 0 ||
+                                 nameLower.includes('goal') ||
+                                 nameLower.includes('savings');
             if (isSavingsSide) return false;
 
             if (!p.monzo_id && (nameLower.includes('general') || nameLower.includes('joint account'))) {
@@ -178,59 +178,58 @@ export function CommandCenter() {
     const loading = pLoading || oLoading || gLoading
 
     return (
-        <div className="flex flex-col h-dvh bg-white">
-            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-[#fafafa]">
-                {/* Page Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 bg-[#fafafa] z-10 gap-6">
-                    <div className="space-y-1">
-                        <h2 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.3em]">Financial Matrix</h2>
-                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Finance Dashboard</h1>
-                        <div className="flex items-center gap-3 pt-2">
-                            <div className="flex bg-black/[0.04] p-1 rounded-xl border border-black/[0.06] items-center w-fit">
-                                <button
-                                    onClick={() => setProfile('personal')}
-                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'personal' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
-                                >
-                                    Personal
-                                </button>
-                                <button
-                                    onClick={() => setProfile('business')}
-                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'business' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
-                                >
-                                    Business
-                                </button>
-                            </div>
+        <div className="flex flex-col h-full bg-[#FAFAFA]">
+            {/* Page Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 z-10 gap-6 max-w-7xl mx-auto w-full">
+                <div className="space-y-1">
+                    <h2 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.3em]">Financial Matrix</h2>
+                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Finance Dashboard</h1>
+                    <div className="flex items-center gap-3 pt-2">
+                        <div className="flex bg-black/[0.04] p-1 rounded-xl border border-black/[0.06] items-center w-fit">
                             <button
-                                onClick={togglePrivacy}
-                                className={`p-2 rounded-xl border transition-all ${isPrivacyEnabled ? 'border-[#059669]/30 text-[#059669] bg-[#059669]/10 shadow-[0_2px_10px_rgba(5,150,105,0.1)]' : 'bg-white border-black/[0.1] text-black/40 hover:text-black/60 hover:border-black/[0.2] shadow-sm'}`}
-                                title={isPrivacyEnabled ? "Disable Privacy Mode" : "Enable Privacy Mode"}
+                                onClick={() => setProfile('personal')}
+                                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'personal' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
                             >
-                                {isPrivacyEnabled ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                Personal
+                            </button>
+                            <button
+                                onClick={() => setProfile('business')}
+                                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'business' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
+                            >
+                                Business
                             </button>
                         </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 h-fit mb-1">
-                        {(loading || isSyncing) && (
-                            <div className="flex items-center gap-1.5 text-black/30">
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                <span className="text-[11px]">{isSyncing ? 'Syncing Monzo' : 'Loading'}</span>
-                            </div>
-                        )}
-                        <div className="text-[11px] text-black/25 uppercase tracking-wider font-medium">
-                            {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-                        </div>
-                        <MonzoSyncControls />
+                        <button
+                            onClick={togglePrivacy}
+                            className={`p-2 rounded-xl border transition-all ${isPrivacyEnabled ? 'border-[#059669]/30 text-[#059669] bg-[#059669]/10 shadow-[0_2px_10px_rgba(5,150,105,0.1)]' : 'bg-white border-black/[0.1] text-black/40 hover:text-black/60 hover:border-black/[0.2] shadow-sm'}`}
+                            title={isPrivacyEnabled ? "Disable Privacy Mode" : "Enable Privacy Mode"}
+                        >
+                            {isPrivacyEnabled ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex-1 flex flex-col">
-                    <div className="p-6 pb-2 select-none flex items-center gap-2 text-[13px] font-bold text-black/40 uppercase tracking-wider">
-                        Quick Access
+                <div className="flex items-center gap-4 h-fit mb-1 text-[11px] text-black/25 uppercase tracking-[0.2em] font-black">
+                    {(loading || isSyncing) && (
+                        <div className="flex items-center gap-1.5 text-black/30">
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>{isSyncing ? 'Syncing' : 'Loading'}</span>
+                        </div>
+                    )}
+                    <div>
+                        {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </div>
+                    <MonzoSyncControls />
+                </div>
+            </div>
 
-                    {/* Finance Quick Actions */}
-                    <div className="px-6 pb-4">
+            <div className="flex-1 overflow-y-auto">
+                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-12 space-y-12">
+                    {/* Quick Access */}
+                    <div className="space-y-4">
+                        <div className="select-none text-[11px] font-black text-black/40 uppercase tracking-[0.3em]">
+                            Quick Access
+                        </div>
                         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                             {[
                                 { href: "/finances/analytics", color: "blue", icon: BarChart3, label: "Analytics" },
@@ -263,12 +262,14 @@ export function CommandCenter() {
                         </div>
                     </div>
 
-                    <div className="p-6 pb-2 select-none flex items-center gap-2 text-[13px] font-bold text-black/40 uppercase tracking-wider">
-                        Overview
-                    </div>
-                    <div className="px-6 pb-2 space-y-8">
+                    {/* Overview */}
+                    <div className="space-y-8">
+                        <div className="select-none text-[11px] font-black text-black/40 uppercase tracking-[0.3em]">
+                            Overview
+                        </div>
+                        
                         {/* Summary Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                             <SummaryCard
                                 label="Total Liquid Cash"
                                 value={isSyncing ? "0000.00" : `£${summary.totalLiquid.toFixed(2)}`}
@@ -276,15 +277,15 @@ export function CommandCenter() {
                                 icon={<Wallet className="w-5 h-5" />}
                                 color="#059669"
                                 sub={`${pots.length} pots`}
-                                tooltip="The sum of current balances across all your active pots. This is your immediately spendable money."
+                                tooltip="Sum of current balances across all active pots."
                             />
                             <SummaryCard
                                 label="Total Debt Projection"
                                 value={`£${summary.totalDebt.toFixed(2)}`}
                                 icon={<TrendingDown className="w-5 h-5" />}
                                 color="#dc2626"
-                                sub="Estimated remaining on fixed terms"
-                                tooltip={<span>For each obligation with an end date: <strong>payment amount × number of remaining payments</strong>. Monthly = months left. Weekly = months × 52÷12. Bi-weekly = months × 26÷12. Yearly = rounded years left (min 1). No end date = excluded.</span>}
+                                sub="Remaining on fixed terms"
+                                tooltip="Projected total for obligations with end dates."
                             />
                             <SummaryCard
                                 label="Monthly Obligations"
@@ -292,99 +293,85 @@ export function CommandCenter() {
                                 icon={<DollarSign className="w-5 h-5" />}
                                 color="#d97706"
                                 sub="Fixed debt payments"
-                                tooltip="All recurring obligations normalised to a monthly equivalent. Monthly = as-is, weekly × 52 ÷ 12, bi-weekly × 26 ÷ 12, yearly ÷ 12."
+                                tooltip="Total recurring payments normalized to monthly."
                             />
                         </div>
 
                         {/* Main Layout Stack */}
-                        <div className="flex flex-col gap-6 pb-6">
-                            {/* Unified Responsive Grid (Mobile -> Tablet -> Desktop) */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
-
-                                {/* Main Account Balance */}
-                                <div className="order-1 col-span-1 lg:col-span-2 xl:col-span-3">
-                                    <div className="rounded-2xl border border-black/[0.08] bg-white p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden group">
-                                        <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
-                                            <Wallet className="w-32 h-32 rotate-12" />
-                                        </div>
-                                        <div className="flex items-center gap-4 relative z-10">
-                                            <div className="w-12 h-12 rounded-2xl bg-[#7c3aed]/10 flex items-center justify-center">
-                                                <Wallet className="w-6 h-6 text-[#7c3aed]" />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-[17px] font-bold text-black">Main Account</h2>
-                                                <p className="text-[11px] text-black/40 uppercase tracking-widest font-bold">Monzo {activeProfile === 'personal' ? 'Personal' : 'Business'}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right relative z-10">
-                                            <div className="text-4xl sm:text-5xl font-black text-black tracking-tighter privacy-blur">
-                                                <Skeleton show={isSyncing}>
-                                                    £{pots
-                                                        .filter(p => 
-                                                            p.monzo_id?.startsWith('acc_') || 
-                                                            (!p.monzo_id && (p.name.toLowerCase().includes('general') || p.name.toLowerCase().includes('joint account')))
-                                                        )
-                                                        .reduce((sum, p) => sum + p.balance, 0)
-                                                        .toFixed(2)}
-                                                </Skeleton>
-                                            </div>
-                                            <p className="text-[11px] text-[#059669] font-bold uppercase tracking-wider mt-1 flex items-center justify-end gap-1">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-[#059669] animate-pulse" />
-                                                Live from Monzo
-                                            </p>
-                                        </div>
+                        <div className="space-y-6">
+                            {/* Main Account Balance */}
+                            <div className="rounded-2xl border border-black/[0.08] bg-white p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+                                    <Wallet className="w-32 h-32 rotate-12" />
+                                </div>
+                                <div className="flex items-center gap-4 relative z-10">
+                                    <div className="w-12 h-12 rounded-2xl bg-[#7c3aed]/10 flex items-center justify-center">
+                                        <Wallet className="w-6 h-6 text-[#7c3aed]" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-[17px] font-bold text-black">Main Account</h2>
+                                        <p className="text-[11px] text-black/40 uppercase tracking-widest font-bold">Monzo {activeProfile === 'personal' ? 'Personal' : 'Business'}</p>
                                     </div>
                                 </div>
-
-                                {/* Pots */}
-                                <div className="order-2 col-span-1 lg:col-span-2 xl:col-span-3">
-                                    <SectionBlock title="Pockets & Pots" desc="Your synced allocations">
-                                        <PotsGrid pots={displayPockets} isSyncing={isSyncing} />
-                                    </SectionBlock>
-                                </div>
-
-                                {/* Savings Goals */}
-                                <div className="order-3 col-span-1 lg:col-span-2 xl:col-span-3">
-                                    <SectionBlock title="Savings Goals" desc="Long-term targets">
-                                        <GoalsList goals={combinedGoals} onRefresh={refetchGoals} />
-                                    </SectionBlock>
-                                </div>
-
-                                {/* Liabilities */}
-                                <div className="order-4 col-span-1 lg:col-span-2 xl:col-span-3">
-                                    <SectionBlock title="Liabilities" desc="30-Day projections for subs & debt">
-                                        <CalendarVisualizer obligations={obligations} />
-                                    </SectionBlock>
+                                <div className="text-right relative z-10">
+                                    <div className="text-4xl sm:text-5xl font-black text-black tracking-tighter privacy-blur">
+                                        <Skeleton show={isSyncing}>
+                                            £{pots
+                                                .filter(p => 
+                                                    p.monzo_id?.startsWith('acc_') || 
+                                                    (!p.monzo_id && (p.name.toLowerCase().includes('general') || p.name.toLowerCase().includes('joint account')))
+                                                )
+                                                .reduce((sum, p) => sum + p.balance, 0)
+                                                .toFixed(2)}
+                                        </Skeleton>
+                                    </div>
+                                    <p className="text-[11px] text-[#059669] font-bold uppercase tracking-wider mt-1 flex items-center justify-end gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#059669] animate-pulse" />
+                                        Live from Monzo
+                                    </p>
                                 </div>
                             </div>
 
-                            {/* Bottom Row: Recent Ledger & AI Chat */}
+                            {/* Grid Areas */}
+                            <div className="grid grid-cols-1 gap-6">
+                                <SectionBlock title="Pockets & Pots" desc="Your synced allocations">
+                                    <PotsGrid pots={displayPockets} isSyncing={isSyncing} />
+                                </SectionBlock>
+
+                                <SectionBlock title="Savings Goals" desc="Long-term targets">
+                                    <GoalsList goals={combinedGoals} onRefresh={refetchGoals} />
+                                </SectionBlock>
+
+                                <SectionBlock title="Liabilities" desc="30-Day projections for subs & debt">
+                                    <CalendarVisualizer obligations={obligations} />
+                                </SectionBlock>
+                            </div>
+
+                            {/* AI & Ledger */}
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-                                <div className="col-span-1 h-full min-h-[500px]">
-                                    <SectionBlock title="Recent Transactions" desc="Latest transactions">
-                                        <TransactionLedger />
-                                    </SectionBlock>
-                                </div>
-                                <div className="col-span-1 h-full min-h-[500px]">
-                                    <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm flex flex-col">
-                                        <h2 className="text-[17px] font-bold text-black mb-1">Financial Co-pilot</h2>
-                                        <p className="text-[12px] text-black/40 mb-4">Ask Gemini about patterns, advice, or status</p>
-                                        <div className="flex-1 overflow-hidden min-h-[400px]">
-                                            <KarrAIChat
-                                                context={{
-                                                    pots: pots.map(p => ({ n: p.name, b: p.balance, t: p.target_budget })),
-                                                    goals: goals.map(g => ({ n: g.name, c: g.current_amount, t: g.target_amount })),
-                                                    obligations: obligations.map(o => ({ n: o.name, a: o.amount, f: o.frequency, d: o.next_due_date }))
-                                                }}
-                                            />
-                                        </div>
+                                <SectionBlock title="Recent Transactions" desc="Latest activity">
+                                    <TransactionLedger />
+                                </SectionBlock>
+                                <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm flex flex-col min-h-[500px]">
+                                    <h2 className="text-[17px] font-bold text-black mb-1">Financial Co-pilot</h2>
+                                    <p className="text-[12px] text-black/40 mb-4">Ask Gemini about patterns or status</p>
+                                    <div className="flex-1 overflow-hidden">
+                                        <KarrAIChat
+                                            context={{
+                                                pots: pots.map(p => ({ n: p.name, b: p.balance, t: p.target_budget })),
+                                                goals: goals.map(g => ({ n: g.name, c: g.current_amount, t: g.target_amount })),
+                                                obligations: obligations.map(o => ({ n: o.name, a: o.amount, f: o.frequency, d: o.next_due_date }))
+                                            }}
+                                        />
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <KarrFooter />
+                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-10">
+                    <KarrFooter />
+                </div>
             </div>
         </div>
     )

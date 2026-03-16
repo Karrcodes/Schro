@@ -162,7 +162,7 @@ export default function ControlCentrePage() {
     return (
         <div className="min-h-screen bg-[#fafafa] flex flex-col">
             <div className="flex-1 overflow-y-auto bg-[#fafafa] flex flex-col p-6 md:p-10">
-                <div className="max-w-5xl mx-auto w-full space-y-12 pb-12">
+                <div className="max-w-7xl mx-auto w-full space-y-12 pb-12">
                     {/* Page Header */}
                     <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div className="space-y-1">

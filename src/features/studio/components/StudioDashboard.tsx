@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Sparkles, Briefcase, Target, LayoutDashboard, Shield, Plus, Clock, ExternalLink, ArrowRight, Activity, Award, Zap, Video, Rocket, Users } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
+import { KarrFooter } from '@/components/KarrFooter'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import CreateProjectModal from './CreateProjectModal'
@@ -42,7 +43,35 @@ export default function StudioDashboard() {
     const selectedSpark = sparks.find(s => s.id === selectedSparkId) || null
 
     return (
-        <div className="space-y-6">
+        <div className="w-full px-6 md:px-10 py-8 md:py-10">
+            <div className="max-w-7xl mx-auto space-y-10">
+            {/* Standard Module Header */}
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="space-y-1">
+                    <h2 className="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em]">Studio Protocol</h2>
+                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Project Studio</h1>
+                </div>
+                {!settings.is_demo_mode && (
+                    <div className="flex items-center gap-3">
+                         <div className="bg-black/[0.03] border border-black/5 rounded-2xl px-5 py-3 flex items-center gap-4">
+                            <div className="space-y-0.5 text-center px-2">
+                                <p className="text-[9px] font-black text-black/30 uppercase tracking-wider">Optimization</p>
+                                <p className="text-[13px] font-black text-black uppercase">
+                                    {Math.min(100, Math.round(((projects.filter(p => p.gtv_featured).length + press.filter(p => p.is_portfolio_item && (p.status === 'achieved' || p.status === 'published')).length) / 10) * 100))}%
+                                </p>
+                            </div>
+                         </div>
+                         <button
+                            onClick={() => setIsProjectModalOpen(true)}
+                            className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center hover:scale-105 transition-transform shadow-lg shadow-black/10"
+                        >
+                            <Plus className="w-5 h-5" />
+                        </button>
+                    </div>
+                )}
+            </header>
+
+            <div className="space-y-12">
             {error && error.includes('relation') && (
                 <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex flex-col gap-2">
                     <p className="text-[13px] font-bold text-red-900">Database Tables Missing</p>
@@ -88,7 +117,7 @@ export default function StudioDashboard() {
             )}
 
             {/* Subpage Quick Actions */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 px-2">
                 {[
                     { label: 'Projects', href: '/create/projects', icon: Rocket, color: 'text-orange-600', bg: 'bg-orange-500/10' },
                     { label: 'Content', href: '/create/content', icon: Video, color: 'text-blue-600', bg: 'bg-blue-600/10' },
@@ -114,7 +143,7 @@ export default function StudioDashboard() {
             </div>
 
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-2">
                 {/* Active Projects Summary */}
                 <div className="lg:col-span-2 space-y-8">
                     <div className="space-y-4">
@@ -461,6 +490,9 @@ export default function StudioDashboard() {
                     z-index: 10;
                 }
             `}</style>
-        </div >
+                </div>
+            </div>
+            <KarrFooter />
+        </div>
     )
 }

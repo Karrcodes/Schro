@@ -8,7 +8,7 @@ import {
     BarChart3, Activity, Shield, Brain, Target, Heart,
     LayoutDashboard, SlidersHorizontal, Calendar, CreditCard,
     PiggyBank, Receipt, Sparkles, Rocket, Video, PenLine,
-    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell
+    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Briefcase
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -70,10 +70,10 @@ export const navItems: NavItem[] = [
     {
         label: 'Studio',
         href: '/create',
-        icon: Sparkles,
+        icon: Rocket,
         color: 'orange',
         sub: [
-            { label: 'Projects', href: '/create/projects', icon: Rocket },
+            { label: 'Projects', href: '/create/projects', icon: Briefcase },
             { label: 'Content', href: '/create/content', icon: Video },
             { label: 'Canvas', href: '/create/canvas', icon: PenLine },
             { label: 'Sparks', href: '/create/sparks', icon: Target },
@@ -82,7 +82,16 @@ export const navItems: NavItem[] = [
             { label: 'Portfolio', href: '/create/portfolio', icon: Shield }
         ]
     },
-    { label: 'Manifest', href: '/goals', icon: Target, color: 'amber' },
+    { 
+        label: 'Manifest', 
+        href: '/goals', 
+        icon: Compass, 
+        color: 'amber',
+        sub: [
+            { label: 'Goals', href: '/goals/mission', icon: Target },
+            { label: 'Wishlist', href: '/goals/wishlist', icon: Star }
+        ]
+    },
     {
         label: 'Wellbeing',
         href: '/health',

@@ -40,12 +40,14 @@ export default function SettingsPage() {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto bg-[#fafafa] p-6 space-y-8 flex flex-col items-center">
-                <div className="w-full max-w-5xl flex-1 space-y-8">
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pt-8">
+                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-10 flex-1 space-y-8">
                     <GlobalSettings />
                     <PotsSettings />
                 </div>
-                <KarrFooter />
+                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-10">
+                    <KarrFooter />
+                </div>
             </div>
         </div>
     )

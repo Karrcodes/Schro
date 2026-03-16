@@ -2,6 +2,7 @@ export type GoalCategory = 'finance' | 'health' | 'career' | 'personal'
 export type GoalStatus = 'active' | 'completed' | 'archived'
 export type GoalPriority = 'urgent' | 'high' | 'mid' | 'low'
 export type GoalTimeframe = 'short' | 'medium' | 'long'
+export type WishlistStatus = 'wanted' | 'acquired' | 'archived'
 
 export interface Milestone {
     id: string
@@ -38,4 +39,29 @@ export interface CreateGoalData {
     timeframe?: GoalTimeframe
     vision_image_url?: string
     milestones?: { title: string; is_completed?: boolean; impact_score?: number }[]
+}
+
+export interface WishlistItem {
+    id: string
+    user_id: string
+    title: string
+    description: string | null
+    price: number | null
+    url: string | null
+    image_url: string | null
+    category: GoalCategory
+    priority: GoalPriority
+    status: WishlistStatus
+    created_at: string
+}
+
+export interface CreateWishlistItemData {
+    title: string
+    description?: string
+    price?: number
+    url?: string
+    image_url?: string
+    category?: GoalCategory
+    priority?: GoalPriority
+    status?: WishlistStatus
 }
