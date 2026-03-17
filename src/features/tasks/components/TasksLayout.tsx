@@ -42,64 +42,6 @@ export function TasksLayout({ children }: { children: React.ReactNode }) {
                     )}
                 </div>
 
-                <div className="flex bg-black/[0.03] p-1.5 rounded-2xl border border-black/[0.05] items-center gap-0.5 h-fit mb-1 self-start sm:self-auto overflow-x-auto no-scrollbar">
-                    {/* Planner */}
-                    <Link
-                        href="/tasks/planner"
-                        className={cn(
-                            "flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all relative whitespace-nowrap",
-                            isPlanner ? 'text-black' : 'text-black/30 hover:text-black/60'
-                        )}
-                    >
-                        <LayoutDashboard className="w-3.5 h-3.5" />
-                        <span>Planner</span>
-                        {isPlanner && (
-                            <motion.div
-                                layoutId="viewToggle"
-                                className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"
-                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                            />
-                        )}
-                    </Link>
-
-                    {/* Matrix */}
-                    <Link
-                        href="/tasks/matrix"
-                        className={cn(
-                            "flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all relative whitespace-nowrap",
-                            isMatrix ? 'text-black' : 'text-black/30 hover:text-black/60'
-                        )}
-                    >
-                        <Target className="w-3.5 h-3.5" />
-                        <span>Matrix</span>
-                        {isMatrix && (
-                            <motion.div
-                                layoutId="viewToggle"
-                                className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"
-                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                            />
-                        )}
-                    </Link>
-
-                    {/* Calendar */}
-                    <Link
-                        href="/tasks/calendar"
-                        className={cn(
-                            "flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all relative whitespace-nowrap",
-                            isOnCalendar ? 'text-black' : 'text-black/30 hover:text-black/60'
-                        )}
-                    >
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>Calendar</span>
-                        {isOnCalendar && (
-                            <motion.div
-                                layoutId="viewToggle"
-                                className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"
-                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                            />
-                        )}
-                    </Link>
-                </div>
             </div>
 
             {/* Tabs — hidden on special view pages */}

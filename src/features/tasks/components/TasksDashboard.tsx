@@ -41,33 +41,6 @@ function TasksDashboardContent() {
                         <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Focus & Execution</h1>
                     </div>
 
-                    <div className="flex items-center gap-4 mb-2">
-                        {/* Matrix */}
-                        <Link
-                            href="/tasks/matrix"
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all bg-black/[0.03] border border-black/[0.05] text-black/40 hover:text-black hover:bg-black/[0.05] whitespace-nowrap"
-                        >
-                            <Target className="w-3.5 h-3.5" />
-                            <span>Matrix</span>
-                        </Link>
-
-                        {/* Calendar */}
-                        <Link
-                            href="/tasks/calendar"
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all bg-black/[0.03] border border-black/[0.05] text-black/40 hover:text-black hover:bg-black/[0.05] whitespace-nowrap"
-                        >
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Calendar</span>
-                        </Link>
-
-                        {/* Planner */}
-                        <div
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all bg-black/[0.01] border border-black/[0.03] text-black/20 whitespace-nowrap cursor-not-allowed"
-                        >
-                            <LayoutDashboard className="w-3.5 h-3.5" />
-                            <span>Planner (Coming Soon)</span>
-                        </div>
-                    </div>
                 </div>
             </header>
 

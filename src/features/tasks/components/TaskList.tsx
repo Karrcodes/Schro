@@ -1748,9 +1748,6 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                 content: editNotesContent
             },
             strategic_category: isGrocery ? undefined : editStrategicCategory,
-            estimated_duration: isGrocery ? undefined : parseInt(editDuration),
-            travel_to_duration: isGrocery ? undefined : parseInt(editTravelDuration),
-            travel_from_duration: isGrocery ? undefined : parseInt(editTravelDuration),
             impact_score: isGrocery ? undefined : parseInt(editImpact),
             project_id: isGrocery ? null : (editProjectId || null),
             content_id: isGrocery ? null : (editContentId || null),
@@ -1761,7 +1758,6 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
             updates.amount = val
         }
         if (editPriority !== task.priority) updates.priority = editPriority
-        if (editProfile !== task.profile) updates.profile = editProfile as any
         if (editDueDate !== (task.due_date ? task.due_date.split('T')[0] : '')) {
             updates.due_date = editDueDate || undefined
             if (!editDueDate) updates.due_date_mode = 'on'
@@ -2104,122 +2100,65 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                     )}
 
                     <div className="flex items-center justify-between flex-wrap gap-y-3 gap-x-2 border-t border-black/5 pt-3">
-                        <div className="flex gap-1 p-1 bg-black/[0.03] rounded-lg border border-black/5">
-                            {(['super', 'high', 'mid', 'low'] as const).map(p => (
-                                <button
-                                    key={p}
-                                    type="button"
-                                    onClick={() => setEditPriority(p)}
-                                    className={cn(
-                                        "px-2 py-1 text-[9px] font-bold rounded-md border transition-all uppercase tracking-tight whitespace-nowrap",
-                                        editPriority === p
-                                            ? PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].color + " shadow-sm"
-                                            : "bg-transparent text-black/30 border-transparent hover:text-black/50"
-                                    )}
-                                >
-                                    {PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].label}
-                                </button>
-                            ))}
-                        </div>
-                        {/* Profile Toggle */}
-                        {category !== 'grocery' && (
-                            <div className="flex gap-1 p-1 bg-black/[0.03] rounded-lg border border-black/5">
-                                {[
-                                    { id: 'personal', label: 'Personal', icon: User },
-                                    { id: 'business', label: 'Business', icon: Briefcase }
-                                ].map(p => (
-                                    <button
-                                        key={p.id}
-                                        type="button"
-                                        onClick={() => setEditProfile(p.id)}
-                                        className={cn(
-                                            "px-2 py-1 text-[9px] font-bold rounded-md border transition-all uppercase tracking-tight whitespace-nowrap flex items-center gap-1",
-                                            editProfile === p.id
-                                                ? "bg-white text-black border-black/[0.08] shadow-sm"
-                                                : "bg-transparent text-black/30 border-transparent hover:text-black/50"
-                                        )}
-                                    >
-                                        <p.icon className="w-2.5 h-2.5" />
-                                        {p.label}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                        {/* Strategic Category selection in Edit Mode */}
-                        {category !== 'grocery' && (
-                            <div className="flex gap-1 p-1 bg-black/[0.03] rounded-lg border border-black/5">
-                                {strategicCategories.map((p: any) => (
-                                    <button
-                                        key={p.id}
-                                        type="button"
-                                        onClick={() => setEditStrategicCategory(editStrategicCategory === p.id ? undefined : p.id)}
-                                        className={cn(
-                                            "px-2 py-1 text-[9px] font-bold rounded-md border transition-all uppercase tracking-tight whitespace-nowrap flex items-center gap-1",
-                                            editStrategicCategory === p.id
-                                                ? p.color + " shadow-sm bg-white"
-                                                : "bg-transparent text-black/30 border-transparent hover:text-black/50"
-                                        )}
-                                    >
-                                        <p.icon className="w-2.5 h-2.5" />
-                                        {p.label}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                        {/* Algorithmic Param edits */}
-                        {category !== 'grocery' && (
-                            <div className="flex gap-4 p-2 bg-black/[0.02] rounded-xl border border-black/5 w-full sm:w-auto mt-2">
-                                <div className="flex-1 flex flex-col gap-1">
-                                    <span className="text-[8px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
-                                        <Clock className="w-2.5 h-2.5" /> Duration
-                                    </span>
-                                    <select
-                                        value={editDuration}
-                                        onChange={(e) => setEditDuration(e.target.value)}
-                                        className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-2 py-1 text-[11px] text-black outline-none focus:border-black/40 transition-colors appearance-none cursor-pointer"
-                                    >
-                                        {Array.from({ length: 16 }, (_, i) => (i + 1) * 15).map(mins => (
-                                            <option key={mins} value={mins}>
-                                                {mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? `${mins % 60}m` : ''}` : `${mins}m`}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="flex-1 flex flex-col gap-1">
-                                    <span className="text-[8px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
-                                        <Car className="w-2.5 h-2.5" /> Travel
-                                    </span>
-                                    <select
-                                        value={editTravelDuration}
-                                        onChange={(e) => setEditTravelDuration(e.target.value)}
-                                        className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-2 py-1 text-[11px] text-black outline-none focus:border-black/40 transition-colors appearance-none cursor-pointer"
-                                    >
-                                        <option value="0">None</option>
-                                        {Array.from({ length: 8 }, (_, i) => (i + 1) * 15).map(mins => (
-                                            <option key={mins} value={mins}>
-                                                {mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? `${mins % 60}m` : ''}` : `${mins}m`}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="flex-1 flex flex-col gap-1">
-                                    <span className="text-[8px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
-                                        <Zap className="w-2.5 h-2.5" /> Impact ({editImpact})
-                                    </span>
-                                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            {/* Impact Picker */}
+                            {category !== 'grocery' && (
+                                <div className="flex items-center gap-2 p-1.5 bg-black/[0.03] rounded-lg border border-black/5">
+                                    <div className="flex items-center gap-2 min-w-[100px]">
+                                        <Zap className="w-2.5 h-2.5 text-black/30" />
                                         <input
                                             type="range"
                                             min="1"
                                             max="10"
                                             value={editImpact}
                                             onChange={(e) => setEditImpact(e.target.value)}
-                                            className="flex-1 accent-black h-1 bg-black/10 rounded-lg appearance-none cursor-pointer mt-1"
+                                            className="w-16 h-1 accent-black bg-black/10 rounded-lg appearance-none cursor-pointer"
                                         />
                                         <span className="text-[10px] font-black text-black w-3 text-center">{editImpact}</span>
                                     </div>
                                 </div>
+                            )}
+
+                            {/* Strategic Category selection in Edit Mode */}
+                            {category !== 'grocery' && (
+                                <div className="flex gap-1 p-1 bg-black/[0.03] rounded-lg border border-black/5">
+                                    {strategicCategories.map((p: any) => (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => setEditStrategicCategory(editStrategicCategory === p.id ? undefined : p.id)}
+                                            className={cn(
+                                                "px-2 py-1 text-[9px] font-bold rounded-md border transition-all uppercase tracking-tight whitespace-nowrap flex items-center gap-1",
+                                                editStrategicCategory === p.id
+                                                    ? p.color + " shadow-sm bg-white"
+                                                    : "bg-transparent text-black/30 border-transparent hover:text-black/50"
+                                            )}
+                                        >
+                                            <p.icon className="w-2.5 h-2.5" />
+                                            {p.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="flex gap-1 p-1 bg-black/[0.03] rounded-lg border border-black/5">
+                                {(['super', 'high', 'mid', 'low'] as const).map(p => (
+                                    <button
+                                        key={p}
+                                        type="button"
+                                        onClick={() => setEditPriority(p)}
+                                        className={cn(
+                                            "px-2 py-1 text-[9px] font-bold rounded-md border transition-all uppercase tracking-tight whitespace-nowrap",
+                                            editPriority === p
+                                                ? PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].color + " shadow-sm"
+                                                : "bg-transparent text-black/30 border-transparent hover:text-black/50"
+                                        )}
+                                    >
+                                        {PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].label}
+                                    </button>
+                                ))}
                             </div>
-                        )}
+                        </div>
                     </div>
 
                     {/* Studio Linking in Inline Edit */}
@@ -2316,7 +2255,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                         } else if (task.project_id) {
                             setSelectedProjectForModal(projects.find(p => p.id === task.project_id))
                         } else {
-                            setSelectedTaskForModal(task)
+                            setIsEditing(true)
                         }
                     }}
                 >
