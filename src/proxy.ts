@@ -32,7 +32,7 @@ async function getUserStatus(userId: string): Promise<string | null> {
     return data?.status ?? null
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     // Always set x-pathname for use in layouts
