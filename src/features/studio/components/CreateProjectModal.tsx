@@ -30,7 +30,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
         cover_url: string;
         target_date: string;
         start_date: string;
-        priority: 'urgent' | 'high' | 'mid' | 'low';
+        priority: 'super' | 'high' | 'mid' | 'low';
         impact_score: number;
         strategic_category: string;
     }>({
@@ -207,7 +207,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Priority</label>
                                 <div className="flex gap-1.5">
-                                    {(['urgent', 'high', 'mid', 'low'] as const).map((level) => (
+                                    {(['super', 'high', 'mid', 'low'] as const).map((level) => (
                                         <button
                                             key={level}
                                             type="button"
@@ -215,7 +215,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                                             className={cn(
                                                 "flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all",
                                                 formData.priority === level
-                                                    ? level === 'urgent' ? "bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200" :
+                                                    ? level === 'super' ? "bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200" :
                                                         level === 'high' ? "bg-red-600 text-white border-red-600 shadow-lg shadow-red-200" :
                                                             level === 'mid' ? "bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-200" :
                                                                 "bg-black text-white border-black"

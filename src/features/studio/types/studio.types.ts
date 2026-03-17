@@ -1,7 +1,7 @@
 export type ProjectStatus = 'idea' | 'research' | 'active' | 'paused' | 'shipped' | 'archived';
 export type ProjectType = 'Architectural Design' | 'Technology' | 'Fashion' | 'Product Design' | 'Media' | 'Other';
 export type Platform = 'youtube' | 'instagram' | 'substack' | 'tiktok' | 'x' | 'web';
-export type PriorityLevel = 'urgent' | 'high' | 'mid' | 'low';
+export type PriorityLevel = 'super' | 'high' | 'mid' | 'low';
 export type ContentCategory = 'Vlog' | 'Thoughts' | 'Showcase' | 'Concept' | 'Update' | 'Other';
 
 export interface StudioProject {

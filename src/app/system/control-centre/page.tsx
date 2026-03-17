@@ -122,7 +122,7 @@ export default function ControlCentrePage() {
         const score = Math.round((taskCompletion * 0.5) + (budgetScore * 0.5))
 
         let nextAction = "System optimal. No high-priority items."
-        const highPriorityTask = (tasks as Task[]).find((t: Task) => !t.is_completed && (t.priority === 'urgent' || t.priority === 'high'))
+        const highPriorityTask = (tasks as Task[]).find((t: Task) => !t.is_completed && (t.priority === 'super' || t.priority === 'high'))
 
         if (highPriorityTask) {
             nextAction = `High Priority: ${highPriorityTask.title}`

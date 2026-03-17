@@ -18,7 +18,7 @@ const TYPES = ['video', 'reel', 'post', 'thread', 'article', 'short']
 const CATEGORIES: ContentCategory[] = ['Vlog', 'Thoughts', 'Showcase', 'Concept', 'Update', 'Other']
 
 const PRIORITY_CONFIG = {
-    urgent: { label: 'Urgent', bg: 'bg-purple-500 text-white', ring: 'ring-purple-300' },
+    super: { label: 'Super', bg: 'bg-purple-500 text-white', ring: 'ring-purple-300' },
     high: { label: 'High', bg: 'bg-red-500 text-white', ring: 'ring-red-300' },
     mid: { label: 'Mid', bg: 'bg-amber-400 text-white', ring: 'ring-amber-200' },
     low: { label: 'Low', bg: 'bg-neutral-300 text-neutral-700', ring: 'ring-neutral-200' },
@@ -440,7 +440,7 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                                     className="w-full pl-11 pr-4 py-3 bg-transparent border-none text-[13px] font-bold focus:outline-none"
                                 />
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/title:opacity-100 transition-opacity">
-                                    {(['urgent', 'high', 'mid', 'low'] as const).map(lvl => (
+                                    {(['super', 'high', 'mid', 'low'] as const).map(lvl => (
                                         <button key={lvl} type="button" onClick={() => setNewMilestonePriority(lvl)}
                                             className={cn("w-2 h-2 rounded-full border transition-all", newMilestonePriority === lvl ? PRIORITY_CONFIG[lvl].bg : "bg-black/[0.05] border-transparent")} />
                                     ))}

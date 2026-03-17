@@ -1,6 +1,6 @@
 export type Category = 'todo' | 'grocery' | 'reminder'
 export type StrategicCategory = 'finance' | 'career' | 'health' | 'personal' | 'rnd' | 'production' | 'media' | 'growth' | 'general'
-export type Priority = 'urgent' | 'high' | 'mid' | 'low'
+export type Priority = 'super' | 'high' | 'mid' | 'low'
 export type RecurrenceMode = 'none' | 'daily' | 'work_days' | 'off_days' | 'custom'
 
 export interface Task {
@@ -119,7 +119,7 @@ export interface TaskTemplate {
     profile: 'personal' | 'business'
     title: string
     category: 'todo' | 'grocery' | 'reminder'
-    priority: 'urgent' | 'high' | 'mid' | 'low'
+    priority: 'super' | 'high' | 'mid' | 'low'
     strategic_category?: 'finance' | 'career' | 'health' | 'personal' | 'rnd' | 'production' | 'media' | 'growth' | 'general'
     amount?: string
     due_date_mode?: 'on' | 'before' | 'range'

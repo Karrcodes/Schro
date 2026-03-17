@@ -23,7 +23,7 @@ const CATEGORIES: ContentCategory[] = ['Vlog', 'Thoughts', 'Showcase', 'Concept'
 const MILESTONE_CATEGORIES = ['rnd', 'production', 'media', 'growth']
 
 const PRIORITY_CONFIG = {
-    urgent: { label: 'Urgent', bg: 'bg-purple-500 text-white', border: 'border-purple-300' },
+    super: { label: 'Super', bg: 'bg-purple-500 text-white', border: 'border-purple-300' },
     high: { label: 'High', bg: 'bg-red-500 text-white', border: 'border-red-300' },
     mid: { label: 'Mid', bg: 'bg-amber-400 text-white', border: 'border-amber-300' },
     low: { label: 'Low', bg: 'bg-neutral-300 text-neutral-700', border: 'border-black/10' },
@@ -440,7 +440,7 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-1 shrink-0">
-                                                    {(['urgent', 'high', 'mid', 'low'] as const).map(lvl => (
+                                                    {(['super', 'high', 'mid', 'low'] as const).map(lvl => (
                                                         <button key={lvl} onClick={() => updateMilestone(m.id, { priority: lvl })}
                                                             className={cn("w-2 h-2 rounded-full", (m.priority === lvl || (!m.priority && lvl === 'mid')) ? PRIORITY_CONFIG[lvl].bg : "bg-black/[0.05]")} />
                                                     ))}
@@ -516,7 +516,7 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1 bg-white border border-blue-100 rounded-lg p-1">
-                                                {(['urgent', 'high', 'mid', 'low'] as const).map(lvl => (
+                                                {(['super', 'high', 'mid', 'low'] as const).map(lvl => (
                                                     <button key={lvl} type="button" onClick={() => setNewMilestonePriority(lvl)}
                                                         className={cn("w-3 h-3 rounded-full border transition-all", newMilestonePriority === lvl ? PRIORITY_CONFIG[lvl].bg : "bg-black/[0.05] border-transparent")} />
                                                 ))}

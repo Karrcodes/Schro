@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 
 export interface ExtractedTask {
     title: string
-    priority: 'urgent' | 'high' | 'mid' | 'low'
+    priority: 'super' | 'high' | 'mid' | 'low'
     notes?: string
 }
 
@@ -11,29 +11,19 @@ export const aiService = {
         const isImage = input instanceof File
         
         try {
-            if (isImage) {
-                const base64 = await fileToBase64(input)
-                
-                const { data, error } = await supabase.functions.invoke('process-magic-tasks', {
-                    body: { 
-                        image: base64, 
-                        type: 'image',
-                        mimeType: input.type
-                    },
-                })
+            const response = await fetch('/api/process-magic-tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(
+                    isImage 
+                        ? { image: await fileToBase64(input), type: 'image', mimeType: input.type }
+                        : { text: input, type: 'text' }
+                )
+            });
 
-                if (error) throw error
-                if (data?.error) throw new Error(data.error)
-                return data?.tasks || []
-            } else {
-                const { data, error } = await supabase.functions.invoke('process-magic-tasks', {
-                    body: { text: input, type: 'text' },
-                })
-
-                if (error) throw error
-                if (data?.error) throw new Error(data.error)
-                return data?.tasks || []
-            }
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to process request');
+            return data.tasks || [];
         } catch (error: any) {
             console.error('Error in aiService.processQuickList:', error)
             if (isImage) {

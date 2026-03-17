@@ -35,7 +35,7 @@ export default function ProjectKanban({ searchQuery = '', filterType = null, sho
         return matchesSearch && matchesType && archiveMatch
     }).sort((a, b) => {
         if (sortBy === 'priority') {
-            const weights = { urgent: 4, high: 3, mid: 2, low: 1 }
+            const weights = { super: 4, high: 3, mid: 2, low: 1 }
             return (weights[b.priority || 'low'] || 0) - (weights[a.priority || 'low'] || 0)
         }
         if (sortBy === 'impact') {
@@ -391,7 +391,7 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                         {project.priority && (
                             <div className={cn(
                                 "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter w-fit",
-                                project.priority === 'urgent' ? "bg-purple-50 text-purple-600 border border-purple-100" :
+                                project.priority === 'super' ? "bg-purple-50 text-purple-600 border border-purple-100" :
                                     project.priority === 'high' ? "bg-red-50 text-red-600 border border-red-100" :
                                         project.priority === 'mid' ? "bg-yellow-50 text-yellow-600 border border-yellow-100" :
                                             "bg-black/5 text-black/40"

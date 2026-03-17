@@ -1,6 +1,6 @@
 export type GoalCategory = 'finance' | 'health' | 'career' | 'personal'
 export type GoalStatus = 'active' | 'completed' | 'archived'
-export type GoalPriority = 'urgent' | 'high' | 'mid' | 'low'
+export type GoalPriority = 'super' | 'high' | 'mid' | 'low'
 export type GoalTimeframe = 'short' | 'medium' | 'long'
 export type WishlistStatus = 'wanted' | 'acquired' | 'archived'
 

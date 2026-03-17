@@ -60,7 +60,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editValue, setEditValue] = useState("")
-    const [editPriority, setEditPriority] = useState<Priority>("urgent")
+    const [editPriority, setEditPriority] = useState<Priority>("super")
     const [showCompleted, setShowCompleted] = useState(false)
     const [sortBy, setSortBy] = useState<'manual' | 'priority' | 'impact' | 'duration' | 'deadline' | 'date'>(category === 'grocery' ? 'priority' : 'manual')
     const [draggedItem, setDraggedItem] = useState<string | null>(null)
@@ -74,7 +74,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [selectedContentForModal, setSelectedContentForModal] = useState<any>(null)
     const [newTask, setNewTask] = useState('')
     const [amount, setAmount] = useState('1')
-    const [priority, setPriority] = useState<'urgent' | 'high' | 'mid' | 'low'>('low')
+    const [priority, setPriority] = useState<'super' | 'high' | 'mid' | 'low'>('low')
     const [dueDate, setDueDate] = useState('')
     const [dueDateMode, setDueDateMode] = useState<'none' | 'on' | 'before' | 'range' | 'recurring'>('none')
     const [endDate, setEndDate] = useState('')
@@ -238,7 +238,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
     // Intelligent Task System states
     const [isAnalyzingPriority, setIsAnalyzingPriority] = useState(false)
-    const [suggestedPriority, setSuggestedPriority] = useState<{ level: 'urgent' | 'high' | 'mid' | 'low', reason: string } | null>(null)
+    const [suggestedPriority, setSuggestedPriority] = useState<{ level: 'super' | 'high' | 'mid' | 'low', reason: string } | null>(null)
     const [showSuggestions, setShowSuggestions] = useState(false)
 
     // Derived autocomplete from history + Templates
@@ -550,7 +550,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         }
 
         if (sortBy === 'priority') {
-            const priorityOrder = { urgent: 0, high: 1, mid: 2, low: 3 }
+            const priorityOrder = { super: 0, high: 1, mid: 2, low: 3 }
             const aPri = a.type === 'task' ? (a.data.priority || 'low') : 'mid'
             const bPri = b.type === 'task' ? (b.data.priority || 'low') : 'mid'
             const diff = (priorityOrder[aPri as keyof typeof priorityOrder] ?? 3) - (priorityOrder[bPri as keyof typeof priorityOrder] ?? 3)
@@ -630,7 +630,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             await createTasks(tasks.map(t => ({
                 title: t.title,
                 priority: t.priority as Priority,
-                strategic_category: (newStrategicCategory || (activeProfile === 'personal' ? 'personal' : 'work')) as StrategicCategory,
+                strategic_category: (newStrategicCategory || (activeProfile === 'personal' ? 'personal' : 'career')) as StrategicCategory,
                 due_date_mode: 'none' as any,
                 profile: activeProfile,
                 notes: t.notes ? { type: 'text', content: t.notes } : undefined
@@ -1111,11 +1111,11 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                         }}
                                         className={cn(
                                             "flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-bold uppercase tracking-wide transition-all hover:scale-[1.02] active:scale-95 group",
-                                            (PRIORITY_MAP[suggestedPriority.level as keyof typeof PRIORITY_MAP] || PRIORITY_MAP.urgent).color,
+                                            (PRIORITY_MAP[suggestedPriority.level as keyof typeof PRIORITY_MAP] || PRIORITY_MAP.super).color,
                                             "shadow-sm ring-2 ring-offset-1 ring-black/5"
                                         )}
                                     >
-                                        <span className="opacity-70 group-hover:opacity-100">✨ Make {suggestedPriority.level === 'urgent' ? 'Urgent' : suggestedPriority.level} Priority</span>
+                                        <span className="opacity-70 group-hover:opacity-100">✨ Make {suggestedPriority.level === 'super' ? 'Super' : suggestedPriority.level} Priority</span>
                                         <div className="w-px h-2.5 bg-current opacity-20" />
                                         <span className="opacity-50 text-[9px] lowercase tracking-normal font-medium">{suggestedPriority.reason}</span>
                                     </button>
@@ -1126,7 +1126,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         {/* Combined Priority & Tactical Tag row */}
                         <div className="flex flex-wrap items-center gap-3 p-1">
                             <div className="flex gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit h-[36px] items-center">
-                                {(['urgent', 'high', 'mid', 'low'] as const).map(p => (
+                                {(['super', 'high', 'mid', 'low'] as const).map(p => (
                                     <button
                                         key={p}
                                         type="button"
@@ -2105,7 +2105,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
 
                     <div className="flex items-center justify-between flex-wrap gap-y-3 gap-x-2 border-t border-black/5 pt-3">
                         <div className="flex gap-1 p-1 bg-black/[0.03] rounded-lg border border-black/5">
-                            {(['urgent', 'high', 'mid', 'low'] as const).map(p => (
+                            {(['super', 'high', 'mid', 'low'] as const).map(p => (
                                 <button
                                     key={p}
                                     type="button"

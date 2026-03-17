@@ -20,7 +20,7 @@ const CONTENT_COLUMNS: { label: string; value: ContentStatus; dot: string }[] = 
 ]
 
 const PRIORITY_STYLES: Record<string, { pill: string; border: string; bg: string }> = {
-    urgent: { pill: 'bg-purple-50 text-purple-600 border-purple-100', border: 'border-black/[0.05]', bg: 'bg-white' },
+    super: { pill: 'bg-purple-50 text-purple-600 border-purple-100', border: 'border-black/[0.05]', bg: 'bg-white' },
     high: { pill: 'bg-red-50 text-red-600 border-red-100', border: 'border-black/[0.05]', bg: 'bg-white' },
     mid: { pill: 'bg-yellow-50 text-yellow-600 border-yellow-100', border: 'border-black/[0.05]', bg: 'bg-white' },
     low: { pill: 'bg-black/5 text-black/40 border-transparent', border: 'border-black/[0.05]', bg: 'bg-white' },
@@ -58,7 +58,7 @@ export default function ContentKanban({
         return matchesSearch && isArchivedMatch
     }).sort((a, b) => {
         if (sortBy === 'priority') {
-            const weights = { urgent: 4, high: 3, mid: 2, low: 1 }
+            const weights = { super: 4, high: 3, mid: 2, low: 1 }
             return (weights[b.priority || 'low'] || 0) - (weights[a.priority || 'low'] || 0)
         }
         if (sortBy === 'impact') {
@@ -499,7 +499,7 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                 <div className="flex items-center gap-2 mb-3">
                     <div className={cn(
                         "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter w-fit border",
-                        priority === 'urgent' ? "bg-purple-50 text-purple-600 border-purple-100" :
+                        priority === 'super' ? "bg-purple-50 text-purple-600 border-purple-100" :
                             priority === 'high' ? "bg-red-50 text-red-600 border-red-100" :
                                 priority === 'mid' ? "bg-yellow-50 text-yellow-600 border-yellow-100" :
                                     "bg-black/5 text-black/40 border-transparent"

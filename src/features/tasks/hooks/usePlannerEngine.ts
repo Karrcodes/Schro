@@ -160,7 +160,7 @@ export function usePlannerEngine(date: Date = new Date()) {
             !t.is_completed && t.category === 'reminder' &&
             (t.due_date === dateStr || !t.due_date) // Show for specific day or if undated
         ).sort((a, b) => {
-            const weights = { urgent: 4, high: 3, mid: 2, low: 1 }
+            const weights = { super: 4, high: 3, mid: 2, low: 1 }
             if (weights[a.priority as keyof typeof weights] !== weights[b.priority as keyof typeof weights]) {
                 return weights[b.priority as keyof typeof weights] - weights[a.priority as keyof typeof weights]
             }
@@ -213,7 +213,7 @@ export function usePlannerEngine(date: Date = new Date()) {
 
         // C. Fluid Tasks (The River)
         const fluidTasks: PlannerItem[] = [...personalTasks, ...businessTasks].sort((a, b) => {
-            const weights = { urgent: 4, high: 3, mid: 2, low: 1 }
+            const weights = { super: 4, high: 3, mid: 2, low: 1 }
             const weightA = weights[a.priority as keyof typeof weights] || 0
             const weightB = weights[b.priority as keyof typeof weights] || 0
             if (a.priority !== b.priority) return weightB - weightA

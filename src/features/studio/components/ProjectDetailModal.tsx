@@ -382,7 +382,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                     <div className="space-y-2">
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Priority Selection</label>
                                                         <div className="flex gap-1.5">
-                                                            {(['urgent', 'high', 'mid', 'low'] as const).map((level) => (
+                                                            {(['super', 'high', 'mid', 'low'] as const).map((level) => (
                                                                 <button
                                                                     key={level}
                                                                     type="button"
@@ -390,7 +390,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                                     className={cn(
                                                                         "flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border transition-all",
                                                                         (editedData.priority ?? project.priority) === level
-                                                                            ? level === 'urgent' ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-200"
+                                                                            ? level === 'super' ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-200"
                                                                                 : level === 'high' ? "bg-red-600 text-white border-red-600 shadow-md shadow-red-200"
                                                                                     : level === 'mid' ? "bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-200"
                                                                                         : "bg-black text-white border-black"

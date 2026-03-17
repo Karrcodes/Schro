@@ -26,7 +26,7 @@ const BUSINESS_STRATEGIC = [
 ] as const
 
 const PRIORITY_OPTS = [
-    { id: 'urgent', label: 'Urgent', color: 'bg-purple-600' },
+    { id: 'super', label: 'Super', color: 'bg-purple-600' },
     { id: 'high', label: 'High', color: 'bg-orange-500' },
     { id: 'mid', label: 'Mid', color: 'bg-yellow-500' },
     { id: 'low', label: 'Low', color: 'bg-zinc-500' },
@@ -64,7 +64,7 @@ export function GlobalQuickAction() {
         taskTitle: '',
         taskProfile: 'personal' as 'personal' | 'business',
         taskCategory: 'todo' as 'todo' | 'grocery' | 'reminder',
-        taskPriority: 'mid' as 'urgent' | 'high' | 'mid' | 'low',
+        taskPriority: 'mid' as 'super' | 'high' | 'mid' | 'low',
         strategicCategory: 'personal' as string,
         dueDate: '',
         dueDateMode: 'none' as 'none' | 'on' | 'before' | 'range',

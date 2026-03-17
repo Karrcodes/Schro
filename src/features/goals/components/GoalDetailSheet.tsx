@@ -226,14 +226,14 @@ export default function GoalDetailSheet({ goal, isOpen, onClose, onToggleMilesto
                                                 <div className="flex items-center gap-2">
                                                     <div className={cn(
                                                         "w-2 h-2 rounded-full",
-                                                        goal.priority === 'urgent' ? "bg-purple-600 animate-pulse shadow-[0_0_8px_rgba(147,51,234,0.5)]" :
+                                                        goal.priority === 'super' ? "bg-purple-600 animate-pulse shadow-[0_0_8px_rgba(147,51,234,0.5)]" :
                                                             goal.priority === 'high' ? "bg-red-500" :
                                                                 goal.priority === 'mid' ? "bg-amber-500" :
                                                                     "bg-black/20"
                                                     )} />
                                                     <p className={cn(
                                                         "text-[14px] font-bold uppercase tracking-tight",
-                                                        goal.priority === 'urgent' ? "text-purple-600" :
+                                                        goal.priority === 'super' ? "text-purple-600" :
                                                             goal.priority === 'high' ? "text-red-600" :
                                                                 goal.priority === 'mid' ? "text-amber-600" :
                                                                     "text-black"

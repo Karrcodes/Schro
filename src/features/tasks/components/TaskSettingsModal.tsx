@@ -241,14 +241,14 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                                                 <div className="space-y-2">
                                                     <label className="text-[10px] font-[900] text-neutral-400 uppercase tracking-[0.2em] ml-1">Intensity / Risk</label>
                                                     <div className="flex bg-white rounded-2xl border border-neutral-200 p-1.5 shadow-sm">
-                                                        {(['low', 'mid', 'high', 'urgent'] as const).map(p => (
+                                                        {(['low', 'mid', 'high', 'super'] as const).map(p => (
                                                             <button
                                                                 key={p}
                                                                 onClick={() => setEditingTemplate({ ...editingTemplate, priority: p })}
                                                                 className={cn(
                                                                     "flex-1 py-3 rounded-xl text-[11px] font-[900] uppercase tracking-wider transition-all",
                                                                     editingTemplate.priority === p
-                                                                        ? p === 'urgent' ? "bg-rose-600 text-white shadow-lg shadow-rose-200" :
+                                                                        ? p === 'super' ? "bg-rose-600 text-white shadow-lg shadow-rose-200" :
                                                                             p === 'high' ? "bg-orange-600 text-white shadow-lg shadow-orange-200" :
                                                                                 "bg-neutral-900 text-white shadow-lg"
                                                                         : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50"

@@ -12,14 +12,14 @@ export const CATEGORIES = [
 ] as const
 
 export const PRIORITIES = [
-    { id: 'urgent', label: 'Urgent', color: 'bg-purple-50 text-purple-600 border-purple-200', sort: 0 },
+    { id: 'super', label: 'Super', color: 'bg-purple-50 text-purple-600 border-purple-200', sort: 0 },
     { id: 'high', label: 'High', color: 'bg-red-50 text-red-600 border-red-200', sort: 1 },
     { id: 'mid', label: 'Mid', color: 'bg-yellow-50 text-yellow-600 border-yellow-200', sort: 2 },
     { id: 'low', label: 'Low', color: 'bg-black/5 text-black/60 border-black/10', sort: 3 }
 ] as const
 
 export const PRIORITY_MAP = {
-    urgent: PRIORITIES[0],
+    super: PRIORITIES[0],
     high: PRIORITIES[1],
     mid: PRIORITIES[2],
     low: PRIORITIES[3]

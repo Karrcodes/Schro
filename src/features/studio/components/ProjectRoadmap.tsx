@@ -30,7 +30,7 @@ export default function ProjectRoadmap({
     const [sortBy, setSortBy] = useState<'impact' | 'priority'>('impact')
 
     const filteredProjects = useMemo(() => {
-        const priorityOrder = { urgent: 0, high: 1, mid: 2, low: 3 }
+        const priorityOrder = { super: 0, high: 1, mid: 2, low: 3 }
 
         return projects
             .filter((p: StudioProject) => {
@@ -201,7 +201,7 @@ export default function ProjectRoadmap({
                                     {project.priority && (
                                         <span className={cn(
                                             "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest",
-                                            project.priority === 'urgent' ? "bg-purple-100 text-purple-700 animate-pulse" :
+                                            project.priority === 'super' ? "bg-purple-100 text-purple-700 animate-pulse" :
                                                 project.priority === 'high' ? "bg-orange-100 text-orange-700" :
                                                     "bg-black/5 text-black/40"
                                         )}>

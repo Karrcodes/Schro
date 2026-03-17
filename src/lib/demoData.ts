@@ -73,12 +73,12 @@ export const MOCK_BUSINESS = {
 export const MOCK_TASKS = {
     todo: [
         { id: 'd-t-1', title: 'Finalize Helios UI v1.2 Release Notes', priority: 'high', is_completed: false, due_date: new Date().toISOString().split('T')[0], strategic_category: 'career', profile: 'business' },
-        { id: 'd-t-2', title: 'Client Workshop: Vertex Brand Evolution', priority: 'urgent', is_completed: false, strategic_category: 'career', profile: 'business', start_time: '10:00', estimated_duration: 120 },
+        { id: 'd-t-2', title: 'Client Workshop: Vertex Brand Evolution', priority: 'super', is_completed: false, strategic_category: 'career', profile: 'business', start_time: '10:00', estimated_duration: 120 },
         { id: 'd-t-3', title: 'Monthly Revenue Audit & Forecasting', priority: 'high', is_completed: true, strategic_category: 'finance', profile: 'business' },
         { id: 'd-t-4', title: 'Source new high-fidelity audio gear for Studio', priority: 'mid', is_completed: false, strategic_category: 'career', profile: 'business' },
         { id: 'd-t-5', title: 'Quarterly Portfolio Refresh (Photography)', priority: 'mid', is_completed: false, strategic_category: 'career', profile: 'personal' },
         { id: 'd-t-6', title: 'Morning Run (Zone 2 - 45 mins)', priority: 'mid', is_completed: true, strategic_category: 'health', profile: 'personal' },
-        { id: 'd-t-7', title: 'Refactor Core Intelligence Context Builders', priority: 'urgent', is_completed: false, strategic_category: 'career', profile: 'business' },
+        { id: 'd-t-7', title: 'Refactor Core Intelligence Context Builders', priority: 'super', is_completed: false, strategic_category: 'career', profile: 'business' },
         { id: 'd-t-8', title: 'Prepare TechCrunch Disrupt Pitch Deck', priority: 'high', is_completed: false, strategic_category: 'career', profile: 'business' },
     ],
     grocery: [
@@ -89,7 +89,7 @@ export const MOCK_TASKS = {
         { id: 'd-g-5', title: 'Fresh Pasta', amount: 'x2', priority: 'mid', is_completed: false, profile: 'personal' },
     ],
     reminder: [
-        { id: 'd-r-1', title: 'Submit Self-Assessment Tax Return', priority: 'urgent', is_completed: false, due_date: '2026-01-31', profile: 'personal' },
+        { id: 'd-r-1', title: 'Submit Self-Assessment Tax Return', priority: 'super', is_completed: false, due_date: '2026-01-31', profile: 'personal' },
         { id: 'd-r-2', title: 'Renew Apartment Insurance', priority: 'high', is_completed: false, due_date: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0], profile: 'personal' },
         { id: 'd-r-3', title: 'Quarterly review with financial advisor', priority: 'mid', is_completed: false, profile: 'personal' },
     ]
@@ -124,7 +124,7 @@ export const MOCK_GOALS = [
         description: 'Save £50k for a first-time buyer deposit in South London.',
         category: 'finance',
         status: 'active',
-        priority: 'urgent',
+        priority: 'super',
         timeframe: 'long',
         vision_image_url: 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=800&q=80',
         target_date: '2027-12-31',

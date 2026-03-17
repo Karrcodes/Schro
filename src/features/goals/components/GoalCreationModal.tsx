@@ -28,7 +28,7 @@ const PRIORITIES: { value: GoalPriority; label: string }[] = [
     { value: 'low', label: 'Low' },
     { value: 'mid', label: 'Mid' },
     { value: 'high', label: 'High' },
-    { value: 'urgent', label: 'Urgent' },
+    { value: 'super', label: 'Super' },
 ]
 
 export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal }: GoalCreationModalProps) {
@@ -334,7 +334,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                                         className={cn(
                                                             "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
                                                             priority === p.value
-                                                                ? p.value === 'urgent' ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20" :
+                                                                ? p.value === 'super' ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20" :
                                                                     p.value === 'high' ? "bg-red-500 text-white shadow-lg shadow-red-500/20" :
                                                                         p.value === 'mid' ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" :
                                                                             "bg-black text-white shadow-sm"

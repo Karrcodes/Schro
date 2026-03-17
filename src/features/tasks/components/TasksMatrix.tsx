@@ -18,7 +18,7 @@ import ProjectDetailModal from '@/features/studio/components/ProjectDetailModal'
 import ContentDetailModal from '@/features/studio/components/ContentDetailModal'
 
 const PRIORITY_COLORS = {
-    urgent: 'bg-purple-600 shadow-purple-500/40 text-purple-50',
+    super: 'bg-purple-600 shadow-purple-500/40 text-purple-50',
     high: 'bg-red-500 shadow-red-500/40 text-red-50',
     mid: 'bg-amber-500 shadow-amber-500/40 text-amber-50',
     low: 'bg-neutral-800 shadow-black/40 text-neutral-50'
@@ -43,7 +43,7 @@ const ALL_CATEGORIES = [...PERSONAL_CATEGORIES, ...BUSINESS_CATEGORIES] as const
 
 const getPriorityFromImpact = (impactScore: number | undefined): string => {
     if (!impactScore) return 'low'
-    if (impactScore >= 9) return 'urgent'
+    if (impactScore >= 9) return 'super'
     if (impactScore >= 7) return 'high'
     if (impactScore >= 4) return 'mid'
     return 'low'
@@ -51,7 +51,7 @@ const getPriorityFromImpact = (impactScore: number | undefined): string => {
 
 const getPriorityY = (priority: string | undefined): number => {
     switch (priority) {
-        case 'urgent': return 12.5 // Vertical center of 0-25
+        case 'super': return 12.5 // Vertical center of 0-25
         case 'high': return 37.5   // Vertical center of 25-50
         case 'mid': return 62.5    // Vertical center of 50-75
         case 'low': default: return 87.5 // Vertical center of 75-100
@@ -59,21 +59,21 @@ const getPriorityY = (priority: string | undefined): number => {
 }
 
 const getPriorityFromY = (yPercent: number): string => {
-    if (yPercent < 25) return 'urgent'
+    if (yPercent < 25) return 'super'
     if (yPercent < 50) return 'high'
     if (yPercent < 75) return 'mid'
     return 'low'
 }
 
 const getImpactFromY = (yPercent: number): number => {
-    if (yPercent < 25) return 9 // Urgent
+    if (yPercent < 25) return 9 // Super
     if (yPercent < 50) return 7 // High
     if (yPercent < 75) return 4 // Mid
     return 1 // Low
 }
 
 const getImpactOpacity = (priority: string | undefined, impactScore: number | undefined): number => {
-    if (priority === 'urgent') return 1;
+    if (priority === 'super') return 1;
     // Map impact score (1-10) to opacity (0.4-1.0)
     const score = impactScore || 1;
     return 0.4 + (score / 10) * 0.6;
@@ -259,14 +259,14 @@ function ItemDot({
                 item.type === 'milestone' && "border-2",
                 finalPosition.density === 'full' ? cn(
                     "border items-center p-2 pr-4 h-auto min-h-[44px] rounded-xl",
-                    priority === 'urgent' ? "bg-purple-50/90 border-purple-200" :
+                    priority === 'super' ? "bg-purple-50/90 border-purple-200" :
                         priority === 'high' ? "bg-red-50/90 border-red-200" :
                             priority === 'mid' ? "bg-amber-50/90 border-amber-200" :
                                 "bg-black/[0.04] border-black/[0.05]"
                 ) :
                     finalPosition.density === 'compact' ? cn(
                         "border rounded-lg p-1.5 pr-3 h-6",
-                        priority === 'urgent' ? "bg-purple-50/90 border-purple-100" :
+                        priority === 'super' ? "bg-purple-50/90 border-purple-100" :
                             priority === 'high' ? "bg-red-50/90 border-red-100" :
                                 priority === 'mid' ? "bg-amber-50/90 border-amber-100" :
                                     "bg-black/[0.04] border-black/[0.05]"

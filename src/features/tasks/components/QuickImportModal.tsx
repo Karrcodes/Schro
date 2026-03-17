@@ -12,7 +12,7 @@ import { aiService, ExtractedTask } from '../services/aiService'
 interface ParsedTask {
     id: string
     title: string
-    priority?: 'urgent' | 'high' | 'mid' | 'low'
+    priority?: 'super' | 'high' | 'mid' | 'low'
     notes?: string
     selected: boolean
 }

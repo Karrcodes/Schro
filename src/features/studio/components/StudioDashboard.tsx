@@ -364,9 +364,9 @@ export default function StudioDashboard() {
 
                                                 </div>
                                                 <div className="flex flex-col items-end gap-1.5 shrink-0">
-                                                    {(item.priority === 'urgent' || item.priority === 'high') && (
-                                                        <div className="flex items-center gap-0.5">
-                                                            <Zap className={cn("w-3 h-3", item.priority === 'urgent' ? "text-red-500 fill-red-500" : "text-orange-500 fill-orange-500")} />
+                                                    {(item.priority === 'super' || item.priority === 'high') && (
+                                                        <div className="flex items-center gap-1">
+                                                            <Zap className={cn("w-3 h-3", item.priority === 'super' ? "text-red-500 fill-red-500" : "text-orange-500 fill-orange-500")} />
                                                         </div>
                                                     )}
                                                 </div>

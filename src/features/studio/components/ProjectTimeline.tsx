@@ -144,7 +144,7 @@ export default function ProjectTimeline({
                                                 )}
                                                 <div className={cn(
                                                     "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider",
-                                                    project.priority === 'urgent' ? "bg-purple-600/10 text-purple-600 animate-pulse" :
+                                                    project.priority === 'super' ? "bg-purple-600/10 text-purple-600 animate-pulse" :
                                                         project.priority === 'high' ? "bg-red-500/10 text-red-600" :
                                                             project.priority === 'mid' ? "bg-amber-500/10 text-amber-600" :
                                                                 "bg-black/[0.04] text-black/30"

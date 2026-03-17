@@ -19,7 +19,7 @@ export function TasksCalendar() {
     const [isEditing, setIsEditing] = useState(false)
     const [editedTitle, setEditedTitle] = useState('')
     const [editedDate, setEditedDate] = useState('')
-    const [editedPriority, setEditedPriority] = useState<'urgent' | 'high' | 'mid' | 'low'>('mid')
+    const [editedPriority, setEditedPriority] = useState<'super' | 'high' | 'mid' | 'low'>('mid')
     const [quickAddTitle, setQuickAddTitle] = useState('')
     const { createTask, editTask, deleteTask } = useTasks('todo')
 
@@ -314,9 +314,9 @@ export function TasksCalendar() {
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-black/30 uppercase tracking-widest pl-1">Priority</label>
                                             <div className="flex gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5">
-                                                {(['urgent', 'high', 'mid', 'low'] as const).map(p => {
-                                                    const COLORS: Record<string, string> = { urgent: 'bg-purple-100 text-purple-700 border-purple-200', high: 'bg-red-100 text-red-700 border-red-200', mid: 'bg-blue-100 text-blue-700 border-blue-200', low: 'bg-black/5 text-black/50 border-black/10' }
-                                                    const LABELS: Record<string, string> = { urgent: 'Urgent', high: 'High', mid: 'Mid', low: 'Low' }
+                                                {(['super', 'high', 'mid', 'low'] as const).map(p => {
+                                                    const COLORS: Record<string, string> = { super: 'bg-purple-100 text-purple-700 border-purple-200', high: 'bg-red-100 text-red-700 border-red-200', mid: 'bg-blue-100 text-blue-700 border-blue-200', low: 'bg-black/5 text-black/50 border-black/10' }
+                                                    const LABELS: Record<string, string> = { super: 'Super', high: 'High', mid: 'Mid', low: 'Low' }
                                                     return (
                                                         <button
                                                             key={p}

@@ -20,7 +20,7 @@ export async function POST(req: Request) {
             systemInstruction: `You are an AI assistant in Schrö, a powerful life management system.
 Your job is to classify the priority of a new task the user is creating.
 The priority levels are:
-- 'urgent': Critical, urgent, blocker. Must be done immediately.
+- 'super': Critical, urgent, blocker. Must be done immediately.
 - 'high': Important, should be done soon.
 - 'mid': Standard task, neither urgent nor trivial.
 - 'low': Backlog, trivial, "nice to have" when time permits.
