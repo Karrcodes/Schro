@@ -8,24 +8,28 @@ import {
     Plus, Search, Filter, Calendar, CheckSquare,
     Clock, AlertCircle, Trash2, ChevronRight, ChevronDown,
     MoreVertical, Edit2, Briefcase, User, Zap, Car, MapPin,
-    ArrowRight, Info, Check, X, Settings2, Sparkles, BarChart2,
+    ArrowRight, Info, Check, X, Settings2, Sparkles, BarChart2, Minus,
     Target, ShoppingCart, Bell, LayoutGrid, LayoutList, GripVertical, Activity, ChevronUp, RefreshCw, Rocket, Video, Type, List, ListChecks, Wallet, Heart, Star, Save,
-    Beaker, Factory, Tv, TrendingUp, Shield
+    Beaker, Factory, Tv, TrendingUp, Shield, Camera, Upload, Library, Receipt, Wand2
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTasksProfile } from '../contexts/TasksProfileContext'
 import { useTasks } from '../hooks/useTasks'
+import { useGroceryLibrary } from '../hooks/useGroceryLibrary'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
-import type { Task, TaskTemplate, Category, Priority, StrategicCategory, RecurrenceMode } from '../types/tasks.types'
+import type { Task, TaskTemplate, Category, Priority, StrategicCategory, RecurrenceMode, GroceryLibraryItem } from '../types/tasks.types'
 import { TaskDetailModal } from './TaskDetailModal'
 import { TaskSettingsModal } from './TaskSettingsModal'
+import { GroceryLibraryModal } from './GroceryLibraryModal'
 import { CATEGORIES, PRIORITIES, STRATEGIC_CATEGORIES, PRIORITY_MAP } from '../constants/tasks.constants'
 import { getNextOffPeriod, isShiftDay } from '@/features/finance/utils/rotaUtils'
 import { useStudio } from '@/features/studio/hooks/useStudio'
 import type { StudioMilestone } from '@/features/studio/types/studio.types'
 import ProjectDetailModal from '@/features/studio/components/ProjectDetailModal'
 import ContentDetailModal from '@/features/studio/components/ContentDetailModal'
+import { QuickImportModal } from './QuickImportModal'
+import { aiService } from '../services/aiService'
 
 const PERSONAL_CATEGORIES = STRATEGIC_CATEGORIES.personal
 const BUSINESS_CATEGORIES = STRATEGIC_CATEGORIES.business
@@ -34,8 +38,9 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const { activeProfile } = useTasksProfile()
     const strategicCategories = activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES
 
-    const { tasks, loading: tasksLoading, createTask, toggleTask, deleteTask, clearAllTasks, clearCompletedTasks, editTask, updateTaskPositions } = useTasks(category)
+    const { tasks, loading: tasksLoading, createTask, createTasks, toggleTask, deleteTask, clearAllTasks, clearCompletedTasks, editTask, updateTaskPositions } = useTasks(category)
     const { milestones, projects, content, updateMilestone, loading: studioLoading } = useStudio()
+    const { library, loading: libraryLoading, processReceipt, getSuggestions, saveToLibrary } = useGroceryLibrary()
     const loading = tasksLoading || studioLoading
 
     // State Declarations
@@ -57,15 +62,12 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [editValue, setEditValue] = useState("")
     const [editPriority, setEditPriority] = useState<Priority>("urgent")
     const [showCompleted, setShowCompleted] = useState(false)
-    const [sortBy, setSortBy] = useState<'manual' | 'priority' | 'impact' | 'duration' | 'deadline' | 'date'>('manual')
+    const [sortBy, setSortBy] = useState<'manual' | 'priority' | 'impact' | 'duration' | 'deadline' | 'date'>(category === 'grocery' ? 'priority' : 'manual')
     const [draggedItem, setDraggedItem] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
     const [activeFilter, setActiveFilter] = useState<string>('all')
     const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
 
-    const [isCalculatingTravel, setIsCalculatingTravel] = useState(false)
-    const [startFromMode, setStartFromMode] = useState<'home' | 'other'>('home')
-    const [travelMode, setTravelMode] = useState<'none' | 'walking' | 'transit' | 'uber'>(category === 'todo' ? 'none' : 'walking')
     const [showSettings, setShowSettings] = useState(false)
     const [templates, setTemplates] = useState<TaskTemplate[]>([])
     const [selectedProjectForModal, setSelectedProjectForModal] = useState<any>(null)
@@ -85,11 +87,6 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [showCreateNotes, setShowCreateNotes] = useState(false)
     const [createNotesType, setCreateNotesType] = useState<'text' | 'bullets' | 'checklist'>('text')
     const [createNotesContent, setCreateNotesContent] = useState<any>('')
-    const [isAppointment, setIsAppointment] = useState(false)
-    const [appointmentTime, setAppointmentTime] = useState('09:00')
-    const [isLocationActive, setIsLocationActive] = useState(false)
-    const [destination, setDestination] = useState('')
-    const [startFrom, setStartFrom] = useState('7 ruby street cardiff CF24 1LP')
     const [showAllFields, setShowAllFields] = useState(false)
     const [newCreateChecklistItem, setNewCreateChecklistItem] = useState('')
     const [selectedStrategicCategory, setSelectedStrategicCategory] = useState<'all' | string>('all')
@@ -97,7 +94,31 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [linkType, setLinkType] = useState<'none' | 'project' | 'content'>('none')
     const [newProjectId, setNewProjectId] = useState<string | undefined>(undefined)
     const [newContentId, setNewContentId] = useState<string | undefined>(undefined)
-    const [estimatedDuration, setEstimatedDuration] = useState('30')
+    const [price, setPrice] = useState<number | undefined>(undefined)
+    const [impactScore, setImpactScore] = useState('5')
+    const [selectedLibraryItem, setSelectedLibraryItem] = useState<GroceryLibraryItem | null>(null)
+    const [isUploadingReceipt, setIsUploadingReceipt] = useState(false)
+    const [showLibrarySuggestions, setShowLibrarySuggestions] = useState(false)
+    const [suggestions, setSuggestions] = useState<GroceryLibraryItem[]>([])
+    const [showLibraryModal, setShowLibraryModal] = useState(false)
+    const [showUploadSuccess, setShowUploadSuccess] = useState(false)
+    const [showDateSettings, setShowDateSettings] = useState(false)
+    const [showQuickImport, setShowQuickImport] = useState(false)
+    const [pendingGroceryItems, setPendingGroceryItems] = useState<{
+        title: string, 
+        amount: string, 
+        price?: number,
+        selectedLibraryItem?: GroceryLibraryItem
+    }[]>([])
+
+    const groceryTotal = useMemo(() => {
+        if (category !== 'grocery') return 0
+        return tasks.reduce((sum, task) => {
+            const qtyStr = task.amount ? task.amount.replace('x', '') : '1'
+            const qty = parseInt(qtyStr) || 1
+            return sum + (task.price || 0) * qty
+        }, 0)
+    }, [tasks, category])
 
     const scrollContainerRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -166,14 +187,6 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             return next
         })
     }
-    const [travelDuration, setTravelDuration] = useState(category === 'todo' ? '0' : '15')
-    const [impactScore, setImpactScore] = useState('5')
-    const [locationSuggestions, setLocationSuggestions] = useState<{ display_name: string, name: string, place_id: string }[]>([])
-    const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
-    const locationSuggestionsRef = useRef<HTMLDivElement>(null)
-    const autocompleteService = useRef<any>(null)
-    const sessionToken = useRef<any>(null)
-
     // Confirmation Modal States
     const [confirmModal, setConfirmModal] = useState<{
         open: boolean;
@@ -308,211 +321,86 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         return () => clearTimeout(timeout)
     }, [newTask, priority, category, tasks])
 
-    useEffect(() => {
-        // Load Google Maps Script if not present
-        if (typeof window !== 'undefined' && !(window as any).google && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-            const script = document.createElement('script')
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`
-            script.async = true
-            script.defer = true
-            document.head.appendChild(script)
-        }
-    }, [])
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (locationSuggestionsRef.current && !locationSuggestionsRef.current.contains(event.target as Node)) {
-                setShowLocationSuggestions(false)
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
-
-    useEffect(() => {
-        if (!isLocationActive || !destination || destination.length < 3) {
-            setLocationSuggestions([])
-            setShowLocationSuggestions(false)
-            return
-        }
-
-        const timer = setTimeout(async () => {
-            if (typeof window !== 'undefined' && (window as any).google) {
-                if (!autocompleteService.current) {
-                    autocompleteService.current = new (window as any).google.maps.places.AutocompleteService()
-                }
-                if (!sessionToken.current) {
-                    sessionToken.current = new (window as any).google.maps.places.AutocompleteSessionToken()
-                }
-
-                autocompleteService.current.getPlacePredictions(
-                    {
-                        input: destination,
-                        sessionToken: sessionToken.current,
-                        componentRestrictions: { country: 'gb' },
-                        locationBias: { radius: 10000, center: { lat: 51.4816, lng: -3.1791 } }
-                    },
-                    (predictions: any, status: any) => {
-                        if (status === 'OK' && predictions) {
-                            setLocationSuggestions(predictions.map((p: any) => ({
-                                display_name: p.description,
-                                name: p.structured_formatting.main_text,
-                                place_id: p.place_id
-                            })))
-                            setShowLocationSuggestions(true)
-                        }
-                    }
-                )
-                return
-            }
-
-            try {
-                // Focus search on Cardiff/UK for better relevance
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(destination)}&limit=10&addressdetails=1&countrycodes=gb&viewbox=-3.3,51.55,-3.0,51.4&bounded=0`)
-                if (res.ok) {
-                    const data = await res.json()
-                    setLocationSuggestions(data.map((item: any) => ({
-                        display_name: item.display_name,
-                        name: item.name || item.display_name.split(',')[0],
-                        place_id: item.place_id
-                    })))
-                    setShowLocationSuggestions(true)
-                }
-            } catch (e) {
-                console.error('Location search failed', e)
-            }
-        }, 300)
-
-        return () => clearTimeout(timer)
-    }, [destination, isLocationActive])
-
-    const calculateTravelTime = async () => {
-        if (!destination.trim()) return
-        setIsCalculatingTravel(true)
-        try {
-            // If we have Google Maps loaded, we can use Distance Matrix
-            if (typeof window !== 'undefined' && (window as any).google) {
-                const service = new (window as any).google.maps.DistanceMatrixService()
-                const origin = startFrom || '7 Ruby Street, Cardiff, CF24 1LP'
-
-                const gmTravelMode = travelMode === 'walking'
-                    ? (window as any).google.maps.TravelMode.WALKING
-                    : travelMode === 'transit'
-                        ? (window as any).google.maps.TravelMode.TRANSIT
-                        : (window as any).google.maps.TravelMode.DRIVING
-
-                const request: any = {
-                    origins: [origin],
-                    destinations: [destination],
-                    travelMode: gmTravelMode,
-                }
-
-                if (travelMode === 'transit') {
-                    // Transit queries require a departure time
-                    request.transitOptions = { departureTime: new Date() }
-                }
-
-                const response: any = await new Promise((resolve, reject) => {
-                    service.getDistanceMatrix(
-                        request,
-                        (res: any, status: any) => {
-                            if (status === 'OK') resolve(res)
-                            else reject(status)
-                        }
-                    )
-                })
-
-                if (response.rows[0].elements[0].status === 'OK') {
-                    const rawMins = Math.round(response.rows[0].elements[0].duration.value / 60)
-                    // Round to nearest 15 to match the select dropdown options
-                    const rounded = Math.max(15, Math.round(rawMins / 15) * 15)
-                    setTravelDuration(rounded.toString())
-                    setIsCalculatingTravel(false)
-                    return
-                }
-            }
-
-            // High-quality Heuristic Fallback
-            let duration = 15;
-            const lowerDest = destination.toLowerCase();
-
-            // Base driving times
-            if (lowerDest.includes('london') || lowerDest.includes('manchester')) duration = 180;
-            else if (lowerDest.includes('bristol') || lowerDest.includes('bath')) duration = 60;
-            else if (lowerDest.includes('swansea') || lowerDest.includes('newport')) duration = 45;
-            else if (lowerDest.includes('cardiff')) duration = 20;
-
-            // Apply mode multipliers
-            if (travelMode === 'walking') duration = Math.round(duration * 4.5);
-            else if (travelMode === 'transit') duration = Math.round(duration * 1.5);
-
-            const [hours, mins] = appointmentTime.split(':').map(Number);
-            const totalMins = hours * 60 + mins;
-            const morningPeak = totalMins >= 450 && totalMins <= 570;
-            const eveningPeak = totalMins >= 990 && totalMins <= 1110;
-            if (morningPeak || eveningPeak) duration = Math.round(duration * 1.3);
-
-            // Round heuristic to nearest 15 too
-            const roundedDuration = Math.max(15, Math.round(duration / 15) * 15)
-            await new Promise(r => setTimeout(r, 600));
-            setTravelDuration(roundedDuration.toString());
-        } catch (err) {
-            console.error('Travel calculation failed', err)
-            setTravelDuration('30')
-        } finally {
-            setIsCalculatingTravel(false)
-        }
-    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!newTask.trim()) return
+        const isGrocery = (category as string) === 'grocery'
+        if (isGrocery && newTask.trim()) {
+            // Logic to add to pending list instead of final submission
+            setPendingGroceryItems(prev => [...prev, {
+                title: newTask.trim(),
+                amount: amount.startsWith('x') ? amount : `x${amount}`,
+                price: price,
+                selectedLibraryItem: selectedLibraryItem || undefined
+            }])
+            setNewTask('')
+            setAmount('1')
+            setPrice(undefined)
+            setSelectedLibraryItem(null)
+            setShowAllFields(true)
+            return
+        }
+
+        // Preparation for multiple additions if grocery (if it reached here, newTask is empty or it's not a grocery)
+        let itemsToCreate: Partial<Task>[] = []
+        
+        if (isGrocery) {
+            // First, take current pending items
+            itemsToCreate = pendingGroceryItems.map(item => ({
+                title: item.title,
+                amount: item.amount,
+                priority: priority,
+                price: item.price
+            }))
+        } else {
+            if (!newTask.trim()) return
+            // Non-grocery items use the standard single creation path
+            // to preserve complex field mapping (studio, locations, etc)
+        }
 
         try {
-            let finalTitle = newTask.trim()
-            let finalAmount = amount.trim()
-            if ((category as string) === 'grocery' && finalAmount && !finalAmount.startsWith('x')) {
-                finalAmount = `x${finalAmount}`
+            if (isGrocery) {
+                if (itemsToCreate.length === 0) return
+                await createTasks(itemsToCreate)
+                setPendingGroceryItems([])
+            } else {
+                let finalTitle = newTask.trim()
+                let finalAmount = amount.trim()
+                
+                // Default logic for unlinked business tasks
+                let finalCategory = newStrategicCategory
+                let finalPriority = priority
+                let finalImpact = impactScore ? parseInt(impactScore) : undefined
+
+                if (activeProfile === 'business' && linkType === 'none') {
+                    if (!finalCategory) finalCategory = 'general'
+                    if (finalPriority === 'low') finalPriority = 'mid'
+                    if (!impactScore || impactScore === '5') finalImpact = 2
+                }
+
+                await createTask({
+                    title: finalTitle,
+                    priority: finalPriority,
+                    due_date: dueDateMode !== 'none' && dueDateMode !== 'recurring' ? dueDate || undefined : undefined,
+                    due_date_mode: dueDateMode !== 'none' && dueDateMode !== 'recurring' ? (dueDateMode as 'on' | 'before' | 'range') : undefined,
+                    end_date: endDate || undefined,
+                    recurrence_config: dueDateMode === 'recurring' ? {
+                        type: recurringType,
+                        time: recurringTime || undefined,
+                        duration_minutes: recurringDuration ? parseInt(recurringDuration) : undefined,
+                        days_of_week: recurringType === 'custom' ? recurringDays : undefined
+                    } : null,
+                    notes: showCreateNotes ? { type: createNotesType, content: createNotesContent } : undefined,
+                    strategic_category: finalCategory as any,
+                    impact_score: finalImpact,
+                    project_id: linkType === 'project' ? newProjectId : undefined,
+                    content_id: linkType === 'content' ? newContentId : undefined,
+                    price: price
+                })
             }
 
-            // Default logic for unlinked business tasks
-            let finalCategory = newStrategicCategory
-            let finalPriority = priority
-            let finalImpact = impactScore ? parseInt(impactScore) : undefined
-
-            if (activeProfile === 'business' && linkType === 'none') {
-                if (!finalCategory) finalCategory = 'general'
-                if (finalPriority === 'low') finalPriority = 'mid' // default to mid if not changed from low
-                if (!impactScore || impactScore === '5') finalImpact = 2 // default to 2 if not changed
-            }
-
-            const isGrocery = (category as string) === 'grocery'
-
-            await createTask({
-                title: finalTitle,
-                priority: finalPriority,
-                due_date: !isGrocery && dueDateMode !== 'none' && dueDateMode !== 'recurring' ? dueDate || undefined : undefined,
-                amount: isGrocery ? finalAmount : undefined,
-                due_date_mode: !isGrocery && dueDateMode !== 'none' && dueDateMode !== 'recurring' ? (dueDateMode as 'on' | 'before' | 'range') : undefined,
-                end_date: !isGrocery ? endDate || undefined : undefined,
-                recurrence_config: !isGrocery && dueDateMode === 'recurring' ? {
-                    type: recurringType,
-                    time: recurringTime || undefined,
-                    duration_minutes: recurringDuration ? parseInt(recurringDuration) : undefined,
-                    days_of_week: recurringType === 'custom' ? recurringDays : undefined
-                } : null,
-                notes: showCreateNotes ? { type: createNotesType, content: createNotesContent } : undefined,
-                strategic_category: isGrocery ? undefined : finalCategory as any,
-                estimated_duration: isGrocery ? undefined : (estimatedDuration ? parseInt(estimatedDuration) : undefined),
-                impact_score: isGrocery ? undefined : finalImpact,
-                travel_to_duration: isGrocery ? undefined : parseInt(travelDuration),
-                travel_from_duration: isGrocery ? undefined : parseInt(travelDuration),
-                start_time: !isGrocery && isAppointment ? appointmentTime : undefined,
-                location: !isGrocery && isLocationActive ? destination : undefined,
-                origin_location: !isGrocery && isLocationActive ? startFrom : undefined,
-                project_id: !isGrocery && linkType === 'project' ? newProjectId : undefined,
-                content_id: !isGrocery && linkType === 'content' ? newContentId : undefined
-            })
+            // Global reset for all types
             setNewTask('')
             setAmount('1')
             setPriority('low')
@@ -523,8 +411,6 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             setRecurringTime('')
             setRecurringDuration('60')
             setRecurringDays([])
-            setEstimatedDuration('30')
-            setTravelDuration(category === 'todo' ? '0' : '15')
             setImpactScore('5')
             setShowAllFields(false)
             setShowCreateNotes(false)
@@ -534,6 +420,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             setLinkType('none')
             setNewProjectId(undefined)
             setNewContentId(undefined)
+            setPrice(undefined)
+            setSelectedLibraryItem(null)
         } catch (err: any) {
             console.error('Operation creation failed:', err)
             alert(err.message || 'Failed to create operation. Please check your connection.')
@@ -585,6 +473,13 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 setTimeout(() => setShowUndo(false), 5000)
             }
         })
+    }
+
+    const handleDeleteQuick = async (task: Task) => {
+        setLastDeletedTask(task)
+        setShowUndo(true)
+        await deleteTask(task.id)
+        setTimeout(() => setShowUndo(false), 5000)
     }
 
     const handleUndo = async () => {
@@ -730,6 +625,22 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         }
     })
 
+    const handleQuickImport = async (tasks: { title: string, priority: string, notes?: string }[]) => {
+        try {
+            await createTasks(tasks.map(t => ({
+                title: t.title,
+                priority: t.priority as Priority,
+                strategic_category: (newStrategicCategory || (activeProfile === 'personal' ? 'personal' : 'work')) as StrategicCategory,
+                due_date_mode: 'none' as any,
+                profile: activeProfile,
+                notes: t.notes ? { type: 'text', content: t.notes } : undefined
+            })))
+        } catch (err) {
+            console.error('Failed to import tasks:', err)
+            throw err
+        }
+    }
+
     return (
         <div className="bg-white rounded-xl border border-black/[0.08] p-4 sm:p-5 shadow-sm flex flex-col min-h-[500px] relative">
             {/* Confirmation Modal */}
@@ -811,39 +722,46 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             {/* Strategic Category Filter & Sort */}
             <div className="flex flex-col gap-2 mb-4">
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 pr-2">
-                    <div className="flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest text-black/30 border-r border-black/5 mr-1 shrink-0">
-                        <Filter className="w-3 h-3" />
-                        Filter
-                    </div>
-                    <button
-                        onClick={() => setSelectedStrategicCategory('all')}
-                        className={cn(
-                            "whitespace-nowrap px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border shrink-0",
-                            selectedStrategicCategory === 'all'
-                                ? "bg-black text-white border-black shadow-sm"
-                                : "bg-black/[0.03] text-black/40 border-transparent hover:bg-black/5"
-                        )}
-                    >
-                        <LayoutGrid className="w-3 h-3 inline-block mr-1.5 -mt-0.5" />
-                        All
-                    </button>
-                    {strategicCategories.map((cat) => (
-                        <button
-                            key={cat.id}
-                            onClick={() => setSelectedStrategicCategory(cat.id)}
-                            className={cn(
-                                "whitespace-nowrap px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border shrink-0 flex items-center gap-1.5",
-                                selectedStrategicCategory === cat.id
-                                    ? "bg-black text-white border-black shadow-sm"
-                                    : "bg-black/[0.03] text-black/40 border-transparent hover:bg-black/5"
-                            )}
-                        >
-                            <cat.icon className={cn("w-3 h-3", selectedStrategicCategory === cat.id ? "text-white" : "text-black/30")} />
-                            {cat.label}
-                        </button>
-                    ))}
+                    {category !== 'grocery' && (
+                        <>
+                            <div className="flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest text-black/30 border-r border-black/5 mr-1 shrink-0">
+                                <Filter className="w-3 h-3" />
+                                Filter
+                            </div>
+                            <button
+                                onClick={() => setSelectedStrategicCategory('all')}
+                                className={cn(
+                                    "whitespace-nowrap px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border shrink-0",
+                                    selectedStrategicCategory === 'all'
+                                        ? "bg-black text-white border-black shadow-sm"
+                                        : "bg-black/[0.03] text-black/40 border-transparent hover:bg-black/5"
+                                )}
+                            >
+                                <LayoutGrid className="w-3 h-3 inline-block mr-1.5 -mt-0.5" />
+                                All
+                            </button>
+                            {strategicCategories.map((cat) => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setSelectedStrategicCategory(cat.id)}
+                                    className={cn(
+                                        "whitespace-nowrap px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border shrink-0 flex items-center gap-1.5",
+                                        selectedStrategicCategory === cat.id
+                                            ? "bg-black text-white border-black shadow-sm"
+                                            : "bg-black/[0.03] text-black/40 border-transparent hover:bg-black/5"
+                                    )}
+                                >
+                                    <cat.icon className={cn("w-3 h-3", selectedStrategicCategory === cat.id ? "text-white" : "text-black/30")} />
+                                    {cat.label}
+                                </button>
+                            ))}
+                        </>
+                    )}
 
-                    <div className="flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest text-black/30 border-l border-black/5 ml-1 pl-3 shrink-0">
+                    <div className={cn(
+                        "flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest text-black/30 shrink-0",
+                        category !== 'grocery' && "border-l border-black/5 ml-1 pl-3"
+                    )}>
                         <ListChecks className="w-3 h-3" />
                         Sort
                     </div>
@@ -858,13 +776,53 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         >
                             <option value="manual">Manual</option>
                             <option value="priority">Priority</option>
-                            <option value="impact">Impact</option>
-                            <option value="duration">Duration</option>
-                            <option value="deadline">Deadline</option>
-                            <option value="date">Date Added</option>
+                            {category !== 'grocery' && (
+                                <>
+                                    <option value="impact">Impact</option>
+                                    <option value="duration">Duration</option>
+                                    <option value="deadline">Deadline</option>
+                                    <option value="date">Date Added</option>
+                                </>
+                            )}
                         </select>
                         <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-black/40" />
                     </div>
+                    {category === 'grocery' && (
+                        <div className="flex items-center gap-3 ml-auto animate-in fade-in slide-in-from-right-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowLibraryModal(true)}
+                                className="h-8 px-3 rounded-lg bg-black/[0.03] hover:bg-black/[0.08] text-black/60 hover:text-black text-[10px] font-bold uppercase tracking-widest transition-all border border-black/5 flex items-center gap-2"
+                            >
+                                <Library className="w-3 h-3" />
+                                Library
+                            </button>
+                            <div className="flex flex-col items-end">
+                                <span className="text-[9px] font-bold text-black/20 uppercase tracking-widest">Cart Total</span>
+                                <span className="text-[13px] font-black text-emerald-600">£{groceryTotal.toFixed(2)}</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setConfirmModal({
+                                        open: true,
+                                        title: 'Finish Shopping?',
+                                        message: 'This will clear all completed items from your grocery list. Are you sure?',
+                                        confirmText: 'Yes, Shop Completed',
+                                        type: 'info',
+                                        action: async () => {
+                                            await clearCompletedTasks()
+                                            setConfirmModal(prev => ({ ...prev, open: false }))
+                                        }
+                                    })
+                                }}
+                                className="h-8 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-widest transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+                            >
+                                <Check className="w-3 h-3" />
+                                Shop Completed
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -882,31 +840,153 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
             <form onSubmit={handleSubmit} className="mb-5 flex flex-col gap-2">
                 <div className="flex gap-1.5 sm:gap-2">
-                    {/* Amount hidden for groceries as per "ONLY priority and notes" rule */}
-                    {false && category === 'grocery' && (
+                    {category === 'grocery' && (
+                        <div className="flex items-center gap-1 bg-black/[0.03] border border-black/[0.08] rounded-xl px-1 shrink-0 h-11">
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                    const current = parseInt(amount.replace(/\D/g, '')) || 1
+                                    if (current > 1) setAmount(`${current - 1}`)
+                                }}
+                                className="w-7 h-7 flex items-center justify-center text-black/40 hover:text-black rounded-lg transition-colors"
+                            >
+                                <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-7 text-center text-[13px] font-black text-black">x{amount || '1'}</span>
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                    const current = parseInt(amount.replace(/\D/g, '')) || 1
+                                    setAmount(`${current + 1}`)
+                                }}
+                                className="w-7 h-7 flex items-center justify-center text-black/40 hover:text-black rounded-lg transition-colors"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                            </button>
+                            <div className="w-[1px] h-4 bg-black/[0.08] mx-0.5" />
+                            <div className="flex items-center gap-1 pl-1 pr-2">
+                                <span className="text-[10px] font-black text-black/30">£</span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={price || ''}
+                                    onChange={(e) => setPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                    className="w-12 bg-transparent text-[13px] font-black text-black placeholder-black/20 outline-none"
+                                />
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex-1 relative">
                         <input
                             type="text"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            placeholder="x1"
-                            className="w-12 sm:w-16 bg-black/[0.03] border border-black/[0.08] rounded-xl px-1 sm:px-2 py-2.5 text-[13px] text-center text-black placeholder-black/30 outline-none focus:border-black/40 transition-colors shrink-0"
+                            value={newTask}
+                            onFocus={() => setShowAllFields(true)}
+                            onClick={() => setShowAllFields(true)}
+                            onChange={(e) => {
+                                setNewTask(e.target.value)
+                                if (category === 'grocery') {
+                                    const sugs = getSuggestions(e.target.value)
+                                    setSuggestions(sugs)
+                                    setShowLibrarySuggestions(sugs.length > 0)
+                                }
+                            }}
+                            placeholder={`Add new ${category === 'todo' ? 'operation' : 'item'}...`}
+                            className="w-full bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 sm:px-4 py-2.5 text-[13px] text-black placeholder-black/30 outline-none focus:border-black/40 transition-colors"
                         />
+                        {category === 'grocery' && showLibrarySuggestions && suggestions.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-black/10 rounded-xl shadow-xl z-[100] max-h-[200px] overflow-y-auto no-scrollbar overflow-hidden">
+                                {suggestions.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setNewTask(item.name)
+                                            setPrice(item.price)
+                                            setSelectedLibraryItem(item)
+                                            setShowLibrarySuggestions(false)
+                                        }}
+                                        className="w-full text-left px-4 py-2.5 hover:bg-black/5 transition-all border-b border-black/[0.03] last:border-0 flex items-center justify-between group"
+                                    >
+                                        <div className="flex flex-col">
+                                            <span className="text-[12px] font-bold text-black group-hover:text-emerald-600 transition-colors">{item.name}</span>
+                                            <span className="text-[10px] text-black/30 uppercase tracking-tighter">{item.store}</span>
+                                        </div>
+                                        <span className="text-[12px] font-black text-black/40">£{item.price.toFixed(2)}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    {category === 'grocery' && (
+                        <>
+                            <input
+                                type="file"
+                                id="receipt-upload"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) {
+                                        setIsUploadingReceipt(true)
+                                        try {
+                                            await processReceipt(file)
+                                            setShowUploadSuccess(true)
+                                            setTimeout(() => setShowUploadSuccess(false), 3000)
+                                        } finally {
+                                            setIsUploadingReceipt(false)
+                                        }
+                                    }
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => document.getElementById('receipt-upload')?.click()}
+                                disabled={isUploadingReceipt || libraryLoading}
+                                className={cn(
+                                    "w-11 h-11 rounded-xl flex items-center justify-center transition-all bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100",
+                                    (isUploadingReceipt || libraryLoading) && "animate-pulse opacity-50",
+                                    showUploadSuccess && "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20"
+                                )}
+                            >
+                                {isUploadingReceipt || libraryLoading ? (
+                                    <RefreshCw className="w-5 h-5 animate-spin" />
+                                ) : showUploadSuccess ? (
+                                    <Check className="w-5 h-5" />
+                                ) : (
+                                    <Receipt className="w-5 h-5" />
+                                )}
+                            </button>
+                        </>
                     )}
-                    <input
-                        type="text"
-                        value={newTask}
-                        onFocus={() => setShowAllFields(true)}
-                        onClick={() => setShowAllFields(true)}
-                        onChange={(e) => setNewTask(e.target.value)}
-                        placeholder={`Add new ${category === 'todo' ? 'operation' : 'item'}...`}
-                        className="flex-1 min-w-0 bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 sm:px-4 py-2.5 text-[13px] text-black placeholder-black/30 outline-none focus:border-black/40 transition-colors"
-                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowQuickImport(true)}
+                        className={cn(
+                            "w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-sm shrink-0 group relative overflow-hidden border",
+                            category === 'grocery' 
+                                ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100" 
+                                : "bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-100"
+                        )}
+                        title="Magic Import"
+                    >
+                        <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Wand2 className="w-5 h-5 relative z-10 group-hover:rotate-12 transition-transform duration-300" />
+                        <Sparkles className={cn(
+                            "w-2.5 h-2.5 absolute top-2 right-2 animate-pulse pointer-events-none transition-colors",
+                            category === 'grocery' ? "text-emerald-400" : "text-purple-400"
+                        )} />
+                    </button>
                     <button
                         type="submit"
-                        disabled={!newTask.trim() || loading}
+                        disabled={(category !== 'grocery' && !newTask.trim()) || (category === 'grocery' && !newTask.trim() && pendingGroceryItems.length === 0) || loading}
                         className="w-11 h-11 rounded-xl bg-black flex items-center justify-center text-white hover:bg-neutral-800 transition-all shrink-0 disabled:opacity-50 shadow-sm"
                     >
-                        <Plus className="w-5 h-5" />
+                        {category === 'grocery' && !newTask.trim() && pendingGroceryItems.length > 0 ? (
+                            <Check className="w-5 h-5 text-emerald-400" />
+                        ) : (
+                            <Plus className="w-5 h-5" />
+                        )}
                     </button>
                     {(newTask.trim().length > 0 || dueDateMode !== 'none') && (
                         <button
@@ -922,7 +1002,6 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 setRecurringTime('')
                                 setRecurringDuration('60')
                                 setRecurringDays([])
-                                setTravelDuration('0') // Clear single travelDuration
                                 setShowSuggestions(false)
                                 setShowAllFields(false)
                             }}
@@ -932,6 +1011,52 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         </button>
                     )}
                 </div>
+
+                {/* Pending Grocery Items List */}
+                {category === 'grocery' && pendingGroceryItems.length > 0 && (
+                    <div className="flex flex-col gap-1.5 mt-2 animate-in slide-in-from-top-2 duration-300">
+                        <div className="flex items-center justify-between px-1">
+                            <span className="text-[9px] font-black text-black/30 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
+                                Pending Protocol ({pendingGroceryItems.length} items)
+                            </span>
+                            <button 
+                                type="button"
+                                onClick={() => setPendingGroceryItems([])}
+                                className="text-[9px] font-black text-red-500/60 hover:text-red-500 uppercase tracking-widest transition-colors"
+                            >
+                                Clear Pending
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <AnimatePresence mode="popLayout">
+                                {pendingGroceryItems.map((item, idx) => (
+                                    <motion.div
+                                        key={`${item.title}-${idx}`}
+                                        layout
+                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                                        className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-black/[0.05] shadow-sm group hover:border-emerald-200 transition-all"
+                                    >
+                                        <span className="text-[11px] font-black text-emerald-600 shrink-0">{item.amount}</span>
+                                        <span className="text-[12px] font-bold text-black truncate max-w-[150px]">{item.title}</span>
+                                        {item.price !== undefined && (
+                                            <span className="text-[11px] font-black text-black/30 shrink-0">£{(item.price).toFixed(2)}</span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setPendingGroceryItems(prev => prev.filter((_, i) => i !== idx))}
+                                            className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all flex items-center justify-center p-0.5"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        </div>
+                    </div>
+                )}
 
                 {/* Tier 1: Local Autocomplete Suggestions */}
                 {autocompleteTitles.length > 0 && (
@@ -945,9 +1070,6 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                     if (item.template) {
                                         setPriority(item.template.priority)
                                         if (item.template.strategic_category) setNewStrategicCategory(item.template.strategic_category)
-                                        if (item.template.estimated_duration !== undefined) setEstimatedDuration(item.template.estimated_duration.toString())
-                                        // Use travel_to_duration as the single travelDuration for templates
-                                        if (item.template.travel_to_duration !== undefined) setTravelDuration(item.template.travel_to_duration.toString())
                                         if (item.template.impact_score !== undefined) setImpactScore(item.template.impact_score.toString())
                                         if (item.template.amount) setAmount(item.template.amount)
                                         // Auto-expand fields if using a template
@@ -970,10 +1092,10 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
                 {/* Main Form Fields (expanded when typing or date set or focused) */}
                 {(newTask.trim().length > 0 || dueDateMode !== 'none' || showAllFields) && (
-                    <div className="flex flex-col gap-2 animate-in slide-in-from-top-1 fade-in duration-200">
+                    <div className="flex flex-col gap-1.5 animate-in slide-in-from-top-1 fade-in duration-200">
 
                         {/* Tier 2: AI Priority Suggestion Badge */}
-                        {category === 'todo' && (
+                        {category === 'todo' && (isAnalyzingPriority || suggestedPriority) && (
                             <div className="h-[24px] flex items-center px-1">
                                 {isAnalyzingPriority ? (
                                     <div className="flex items-center gap-1.5 text-black/30">
@@ -1001,49 +1123,117 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             </div>
                         )}
 
-                        {/* Priority row */}
-                        <div className="flex gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit">
-                            {(['urgent', 'high', 'mid', 'low'] as const).map(p => (
-                                <button
-                                    key={p}
-                                    type="button"
-                                    onClick={() => setPriority(p)}
-                                    className={cn(
-                                        "px-2.5 py-1.5 text-[10px] font-bold rounded-lg border transition-all uppercase tracking-tight",
-                                        priority === p
-                                            ? PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].color + " shadow-sm scale-105"
-                                            : "bg-transparent text-black/30 border-transparent hover:text-black/50 hover:bg-black/5"
-                                    )}
-                                >
-                                    {PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Date mode selector - hidden for groceries */}
-                        {category !== 'grocery' && (
-                            <div className="flex flex-wrap gap-1.5">
-                                {(['none', 'on', 'before', 'range', 'recurring'] as const).map(mode => (
+                        {/* Combined Priority & Tactical Tag row */}
+                        <div className="flex flex-wrap items-center gap-3 p-1">
+                            <div className="flex gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit h-[36px] items-center">
+                                {(['urgent', 'high', 'mid', 'low'] as const).map(p => (
                                     <button
-                                        key={mode}
+                                        key={p}
                                         type="button"
-                                        onClick={() => setDueDateMode(mode)}
+                                        onClick={() => setPriority(p)}
                                         className={cn(
-                                            "px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all uppercase tracking-tight flex items-center gap-1",
-                                            dueDateMode === mode
-                                                ? mode === 'recurring' ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-black text-white border-black'
-                                                : 'bg-black/[0.03] border-black/5 text-black/40 hover:text-black/60'
+                                            "px-2.5 h-full flex items-center text-[10px] font-bold rounded-lg border transition-all uppercase tracking-tight",
+                                            priority === p
+                                                ? PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].color + " shadow-sm scale-105"
+                                                : "bg-transparent text-black/30 border-transparent hover:text-black/50 hover:bg-black/5"
                                         )}
                                     >
-                                        {mode === 'none' && '✕ None'}
-                                        {mode === 'on' && '📅 On'}
-                                        {mode === 'before' && '⏰ By'}
-                                        {mode === 'range' && '↔ Range'}
-                                        {mode === 'recurring' && '🔁 Recurring'}
+                                        {PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].label}
                                     </button>
                                 ))}
                             </div>
-                        )}
+
+                            {category !== 'grocery' && (
+                                <>
+                                    <div className="flex gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit h-[36px] items-center">
+                                        {strategicCategories.map(cat => (
+                                            <button
+                                                key={cat.id}
+                                                type="button"
+                                                onClick={() => setNewStrategicCategory(newStrategicCategory === cat.id ? undefined : cat.id)}
+                                                className={cn(
+                                                    "px-2 py-1 flex items-center h-full rounded-lg border transition-all gap-1.5",
+                                                    newStrategicCategory === cat.id
+                                                        ? "bg-black text-white border-black shadow-md"
+                                                        : "bg-transparent text-black/30 border-transparent hover:text-black/50 hover:bg-black/5"
+                                                )}
+                                            >
+                                                <cat.icon className="w-3.5 h-3.5" />
+                                                <span className="text-[10px] font-bold uppercase tracking-tight">{cat.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex gap-1 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit h-[36px] items-center">
+                                        {!showDateSettings ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowDateSettings(true)}
+                                                className={cn(
+                                                    "px-3 h-full rounded-lg border transition-all flex items-center gap-2",
+                                                    dueDateMode !== 'none'
+                                                        ? "bg-black text-white border-black"
+                                                        : "bg-transparent text-black/30 border-transparent hover:text-black/50 hover:bg-black/5"
+                                                )}
+                                            >
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                <span className="text-[10px] font-bold uppercase tracking-tight">
+                                                    {dueDateMode === 'none' ? 'Set Date' : dueDateMode}
+                                                </span>
+                                            </button>
+                                        ) : (
+                                            <div className="flex items-center gap-1 h-full">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowDateSettings(false)}
+                                                    className="p-1.5 hover:bg-black/5 rounded-lg text-black/30 hover:text-black/60 transition-colors"
+                                                >
+                                                    <ChevronRight className="w-3.5 h-3.5 rotate-180" />
+                                                </button>
+                                                {(['none', 'on', 'before', 'range', 'recurring'] as const).map(mode => (
+                                                    <button
+                                                        key={mode}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setDueDateMode(mode)
+                                                            if (mode === 'none') setShowDateSettings(false)
+                                                        }}
+                                                        className={cn(
+                                                            "px-2 h-full text-[10px] font-bold rounded-lg border transition-all uppercase tracking-tight flex items-center gap-1",
+                                                            dueDateMode === mode
+                                                                ? mode === 'recurring' ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-black text-white border-black'
+                                                                : 'bg-transparent text-black/30 border-transparent hover:text-black/50 hover:bg-black/5'
+                                                        )}
+                                                    >
+                                                        {mode === 'none' && 'None'}
+                                                        {mode === 'on' && 'On'}
+                                                        {mode === 'before' && 'By'}
+                                                        {mode === 'range' && 'Range'}
+                                                        {mode === 'recurring' && 'Recur'}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-3 p-1 bg-black/[0.03] border border-black/5 rounded-xl w-[250px] h-[36px]">
+                                        <div className="flex items-center gap-1.5 text-black/30 shrink-0 ml-2">
+                                            <Zap className="w-3.5 h-3.5" />
+                                            <span className="text-[10px] font-bold uppercase tracking-tight text-black/40">Impact</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max="10"
+                                            value={impactScore}
+                                            onChange={(e) => setImpactScore(e.target.value)}
+                                            className="flex-1 accent-black h-1 bg-black/10 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <span className="text-[11px] font-black text-black w-6 text-center shrink-0 pr-1">{impactScore}</span>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
 
                         {/* Date fields — hidden when None or Recurring */}
                         {dueDateMode !== 'none' && dueDateMode !== 'recurring' && (
@@ -1162,445 +1352,184 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             </div>
                         )}
 
-                        {/* Strategic Category Selection */}
+                        {/* Algorithmic Params & Studio Linking */}
                         {category !== 'grocery' && (
-                            <div className="flex flex-col gap-2 mt-1">
-                                <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest px-1">Tactical Tag</span>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {strategicCategories.map(cat => (
-                                        <button
-                                            key={cat.id}
-                                            type="button"
-                                            onClick={() => setNewStrategicCategory(newStrategicCategory === cat.id ? undefined : cat.id)}
-                                            className={cn(
-                                                "flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all",
-                                                newStrategicCategory === cat.id
-                                                    ? "bg-black text-white border-black shadow-md scale-[1.02]"
-                                                    : "bg-white text-black/40 border-black/[0.08] hover:border-black/20"
-                                            )}
-                                        >
-                                            <cat.icon className={cn("w-3.5 h-3.5", newStrategicCategory === cat.id ? "text-white" : "text-black/20")} />
-                                            {cat.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                            <div className="flex flex-col gap-2 mt-1 transition-all animate-in fade-in slide-in-from-top-1">
 
-                        {/* Algorithmic Params: Duration & Impact */}
-                        {newStrategicCategory !== 'reminder' && category !== 'grocery' && (
-                            <div className="flex gap-4 mt-2 transition-all animate-in fade-in slide-in-from-top-1">
-                                <div className="flex-1 flex flex-col gap-1.5">
-                                    <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
-                                        <Clock className="w-3 h-3" /> Duration (mins)
-                                    </span>
-                                    <select
-                                        value={estimatedDuration}
-                                        onChange={(e) => setEstimatedDuration(e.target.value)}
-                                        className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 py-2 text-[12px] text-black outline-none focus:border-black/40 transition-colors appearance-none cursor-pointer"
-                                    >
-                                        {Array.from({ length: 16 }, (_, i) => (i + 1) * 15).map(mins => (
-                                            <option key={mins} value={mins}>
-                                                {mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? `${mins % 60}m` : ''}` : `${mins}m`}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="flex-1 flex flex-col gap-1.5">
-                                    <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
-                                        <Car className="w-3 h-3" /> Travel (mins)
-                                    </span>
-                                    <select
-                                        value={travelDuration}
-                                        onChange={(e) => setTravelDuration(e.target.value)}
-                                        className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 py-2 text-[12px] text-black outline-none focus:border-black/40 transition-colors appearance-none cursor-pointer"
-                                    >
-                                        <option value="0">None</option>
-                                        {Array.from({ length: 8 }, (_, i) => (i + 1) * 15).map(mins => (
-                                            <option key={mins} value={mins}>
-                                                {mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? `${mins % 60}m` : ''}` : `${mins}m`}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="flex gap-4 mt-2">
-                                    <div className="flex-1 flex flex-col gap-1.5">
-                                        <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
-                                            <Zap className="w-3 h-3" /> Impact (1-10)
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="range"
-                                                min="1"
-                                                max="10"
-                                                value={impactScore}
-                                                onChange={(e) => setImpactScore(e.target.value)}
-                                                className="flex-1 accent-black h-1 bg-black/10 rounded-lg appearance-none cursor-pointer mt-2"
-                                            />
-                                            <span className="text-[11px] font-black text-black w-4 text-center">{impactScore}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Studio Linking Row */}
-                                {activeProfile === 'business' && (
-                                    <div className="flex flex-col gap-2 mt-2 pt-4 border-t border-black/[0.05]">
-                                        <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
-                                            <Rocket className="w-3 h-3 text-orange-500" /> Studio Linking
-                                        </span>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <select
-                                                value={linkType}
-                                                onChange={(e) => setLinkType(e.target.value as 'none' | 'project' | 'content')}
-                                                className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 py-2 text-[12px] text-black outline-none focus:border-black/40 transition-colors appearance-none cursor-pointer"
-                                            >
-                                                <option value="none">General Task</option>
-                                                <option value="project">Project Linked</option>
-                                                <option value="content">Content Linked</option>
-                                            </select>
-                                            <select
-                                                disabled={linkType === 'none'}
-                                                value={linkType === 'project' ? (newProjectId || '') : linkType === 'content' ? (newContentId || '') : ''}
-                                                onChange={(e) => {
-                                                    if (linkType === 'project') setNewProjectId(e.target.value)
-                                                    else setNewContentId(e.target.value)
-                                                }}
-                                                className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 py-2 text-[12px] text-black outline-none focus:border-black/40 transition-colors appearance-none cursor-pointer disabled:opacity-30"
-                                            >
-                                                <option value="">Select Item...</option>
-                                                {linkType === 'project' ? (
-                                                    projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)
-                                                ) : linkType === 'content' ? (
-                                                    content.map(c => <option key={c.id} value={c.id}>{c.title}</option>)
-                                                ) : null}
-                                            </select>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Toggles: Appointment & Location */}
-                        {category !== 'grocery' && (
-                            <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-black/[0.05]">
-                                <div className="flex items-center justify-between px-1">
-                                    <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest">Fixed Time</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsAppointment(!isAppointment)}
-                                        className={cn(
-                                            "w-10 h-5 rounded-full transition-all relative",
-                                            isAppointment ? "bg-black" : "bg-black/10"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "absolute top-1 w-3 h-3 rounded-full bg-white transition-all",
-                                            isAppointment ? "left-6" : "left-1"
-                                        )} />
-                                    </button>
-                                </div>
-                                <div className="flex items-center justify-between px-1">
-                                    <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest">Location</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsLocationActive(!isLocationActive)}
-                                        className={cn(
-                                            "w-10 h-5 rounded-full transition-all relative",
-                                            isLocationActive ? "bg-black" : "bg-black/10"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "absolute top-1 w-3 h-3 rounded-full bg-white transition-all",
-                                            isLocationActive ? "left-6" : "left-1"
-                                        )} />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Conditional Inputs: Time & Location */}
-                        {(isAppointment || isLocationActive) && (
-                            <div className="space-y-3 mt-3 animate-in fade-in slide-in-from-top-1">
-                                {isAppointment && (
-                                    <div className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 py-2 flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-black/40 uppercase">Start Time</span>
-                                        <input
-                                            type="time"
-                                            value={appointmentTime}
-                                            onChange={(e) => setAppointmentTime(e.target.value)}
-                                            className="bg-transparent text-[13px] font-black text-black outline-none"
-                                        />
-                                    </div>
-                                )}
-                                {isLocationActive && (
-                                    <div className="space-y-2">
-                                        <div className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 py-2 flex flex-col gap-1">
-                                            <span className="text-[9px] font-bold text-black/30 uppercase">Destination</span>
-                                            <div className="relative">
-                                                <input
-                                                    type="text"
-                                                    placeholder="e.g. Haircut Place..."
-                                                    value={destination}
-                                                    onChange={(e) => setDestination(e.target.value)}
-                                                    onFocus={() => destination.length >= 3 && setShowLocationSuggestions(true)}
-                                                    className="bg-transparent text-[13px] font-bold text-black outline-none w-full"
-                                                />
-                                                <AnimatePresence>
-                                                    {showLocationSuggestions && locationSuggestions.length > 0 && (
-                                                        <motion.div
-                                                            ref={locationSuggestionsRef}
-                                                            initial={{ opacity: 0, y: -10 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            exit={{ opacity: 0, y: -10 }}
-                                                            className="absolute left-0 right-0 top-full mt-2 bg-white border border-black/10 rounded-xl shadow-xl z-[100] max-h-[200px] overflow-y-auto no-scrollbar"
-                                                        >
-                                                            {locationSuggestions.map((suggestion, idx) => (
-                                                                <button
-                                                                    key={idx}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setDestination(suggestion.display_name)
-                                                                        setShowLocationSuggestions(false)
-                                                                        sessionToken.current = null // Reset token after selection
-                                                                    }}
-                                                                    className="w-full text-left px-3 py-2 hover:bg-black/5 transition-all border-b border-black/[0.03] last:border-0 group"
-                                                                >
-                                                                    <div className="text-[12px] font-bold text-black group-hover:text-blue-600 transition-colors">{suggestion.name}</div>
-                                                                    <div className="text-[10px] text-black/40 truncate">{suggestion.display_name}</div>
-                                                                </button>
-                                                            ))}
-                                                        </motion.div>
-                                                    )}
-                                                </AnimatePresence>
-                                            </div>
-                                        </div>
-                                        <div className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 py-2 flex flex-col gap-2">
-                                            <span className="text-[9px] font-bold text-black/30 uppercase">Start From</span>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setStartFromMode('home')
-                                                        setStartFrom('7 Ruby Street, Cardiff, CF24 1LP')
+                                    {activeProfile === 'business' && (
+                                        <div className="flex-1 min-w-[240px] flex flex-col gap-1.5">
+                                            <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
+                                                <Rocket className="w-3 h-3 text-orange-500" /> Studio Linking
+                                            </span>
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                                <select
+                                                    value={linkType}
+                                                    onChange={(e) => setLinkType(e.target.value as 'none' | 'project' | 'content')}
+                                                    className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-black outline-none focus:border-black/40 transition-colors appearance-none cursor-pointer"
+                                                >
+                                                    <option value="none">General Task</option>
+                                                    <option value="project">Project</option>
+                                                    <option value="content">Content</option>
+                                                </select>
+                                                <select
+                                                    disabled={linkType === 'none'}
+                                                    value={linkType === 'project' ? (newProjectId || '') : linkType === 'content' ? (newContentId || '') : ''}
+                                                    onChange={(e) => {
+                                                        if (linkType === 'project') setNewProjectId(e.target.value)
+                                                        else setNewContentId(e.target.value)
                                                     }}
-                                                    className={cn(
-                                                        "flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                                                        startFromMode === 'home'
-                                                            ? "bg-black text-white"
-                                                            : "bg-black/5 text-black/50 hover:bg-black/10"
-                                                    )}
+                                                    className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-black outline-none focus:border-black/40 transition-colors appearance-none cursor-pointer disabled:opacity-30"
                                                 >
-                                                    🏠 Home
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setStartFromMode('other')}
-                                                    className={cn(
-                                                        "flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                                                        startFromMode === 'other'
-                                                            ? "bg-black text-white"
-                                                            : "bg-black/5 text-black/50 hover:bg-black/10"
-                                                    )}
-                                                >
-                                                    📍 Other
-                                                </button>
-                                            </div>
-                                            {startFromMode === 'home' && (
-                                                <p className="text-[10px] text-black/40 font-medium">7 Ruby Street, Cardiff, CF24 1LP</p>
-                                            )}
-                                            {startFromMode === 'other' && (
-                                                <input
-                                                    type="text"
-                                                    placeholder="Enter start address..."
-                                                    value={startFrom === '7 Ruby Street, Cardiff, CF24 1LP' ? '' : startFrom}
-                                                    onChange={(e) => setStartFrom(e.target.value)}
-                                                    className="bg-transparent text-[13px] font-bold text-black outline-none w-full border-t border-black/[0.08] pt-2"
-                                                    autoFocus
-                                                />
-                                            )}
-                                        </div>
-                                        {/* Travel mode selector */}
-                                        <div className="bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 py-2 flex flex-col gap-2">
-                                            <span className="text-[9px] font-bold text-black/30 uppercase">Travel Mode</span>
-                                            <div className="flex gap-2">
-                                                {([
-                                                    { id: 'none', label: '❌ None', },
-                                                    { id: 'walking', label: '🚶 Walk', },
-                                                    { id: 'transit', label: '🚌 Bus/Train', },
-                                                    { id: 'uber', label: '🚗 Uber', },
-                                                ] as const).map(m => (
-                                                    <button
-                                                        key={m.id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setTravelMode(m.id)
-                                                            if (m.id === 'none') {
-                                                                setTravelDuration('0')
-                                                            }
-                                                        }}
-                                                        className={cn(
-                                                            "flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                                                            travelMode === m.id
-                                                                ? "bg-black text-white"
-                                                                : "bg-black/5 text-black/50 hover:bg-black/10"
-                                                        )}
-                                                    >
-                                                        {m.label}
-                                                    </button>
-                                                ))}
+                                                    <option value="">Select Item...</option>
+                                                    {linkType === 'project' ? (
+                                                        projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)
+                                                    ) : linkType === 'content' ? (
+                                                        content.map(c => <option key={c.id} value={c.id}>{c.title}</option>)
+                                                    ) : null}
+                                                </select>
                                             </div>
                                         </div>
-                                        {travelMode !== 'none' && (
-                                            <button
-                                                type="button"
-                                                onClick={calculateTravelTime}
-                                                className="w-full py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                                disabled={isCalculatingTravel}
-                                            >
-                                                {isCalculatingTravel ? <RefreshCw className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
-                                                Calculate {travelMode === 'walking' ? 'Walk' : travelMode === 'transit' ? 'Transit' : 'Uber'} Time
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                </div>
                         )}
 
                         {/* Notes Creator */}
-                        <div className="flex flex-col gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setShowCreateNotes(!showCreateNotes)}
-                                className={cn(
-                                    "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold transition-all w-fit uppercase tracking-wider",
-                                    showCreateNotes
-                                        ? "bg-black text-white border-black"
-                                        : "bg-white text-black/40 border-black/10 hover:border-black/20"
-                                )}
-                            >
-                                <LayoutList className="w-3.5 h-3.5" />
-                                {showCreateNotes ? "Hide Notes" : "Add Notes/Checklist"}
-                            </button>
-
-                            {showCreateNotes && (
-                                <div className="flex flex-col gap-3 p-3 bg-black/[0.03] border border-black/5 rounded-xl animate-in slide-in-from-top-2 duration-200">
-                                    <div className="flex gap-1.5">
-                                        {([
-                                            { type: 'text', icon: Type, label: 'Text' },
-                                            { type: 'bullets', icon: List, label: 'Bullets' },
-                                            { type: 'checklist', icon: ListChecks, label: 'Checklist' },
-                                        ] as const).map(noteType => (
-                                            <button
-                                                key={noteType.type}
-                                                type="button"
-                                                onClick={() => {
-                                                    setCreateNotesType(noteType.type)
-                                                    if (noteType.type === 'checklist' && !Array.isArray(createNotesContent)) {
-                                                        setCreateNotesContent([])
-                                                    } else if (noteType.type !== 'checklist' && Array.isArray(createNotesContent)) {
-                                                        setCreateNotesContent('')
-                                                    }
-                                                }}
-                                                className={cn(
-                                                    "px-2 py-1 text-[9px] font-bold rounded-lg border transition-all uppercase tracking-tight flex items-center gap-1",
-                                                    createNotesType === noteType.type
-                                                        ? 'bg-black text-white border-black'
-                                                        : 'bg-white text-black/40 border-black/10 hover:text-black/60'
-                                                )}
-                                            >
-                                                <noteType.icon className="w-3 h-3" />
-                                                {noteType.label}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {createNotesType === 'text' && (
-                                        <textarea
-                                            value={createNotesContent}
-                                            onChange={(e) => setCreateNotesContent(e.target.value)}
-                                            placeholder="Add some notes..."
-                                            className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-[12px] text-black outline-none focus:border-black/30 min-h-[60px]"
-                                        />
+                        {category !== 'grocery' && (
+                            <div className="flex flex-col gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCreateNotes(!showCreateNotes)}
+                                    className={cn(
+                                        "flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[9px] font-black transition-all w-fit uppercase tracking-[0.1em]",
+                                        showCreateNotes
+                                            ? "bg-black text-white border-black"
+                                            : "bg-black/[0.03] text-black/40 border-black/5 hover:border-black/20"
                                     )}
+                                >
+                                    <LayoutList className="w-3 h-3" />
+                                    {showCreateNotes ? "Hide Notes" : "Add Notes/Checklist"}
+                                </button>
 
-                                    {createNotesType === 'bullets' && (
-                                        <textarea
-                                            value={createNotesContent}
-                                            onChange={(e) => setCreateNotesContent(e.target.value)}
-                                            placeholder="Add bullet points, one per line..."
-                                            className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-[12px] text-black outline-none focus:border-black/30 min-h-[60px]"
-                                        />
-                                    )}
+                                {showCreateNotes && (
+                                    <div className="flex flex-col gap-2 p-2 bg-black/[0.03] border border-black/5 rounded-xl animate-in slide-in-from-top-2 duration-200">
+                                        <div className="flex gap-1.5">
+                                            {([
+                                                { type: 'text', icon: Type, label: 'Text' },
+                                                { type: 'bullets', icon: List, label: 'Bullets' },
+                                                { type: 'checklist', icon: ListChecks, label: 'Checklist' },
+                                            ] as const).map(noteType => (
+                                                <button
+                                                    key={noteType.type}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setCreateNotesType(noteType.type)
+                                                        if (noteType.type === 'checklist' && !Array.isArray(createNotesContent)) {
+                                                            setCreateNotesContent([])
+                                                        } else if (noteType.type !== 'checklist' && Array.isArray(createNotesContent)) {
+                                                            setCreateNotesContent('')
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        "px-2 py-1 text-[9px] font-bold rounded-lg border transition-all uppercase tracking-tight flex items-center gap-1",
+                                                        createNotesType === noteType.type
+                                                            ? 'bg-black text-white border-black'
+                                                            : 'bg-white text-black/40 border-black/10 hover:text-black/60'
+                                                    )}
+                                                >
+                                                    <noteType.icon className="w-3 h-3" />
+                                                    {noteType.label}
+                                                </button>
+                                            ))}
+                                        </div>
 
-                                    {createNotesType === 'checklist' && (
-                                        <div className="flex flex-col gap-2">
-                                            {(createNotesContent as any[]).map((item: any, index: number) => (
-                                                <div key={index} className="flex items-center gap-2 bg-white border border-black/10 rounded-lg px-3 py-1.5">
+                                        {createNotesType === 'text' && (
+                                            <textarea
+                                                value={createNotesContent}
+                                                onChange={(e) => setCreateNotesContent(e.target.value)}
+                                                placeholder="Add some notes..."
+                                                className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-[12px] text-black outline-none focus:border-black/30 min-h-[60px]"
+                                            />
+                                        )}
+
+                                        {createNotesType === 'bullets' && (
+                                            <textarea
+                                                value={createNotesContent}
+                                                onChange={(e) => setCreateNotesContent(e.target.value)}
+                                                placeholder="Add bullet points, one per line..."
+                                                className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-[12px] text-black outline-none focus:border-black/30 min-h-[60px]"
+                                            />
+                                        )}
+
+                                        {createNotesType === 'checklist' && (
+                                            <div className="flex flex-col gap-2">
+                                                {(createNotesContent as any[]).map((item: any, index: number) => (
+                                                    <div key={index} className="flex items-center gap-2 bg-white border border-black/10 rounded-lg px-3 py-1.5">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={item.completed}
+                                                            onChange={() => {
+                                                                const newC = [...createNotesContent]
+                                                                newC[index] = { ...newC[index], completed: !newC[index].completed }
+                                                                setCreateNotesContent(newC)
+                                                            }}
+                                                            className="w-4 h-4 accent-black cursor-pointer shrink-0"
+                                                        />
+                                                        <span className={cn(
+                                                            "flex-1 text-[12px] text-black",
+                                                            item.completed && "line-through text-black/40"
+                                                        )}>
+                                                            {item.text}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setCreateNotesContent(createNotesContent.filter((_: any, i: number) => i !== index))
+                                                            }}
+                                                            className="text-black/30 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                <div className="flex items-center gap-2">
                                                     <input
-                                                        type="checkbox"
-                                                        checked={item.completed}
-                                                        onChange={() => {
-                                                            const newC = [...createNotesContent]
-                                                            newC[index] = { ...newC[index], completed: !newC[index].completed }
-                                                            setCreateNotesContent(newC)
+                                                        type="text"
+                                                        value={newCreateChecklistItem}
+                                                        onChange={(e) => setNewCreateChecklistItem(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault()
+                                                                if (newCreateChecklistItem.trim()) {
+                                                                    setCreateNotesContent([...createNotesContent, { text: newCreateChecklistItem.trim(), completed: false }])
+                                                                    setNewCreateChecklistItem('')
+                                                                }
+                                                            }
                                                         }}
-                                                        className="w-4 h-4 accent-black cursor-pointer shrink-0"
+                                                        placeholder="Add new item..."
+                                                        className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-[12px] text-black outline-none focus:border-black/30"
                                                     />
-                                                    <span className={cn(
-                                                        "flex-1 text-[12px] text-black",
-                                                        item.completed && "line-through text-black/40"
-                                                    )}>
-                                                        {item.text}
-                                                    </span>
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            setCreateNotesContent(createNotesContent.filter((_: any, i: number) => i !== index))
-                                                        }}
-                                                        className="text-black/30 hover:text-red-500 transition-colors"
-                                                    >
-                                                        <X className="w-3 h-3" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={newCreateChecklistItem}
-                                                    onChange={(e) => setNewCreateChecklistItem(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault()
                                                             if (newCreateChecklistItem.trim()) {
                                                                 setCreateNotesContent([...createNotesContent, { text: newCreateChecklistItem.trim(), completed: false }])
                                                                 setNewCreateChecklistItem('')
                                                             }
-                                                        }
-                                                    }}
-                                                    placeholder="Add new item..."
-                                                    className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-[12px] text-black outline-none focus:border-black/30"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (newCreateChecklistItem.trim()) {
-                                                            setCreateNotesContent([...createNotesContent, { text: newCreateChecklistItem.trim(), completed: false }])
-                                                            setNewCreateChecklistItem('')
-                                                        }
-                                                    }}
-                                                    className="w-8 h-8 flex items-center justify-center bg-black text-white rounded-lg hover:bg-neutral-800 transition-colors"
-                                                >
-                                                    <Plus className="w-4 h-4" />
-                                                </button>
+                                                        }}
+                                                        className="w-8 h-8 flex items-center justify-center bg-black text-white rounded-lg hover:bg-neutral-800 transition-colors"
+                                                    >
+                                                        <Plus className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Form Actions */}
-                        <div className="flex gap-2 pt-2 border-t border-black/[0.05] mt-2">
+                        <div className="flex gap-2 pt-2 border-t border-black/[0.05] mt-1">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -1614,7 +1543,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                     setRecurringTime('')
                                     setRecurringDuration('60')
                                     setRecurringDays([])
-                                    setTravelDuration('0')
+                                    setImpactScore('5')
                                     setShowAllFields(false)
                                     setShowCreateNotes(false)
                                     setCreateNotesContent('')
@@ -1626,10 +1555,10 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             </button>
                             <button
                                 type="submit"
-                                disabled={!newTask.trim() || loading}
+                                disabled={(category !== 'grocery' && !newTask.trim()) || (category === 'grocery' && !newTask.trim() && pendingGroceryItems.length === 0) || loading}
                                 className="flex-[2] py-3 rounded-xl bg-black text-white font-bold text-[12px] uppercase tracking-widest hover:bg-neutral-800 transition-all disabled:opacity-50 shadow-lg shadow-black/10"
                             >
-                                {loading ? 'Creating...' : 'Create Operation'}
+                                {loading ? 'Creating...' : category === 'grocery' ? 'Add to Grocery List' : 'Create Operation'}
                             </button>
                         </div>
                     </div>
@@ -1661,7 +1590,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 key={item.id}
                                 task={item.data}
                                 toggleTask={toggleTask}
-                                deleteTask={handleDeleteWithSafety}
+                                deleteTask={handleDeleteQuick}
                                 editTask={editTask}
                                 category={category}
                                 setSelectedTaskForModal={setSelectedTaskForModal}
@@ -1722,6 +1651,17 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                     onClose={() => setSelectedContentForModal(null)}
                 />
             )}
+
+            <GroceryLibraryModal
+                isOpen={showLibraryModal}
+                onClose={() => setShowLibraryModal(false)}
+            />
+
+            <QuickImportModal 
+                isOpen={showQuickImport}
+                onClose={() => setShowQuickImport(false)}
+                onImport={handleQuickImport}
+            />
         </div>
     )
 }
@@ -1894,16 +1834,31 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
         return (
             <div className="flex flex-col gap-3 p-3 rounded-xl border bg-white border-black/[0.15] shadow-lg animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex gap-2">
-                    {/* Amount hidden for groceries as per requirements */}
-                    {/* {category === 'grocery' && (
-                        <input
-                            type="text"
-                            value={editAmount}
-                            onChange={(e) => setEditAmount(e.target.value)}
-                            placeholder="x1"
-                            className="w-16 bg-black/[0.03] border border-black/[0.08] rounded-lg px-2 py-1.5 text-[13px] text-center text-black font-bold outline-none focus:border-black/30"
-                        />
-                    )} */}
+                    {category === 'grocery' && (
+                        <div className="flex items-center gap-1 bg-black/[0.03] border border-black/[0.08] rounded-lg px-1 shrink-0 h-9">
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                    const current = parseInt(editAmount.replace(/\D/g, '')) || 1
+                                    if (current > 1) setEditAmount(`x${current - 1}`)
+                                }}
+                                className="w-6 h-6 flex items-center justify-center text-black/40 hover:text-black rounded-md transition-colors"
+                            >
+                                <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-7 text-center text-[12px] font-black text-black">{editAmount.startsWith('x') ? editAmount : `x${editAmount || '1'}`}</span>
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                    const current = parseInt(editAmount.replace(/\D/g, '')) || 1
+                                    setEditAmount(`x${current + 1}`)
+                                }}
+                                className="w-6 h-6 flex items-center justify-center text-black/40 hover:text-black rounded-md transition-colors"
+                            >
+                                <Plus className="w-3 h-3" />
+                            </button>
+                        </div>
+                    )}
                     <input
                         type="text"
                         value={editValue}
@@ -1916,105 +1871,107 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
 
                 <div className="flex flex-col gap-3">
                     {/* Notes Editor */}
-                    <div className="flex flex-col gap-2 p-2.5 bg-black/[0.03] border border-black/5 rounded-xl">
-                        <div className="flex gap-1.5">
-                            {([
-                                { type: 'text', icon: Type, label: 'Text' },
-                                { type: 'bullets', icon: List, label: 'Bullets' },
-                                { type: 'checklist', icon: ListChecks, label: 'Checklist' },
-                            ] as const).map(noteType => (
-                                <button
-                                    key={noteType.type}
-                                    type="button"
-                                    onClick={() => {
-                                        setEditNotesType(noteType.type)
-                                        if (noteType.type === 'checklist' && !Array.isArray(editNotesContent)) {
-                                            setEditNotesContent([])
-                                        } else if (noteType.type !== 'checklist' && Array.isArray(editNotesContent)) {
-                                            setEditNotesContent('')
-                                        }
-                                    }}
-                                    className={cn(
-                                        "px-2 py-1 text-[9px] font-bold rounded-lg border transition-all uppercase tracking-tight flex items-center gap-1",
-                                        editNotesType === noteType.type
-                                            ? 'bg-black text-white border-black'
-                                            : 'bg-white text-black/40 border-black/10 hover:text-black/60'
-                                    )}
-                                >
-                                    <noteType.icon className="w-3 h-3" />
-                                    {noteType.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {editNotesType === 'text' && (
-                            <textarea
-                                value={editNotesContent}
-                                onChange={(e) => setEditNotesContent(e.target.value)}
-                                placeholder="Add some notes..."
-                                className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-[12px] text-black outline-none focus:border-black/30 min-h-[60px]"
-                            />
-                        )}
-
-                        {editNotesType === 'bullets' && (
-                            <textarea
-                                value={editNotesContent}
-                                onChange={(e) => setEditNotesContent(e.target.value)}
-                                placeholder="Add bullet points, one per line..."
-                                className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-[12px] text-black outline-none focus:border-black/30 min-h-[60px]"
-                            />
-                        )}
-
-                        {editNotesType === 'checklist' && (
-                            <div className="flex flex-col gap-2">
-                                {editNotesContent.map((item: any, index: number) => (
-                                    <div key={index} className="flex items-center gap-2 bg-white border border-black/10 rounded-lg px-3 py-1.5">
-                                        <input
-                                            type="checkbox"
-                                            checked={item.completed}
-                                            onChange={() => handleToggleChecklistItem(index)}
-                                            className="w-4 h-4 accent-black cursor-pointer shrink-0"
-                                        />
-                                        <span className={cn(
-                                            "flex-1 text-[12px] text-black",
-                                            item.completed && "line-through text-black/40"
-                                        )}>
-                                            {item.text}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveChecklistItem(index)}
-                                            className="text-black/30 hover:text-red-500 transition-colors"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                ))}
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        value={newChecklistItem}
-                                        onChange={(e) => setNewChecklistItem(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault()
-                                                handleAddChecklistItem()
+                    {category !== 'grocery' && (
+                        <div className="flex flex-col gap-2 p-2.5 bg-black/[0.03] border border-black/5 rounded-xl">
+                            <div className="flex gap-1.5">
+                                {([
+                                    { type: 'text', icon: Type, label: 'Text' },
+                                    { type: 'bullets', icon: List, label: 'Bullets' },
+                                    { type: 'checklist', icon: ListChecks, label: 'Checklist' },
+                                ] as const).map(noteType => (
+                                    <button
+                                        key={noteType.type}
+                                        type="button"
+                                        onClick={() => {
+                                            setEditNotesType(noteType.type)
+                                            if (noteType.type === 'checklist' && !Array.isArray(editNotesContent)) {
+                                                setEditNotesContent([])
+                                            } else if (noteType.type !== 'checklist' && Array.isArray(editNotesContent)) {
+                                                setEditNotesContent('')
                                             }
                                         }}
-                                        placeholder="Add new item..."
-                                        className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-[12px] text-black outline-none focus:border-black/30"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleAddChecklistItem}
-                                        className="w-8 h-8 flex items-center justify-center bg-black text-white rounded-lg hover:bg-neutral-800 transition-colors"
+                                        className={cn(
+                                            "px-2 py-1 text-[9px] font-bold rounded-lg border transition-all uppercase tracking-tight flex items-center gap-1",
+                                            editNotesType === noteType.type
+                                                ? 'bg-black text-white border-black'
+                                                : 'bg-white text-black/40 border-black/10 hover:text-black/60'
+                                        )}
                                     >
-                                        <Plus className="w-4 h-4" />
+                                        <noteType.icon className="w-3 h-3" />
+                                        {noteType.label}
                                     </button>
-                                </div>
+                                ))}
                             </div>
-                        )}
-                    </div>
+
+                            {editNotesType === 'text' && (
+                                <textarea
+                                    value={editNotesContent}
+                                    onChange={(e) => setEditNotesContent(e.target.value)}
+                                    placeholder="Add some notes..."
+                                    className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-[12px] text-black outline-none focus:border-black/30 min-h-[60px]"
+                                />
+                            )}
+
+                            {editNotesType === 'bullets' && (
+                                <textarea
+                                    value={editNotesContent}
+                                    onChange={(e) => setEditNotesContent(e.target.value)}
+                                    placeholder="Add bullet points, one per line..."
+                                    className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-[12px] text-black outline-none focus:border-black/30 min-h-[60px]"
+                                />
+                            )}
+
+                            {editNotesType === 'checklist' && (
+                                <div className="flex flex-col gap-2">
+                                    {editNotesContent.map((item: any, index: number) => (
+                                        <div key={index} className="flex items-center gap-2 bg-white border border-black/10 rounded-lg px-3 py-1.5">
+                                            <input
+                                                type="checkbox"
+                                                checked={item.completed}
+                                                onChange={() => handleToggleChecklistItem(index)}
+                                                className="w-4 h-4 accent-black cursor-pointer shrink-0"
+                                            />
+                                            <span className={cn(
+                                                "flex-1 text-[12px] text-black",
+                                                item.completed && "line-through text-black/40"
+                                            )}>
+                                                {item.text}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveChecklistItem(index)}
+                                                className="text-black/30 hover:text-red-500 transition-colors"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={newChecklistItem}
+                                            onChange={(e) => setNewChecklistItem(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault()
+                                                    handleAddChecklistItem()
+                                                }
+                                            }}
+                                            placeholder="Add new item..."
+                                            className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-[12px] text-black outline-none focus:border-black/30"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleAddChecklistItem}
+                                            className="w-8 h-8 flex items-center justify-center bg-black text-white rounded-lg hover:bg-neutral-800 transition-colors"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Scheduling Options */}
                     {category !== 'grocery' && (
@@ -2414,7 +2371,12 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
 
                         <div className="flex items-center gap-2">
                             {category === 'grocery' && task.amount && (
-                                <span className="text-[12px] font-bold text-black/40 shrink-0">{task.amount}</span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-[12px] font-bold text-black/40">{task.amount}</span>
+                                    {task.price && (
+                                        <span className="text-[11px] font-black text-emerald-600/80">£{task.price.toFixed(2)}</span>
+                                    )}
+                                </div>
                             )}
                             <span className={cn(
                                 "text-[14px] font-black truncate transition-all tracking-tight",
@@ -2423,13 +2385,13 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                 {task.title}
                             </span>
                             <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
-                                {task.estimated_duration && (
+                                {category !== 'grocery' && task.estimated_duration && (
                                     <span className="text-[10px] font-bold text-black/40 flex items-center gap-1">
                                         <Clock className="w-3 h-3 text-black/20" />
                                         {task.estimated_duration}m
                                     </span>
                                 )}
-                                {task.impact_score && (
+                                {category !== 'grocery' && task.impact_score && (
                                     <span className="text-[10px] font-black text-amber-600 flex items-center gap-0.5">
                                         <Zap className="w-3 h-3 fill-current" />
                                         {task.impact_score}
@@ -2444,7 +2406,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                             </div>
                         </div>
                         {/* Notes Teaser or Progress Bar */}
-                        {!isEditing && (
+                        {!isEditing && category !== 'grocery' && (
                             <div className="mt-1 flex flex-col gap-1.5">
                                 {task.notes?.type === 'checklist' && totalSubtasks > 0 && (
                                     <div className="flex items-center gap-2">

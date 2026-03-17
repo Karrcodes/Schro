@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useMemo, useState } from 'react'
 import { Star, Sparkles, ArrowRight, Wallet, Calendar, ShieldCheck, Target, TrendingUp, Info, ShoppingBag, Briefcase, Check, Clock, X, ChevronDown, ChevronUp } from 'lucide-react'
@@ -38,7 +38,7 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
 
     // State for History
     const [viewMode, setViewMode] = useState<'upcoming' | 'last'>('upcoming')
-    const [isCollapsed, setIsCollapsed] = useState(false)
+    const [isCollapsed, setIsCollapsed] = useState(true)
 
     // Strategy Constants from User
     const RENT_WEEKLY = 143.75
@@ -317,14 +317,24 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
         }
 
         // 8. Wishlist Integration (Small items within reach)
-        const affordableWishlistItem = wishlist
+        // 8. Wishlist Integration (Multiple items within reach)
+        let wishlistBudget = funAllocation + disposable
+        const affordableWishlistItems = []
+        const availableItems = wishlist
             .filter(item => 
                 item.status !== 'acquired' && 
                 !dismissedItems.includes(item.id) &&
                 (item.price || 0) > 0 && 
-                (item.price || 0) <= (funAllocation + disposable)
+                (item.price || 0) <= wishlistBudget
             )
-            .sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0))[0]
+            .sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0))
+
+        for (const item of availableItems) {
+            if ((item.price || 0) <= wishlistBudget) {
+                affordableWishlistItems.push(item)
+                wishlistBudget -= (item.price || 0)
+            }
+        }
 
         return {
             income: detectedNetPay,
@@ -342,7 +352,7 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
             canAffordKlarna,
             isViewingUpcoming,
             activeDate,
-            affordableWishlistItem,
+            affordableWishlistItems,
             rawLatest: latestPayslip?.net_pay || 0,
             progress: (() => {
                 const all = [...mandatoryAllocations, ...potSplits]
@@ -375,7 +385,7 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                         </div>
                         <div className="flex-1">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-[18px] font-black text-black leading-tight tracking-tight">Payday Optimizer</h2>
+                                <h2 className="text-[18px] font-black text-black leading-tight tracking-tight">Payday Advisor</h2>
                                 <button 
                                     onClick={() => setIsCollapsed(!isCollapsed)}
                                     className="p-2 hover:bg-black/5 rounded-xl transition-all"
@@ -623,44 +633,53 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                             </div>
                         </div>
 
-                        {/* Wishlist Recommendation */}
-                        {analysis?.affordableWishlistItem && (
+                        {/* Wishlist Recommendations */}
+                        {analysis?.affordableWishlistItems && analysis.affordableWishlistItems.length > 0 && (
                             <div className="p-6 pt-0">
-                                <div className="relative p-5 rounded-[2.5rem] bg-amber-500/10 border border-amber-500/20 overflow-hidden group">
-                                    <div className="absolute top-0 right-0 p-3 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity pointer-events-none">
-                                        <ShoppingBag className="w-24 h-24 text-amber-500" />
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between px-1">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                            <h4 className="text-[10px] font-black uppercase text-amber-900 tracking-widest leading-none">Aspirations within Reach</h4>
+                                        </div>
+                                        <span className="text-[9px] font-bold text-black/30 uppercase tracking-[0.1em]">Funded by Fun/Surplus</span>
                                     </div>
-                                    <div className="flex flex-col md:flex-row gap-6 items-center relative z-10">
-                                        <div className="flex flex-1 gap-4 items-center">
-                                            <div className="w-14 h-14 rounded-3xl overflow-hidden bg-black/5 flex-shrink-0 border border-amber-500/20">
-                                                {analysis.affordableWishlistItem.image_url ? (
-                                                    <img src={analysis.affordableWishlistItem.image_url} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <Target className="w-6 h-6 text-amber-600" />
+                                    
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {analysis.affordableWishlistItems.map((item) => (
+                                            <div key={item.id} className="relative p-4 rounded-[1.5rem] bg-amber-500/10 border border-amber-500/20 overflow-hidden group">
+                                                <div className="absolute top-0 right-0 p-3 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity pointer-events-none">
+                                                    <ShoppingBag className="w-16 h-16 text-amber-500" />
+                                                </div>
+                                                <div className="flex flex-col md:flex-row gap-4 items-center relative z-10">
+                                                    <div className="flex flex-1 gap-4 items-center w-full">
+                                                        <div className="w-12 h-12 rounded-2xl overflow-hidden bg-black/5 flex-shrink-0 border border-amber-500/20">
+                                                            {item.image_url ? (
+                                                                <img src={item.image_url} alt="" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center">
+                                                                    <Target className="w-5 h-5 text-amber-600" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-[14px] font-black text-black truncate pr-4">{item.title}</p>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                <span className="text-[11px] font-black text-amber-700">£{Number(item.price).toFixed(2)}</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                                    <h4 className="text-[10px] font-black uppercase text-amber-900 tracking-widest leading-none">Aspiration within Reach</h4>
-                                                </div>
-                                                <p className="text-[15px] font-black text-black truncate pr-4">{analysis.affordableWishlistItem.title}</p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-[12px] font-black text-amber-700">£{Number(analysis.affordableWishlistItem.price).toFixed(2)}</span>
-                                                    <span className="text-[9px] font-bold text-black/30 uppercase tracking-[0.15em]">Reserved in Fun/Surplus</span>
+                                                    <div className="flex items-center gap-2 w-full md:w-auto">
+                                                        <button onClick={() => setPurchaseModalItem(item)} className="flex-1 md:flex-none px-4 py-2 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.03] active:scale-[0.97] transition-all shadow-lg shadow-black/5">
+                                                            I Bought This
+                                                        </button>
+                                                        <button onClick={() => setItemToDismiss(item)} className="px-4 py-2 bg-white/50 hover:bg-white text-black/50 hover:text-black rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                                                            Dismiss
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-3 w-full md:w-auto">
-                                            <button onClick={() => setPurchaseModalItem(analysis.affordableWishlistItem)} className="flex-1 md:flex-none px-6 py-3.5 bg-black text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:scale-[1.03] active:scale-[0.97] transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-2">
-                                                I Bought This
-                                            </button>
-                                            <button onClick={() => setItemToDismiss(analysis.affordableWishlistItem)} className="px-6 py-3.5 bg-white/50 hover:bg-white text-black/50 hover:text-black rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all">
-                                                Dismiss
-                                            </button>
-                                        </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>

@@ -41,8 +41,8 @@ function LiabilitiesPage() {
                     <div className="w-full flex-1 flex flex-col space-y-6">
                         <LiabilitiesManager />
                     </div>
-                    <KarrFooter />
                 </div>
+                <KarrFooter />
             </div>
         </div>
     )

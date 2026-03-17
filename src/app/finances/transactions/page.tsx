@@ -218,8 +218,8 @@ export default function TransactionsPage() {
                             </div>
                         )}
                     </div>
-                    <KarrFooter />
                 </div>
+                <KarrFooter />
             </div>
             <TransactionDetailsModal
                 transaction={selectedTx}

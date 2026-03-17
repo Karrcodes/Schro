@@ -5,6 +5,7 @@ import { ArrowUpRight, ArrowDownLeft, ExternalLink } from 'lucide-react'
 import { useFinanceProfile } from '../contexts/FinanceProfileContext'
 import { usePots } from '../hooks/usePots'
 import { getCategoryById } from '../constants/categories'
+import Link from 'next/link'
 
 export function TransactionLedger() {
     const { transactions, loading } = useTransactions()
@@ -31,14 +32,14 @@ export function TransactionLedger() {
                     <h3 className="text-[11px] uppercase tracking-wider font-bold text-black/40">Recent Transactions</h3>
                 </div>
                 {/* Open Monzo deep-link button */}
-                <a
-                    href="monzo://"
-                    title="View your full transaction history in the Monzo app"
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#00B9FF]/10 text-[#0070B9] border border-[#00B9FF]/20 hover:bg-[#00B9FF]/20 transition-all text-[11px] font-bold"
+                <Link
+                    href="/finances/transactions"
+                    title="View your full transaction history"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/[0.04] text-black border border-black/[0.06] hover:bg-black/[0.08] transition-all text-[11px] font-bold"
                 >
                     <ExternalLink className="w-3 h-3" />
-                    <span className="hidden sm:inline">Open Monzo</span>
-                </a>
+                    <span className="hidden sm:inline">View All</span>
+                </Link>
             </div>
 
             {/* Transaction List */}

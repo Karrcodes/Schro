@@ -47,7 +47,18 @@ export interface Task {
     start_time?: string // "HH:MM" fixed appointment time
     location?: string
     origin_location?: string
+    price?: number
     content_id?: string | null
+}
+
+export interface GroceryLibraryItem {
+    id: string
+    user_id?: string
+    name: string
+    price: number
+    store: string
+    last_bought_at?: string
+    created_at: string
 }
 
 export interface RoutineAnchor {

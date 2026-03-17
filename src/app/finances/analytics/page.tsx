@@ -319,8 +319,8 @@ export default function FinanceAnalyticsPage() {
                             </div>
                         )}
                     </div>
-                    <KarrFooter />
                 </div>
+                <KarrFooter />
             </div>
         </div>
     )

@@ -179,49 +179,52 @@ export function CommandCenter() {
     const loading = pLoading || oLoading || gLoading
 
     return (
-        <div className="flex-1 overflow-y-auto bg-[#FAFAFA] flex flex-col p-6 md:p-10">
-            <div className="max-w-7xl mx-auto w-full space-y-12 pb-12">
+        <div className="min-h-screen bg-[#fafafa] flex flex-col">
+            <div className="flex-1 overflow-y-auto bg-[#FAFAFA] flex flex-col p-6 md:p-10">
+                <div className="max-w-7xl mx-auto w-full space-y-12 pb-12">
                 {/* Page Header */}
-                <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                    <div className="space-y-1">
-                        <h2 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.3em]">Financial Matrix</h2>
-                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Finance Dashboard</h1>
-                        <div className="flex items-center gap-3 pt-2">
-                            <div className="flex bg-black/[0.04] p-1 rounded-xl border border-black/[0.06] items-center w-fit">
-                                <button
-                                    onClick={() => setProfile('personal')}
-                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'personal' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
-                                >
-                                    Personal
-                                </button>
-                                <button
-                                    onClick={() => setProfile('business')}
-                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'business' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
-                                >
-                                    Business
-                                </button>
+                <header className="flex flex-col gap-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="space-y-1">
+                            <h2 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.3em]">Financial Matrix</h2>
+                            <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Finance Dashboard</h1>
+                        </div>
+                        <div className="flex items-center gap-4 h-fit text-[11px] text-black/25 uppercase tracking-[0.2em] font-black">
+                            {(loading || isSyncing) && (
+                                <div className="flex items-center gap-1.5 text-black/30">
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    <span>{isSyncing ? 'Syncing' : 'Loading'}</span>
+                                </div>
+                            )}
+                            <div>
+                                {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
                             </div>
-                            <button
-                                onClick={togglePrivacy}
-                                className={`p-2 rounded-xl border transition-all ${isPrivacyEnabled ? 'border-[#059669]/30 text-[#059669] bg-[#059669]/10 shadow-[0_2px_10px_rgba(5,150,105,0.1)]' : 'bg-white border-black/[0.1] text-black/40 hover:text-black/60 hover:border-black/[0.2] shadow-sm'}`}
-                                title={isPrivacyEnabled ? "Disable Privacy Mode" : "Enable Privacy Mode"}
-                            >
-                                {isPrivacyEnabled ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
+                            <MonzoSyncControls />
                         </div>
                     </div>
-
-                    <div className="flex items-center gap-4 h-fit mb-1 text-[11px] text-black/25 uppercase tracking-[0.2em] font-black">
-                        {(loading || isSyncing) && (
-                            <div className="flex items-center gap-1.5 text-black/30">
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                <span>{isSyncing ? 'Syncing' : 'Loading'}</span>
-                            </div>
-                        )}
-                        <div>
-                            {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    
+                    <div className="flex items-center gap-3">
+                        <div className="flex bg-black/[0.04] p-1 rounded-xl border border-black/[0.06] items-center w-fit">
+                            <button
+                                onClick={() => setProfile('personal')}
+                                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'personal' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
+                            >
+                                Personal
+                            </button>
+                            <button
+                                onClick={() => setProfile('business')}
+                                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${activeProfile === 'business' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'}`}
+                            >
+                                Business
+                            </button>
                         </div>
-                        <MonzoSyncControls />
+                        <button
+                            onClick={togglePrivacy}
+                            className={`p-2 rounded-xl border transition-all ${isPrivacyEnabled ? 'border-[#059669]/30 text-[#059669] bg-[#059669]/10 shadow-[0_2px_10px_rgba(5,150,105,0.1)]' : 'bg-white border-black/[0.1] text-black/40 hover:text-black/60 hover:border-black/[0.2] shadow-sm'}`}
+                            title={isPrivacyEnabled ? "Disable Privacy Mode" : "Enable Privacy Mode"}
+                        >
+                            {isPrivacyEnabled ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
                     </div>
                 </header>
 
@@ -366,22 +369,31 @@ export function CommandCenter() {
                                 <PotsGrid pots={displayPockets} isSyncing={isSyncing} />
                             </SectionBlock>
 
-                            <SectionBlock title="Savings Goals" desc="Long-term targets">
-                                <GoalsList goals={combinedGoals} onRefresh={refetchGoals} />
-                            </SectionBlock>
+                            {/* Transactions & Savings Goals */}
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
+                                <SectionBlock title="Recent Transactions" desc="Latest activity" className="flex flex-col min-h-[420px]">
+                                    <div className="flex-1 overflow-y-auto no-scrollbar">
+                                        <TransactionLedger />
+                                    </div>
+                                </SectionBlock>
 
-                            <SectionBlock title="Liabilities" desc="30-Day projections for subs & debt">
-                                <CalendarVisualizer obligations={obligations} />
-                            </SectionBlock>
-                        </div>
+                                <SectionBlock title="Savings Goals" desc="Long-term targets" className="flex flex-col min-h-[420px]">
+                                    <div className="flex-1 overflow-y-auto no-scrollbar">
+                                        <GoalsList goals={combinedGoals} onRefresh={refetchGoals} />
+                                    </div>
+                                </SectionBlock>
+                            </div>
 
-                        {/* AI & Ledger */}
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
-                            <SectionBlock title="Recent Transactions" desc="Latest activity" className="flex flex-col min-h-[420px]">
-                                <div className="flex-1 overflow-y-auto no-scrollbar">
-                                    <TransactionLedger />
-                                </div>
-                            </SectionBlock>
+                            {/* Liabilities */}
+                            <div className="grid grid-cols-1 gap-6 items-stretch">
+                                <SectionBlock title="Liabilities" desc="30-Day projections for subs & debt" className="flex flex-col min-h-[420px]">
+                                    <div className="flex-1 overflow-y-auto no-scrollbar">
+                                        <CalendarVisualizer obligations={obligations} />
+                                    </div>
+                                </SectionBlock>
+                            </div>
+
+                            {/* AI Copilot (Full Width) */}
                             <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm flex flex-col min-h-[420px]">
                                 <h2 className="text-[17px] font-bold text-black mb-1">Financial Co-pilot</h2>
                                 <p className="text-[12px] text-black/40 mb-4">Ask Gemini about patterns or status</p>
@@ -401,5 +413,6 @@ export function CommandCenter() {
                 <KarrFooter />
             </div>
         </div>
+    </div>
     )
 }

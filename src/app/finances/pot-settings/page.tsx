@@ -47,8 +47,8 @@ export default function SettingsPage() {
                         <GlobalSettings />
                         <PotsSettings />
                     </div>
-                    <KarrFooter />
                 </div>
+                <KarrFooter />
             </div>
         </div>
     )

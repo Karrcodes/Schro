@@ -24,8 +24,8 @@ export default function ProjectionsPage() {
                         <div className="w-full flex-1 flex flex-col space-y-6">
                             <ProjectionsAnalytics />
                         </div>
-                        <KarrFooter />
                     </div>
+                    <KarrFooter />
                 </div>
             </div>
         </FinanceProfileProvider>

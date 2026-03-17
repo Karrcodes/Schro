@@ -38,6 +38,9 @@ import { SecurityLock } from '@/components/SecurityLock'
 import { GlobalQuickAction } from '@/components/GlobalQuickAction'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { WellbeingProvider } from '@/features/wellbeing/contexts/WellbeingContext'
+import { TasksProvider } from '@/features/tasks/contexts/TasksContext'
+import { GroceryLibraryProvider } from '@/features/tasks/contexts/GroceryLibraryContext'
+import { GoalsProvider } from '@/features/goals/contexts/GoalsContext'
 import { headers } from 'next/headers'
 
 export default async function RootLayout({
@@ -63,22 +66,28 @@ export default async function RootLayout({
             <FinanceProfileProvider>
               <TasksProfileProvider>
                 <StudioProvider>
-                  <VaultProvider>
-                    <WellbeingProvider>
-                      {isShellFreePage ? (
-                        <>{children}</>
-                      ) : (
-                        <SecurityLock>
-                          <Sidebar />
-                          {/* main margin tracks --sidebar-w CSS var set by Sidebar component */}
-                          <main className="md:main-sidebar-offset min-h-screen bg-white transition-[margin] duration-300">
-                            {children}
-                          </main>
-                          <GlobalQuickAction />
-                        </SecurityLock>
-                      )}
-                    </WellbeingProvider>
-                  </VaultProvider>
+                  <TasksProvider>
+                    <GroceryLibraryProvider>
+                      <GoalsProvider>
+                        <VaultProvider>
+                          <WellbeingProvider>
+                            {isShellFreePage ? (
+                              <>{children}</>
+                            ) : (
+                              <SecurityLock>
+                                <Sidebar />
+                                {/* main margin tracks --sidebar-w CSS var set by Sidebar component */}
+                                <main className="md:main-sidebar-offset min-h-screen bg-white transition-[margin] duration-300">
+                                  {children}
+                                </main>
+                                <GlobalQuickAction />
+                              </SecurityLock>
+                            )}
+                          </WellbeingProvider>
+                        </VaultProvider>
+                      </GoalsProvider>
+                    </GroceryLibraryProvider>
+                  </TasksProvider>
                 </StudioProvider>
               </TasksProfileProvider>
             </FinanceProfileProvider>

@@ -41,8 +41,8 @@ function SavingsPage() {
                     <div className="w-full flex-1 flex flex-col space-y-6">
                         <SavingsManager />
                     </div>
-                    <KarrFooter />
                 </div>
+                <KarrFooter />
             </div>
         </div>
     )
