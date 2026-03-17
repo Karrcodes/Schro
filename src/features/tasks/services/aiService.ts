@@ -12,15 +12,18 @@ export const aiService = {
         
         try {
             if (isImage) {
-                // For images, we convert to base64 if sending to a standard API,
-                // or send as multipart if using Supabase edge functions.
                 const base64 = await fileToBase64(input)
                 
                 const { data, error } = await supabase.functions.invoke('process-magic-tasks', {
-                    body: { image: base64, type: 'image' },
+                    body: { 
+                        image: base64, 
+                        type: 'image',
+                        mimeType: input.type
+                    },
                 })
 
                 if (error) throw error
+                if (data?.error) throw new Error(data.error)
                 return data?.tasks || []
             } else {
                 const { data, error } = await supabase.functions.invoke('process-magic-tasks', {
@@ -28,20 +31,22 @@ export const aiService = {
                 })
 
                 if (error) throw error
+                if (data?.error) throw new Error(data.error)
                 return data?.tasks || []
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error in aiService.processQuickList:', error)
-            // Fallback for text if AI fails
-            if (!isImage) {
-                return (input as string).split('\n')
-                    .filter(line => line.trim())
-                    .map(line => ({
-                        title: line.replace(/^[-*•\d.]\s*/, '').trim(),
-                        priority: 'mid'
-                    }))
+            if (isImage) {
+                const message = error.message || error.details || 'Could not read image.'
+                throw new Error(`${message} Please ensure the text is clear.`)
             }
-            throw new Error('Could not read image. Please ensure the text is clear.')
+            // Fallback for text if AI fails
+            return (input as string).split('\n')
+                .filter(line => line.trim())
+                .map(line => ({
+                    title: line.replace(/^[-*•\d.]\s*/, '').trim(),
+                    priority: 'mid'
+                }))
         }
     }
 }
