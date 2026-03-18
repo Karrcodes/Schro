@@ -152,7 +152,7 @@ export function FloatingModulePicker({ pane }: { pane: Pane }) {
                             <div className="w-8 h-px bg-black/5 mx-auto my-1.5" />
 
                             <button
-                                onClick={toggleMultitasking}
+                                onClick={() => toggleMultitasking()}
                                 className="w-10 h-10 flex items-center justify-center rounded-xl text-black/20 hover:text-red-500 hover:bg-red-50 transition-all group"
                                 title="Exit Multitasking"
                             >
