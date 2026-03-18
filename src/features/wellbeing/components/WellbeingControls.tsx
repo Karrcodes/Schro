@@ -64,7 +64,7 @@ function GymOccupancySwitcher({ allBusyness, gymStats }: {
 }
 
 export function WellbeingControls() {
-    const { gymStats, syncGymData, isSyncingGym } = useWellbeing()
+    const { gymStats, syncGymData, isSyncingGym, requiresGymReauth, setIsGymModalOpen, rotaOverrides } = useWellbeing()
     const pathname = usePathname()
     const router = useRouter()
     const [justSynced, setJustSynced] = useState(false)
@@ -82,9 +82,9 @@ export function WellbeingControls() {
     }, [isSyncingGym, gymStats.lastSyncTime])
 
     const nextPrepDay = React.useMemo(() => {
-        const nextOff = getNextOffPeriod(new Date())
+        const nextOff = getNextOffPeriod(new Date(), rotaOverrides)
         return nextOff.end
-    }, [])
+    }, [rotaOverrides])
 
     return (
         <div className="flex items-center gap-3">
@@ -97,7 +97,11 @@ export function WellbeingControls() {
                             <Calendar className="w-3.5 h-3.5 text-indigo-500" />
                             <div className="flex flex-col leading-none">
                                 <span className="text-[10px] font-black uppercase tracking-tight text-indigo-950">
-                                    {format(nextPrepDay, 'EEEE')}
+                                    {format(nextPrepDay, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') 
+                                        ? 'Today' 
+                                        : format(nextPrepDay, 'yyyy-MM-dd') === format(new Date(Date.now() + 86400000), 'yyyy-MM-dd')
+                                            ? 'Tomorrow'
+                                            : format(nextPrepDay, 'EEEE')}
                                 </span>
                                 <span className="text-[7px] font-bold uppercase tracking-widest text-indigo-500/60">
                                     Next Prep Day
@@ -114,13 +118,21 @@ export function WellbeingControls() {
                     )}
 
                     <button
-                        onClick={() => syncGymData()}
+                        onClick={() => {
+                            if (requiresGymReauth) {
+                                setIsGymModalOpen(true)
+                            } else {
+                                console.log('Sync button clicked manually')
+                                syncGymData()
+                            }
+                        }}
                         disabled={isSyncingGym}
                         className={cn(
                             "flex items-center gap-2 px-5 h-11 rounded-[20px] shadow-sm transition-all duration-300 border",
                             isSyncingGym ? "bg-white border-black/5 cursor-not-allowed opacity-50" :
-                                (justSynced || gymStats.lastSyncTime) ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 group" :
-                                    "bg-white border-black/5 hover:bg-black/[0.02] group"
+                                requiresGymReauth ? "bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100 animate-pulse" :
+                                    (justSynced || gymStats.lastSyncTime) ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 group" :
+                                        "bg-white border-black/5 hover:bg-black/[0.02] group"
                         )}
                     >
                         {justSynced ? (
@@ -129,14 +141,16 @@ export function WellbeingControls() {
                             <RefreshCw className={cn(
                                 "w-4 h-4 transition-transform duration-500",
                                 isSyncingGym ? "animate-spin text-black/40" :
-                                    gymStats.lastSyncTime ? "text-emerald-500 group-hover:rotate-180" : "text-black/40 group-hover:rotate-180"
+                                    requiresGymReauth ? "text-rose-500" :
+                                        gymStats.lastSyncTime ? "text-emerald-500 group-hover:rotate-180" : "text-black/40 group-hover:rotate-180"
                             )} />
                         )}
                         <span className={cn(
                             "text-[10px] font-black uppercase tracking-widest whitespace-nowrap",
-                            (justSynced || gymStats.lastSyncTime) ? "text-emerald-700" : "text-black"
+                            requiresGymReauth ? "text-rose-700" :
+                                (justSynced || gymStats.lastSyncTime) ? "text-emerald-700" : "text-black"
                         )}>
-                            {isSyncingGym ? 'Syncing...' : (justSynced || gymStats.lastSyncTime) ? 'Synced' : 'Sync'}
+                            {isSyncingGym ? 'Syncing...' : requiresGymReauth ? 'Re-link' : (justSynced || gymStats.lastSyncTime) ? 'Re-sync' : 'Sync'}
                         </span>
                     </button>
                 </div>

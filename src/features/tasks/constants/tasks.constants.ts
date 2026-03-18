@@ -2,11 +2,11 @@ import {
     ShoppingCart, Bell, Activity, Wallet, Briefcase,
     Heart, User, Beaker, Factory, Tv, TrendingUp, Zap,
     Shield, Star, Coffee, Utensils, Search, Filter,
-    LayoutGrid, LayoutList, Target, Clock, Car
+    LayoutGrid, LayoutList, Target, Clock, Car, ListTodo
 } from 'lucide-react'
 
 export const CATEGORIES = [
-    { id: 'todo', label: 'Deployment', icon: Activity },
+    { id: 'todo', label: 'Tasks', icon: ListTodo },
     { id: 'grocery', label: 'Grocery List', icon: ShoppingCart },
     { id: 'reminder', label: 'Reminders', icon: Bell },
 ] as const

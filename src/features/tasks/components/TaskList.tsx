@@ -10,7 +10,7 @@ import {
     MoreVertical, Edit2, Briefcase, User, Zap, Car, MapPin,
     ArrowRight, Info, Check, X, Settings2, Sparkles, BarChart2, Minus,
     Target, ShoppingCart, Bell, LayoutGrid, LayoutList, GripVertical, Activity, ChevronUp, RefreshCw, Rocket, Video, Type, List, ListChecks, Wallet, Heart, Star, Save,
-    Beaker, Factory, Tv, TrendingUp, Shield, Camera, Upload, Library, Receipt, Wand2
+    Beaker, Factory, Tv, TrendingUp, Shield, Camera, Upload, Library, Receipt, Wand2, ListTodo
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTasksProfile } from '../contexts/TasksProfileContext'
@@ -62,7 +62,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [editValue, setEditValue] = useState("")
     const [editPriority, setEditPriority] = useState<Priority>("super")
     const [showCompleted, setShowCompleted] = useState(false)
-    const [sortBy, setSortBy] = useState<'manual' | 'priority' | 'impact' | 'duration' | 'deadline' | 'date'>(category === 'grocery' ? 'priority' : 'manual')
+    const [sortBy, setSortBy] = useState<'manual' | 'priority' | 'impact' | 'duration' | 'deadline' | 'date'>('priority')
     const [draggedItem, setDraggedItem] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
     const [activeFilter, setActiveFilter] = useState<string>('all')
@@ -167,8 +167,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         return result
     }, [tasks, searchQuery, category, showCompleted, activeFilter])
 
-    const title = category === 'todo' ? 'Deployment' : category === 'grocery' ? 'Grocery List' : 'Reminders'
-    const Icon = category === 'todo' ? Activity : category === 'grocery' ? ShoppingCart : Bell
+    const title = category === 'todo' ? 'Tasks' : category === 'grocery' ? 'Grocery List' : 'Reminders'
+    const Icon = category === 'todo' ? ListTodo : category === 'grocery' ? ShoppingCart : Bell
 
     // Handlers
     const toggleFolder = (folderId: string) => {
@@ -262,6 +262,10 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
         return [...templateMatches, ...historyMatches].slice(0, 5)
     }, [newTask, tasks, templates, category, showAllFields])
+    
+    const quickTemplates = useMemo(() => {
+        return templates.filter(t => t.category === category && t.profile === activeProfile)
+    }, [templates, category, activeProfile])
 
     useEffect(() => {
         const fetchTemplates = async () => {
@@ -625,6 +629,24 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         }
     })
 
+    const handleCreateFromTemplate = async (template: TaskTemplate) => {
+        try {
+            await createTask({
+                title: template.title,
+                priority: template.priority,
+                strategic_category: template.strategic_category,
+                impact_score: template.impact_score,
+                amount: template.amount,
+                notes: template.notes,
+                project_id: template.project_id,
+                content_id: template.content_id,
+                recurrence_config: template.recurrence_config
+            })
+        } catch (err) {
+            console.error('Failed to create from template:', err)
+        }
+    }
+
     const handleQuickImport = async (tasks: { title: string, priority: string, notes?: string }[]) => {
         try {
             await createTasks(tasks.map(t => ({
@@ -891,7 +913,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                     setShowLibrarySuggestions(sugs.length > 0)
                                 }
                             }}
-                            placeholder={`Add new ${category === 'todo' ? 'operation' : 'item'}...`}
+                            placeholder={category === 'todo' ? "Add new task..." : `Add new ${category === 'reminder' ? 'reminder' : 'item'}...`}
                             className="w-full bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 sm:px-4 py-2.5 text-[13px] text-black placeholder-black/30 outline-none focus:border-black/40 transition-colors"
                         />
                         {category === 'grocery' && showLibrarySuggestions && suggestions.length > 0 && (
@@ -966,7 +988,9 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             "w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-sm shrink-0 group relative overflow-hidden border",
                             category === 'grocery' 
                                 ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100" 
-                                : "bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-100"
+                                : category === 'todo'
+                                    ? "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
+                                    : "bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-100"
                         )}
                         title="Magic Import"
                     >
@@ -974,7 +998,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         <Wand2 className="w-5 h-5 relative z-10 group-hover:rotate-12 transition-transform duration-300" />
                         <Sparkles className={cn(
                             "w-2.5 h-2.5 absolute top-2 right-2 animate-pulse pointer-events-none transition-colors",
-                            category === 'grocery' ? "text-emerald-400" : "text-purple-400"
+                            category === 'grocery' ? "text-emerald-400" : category === 'todo' ? "text-blue-400" : "text-purple-400"
                         )} />
                     </button>
                     <button
@@ -1087,6 +1111,45 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 {item.title}
                             </button>
                         ))}
+                    </div>
+                )}
+
+                {/* Quick Library row - Persistently below input if not typing Much */}
+                {newTask.length < 3 && quickTemplates.length > 0 && (
+                    <div className="flex flex-col gap-2 px-1 py-1">
+                        <div className="flex items-center gap-2">
+                            <div className="h-[1px] flex-1 bg-black/[0.03]" />
+                            <span className="text-[10px] font-black text-black/20 uppercase tracking-[0.2em] whitespace-nowrap">Quick Actions</span>
+                            <div className="h-[1px] flex-1 bg-black/[0.03]" />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {quickTemplates.map((template) => {
+                                const stratCat = strategicCategories.find(c => c.id === template.strategic_category)
+                                const Icon = stratCat?.icon || Zap
+                                return (
+                                    <button
+                                        key={template.id}
+                                        type="button"
+                                        onClick={() => handleCreateFromTemplate(template)}
+                                        className={cn(
+                                            "flex items-center gap-2 px-3 py-1.5 rounded-xl border border-black/5 bg-white text-[11px] font-bold text-black/60 hover:text-black hover:border-black/20 hover:shadow-sm transition-all group scale-100 hover:scale-[1.02] active:scale-95",
+                                            template.priority === 'super' && "hover:bg-purple-50 hover:text-purple-600 hover:border-purple-100",
+                                            template.priority === 'high' && "hover:bg-red-50 hover:text-red-600 hover:border-red-100",
+                                            template.priority === 'mid' && "hover:bg-yellow-50/50 hover:text-yellow-600 hover:border-yellow-100"
+                                        )}
+                                    >
+                                        <Icon className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+                                        {template.title}
+                                        <div className="flex items-center ml-1">
+                                            {template.priority === 'super' && <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]" />}
+                                            {template.priority === 'high' && <div className="w-1.5 h-1.5 rounded-full bg-red-500" />}
+                                            {template.priority === 'mid' && <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />}
+                                            {template.priority === 'low' && <div className="w-1.5 h-1.5 rounded-full bg-black/10" />}
+                                        </div>
+                                    </button>
+                                )
+                            })}
+                        </div>
                     </div>
                 )}
 

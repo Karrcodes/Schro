@@ -43,6 +43,9 @@ interface WellbeingContextType extends WellbeingState {
     dailyNutrition: MacroTargets
     gymRecommendation: { status: string; reason: string }
     isSyncingGym: boolean
+    isGymModalOpen: boolean
+    setIsGymModalOpen: (open: boolean) => void
+    requiresGymReauth: boolean
     activeSession: WorkoutSession | null
     startSession: (routineId: string) => void
     updateSessionSet: (exerciseId: string, setIndex: number, updates: Partial<WorkoutSet>) => void
@@ -55,6 +58,7 @@ interface WellbeingContextType extends WellbeingState {
     deleteWorkoutLog: (id: string) => Promise<void>
     clearWorkoutLogs: () => Promise<void>
     bulkAddWorkoutLogs: (logs: WorkoutLog[]) => Promise<void>
+    rotaOverrides: RotaOverride[]
 }
 
 export const WellbeingContext = createContext<WellbeingContextType | undefined>(undefined)
@@ -96,6 +100,8 @@ const INITIAL_STATE: WellbeingState = {
     },
     activeSession: null,
     isSyncingGym: false,
+    isGymModalOpen: false,
+    requiresGymReauth: false,
     loading: true
 }
 
@@ -123,7 +129,14 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
                 if (saved) {
                     try {
                         const parsed = JSON.parse(saved)
-                        setState(prev => ({ ...prev, ...parsed, loading: user ? prev.loading : false }))
+                        const auth = localStorage.getItem('gym_auth')
+                        const requiresGymReauth = parsed.gymStats?.isIntegrated && !auth
+                        setState(prev => ({ 
+                            ...prev, 
+                            ...parsed, 
+                            requiresGymReauth,
+                            loading: user ? prev.loading : false 
+                        }))
                     } catch (e) {
                         console.error('Failed to parse local wellbeing state:', e)
                     }
@@ -138,7 +151,7 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
                         supabase.from('nutrition_library').select('*').eq('user_id', user.id),
                         supabase.from('nutrition_combo_contents').select('*'),
                         supabase.from('nutrition_fridge').select('*').eq('user_id', user.id),
-                        supabase.from('fin_rota_overrides').select('*').eq('profile', 'Personal')
+                        supabase.from('fin_rota_overrides').select('*').eq('profile', 'personal')
                     ])
 
                     const comboMap = (comboContentsRes.data || []).reduce((acc: any, curr) => {
@@ -208,6 +221,15 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
                         newState.activeRoutineId = dataRes.data.active_routine_id || null
                         newState.workoutLogs = dataRes.data.workout_logs || []
                         newState.gymStats = dataRes.data.gym_stats || INITIAL_STATE.gymStats
+                        
+                        // Check if we need to re-authenticate across devices
+                        if (newState.gymStats?.isIntegrated) {
+                            const hasDbAuth = !!newState.gymStats.cookie && !!newState.gymStats.userUuid;
+                            const localAuth = typeof window !== 'undefined' ? localStorage.getItem('gym_auth') : null
+                            if (!hasDbAuth && !localAuth) {
+                                newState.requiresGymReauth = true
+                            }
+                        }
                         
                         // Resolve emojis for meals from the library
                         newState.mealLogs = (dataRes.data.meal_logs || []).map((meal: any) => {
@@ -745,31 +767,75 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
         setState(prev => ({ ...prev, fridge: prev.fridge.filter(f => f.id !== fridgeId) }))
     }
 
-    const syncGymData = async () => {
-        const auth = typeof window !== 'undefined' ? localStorage.getItem('gym_auth') : null
-        if (!auth || !state.gymStats.isIntegrated) return
+    const setIsGymModalOpen = (isGymModalOpen: boolean) => {
+        setState(prev => ({ ...prev, isGymModalOpen }))
+    }
+
+    const syncGymData = React.useCallback(async () => {
+        console.log('Initiating Gym Sync...')
         
-        setState(prev => ({ ...prev, isSyncingGym: true }))
+        if (!state.gymStats.isIntegrated) {
+            console.warn('Sync called but gym is not integrated in state')
+            return
+        }
+
+        const { cookie, accessToken, userUuid: uuid, memberId } = state.gymStats
+
+        // Also check localStorage for backwards compatibility / local testing explicitly if DB missing it
+        let activeCookie = cookie
+        let activeAccessToken = accessToken
+        let activeUuid = uuid
+        let activeMemberId = memberId
+
+        if (!activeCookie || !activeAccessToken) {
+            const localAuth = typeof window !== 'undefined' ? localStorage.getItem('gym_auth') : null
+            if (localAuth) {
+                try {
+                    const parsed = JSON.parse(localAuth)
+                    activeCookie = parsed.cookie || activeCookie
+                    activeAccessToken = parsed.accessToken || activeAccessToken
+                    activeUuid = parsed.uuid || activeUuid
+                    activeMemberId = parsed.memberId || parsed.member_id || activeMemberId
+                } catch(e) {}
+            }
+        }
+
+        if (!activeCookie || !activeUuid) {
+            console.warn('Gym auth missing from state and localStorage')
+            if (state.gymStats.isIntegrated) {
+                console.log('Stats show integrated but auth is missing - marking for reauth.')
+                setState(prev => ({ ...prev, requiresGymReauth: true }))
+            }
+            return
+        }
+        
+        setState(prev => ({ ...prev, isSyncingGym: true, requiresGymReauth: false }))
+        console.log('isSyncingGym set to true, requiresGymReauth cleared')
         
         try {
-            const { uuid, cookie, memberId, accessToken } = JSON.parse(auth)
+            console.log('Syncing for UUID:', activeUuid)
 
-            // Fetch busyness for ALL accessible gym locations in parallel
+            // Capture location IDs at the start of sync
             const locationIds = state.gymStats.gymLocationIds?.length
                 ? state.gymStats.gymLocationIds
                 : state.gymStats.gymLocationId
                     ? [state.gymStats.gymLocationId]
                     : []
 
+            console.log('Fetching data for locations:', locationIds)
+
             const [busynessResults, historyRes] = await Promise.allSettled([
                 Promise.allSettled(
                     locationIds.map(locId =>
-                        GymService.getBusyness(uuid, locId, cookie, memberId, accessToken)
+                        GymService.getBusyness(activeUuid!, locId, activeCookie, activeMemberId, activeAccessToken)
                             .then(data => ({ locId, data }))
-                            .catch(() => ({ locId, data: null }))
+                            .catch(err => {
+                                console.error(`Failed to fetch busyness for ${locId}:`, err)
+                                return { locId, data: null }
+                            })
                     )
                 ),
-                GymService.getHistory(uuid, cookie)
+                GymService.getHistory(activeUuid!, activeCookie)
             ])
 
             // Build allBusyness map
@@ -918,9 +984,10 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
                 // If token is invalid across devices, forcibly disconnect to prompt a re-link
                 disconnectGym()
             }
+        } finally {
             setState(prev => ({ ...prev, isSyncingGym: false }))
         }
-    }
+    }, [state.gymStats.isIntegrated, state.gymStats.gymLocationId, state.gymStats.gymLocationIds])
 
     // Periodic Resync (Every 30 mins)
     useEffect(() => {
@@ -937,24 +1004,26 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
 
     const connectGym = async (username: string, pin: string, locationId: string, locationIds?: string[]) => {
         const data = await GymService.login(username, pin)
-        localStorage.setItem('gym_auth', JSON.stringify({ uuid: data.uuid, cookie: data.cookie, member_id: data.memberId, accessToken: data.accessToken }))
+        localStorage.setItem('gym_auth', JSON.stringify({ uuid: data.uuid, cookie: data.cookie, memberId: data.memberId, accessToken: data.accessToken }))
         const primaryId = data.homeGymId || locationId
         const allIds = locationIds?.length ? locationIds : [primaryId]
-        const gymStats = { 
+        const gymStats: typeof state.gymStats = { 
             ...state.gymStats, 
             isIntegrated: true, 
             gymLocationId: primaryId, 
             gymLocationIds: allIds,
             userUuid: data.uuid, 
-            memberId: data.memberId 
+            memberId: data.memberId,
+            cookie: data.cookie,
+            accessToken: data.accessToken
         }
-        setState(prev => ({ ...prev, gymStats }))
+        setState(prev => ({ ...prev, gymStats, requiresGymReauth: false }))
         await persistData({ gymStats })
     }
 
     const disconnectGym = async () => {
         localStorage.removeItem('gym_auth')
-        const gymStats = { 
+        const gymStats: typeof state.gymStats = { 
             ...state.gymStats, 
             isIntegrated: false, 
             gymLocationId: undefined, 
@@ -964,7 +1033,8 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
             busyness: undefined,
             userUuid: undefined, 
             memberId: undefined,
-            accessToken: undefined
+            accessToken: undefined,
+            cookie: undefined
         }
         setState(prev => ({ ...prev, gymStats }))
         await persistData({ gymStats })
@@ -1155,6 +1225,7 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
         connectGym,
         disconnectGym,
         syncGymData,
+        setIsGymModalOpen,
         addRoutine,
         updateGymStats,
         logMeal,
@@ -1191,8 +1262,9 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
         macros,
         dailyNutrition,
         gymRecommendation,
-        isSyncingGym: state.isSyncingGym
-    }), [state, macros, dailyNutrition, gymRecommendation, clearWorkoutLogs, bulkAddWorkoutLogs])
+        rotaOverrides,
+        isSyncingGym: state.isSyncingGym,
+    }), [state, macros, dailyNutrition, gymRecommendation, rotaOverrides, clearWorkoutLogs, bulkAddWorkoutLogs, setIsGymModalOpen])
 
     return <WellbeingContext.Provider value={value}>{children}</WellbeingContext.Provider>
 }

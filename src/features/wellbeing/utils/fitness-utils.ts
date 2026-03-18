@@ -13,7 +13,7 @@ export function getGymRecommendation(
 ) {
     const dateStr = date.toISOString().split('T')[0]
     const override = overrides.find(o => o.date === dateStr)
-    const isWork = isShiftDay(date)
+    const isWork = isShiftDay(date, overrides)
     
     // User Rules:
     // 1. Holiday -> Go

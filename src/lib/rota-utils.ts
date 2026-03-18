@@ -1,14 +1,23 @@
-/**
- * Shared rota + payday utilities for cron routes.
- * Mirrors the logic from ProjectionsAnalytics.tsx but server-side.
- */
+import type { RotaOverride } from '@/features/finance/types/finance.types'
 
 const ROTA_ANCHOR_UTC = Date.UTC(2026, 1, 23) // Feb 23 2026 - Monday
 
 /**
  * Returns true if the given date is a shift day (3-on/3-off starting from anchor).
  */
-export function isShiftDay(date: Date): boolean {
+export function isShiftDay(date: Date, overrides: RotaOverride[] = []): boolean {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const dateStr = `${year}-${month}-${day}`
+    
+    const override = overrides.find(o => o.date === dateStr)
+    
+    if (override) {
+        if (override.type === 'overtime') return true
+        if (override.type === 'absence' || override.type === 'holiday') return false
+    }
+
     const dateUTC = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
     const diffDays = Math.round((dateUTC - ROTA_ANCHOR_UTC) / 86400000)
     const cycleDay = ((diffDays % 6) + 6) % 6

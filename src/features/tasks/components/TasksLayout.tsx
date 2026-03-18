@@ -4,14 +4,14 @@ import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { KarrFooter } from '@/components/KarrFooter'
-import { Activity, ShoppingCart, Bell, Calendar, Target, LayoutDashboard } from 'lucide-react'
+import { ShoppingCart, Bell, Calendar, Target, LayoutDashboard, ListTodo } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTasksProfile } from '../contexts/TasksProfileContext'
 import { TasksProfileToggle } from './TasksProfileToggle'
 import { motion } from 'framer-motion'
 
 const TABS = [
-    { title: 'Deployment', href: '/tasks/todo', icon: Activity },
+    { title: 'Tasks', href: '/tasks/todo', icon: ListTodo },
     { title: 'Reminders', href: '/tasks/reminders', icon: Bell },
     { title: 'Groceries', href: '/tasks/groceries', icon: ShoppingCart },
 ]
@@ -31,10 +31,10 @@ export function TasksLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex flex-col min-h-screen">
             {/* Standard Module Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 py-8 md:px-10 md:py-10 z-10 gap-6 max-w-7xl mx-auto w-full">
+            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 pt-8 pb-4 md:px-10 md:pt-10 md:pb-8 z-10 gap-6 max-w-7xl mx-auto w-full">
                 <div className="space-y-1">
-                    <h2 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.3em]">Operations Protocol</h2>
-                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Focus & Execution</h1>
+                    <h2 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.3em]">Focus & Execution</h2>
+                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Operations</h1>
                     {!isOnCalendar && !isPlanner && !isGroceries && (
                         <div className="pt-2">
                             <TasksProfileToggle />

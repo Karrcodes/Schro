@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { GymService } from '../services/gymService'
 
 export function GymConnectionModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-    const { connectGym, disconnectGym, gymStats, updateGymStats } = useWellbeing()
+    const { connectGym, disconnectGym, gymStats, updateGymStats, requiresGymReauth } = useWellbeing()
     const [step, setStep] = useState<'credentials' | 'locations'>('credentials')
     const [email, setEmail] = useState('')
     const [pin, setPin] = useState('')
@@ -148,7 +148,7 @@ export function GymConnectionModal({ isOpen, onClose }: { isOpen: boolean; onClo
                                 </div>
                                 <div className="text-[10px] font-black uppercase tracking-widest text-[#e31837] mb-1">The Gym Group API</div>
                                 <h2 className="text-3xl font-black uppercase tracking-tighter">
-                                    {gymStats.isIntegrated ? 'Manage Gyms' : 'Link Gym Account'}
+                                    {(gymStats.isIntegrated && !requiresGymReauth) ? 'Manage Gyms' : 'Link Gym Account'}
                                 </h2>
                                 <p className="text-[13px] font-medium text-black/40 leading-relaxed uppercase tracking-tight">
                                     {gymStats.isIntegrated 
@@ -159,7 +159,7 @@ export function GymConnectionModal({ isOpen, onClose }: { isOpen: boolean; onClo
                                 </p>
                             </div>
 
-                            {gymStats.isIntegrated ? (
+                            {(gymStats.isIntegrated && !requiresGymReauth) ? (
                                 /* Management View */
                                 <div className="space-y-6">
                                     <div className="space-y-4">

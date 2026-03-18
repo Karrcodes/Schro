@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, CheckSquare, Clipboard, Loader2, Sparkles, ListChecks, Calendar, Info, Clock, Heart, Briefcase, User, Beaker, Factory, Tv, Video, TrendingUp, Building2, User2, Lock, PenLine, Youtube, Instagram, Music2, Twitter, Utensils, Database, ChefHat, Smile, Meh, Frown, Sun, CloudRain, Dumbbell, Apple, Code, Map, MessageCircle, MessageSquare } from 'lucide-react'
+import { Plus, X, CheckSquare, Clipboard, Loader2, Sparkles, ListChecks, Calendar, Info, Clock, Heart, Briefcase, User, Beaker, Factory, Tv, Video, TrendingUp, Building2, User2, Lock, PenLine, Youtube, Instagram, Music2, Twitter, Utensils, Database, ChefHat, Smile, Meh, Frown, Sun, CloudRain, Dumbbell, Apple, Code, Map, MessageCircle, MessageSquare, ListTodo } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { usePathname, useRouter } from 'next/navigation'
@@ -159,7 +159,7 @@ export function GlobalQuickAction() {
         { id: 'note', label: 'Canvas', icon: PenLine, color: 'bg-indigo-500', glow: 'shadow-indigo-500/40', locked: false },
         { id: 'mood', label: 'Mood', icon: Heart, color: 'bg-rose-400', glow: 'shadow-rose-400/40', locked: false },
         { id: 'clipboard', label: 'Vault', icon: Clipboard, color: 'bg-amber-500', glow: 'shadow-amber-500/40', locked: false },
-        { id: 'task', label: 'Task', icon: CheckSquare, color: 'bg-violet-600', glow: 'shadow-violet-600/40', locked: false },
+        { id: 'task', label: 'Task', icon: ListTodo, color: 'bg-violet-600', glow: 'shadow-violet-600/40', locked: false },
     ], [])
 
     if (!mounted || pathname === '/intelligence' || pathname === '/home' || pathname === '/' || pathname.includes('/session')) return null
@@ -217,7 +217,7 @@ export function GlobalQuickAction() {
                                     <>
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between ml-1">
-                                                <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em]">Deployment Title</label>
+                                                <label className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em]">Task Title</label>
                                                 <div className="flex gap-1 bg-black/[0.04] p-0.5 rounded-lg">
                                                     {(['personal', 'business'] as const).map(p => (
                                                         <button key={p} type="button"

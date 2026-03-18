@@ -54,9 +54,6 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
         title: '',
         category: 'todo',
         priority: 'low',
-        estimated_duration: 30,
-        travel_to_duration: 15,
-        travel_from_duration: 15,
         impact_score: 5
     }
 
@@ -136,20 +133,18 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                 initial={{ scale: 0.95, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                className="relative w-full max-w-2xl bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col max-h-[90vh] border border-white/50"
+                className="relative w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-black/5"
             >
-                {/* Decorative Header Gradient */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-rose-500" />
 
                 {/* Header */}
-                <div className="px-8 py-8 flex items-center justify-between border-b border-black/[0.03]">
-                    <div className="flex items-center gap-5">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-neutral-800 to-black flex items-center justify-center text-white shadow-xl shadow-black/10">
-                            <Settings2 className="w-7 h-7" />
+                <div className="px-8 py-8 flex items-center justify-between border-b border-black/[0.03] bg-neutral-50/50">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-black border border-black/10 flex items-center justify-center text-white shadow-lg shadow-black/5">
+                            <Settings2 className="w-6 h-6" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-[900] text-neutral-900 tracking-tight leading-tight">Operation Presets</h2>
-                            <p className="text-[12px] text-neutral-400 font-bold uppercase tracking-[0.2em] mt-0.5">Automated Task Engineering</p>
+                            <h2 className="text-xl font-bold text-black tracking-tight">Operation Presets</h2>
+                            <p className="text-[11px] text-black/40 font-bold uppercase tracking-wider mt-0.5">Focus & Execution Library</p>
                         </div>
                     </div>
                     <button
@@ -206,29 +201,29 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
 
                                     <div className="space-y-6">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-[900] text-neutral-400 uppercase tracking-[0.2em] ml-1">Preset Identity</label>
+                                            <label className="text-[10px] font-bold text-black/30 uppercase tracking-[0.2em] ml-1">Preset Identity</label>
                                             <input
                                                 type="text"
                                                 value={editingTemplate.title || ''}
                                                 onChange={(e) => setEditingTemplate({ ...editingTemplate, title: e.target.value })}
                                                 placeholder="e.g. Deep Work Session"
-                                                className="w-full bg-white border border-neutral-200 rounded-2xl px-6 py-4 font-bold text-[16px] outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-neutral-300"
+                                                className="w-full bg-white border border-black/10 rounded-xl px-5 py-3.5 font-bold text-[15px] outline-none focus:border-black transition-all placeholder:text-black/20"
                                             />
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-[900] text-neutral-400 uppercase tracking-[0.2em] ml-1">Category</label>
-                                                <div className="flex bg-white rounded-2xl border border-neutral-200 p-1.5 shadow-sm">
-                                                    {(['todo', 'grocery', 'reminder'] as const).map(c => (
+                                                <label className="text-[10px] font-bold text-black/30 uppercase tracking-[0.2em] ml-1">Class</label>
+                                                <div className="flex bg-white rounded-xl border border-black/10 p-1 shadow-sm">
+                                                    {(['todo', 'reminder'] as const).map(c => (
                                                         <button
                                                             key={c}
-                                                            onClick={() => setEditingTemplate({ ...editingTemplate, category: c })}
+                                                            onClick={() => setEditingTemplate({ ...editingTemplate, category: c as any })}
                                                             className={cn(
-                                                                "flex-1 py-3 rounded-xl text-[11px] font-[900] uppercase tracking-wider transition-all",
+                                                                "flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
                                                                 editingTemplate.category === c
-                                                                    ? "bg-neutral-900 text-white shadow-lg"
-                                                                    : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50"
+                                                                    ? "bg-black text-white shadow-md shadow-black/10"
+                                                                    : "text-black/30 hover:text-black/60 hover:bg-black/[0.02]"
                                                             )}
                                                         >
                                                             {c}
@@ -239,19 +234,20 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
 
                                             {editingTemplate.category !== 'reminder' && (
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-[900] text-neutral-400 uppercase tracking-[0.2em] ml-1">Intensity / Risk</label>
-                                                    <div className="flex bg-white rounded-2xl border border-neutral-200 p-1.5 shadow-sm">
+                                                    <label className="text-[10px] font-bold text-black/30 uppercase tracking-[0.2em] ml-1">Priority</label>
+                                                    <div className="flex bg-white rounded-xl border border-black/10 p-1 shadow-sm">
                                                         {(['low', 'mid', 'high', 'super'] as const).map(p => (
                                                             <button
                                                                 key={p}
                                                                 onClick={() => setEditingTemplate({ ...editingTemplate, priority: p })}
                                                                 className={cn(
-                                                                    "flex-1 py-3 rounded-xl text-[11px] font-[900] uppercase tracking-wider transition-all",
+                                                                    "flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
                                                                     editingTemplate.priority === p
-                                                                        ? p === 'super' ? "bg-rose-600 text-white shadow-lg shadow-rose-200" :
-                                                                            p === 'high' ? "bg-orange-600 text-white shadow-lg shadow-orange-200" :
-                                                                                "bg-neutral-900 text-white shadow-lg"
-                                                                        : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50"
+                                                                        ? p === 'super' ? "bg-purple-600 text-white shadow-md shadow-purple-100" :
+                                                                            p === 'high' ? "bg-red-600 text-white shadow-md shadow-red-100" :
+                                                                                p === 'mid' ? "bg-yellow-500 text-white shadow-md shadow-yellow-100" :
+                                                                                    "bg-black text-white shadow-md shadow-black/10"
+                                                                        : "text-black/30 hover:text-black/60 hover:bg-black/[0.02]"
                                                                 )}
                                                             >
                                                                 {p}
@@ -262,28 +258,52 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                                             )}
                                         </div>
 
-                                        {editingTemplate.category !== 'grocery' && editingTemplate.category !== 'reminder' && (
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-[900] text-neutral-400 uppercase tracking-[0.2em] ml-1">Strategic Architecture</label>
-                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                                    {((activeProfile === 'business' ? STRATEGIC_CATEGORIES.business : STRATEGIC_CATEGORIES.personal) as unknown as any[]).map((s: any) => (
-                                                        <button
-                                                            key={s.id}
-                                                            onClick={() => setEditingTemplate({ ...editingTemplate, strategic_category: s.id })}
-                                                            className={cn(
-                                                                "flex flex-col items-center gap-2 px-3 py-4 rounded-2xl border text-[11px] font-black transition-all group active:scale-95",
-                                                                editingTemplate.strategic_category === s.id
-                                                                    ? s.color + " ring-4 ring-current/10"
-                                                                    : "bg-white border-neutral-200 text-neutral-400 hover:border-neutral-300"
-                                                            )}
-                                                        >
-                                                            <s.icon className={cn("w-5 h-5", editingTemplate.strategic_category === s.id ? "scale-110" : "group-hover:scale-110 transition-transform")} />
-                                                            <span className="uppercase tracking-tighter">{s.label}</span>
-                                                        </button>
-                                                    ))}
+                                        <div className="space-y-6">
+                                            {editingTemplate.category !== 'grocery' && editingTemplate.category !== 'reminder' && (
+                                                <div className="space-y-3">
+                                                    <label className="text-[10px] font-bold text-black/30 uppercase tracking-[0.2em] ml-1">Category</label>
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                                        {((activeProfile === 'business' ? STRATEGIC_CATEGORIES.business : STRATEGIC_CATEGORIES.personal) as unknown as any[]).map((s: any) => (
+                                                            <button
+                                                                key={s.id}
+                                                                onClick={() => setEditingTemplate({ ...editingTemplate, strategic_category: s.id })}
+                                                                className={cn(
+                                                                    "flex flex-col items-center gap-2 px-3 py-3.5 rounded-xl border text-[10px] font-bold tracking-tight transition-all group active:scale-95",
+                                                                    editingTemplate.strategic_category === s.id
+                                                                        ? "bg-black text-white border-black shadow-md shadow-black/10"
+                                                                        : "bg-white border-black/[0.06] text-black/40 hover:border-black/20 hover:text-black/60"
+                                                                )}
+                                                            >
+                                                                <s.icon className={cn("w-4 h-4", editingTemplate.strategic_category === s.id ? "text-white" : "text-black/20 group-hover:text-black/40 transition-colors")} />
+                                                                <span className="uppercase tracking-wider">{s.label}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
+
+                                            {editingTemplate.category !== 'reminder' && (
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-black/30 uppercase tracking-[0.2em] ml-1">Impact Score</label>
+                                                    <div className="bg-white rounded-xl border border-black/10 p-3 shadow-sm flex flex-col justify-center">
+                                                        <input
+                                                            type="range"
+                                                            min="1"
+                                                            max="10"
+                                                            step="1"
+                                                            value={editingTemplate.impact_score || 5}
+                                                            onChange={(e) => setEditingTemplate({ ...editingTemplate, impact_score: parseInt(e.target.value) })}
+                                                            className="w-full accent-black h-1.5 bg-neutral-100 rounded-lg appearance-none cursor-pointer"
+                                                        />
+                                                        <div className="flex justify-between mt-2.5 px-0.5">
+                                                            <span className="text-[9px] font-bold text-black/20 uppercase tracking-tighter">Minimal</span>
+                                                            <span className="text-[13px] font-black text-black leading-none">{editingTemplate.impact_score || 5}</span>
+                                                            <span className="text-[9px] font-bold text-black/20 uppercase tracking-tighter">Critical</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
 
 
                                         {/* Notes System */}
@@ -402,16 +422,16 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                                                 setIsAdding(false)
                                                 setEditingTemplate(null)
                                             }}
-                                            className="px-6 py-4 rounded-2xl bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-600 font-extrabold text-[14px] transition-all"
+                                            className="px-6 py-3.5 rounded-xl bg-white border border-black/10 hover:bg-neutral-50 text-black/60 font-bold text-[13px] transition-all"
                                         >
-                                            Abort
+                                            Cancel
                                         </button>
                                         <button
                                             onClick={handleSave}
-                                            className="flex-1 py-4 rounded-2xl bg-neutral-900 text-white font-extrabold text-[14px] hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl shadow-neutral-200"
+                                            className="flex-1 py-3.5 rounded-xl bg-black text-white font-bold text-[13px] hover:bg-neutral-900 transition-all flex items-center justify-center gap-2 shadow-lg shadow-black/5"
                                         >
-                                            <Save className="w-5 h-5 text-blue-400" />
-                                            Initialize Protocol
+                                            <Save className="w-4 h-4" />
+                                            Save
                                         </button>
                                     </div>
                                 </div>
@@ -467,7 +487,7 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                                                         <Bell className="w-8 h-8" />}
                                             </div>
                                             <div>
-                                                <h4 className="font-[900] text-lg text-neutral-900 leading-tight tracking-tight">{tmpl.title}</h4>
+                                                <h4 className="font-bold text-[16px] text-black leading-tight tracking-tight">{tmpl.title}</h4>
                                                 <div className="flex flex-wrap items-center gap-2 mt-2">
                                                     <div className={cn(
                                                         "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border shrink-0",
@@ -476,61 +496,18 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                                                         {tmpl.category !== 'reminder' && (PRIORITY_MAP[tmpl.priority as keyof typeof PRIORITY_MAP] || PRIORITY_MAP.low).label}
                                                         {tmpl.category === 'reminder' && 'REMINDER'}
                                                     </div>
-                                                    {tmpl.category !== 'grocery' && tmpl.category !== 'reminder' && (
-                                                        <span className="text-[9px] font-black uppercase tracking-tighter px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 shadow-sm flex items-center gap-1.5">
-                                                            <Clock className="w-3 h-3" /> {tmpl.estimated_duration}m
-                                                        </span>
-                                                    )}
 
-                                                    {tmpl.category !== 'grocery' && (tmpl.travel_to_duration || tmpl.travel_from_duration) && (
-                                                        <span className="text-[9px] font-black uppercase tracking-tighter px-2.5 py-1 rounded-full bg-neutral-900 text-white shadow-lg flex items-center gap-1.5">
-                                                            <Car className="w-3 h-3" />
-                                                            {tmpl.travel_to_duration || 0}{tmpl.travel_from_duration !== tmpl.travel_to_duration ? `+${tmpl.travel_from_duration || 0}` : ''}m
-                                                        </span>
-                                                    )}
                                                     {tmpl.strategic_category && tmpl.category !== 'grocery' && tmpl.category !== 'reminder' && (
                                                         <span className="text-[9px] font-black uppercase tracking-tighter px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-500 border border-neutral-200">
                                                             {tmpl.strategic_category}
                                                         </span>
                                                     )}
-                                                    {/* Algorithmic Parameters - Hidden for groceries */}
-                                                    {tmpl.category !== 'grocery' && (
-                                                        <div className="grid grid-cols-3 gap-2">
-                                                            <div>
-                                                                <label className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1 block">Dur</label>
-                                                                <select
-                                                                    value={editingTemplate?.estimated_duration || tmpl.estimated_duration}
-                                                                    onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, estimated_duration: parseInt(e.target.value) } : null)}
-                                                                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded px-1.5 py-1 text-xs text-zinc-300 focus:outline-none focus:border-zinc-700"
-                                                                >
-                                                                    {[15, 30, 45, 60, 90, 120].map(d => (
-                                                                        <option key={d} value={d}>{d}m</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1 block">Trv</label>
-                                                                <select
-                                                                    value={editingTemplate?.travel_to_duration || tmpl.travel_to_duration}
-                                                                    onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, travel_to_duration: parseInt(e.target.value) } : null)}
-                                                                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded px-1.5 py-1 text-xs text-zinc-300 focus:outline-none focus:border-zinc-700"
-                                                                >
-                                                                    {[0, 5, 10, 15, 20, 30].map(t => (
-                                                                        <option key={t} value={t}>{t}m</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1 block">Imp</label>
-                                                                <select
-                                                                    value={editingTemplate?.impact_score || tmpl.impact_score}
-                                                                    onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, impact_score: parseInt(e.target.value) } : null)}
-                                                                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded px-1.5 py-1 text-xs text-zinc-300 focus:outline-none focus:border-zinc-700"
-                                                                >
-                                                                    {[1, 2, 3, 4, 5].map(i => (
-                                                                        <option key={i} value={i}>{i}</option>
-                                                                    ))}
-                                                                </select>
+                                                    
+                                                    {tmpl.category !== 'grocery' && tmpl.category !== 'reminder' && (
+                                                        <div className="flex items-center gap-2 ml-1">
+                                                            <div className="flex items-center gap-1">
+                                                                <label className="text-[9px] text-black/30 font-black uppercase tracking-widest leading-none">Impact</label>
+                                                                <span className="text-[11px] font-bold text-black/60">{tmpl.impact_score || 0}</span>
                                                             </div>
                                                         </div>
                                                     )}
@@ -584,12 +561,12 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                 </div>
 
                 {/* Footer */}
-                <div className="px-8 py-5 bg-neutral-50 border-t border-black/[0.03] flex items-center justify-between">
-                    <p className="text-[10px] font-black text-neutral-300 uppercase tracking-[0.4em]">Operations Unit v2.0</p>
-                    <div className="flex gap-2">
-                        <div className="w-2 h-2 rounded-full bg-neutral-200 animate-pulse" />
-                        <div className="w-2 h-2 rounded-full bg-neutral-200 animate-pulse delay-75" />
-                        <div className="w-2 h-2 rounded-full bg-neutral-200 animate-pulse delay-150" />
+                <div className="px-8 py-5 bg-neutral-50/50 border-t border-black/[0.03] flex items-center justify-between">
+                    <p className="text-[10px] font-black text-black/20 uppercase tracking-[0.4em]">Operations Unit</p>
+                    <div className="flex gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-black/5" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-black/10" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-black/5" />
                     </div>
                 </div>
             </motion.div>

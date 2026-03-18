@@ -20,8 +20,7 @@ import { WellbeingControls } from './WellbeingControls'
 import { WellbeingTabs } from './WellbeingTabs'
 
 export function FitnessTab() {
-    const { routines, activeRoutineId, activeSession, startSession, gymStats, syncGymData, gymRecommendation, logWorkout, workoutLogs, profile } = useWellbeing()
-    const [isGymModalOpen, setIsGymModalOpen] = useState(false)
+    const { routines, activeRoutineId, activeSession, startSession, gymStats, syncGymData, gymRecommendation, logWorkout, workoutLogs, profile, isGymModalOpen, setIsGymModalOpen } = useWellbeing()
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [isSwitcherOpen, setIsSwitcherOpen] = useState(false)
     const [showAnalytics, setShowAnalytics] = useState(false)

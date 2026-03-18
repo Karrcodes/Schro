@@ -85,7 +85,7 @@ export function NutritionTab() {
                 </div>
 
                 {/* The Fridge (Inventory) */}
-                <div className="w-full h-[250px] pb-12">
+                <div className="w-full h-[320px] pb-12">
                         <motion.div
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.99 }}

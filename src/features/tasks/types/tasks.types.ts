@@ -124,6 +124,7 @@ export interface TaskTemplate {
     amount?: string
     due_date_mode?: 'on' | 'before' | 'range'
     content_id?: string
+    project_id?: string
     recurrence_config?: Task['recurrence_config']
     estimated_duration?: number
     travel_to_duration?: number

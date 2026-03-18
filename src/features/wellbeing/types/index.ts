@@ -101,6 +101,7 @@ export interface TheGymGroupStats {
     userUuid?: string
     memberId?: string
     accessToken?: string
+    cookie?: string
     debug_raw_history?: any
     debug_raw_busyness?: any
     debug_raw_user?: any
@@ -241,5 +242,7 @@ export interface WellbeingState {
     dashboardLayout: DashboardLayout
     activeSession: WorkoutSession | null
     isSyncingGym: boolean
+    isGymModalOpen: boolean
+    requiresGymReauth: boolean
     loading: boolean
 }
