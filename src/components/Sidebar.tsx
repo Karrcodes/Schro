@@ -12,26 +12,17 @@ import {
     TrendingUp, Calendar, CreditCard, PiggyBank,
     Moon, Sun, Laptop, Target, Briefcase, Heart, Gift, Rocket,
     LayoutDashboard, EyeOff, Receipt, Lock, ClipboardIcon, Key, Brain, Sparkles, Award,
-    Video, PenLine, Users
+    Video, PenLine, Users, Columns, Square
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useMultitasking, Pane } from '@/features/system/contexts/MultitaskingContext'
 import { Reorder } from 'framer-motion'
 import { useFinanceProfile } from '@/features/finance/contexts/FinanceProfileContext'
 import { useSettings } from '@/features/finance/hooks/useSettings'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 
-import { navItems, NavItem } from '@/lib/navConfig'
+import { navItems, NavItem, COLOR_MAP } from '@/lib/navConfig'
 import { useAuth } from '@/contexts/AuthContext'
-
-const COLOR_MAP: Record<string, string> = {
-    black: 'text-black',
-    blue: 'text-blue-500',
-    purple: 'text-purple-500',
-    emerald: 'text-emerald-500',
-    orange: 'text-orange-500',
-    amber: 'text-amber-500',
-    rose: 'text-rose-500',
-}
 
 function CapBadge({ cap }: { cap: 'P' | 'B' }) {
     return (
@@ -169,6 +160,7 @@ export function Sidebar() {
     const [isRefreshing, setIsRefreshing] = useState(false)
     const { isPrivacyEnabled } = useFinanceProfile()
     const { isVaultPrivate } = useVault()
+    const { isMultitasking, toggleMultitasking, focusedPane, setPaneUrl, setFocusedPane } = useMultitasking()
 
     const [orderedTabs, setOrderedTabs] = useState(navItems.map(item => item.label))
     const [orderedSubTabs, setOrderedSubTabs] = useState<Record<string, string[]>>(() => {
@@ -408,6 +400,13 @@ export function Sidebar() {
         })
     }
 
+    const handleNavClick = (href: string, e: React.MouseEvent) => {
+        if (isMultitasking) {
+            e.preventDefault()
+            setPaneUrl(focusedPane, href)
+        }
+    }
+
     const renderContent = (itemsToRender: string[], isReorderable: boolean) =>
         itemsToRender.map((label) => {
             const item = navItems.find((i) => i.label === label)
@@ -433,6 +432,7 @@ export function Sidebar() {
                     <div className="select-none">
                         <Link
                             href={item.href}
+                            onClick={(e) => handleNavClick(item.href, e)}
                             draggable={false}
                             className={cn(
                                 'flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-150 relative group',
@@ -490,6 +490,7 @@ export function Sidebar() {
                                                         ) : (
                                                             <Link
                                                                 href={subItem.href}
+                                                                onClick={(e) => handleNavClick(subItem.href, e)}
                                                                 draggable={false}
                                                                 className={cn(
                                                                     'flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] transition-colors group/sub',
@@ -528,6 +529,7 @@ export function Sidebar() {
                                                         ) : (
                                                             <Link
                                                                 href={subItem.href}
+                                                                onClick={(e) => handleNavClick(subItem.href, e)}
                                                                 draggable={false}
                                                                 className={cn(
                                                                     'flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] transition-colors group/sub',
@@ -591,6 +593,10 @@ export function Sidebar() {
             )}
         </nav>
     )
+
+    if (isMultitasking && isMounted) {
+        return null
+    }
 
     return (
         <>
@@ -673,6 +679,7 @@ export function Sidebar() {
                                         <Link
                                             ref={el => { tabRefs.current[item.label] = el }}
                                             href={item.href}
+                                            onClick={(e) => handleNavClick(item.href, e)}
                                             className={cn(
                                                 'w-11 h-11 mr-2 flex items-center justify-center transition-colors duration-150 transform-gpu cursor-pointer relative z-20 rounded-xl',
                                                 isActive
@@ -719,6 +726,7 @@ export function Sidebar() {
                                                         <div key={subItem.href} className="relative group/sub">
                                                             <Link
                                                                 href={subItem.href}
+                                                                onClick={(e) => handleNavClick(subItem.href, e)}
                                                                 onMouseEnter={(e) => {
                                                                     setHoveredSubItem(subItem.label)
                                                                     const rect = e.currentTarget.getBoundingClientRect()
@@ -762,11 +770,77 @@ export function Sidebar() {
                 )}
 
                 {/* Footer + Profile – hide in collapsed state */}
-                {!isCollapsed && <SidebarFooter pathname={pathname} />}
+                {!isCollapsed && (
+                    <div className="px-5 py-3 border-t border-black/[0.03] space-y-1">
+                        <button
+                            onClick={() => toggleMultitasking(pathname)}
+                            className={cn(
+                                "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all text-[13px] font-medium outline-none select-none",
+                                isMultitasking
+                                    ? 'bg-blue-50 text-blue-600'
+                                    : 'text-black/50 hover:bg-black/[0.04] hover:text-black/80'
+                            )}
+                        >
+                            <Columns className="w-4 h-4" />
+                            Multitasking
+                            {isMultitasking && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                        </button>
+                        <SidebarFooter pathname={pathname} />
+                    </div>
+                )}
+
+                {/* Pane Focus Selector for Collapsed state */}
+                {isCollapsed && isMultitasking && (
+                    <div className="flex flex-col items-center gap-1 py-2 border-t border-black/[0.06]">
+                        <button
+                            onClick={() => {
+                                const next: Pane = focusedPane === 'left' ? 'right' : 'left'
+                                setFocusedPane(next)
+                            }}
+                            className={cn(
+                                "w-10 h-10 flex items-center justify-center rounded-xl transition-all",
+                                "bg-blue-50 text-blue-600 border border-blue-100 shadow-sm"
+                            )}
+                            title={`Focusing ${focusedPane} pane`}
+                        >
+                            {focusedPane === 'left' ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        </button>
+                    </div>
+                )}
 
                 {/* Expand / Profile row */}
                 {isCollapsed ? (
                     <div className="pb-4 flex flex-col items-center gap-1 shrink-0 px-2">
+                        <button
+                            onClick={() => toggleMultitasking(pathname)}
+                            onMouseEnter={(e) => {
+                                setHoveredItem('multitasking')
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setFlyoutY(rect.top + rect.height / 2)
+                            }}
+                            onMouseLeave={() => setHoveredItem(null)}
+                            className={cn(
+                                "relative w-10 h-10 flex items-center justify-center rounded-xl transition-all outline-none select-none",
+                                isMultitasking
+                                    ? 'bg-blue-50 text-blue-600'
+                                    : hoveredItem === 'multitasking'
+                                        ? 'bg-black/[0.04] text-black/80'
+                                        : 'text-black/35 active:bg-black/[0.04] active:text-black/80'
+                            )}
+                        >
+                            <Columns className="w-4 h-4" />
+                            {isMounted && hoveredItem === 'multitasking' && createPortal(
+                                <div
+                                    ref={flyoutRef}
+                                    className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[300] shadow-xl"
+                                    style={{ left: 56 + 12, top: flyoutY + flyoutOffset, transform: 'translateY(-50%)' }}
+                                >
+                                    {isMultitasking ? 'Exit Multitasking' : 'Enter Multitasking'}
+                                </div>,
+                                document.body
+                            )}
+                        </button>
+
                         <Link
                             href="/system/settings"
                             onMouseEnter={(e) => {

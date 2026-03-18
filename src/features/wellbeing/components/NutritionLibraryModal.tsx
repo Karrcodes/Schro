@@ -3,11 +3,12 @@
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ComboEmojiStack } from './ComboEmojiStack'
-import { X, Flame, Database, Plus, Trash2, GripVertical, Coffee, UtensilsCrossed, Moon, Apple, Zap, Refrigerator, BookMarked } from 'lucide-react'
+import { X, Flame, Database, Plus, Trash2, GripVertical, Coffee, UtensilsCrossed, Moon, Apple, Zap, Refrigerator, BookMarked, Pencil } from 'lucide-react'
 import { useWellbeing } from '../contexts/WellbeingContext'
 import { cn } from '@/lib/utils'
 import type { LibraryMeal } from '../types'
 import ConfirmationModal from '@/components/ConfirmationModal'
+import { EditLibraryMealModal } from './EditLibraryMealModal'
 
 interface NutritionLibraryModalProps {
     isOpen: boolean
@@ -23,6 +24,7 @@ export function NutritionLibraryModal({ isOpen, onClose }: NutritionLibraryModal
     const [mealToPrep, setMealToPrep] = useState<LibraryMeal | null>(null)
     const [tagToRemove, setTagToRemove] = useState<{ meal: LibraryMeal, tag: string } | null>(null)
     const [mealToLog, setMealToLog] = useState<LibraryMeal | null>(null)
+    const [mealToEdit, setMealToEdit] = useState<LibraryMeal | null>(null)
     const [selectedLogType, setSelectedLogType] = useState<'dewbit' | 'breakfast' | 'lunch' | 'dinner' | 'snack'>('snack')
     const [isComboMode, setIsComboMode] = useState(false)
     const [selectedComboItems, setSelectedComboItems] = useState<Record<string, number>>({})
@@ -232,7 +234,7 @@ export function NutritionLibraryModal({ isOpen, onClose }: NutritionLibraryModal
                                     }}
                                     onLog={() => handleQuickLog(meal)}
                                     onPrep={() => setMealToPrep(meal)}
-                                    // ... rest of props
+                                    onEdit={() => setMealToEdit(meal)}
                                     onDelete={() => setMealToDelete(meal)}
                                     onUpdateTags={(newTypes) => updateLibraryMeal(meal.id, { type: newTypes })}
                                     onRemoveTagRequest={(tag) => setTagToRemove({ meal, tag })}
@@ -423,6 +425,14 @@ export function NutritionLibraryModal({ isOpen, onClose }: NutritionLibraryModal
                 confirmText="Great!"
                 type="success"
             />
+
+            {mealToEdit && (
+                <EditLibraryMealModal
+                    isOpen={!!mealToEdit}
+                    onClose={() => setMealToEdit(null)}
+                    meal={mealToEdit}
+                />
+            )}
         </div>
     )
 }
@@ -435,6 +445,7 @@ function LibraryMealCard({
     onSelect,
     onLog, 
     onPrep, 
+    onEdit,
     onDelete, 
     onUpdateTags, 
     onRemoveTagRequest, 
@@ -450,6 +461,7 @@ function LibraryMealCard({
     onSelect: () => void;
     onLog: () => void;
     onPrep: () => void;
+    onEdit: () => void;
     onDelete: () => void;
     onUpdateTags: (newTypes: LibraryMeal['type']) => void;
     onRemoveTagRequest: (tag: string) => void;
@@ -705,6 +717,16 @@ function LibraryMealCard({
                     title="Prep 4 portions into Fridge"
                 >
                     <Refrigerator className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        onEdit()
+                    }}
+                    className="w-10 h-10 rounded-xl bg-black/[0.03] text-black/60 border border-black/5 hover:bg-black/5 hover:scale-105 active:scale-95 transition-all flex items-center justify-center shrink-0"
+                    title="Edit Library Item"
+                >
+                    <Pencil className="w-4 h-4" />
                 </button>
                 <button
                     type="button"

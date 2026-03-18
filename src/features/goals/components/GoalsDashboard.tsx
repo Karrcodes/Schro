@@ -62,8 +62,8 @@ export default function GoalsDashboard() {
             {/* Standard Module Header */}
             <header className="flex flex-col md:flex-row md:items-end justify-between z-10 gap-6 pb-2">
                 <div className="space-y-1">
-                    <h2 className="text-[11px] font-black text-amber-500 uppercase tracking-[0.3em]">Strategy Protocol</h2>
-                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Goals Registry</h1>
+                    <h2 className="text-[11px] font-black text-amber-500 uppercase tracking-[0.3em]">Ambitions</h2>
+                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Goals</h1>
                 </div>
 
                 <div className="flex items-center gap-3 h-fit mb-1">
@@ -74,7 +74,7 @@ export default function GoalsDashboard() {
                         className="flex items-center justify-center gap-2 px-6 py-2.5 bg-black text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/10 group whitespace-nowrap"
                     >
                         <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-                        <span className="hidden xs:block">Initiate Mission</span>
+                        <span className="hidden xs:block">New Goal</span>
                     </button>
                 </div>
             </header>
@@ -92,7 +92,7 @@ export default function GoalsDashboard() {
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
                                 <input
                                     type="text"
-                                    placeholder="Search strategy..."
+                                    placeholder="Search goal..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="w-full bg-black/[0.02] border-transparent focus:bg-white focus:border-black/5 rounded-xl pl-11 pr-4 py-3 md:py-3.5 text-sm font-bold placeholder:text-black/20 outline-none transition-all placeholder:font-bold"

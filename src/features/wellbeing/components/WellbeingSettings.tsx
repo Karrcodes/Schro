@@ -22,18 +22,20 @@ import {
     Scale,
     Calendar,
     Smile,
-    ArrowUpRight
+    ArrowUpRight,
+    ArrowLeft
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { useWellbeing } from '../contexts/WellbeingContext'
 import type { WellbeingGoal, ActivityLevel, Gender, DashboardComponentId } from '../types'
 import { cn } from '@/lib/utils'
 
-import { WellbeingHeader } from './WellbeingHeader'
 import { KarrFooter } from '@/components/KarrFooter'
 
 export function WellbeingSettings() {
     const { profile, updateProfile, dashboardLayout, updateLayout } = useWellbeing()
+    const router = useRouter()
     const [isSaving, setIsSaving] = useState(false)
     const [success, setSuccess] = useState(false)
     const [draggingId, setDraggingId] = useState<DashboardComponentId | null>(null)
@@ -163,11 +165,20 @@ export function WellbeingSettings() {
 
     return (
         <div className="flex flex-col space-y-12">
-            <WellbeingHeader
-                title="Settings & Config"
-                subtitle="Wellbeing Protocol"
-                activeColor="text-rose-500"
-            />
+            <div className="flex flex-col md:flex-row md:items-center justify-between z-10 gap-6 w-full flex-shrink-0">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <button 
+                        onClick={() => router.push('/health')}
+                        className="w-9 h-9 rounded-xl bg-black/[0.03] flex items-center justify-center hover:bg-black/[0.06] transition-colors flex-shrink-0"
+                    >
+                        <ArrowLeft className="w-4 h-4 text-black/40" />
+                    </button>
+                    <div className="min-w-0 flex-1 space-y-1">
+                        <h2 className="text-[11px] font-black text-rose-500 uppercase tracking-[0.3em] truncate">Wellbeing Protocol</h2>
+                        <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tighter uppercase grayscale truncate">Settings & Config</h1>
+                    </div>
+                </div>
+            </div>
 
             <div className="w-full space-y-8">
                 {/* Profile Section - Maintains standard size for accessibility */}

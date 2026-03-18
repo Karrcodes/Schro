@@ -6,9 +6,13 @@ import {
     X, Plus, Target, Calendar, Briefcase, Heart,
     User, Wallet, Trash2, Sparkles, Upload, Loader2, AlertCircle, ImageIcon, GripVertical
 } from 'lucide-react'
+import ConfirmationModal from '@/components/ConfirmationModal'
 import { Reorder, useDragControls } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { Goal, GoalCategory, GoalPriority, CreateGoalData, GoalStatus } from '../types/goals.types'
+import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
+import { usePots } from '@/features/finance/hooks/usePots'
+import { PiggyBank, Landmark } from 'lucide-react'
 
 interface GoalCreationModalProps {
     isOpen: boolean
@@ -42,11 +46,25 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const [targetDate, setTargetDate] = useState('')
+    const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null)
     const [milestones, setMilestones] = useState<{ id: string, text: string, is_completed: boolean, impact_score: number }[]>([{ id: 'initial', text: '', is_completed: false, impact_score: 5 }])
     const [saving, setSaving] = useState(false)
     const [aiLoading, setAiLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [aiUsed, setAiUsed] = useState(false)
+    
+    // Linked Savings State
+    const [linkedSavingsId, setLinkedSavingsId] = useState<string | null>(null)
+    const [linkedSavingsType, setLinkedSavingsType] = useState<'manual' | 'monzo' | null>(null)
+    
+    const { goals: financeGoals } = useFinanceGoals()
+    const { pots } = usePots()
+    
+    // Combine for selection
+    const availableSavings = [
+        ...financeGoals.map(g => ({ id: g.id, name: g.name, type: 'manual' as const })),
+        ...pots.filter(p => p.target_amount > 0 || p.type === 'savings').map(p => ({ id: p.id, name: p.name, type: 'monzo' as const }))
+    ]
 
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -71,11 +89,14 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
             setImageFile(null)
             setAiUsed(false)
             setError(null)
+            setLinkedSavingsId(initialGoal.linked_savings_id || null)
+            setLinkedSavingsType(initialGoal.linked_savings_type || null)
         } else if (!initialGoal && isOpen) {
             // Reset for new goal
             setTitle(''); setDescription(''); setCategory('personal'); setStatus('active')
             setPriority('mid'); setTimeframe('short'); setVisionImageUrl(''); setTargetDate('')
             setMilestones([{ id: 'initial', text: '', is_completed: false, impact_score: 5 }]); setImagePreview(null); setImageFile(null); setAiUsed(false); setError(null)
+            setLinkedSavingsId(null); setLinkedSavingsType(null)
         }
     }, [initialGoal, isOpen])
 
@@ -85,8 +106,16 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
         setMilestones([...milestones, { id: Math.random().toString(36).substring(2, 9), text: '', is_completed: false, impact_score: 5 }])
     }
     const removeMilestone = (id: string) => {
-        if (milestones.length === 1) { setMilestones([{ id: Math.random().toString(36).substring(2, 9), text: '', is_completed: false, impact_score: 5 }]); return }
-        setMilestones(milestones.filter(m => m.id !== id))
+        setMilestoneToDelete(id)
+    }
+    const confirmRemoveMilestone = () => {
+        if (!milestoneToDelete) return
+        if (milestones.length === 1) { 
+            setMilestones([{ id: Math.random().toString(36).substring(2, 9), text: '', is_completed: false, impact_score: 5 }])
+        } else {
+            setMilestones(milestones.filter(m => m.id !== milestoneToDelete))
+        }
+        setMilestoneToDelete(null)
     }
     const updateMilestone = (id: string, updates: Partial<{ text: string, impact_score: number }>) => {
         setMilestones(milestones.map(m => m.id === id ? { ...m, ...updates } : m))
@@ -147,6 +176,8 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                 timeframe,
                 vision_image_url: visionImageUrl, // Pass the actual state (empty string means removal)
                 target_date: targetDate || undefined,
+                linked_savings_id: linkedSavingsId,
+                linked_savings_type: linkedSavingsType,
                 milestones: milestones
                     .filter(m => m.text.trim() !== '')
                     .map(m => ({ title: m.text, is_completed: m.is_completed, impact_score: m.impact_score }))
@@ -161,6 +192,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
     }
 
     return (
+        <>
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 md:p-6">
@@ -185,7 +217,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                     <Target className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h2 className="text-[18px] md:text-[20px] font-bold text-black tracking-tight">{initialGoal ? 'Refine Objective' : 'Define New Objective'}</h2>
+                                    <h2 className="text-[18px] md:text-[20px] font-bold text-black tracking-tight">{initialGoal ? 'Edit Goal' : 'New Goal'}</h2>
                                     <p className="text-[10px] text-black/35 font-medium uppercase tracking-wider">Strategic Tactical Layer</p>
                                 </div>
                             </div>
@@ -211,7 +243,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
 
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto no-scrollbar">
-                            <div className="p-5 md:p-8 space-y-6">
+                            <div className="p-5 md:px-10 md:pt-12 pb-16 md:pb-[86px] space-y-8">
 
                                 {/* Title + AI Assist */}
                                 <div className="space-y-3">
@@ -259,7 +291,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
 
                                 {/* Description */}
                                 <div className="space-y-2 pt-2 border-t border-black/5">
-                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Mission Brief</label>
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Goal Brief</label>
                                     <textarea
                                         value={description}
                                         onChange={e => setDescription(e.target.value)}
@@ -269,165 +301,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                     />
                                 </div>
 
-                                {/* Config Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-black/5">
-
-                                    {/* Left column */}
-                                    <div className="space-y-5 min-w-0">
-                                        {/* Category */}
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Module Alignment</label>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {CATEGORIES.map(cat => {
-                                                    const Icon = cat.icon
-                                                    const active = category === cat.value
-                                                    return (
-                                                        <button
-                                                            key={cat.value}
-                                                            type="button"
-                                                            onClick={() => setCategory(cat.value)}
-                                                            className={cn(
-                                                                "flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all text-[12px] font-bold",
-                                                                active ? "bg-black text-white border-black" : "bg-white border-black/5 text-black/40 hover:border-black/20"
-                                                            )}
-                                                        >
-                                                            <Icon className="w-3.5 h-3.5" />
-                                                            {cat.label}
-                                                        </button>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
-
-                                        {/* Horizon */}
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Strategic Horizon</label>
-                                            <div className="flex items-center gap-1.5 p-1 bg-black/5 rounded-xl">
-                                                {(['short', 'medium', 'long'] as const).map(t => (
-                                                    <button
-                                                        key={t}
-                                                        type="button"
-                                                        onClick={() => setTimeframe(t)}
-                                                        className={cn(
-                                                            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
-                                                            timeframe === t ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/60"
-                                                        )}
-                                                    >
-                                                        {t}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Right column */}
-                                    <div className="space-y-5 min-w-0">
-                                        {/* Priority */}
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Tier Priority</label>
-                                            <div className="flex items-center gap-1.5 p-1 bg-black/5 rounded-xl">
-                                                {PRIORITIES.map(p => (
-                                                    <button
-                                                        key={p.value}
-                                                        type="button"
-                                                        onClick={() => setPriority(p.value)}
-                                                        className={cn(
-                                                            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
-                                                            priority === p.value
-                                                                ? p.value === 'super' ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20" :
-                                                                    p.value === 'high' ? "bg-red-500 text-white shadow-lg shadow-red-500/20" :
-                                                                        p.value === 'mid' ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" :
-                                                                            "bg-black text-white shadow-sm"
-                                                                : "text-black/30 hover:text-black/60"
-                                                        )}
-                                                    >
-                                                        {p.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Target Date */}
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Target Deadline</label>
-                                            <div className="rounded-xl border border-black/5 bg-black/[0.02] focus-within:border-black/20 focus-within:bg-white transition-all overflow-hidden">
-                                                <input
-                                                    type="date"
-                                                    value={targetDate}
-                                                    onChange={e => setTargetDate(e.target.value)}
-                                                    style={{ minWidth: 0 }}
-                                                    className="block w-full py-3 px-4 text-[12px] font-bold outline-none bg-transparent border-none"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Vision Image — Upload or URL */}
-                                <div className="space-y-3 pt-2 border-t border-black/5">
-                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Vision Image</label>
-
-                                    {/* Preview */}
-                                    {(imagePreview || visionImageUrl) && (
-                                        <div className="relative w-full h-32 rounded-2xl overflow-hidden border border-black/5">
-                                            <img
-                                                src={imagePreview || visionImageUrl}
-                                                alt="Vision preview"
-                                                className="w-full h-full object-cover"
-                                                onError={() => { setImagePreview(null); setVisionImageUrl('') }}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => { setImageFile(null); setImagePreview(null); setVisionImageUrl('') }}
-                                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center hover:bg-black transition-colors"
-                                            >
-                                                <X className="w-3 h-3 text-white" />
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {/* Upload drop zone */}
-                                        <div
-                                            onDrop={handleFileDrop}
-                                            onDragOver={e => e.preventDefault()}
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-black/10 bg-black/[0.01] hover:bg-black/[0.03] hover:border-black/20 transition-all cursor-pointer"
-                                        >
-                                            <Upload className="w-4 h-4 text-black/25 shrink-0" />
-                                            <div>
-                                                <p className="text-[12px] font-bold text-black/40">Upload image</p>
-                                                <p className="text-[10px] text-black/20">Click or drag & drop · JPG, PNG, WEBP</p>
-                                            </div>
-                                            <input
-                                                ref={fileInputRef}
-                                                type="file"
-                                                accept="image/*"
-                                                className="hidden"
-                                                onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(f) }}
-                                            />
-                                        </div>
-
-                                        {/* URL fallback */}
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-px flex-1 bg-black/5" />
-                                            <span className="text-[10px] text-black/20 font-medium uppercase tracking-widest">or paste URL</span>
-                                            <div className="h-px flex-1 bg-black/5" />
-                                        </div>
-                                        <div className="rounded-xl border border-black/5 bg-black/[0.02] focus-within:border-black/20 focus-within:bg-white transition-all overflow-hidden flex items-center">
-                                            <ImageIcon className="w-4 h-4 text-black/20 ml-4 shrink-0" />
-                                            <input
-                                                type="text"
-                                                value={visionImageUrl}
-                                                onChange={e => { setVisionImageUrl(e.target.value); setImageFile(null); setImagePreview(null) }}
-                                                placeholder="https://..."
-                                                className="block w-full py-3 px-3 text-[12px] font-bold outline-none bg-transparent border-none"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Milestones */}
+                                {/* Milestones (Promoted) */}
                                 <div className="space-y-3 pt-2 border-t border-black/5">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
@@ -463,6 +337,208 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                         ))}
                                     </Reorder.Group>
                                 </div>
+
+                                {/* Category (Full Width) */}
+                                <div className="space-y-3 pt-2 border-t border-black/5">
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Category</label>
+                                    <div className="grid grid-cols-4 gap-3">
+                                        {CATEGORIES.map(cat => {
+                                            const Icon = cat.icon
+                                            const active = category === cat.value
+                                            return (
+                                                <button
+                                                    key={cat.value}
+                                                    type="button"
+                                                    onClick={() => setCategory(cat.value)}
+                                                    className={cn(
+                                                        "flex items-center justify-center gap-2.5 py-3 rounded-xl border transition-all text-[12px] font-bold",
+                                                        active ? "bg-black text-white border-black" : "bg-white border-black/5 text-black/40 hover:border-black/20"
+                                                    )}
+                                                >
+                                                    <Icon className="w-4 h-4" />
+                                                    {cat.label}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Config Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-black/5">
+
+                                    {/* Left column */}
+                                    <div className="space-y-5 min-w-0">
+
+                                        {/* Horizon */}
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Strategic Horizon</label>
+                                            <div className="flex items-center gap-1.5 p-1 bg-black/5 rounded-xl">
+                                                {(['short', 'medium', 'long'] as const).map(t => (
+                                                    <button
+                                                        key={t}
+                                                        type="button"
+                                                        onClick={() => setTimeframe(t)}
+                                                        className={cn(
+                                                            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
+                                                            timeframe === t ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/60"
+                                                        )}
+                                                    >
+                                                        {t}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Right column */}
+                                    <div className="space-y-5 min-w-0">
+                                        <div className="space-y-2">
+                                            {/* Linked Savings */}
+                                            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Savings Target</label>
+                                            <div className="relative group rounded-xl border border-black/5 bg-black/[0.02] focus-within:border-black/20 focus-within:bg-white transition-all overflow-hidden">
+                                                <select
+                                                    value={linkedSavingsId || ''}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value
+                                                        if (!val) {
+                                                            setLinkedSavingsId(null)
+                                                            setLinkedSavingsType(null)
+                                                        } else {
+                                                            const found = availableSavings.find(s => s.id === val)
+                                                            if (found) {
+                                                                setLinkedSavingsId(found.id)
+                                                                setLinkedSavingsType(found.type)
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="block w-full py-3 px-4 text-[12px] font-bold appearance-none outline-none bg-transparent border-none transition-all pr-12 cursor-pointer"
+                                                >
+                                                    <option value="">No linked savings</option>
+                                                    <optgroup label="Manual Finance Goals">
+                                                        {availableSavings.filter(s => s.type === 'manual').map(s => (
+                                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                    <optgroup label="Monzo Savings Pots">
+                                                        {availableSavings.filter(s => s.type === 'monzo').map(s => (
+                                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                </select>
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-black/20">
+                                                    <PiggyBank className="w-4 h-4" />
+                                                </div>
+                                            </div>
+                                            {linkedSavingsId && (
+                                                <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 rounded-lg border border-emerald-100 mt-1">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                                    <span className="text-[8.5px] font-bold text-emerald-700 uppercase tracking-widest leading-none">
+                                                        Auto-Syncing
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Targeting */}
+                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Tier Priority</label>
+                                        <div className="flex items-center gap-1.5 p-1 bg-black/5 rounded-xl">
+                                            {PRIORITIES.map(p => (
+                                                <button
+                                                    key={p.value}
+                                                    type="button"
+                                                    onClick={() => setPriority(p.value)}
+                                                    className={cn(
+                                                        "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
+                                                        priority === p.value
+                                                            ? p.value === 'super' ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20" :
+                                                                p.value === 'high' ? "bg-red-500 text-white shadow-lg shadow-red-500/20" :
+                                                                    p.value === 'mid' ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" :
+                                                                        "bg-black text-white shadow-sm"
+                                                            : "text-black/30 hover:text-black/60"
+                                                    )}
+                                                >
+                                                    {p.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Target Deadline</label>
+                                        <div className="rounded-xl border border-black/5 bg-black/[0.02] focus-within:border-black/20 focus-within:bg-white transition-all overflow-hidden">
+                                            <input
+                                                type="date"
+                                                value={targetDate}
+                                                onChange={e => setTargetDate(e.target.value)}
+                                                style={{ minWidth: 0 }}
+                                                className="block w-full py-3 px-4 text-[12px] font-bold outline-none bg-transparent border-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Vision Image — Upload or URL */}
+                                <div className="space-y-3 pt-2 border-t border-black/5">
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Vision Image</label>
+
+                                    {/* Preview */}
+                                    {(imagePreview || visionImageUrl) && (
+                                        <div className="relative w-full h-32 rounded-2xl overflow-hidden border border-black/5">
+                                            <img
+                                                src={imagePreview || visionImageUrl}
+                                                alt="Vision preview"
+                                                className="w-full h-full object-cover"
+                                                onError={() => { setImagePreview(null); setVisionImageUrl('') }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => { setImageFile(null); setImagePreview(null); setVisionImageUrl('') }}
+                                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center hover:bg-black transition-colors"
+                                            >
+                                                <X className="w-3 h-3 text-white" />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center gap-2">
+                                        {/* URL fallback */}
+                                        <div className="flex-1 rounded-xl border border-black/5 bg-black/[0.02] focus-within:border-black/20 focus-within:bg-white transition-all overflow-hidden flex items-center h-12">
+                                            <ImageIcon className="w-4 h-4 text-black/20 ml-4 shrink-0" />
+                                            <input
+                                                type="text"
+                                                value={visionImageUrl}
+                                                onChange={e => { setVisionImageUrl(e.target.value); setImageFile(null); setImagePreview(null) }}
+                                                placeholder="Paste image URL here..."
+                                                className="block w-full py-3 px-3 text-[12px] font-bold outline-none bg-transparent border-none"
+                                            />
+                                        </div>
+
+                                        {/* Upload button wrapper */}
+                                        <div className="relative shrink-0 h-12">
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="h-full px-5 py-3 rounded-xl border border-dashed border-black/15 bg-black/[0.01] hover:bg-black/[0.05] hover:border-black/30 transition-all cursor-pointer flex items-center gap-2 text-[12px] font-bold text-black/50"
+                                            >
+                                                <Upload className="w-3.5 h-3.5" />
+                                                <span>Upload</span>
+                                            </button>
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(f) }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+
                             </div>
 
                             {/* Footer */}
@@ -480,7 +556,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                     className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-2.5 bg-black text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/10 disabled:opacity-40 disabled:scale-100"
                                 >
                                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
-                                    {saving ? (initialGoal ? 'Refining...' : 'Authorizing...') : (initialGoal ? 'Refine Mission' : 'Authorize Mission')}
+                                    {saving ? (initialGoal ? 'Refining...' : 'Authorizing...') : (initialGoal ? 'Refine Goal' : 'Authorize Goal')}
                                 </button>
                             </div>
                         </form>
@@ -488,6 +564,17 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                 </div>
             )}
         </AnimatePresence>
+
+        <ConfirmationModal
+            isOpen={!!milestoneToDelete}
+            onClose={() => setMilestoneToDelete(null)}
+            onConfirm={confirmRemoveMilestone}
+            title="Remove Milestone?"
+            message="Are you sure you want to remove this tactical step? Any progress linked to this specific milestone will be lost."
+            confirmText="Remove"
+            type="danger"
+        />
+    </>
     )
 }
 

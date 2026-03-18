@@ -30,7 +30,7 @@ export function MilestoneTracker() {
     }
 
     return (
-        <div className="bg-white border border-black/5 rounded-[32px] p-8 flex flex-col shadow-sm w-full relative h-[420px]">
+        <div style={{ height: 380 }} className="bg-white border border-black/5 rounded-[32px] p-6 flex flex-col shadow-sm w-full relative">
             <header className="flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-amber-500" />

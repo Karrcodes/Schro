@@ -2,8 +2,10 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Target } from 'lucide-react'
+import { Target, PiggyBank } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
+import { usePots } from '@/features/finance/hooks/usePots'
 import type { Goal } from '../types/goals.types'
 
 interface GoalsVisionBoardProps {
@@ -12,6 +14,8 @@ interface GoalsVisionBoardProps {
 }
 
 export default function GoalsVisionBoard({ goals, onGoalClick }: GoalsVisionBoardProps) {
+    const { goals: financeGoals } = useFinanceGoals()
+    const { pots } = usePots()
     const visionGoals = goals.filter(g => g.vision_image_url)
 
     if (visionGoals.length === 0) {
@@ -22,7 +26,7 @@ export default function GoalsVisionBoard({ goals, onGoalClick }: GoalsVisionBoar
                 </div>
                 <div>
                     <h3 className="text-sm font-bold uppercase tracking-widest text-black/40">Visualizer Empty</h3>
-                    <p className="text-[12px] text-black/25 mt-1 max-w-[240px]">Attach vision images to your objectives to populate the board.</p>
+                    <p className="text-[12px] text-black/25 mt-1 max-w-[240px]">Attach vision images to your goals to populate the board.</p>
                 </div>
             </div>
         )
@@ -31,13 +35,26 @@ export default function GoalsVisionBoard({ goals, onGoalClick }: GoalsVisionBoar
     return (
         <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
             {visionGoals.map((goal, idx) => (
-                <ViewCard key={goal.id} goal={goal} index={idx} onClick={() => onGoalClick(goal)} />
+                <ViewCard 
+                    key={goal.id} 
+                    goal={goal} 
+                    index={idx} 
+                    financeGoals={financeGoals}
+                    pots={pots}
+                    onClick={() => onGoalClick(goal)} 
+                />
             ))}
         </div>
     )
 }
 
-function ViewCard({ goal, index, onClick }: { goal: Goal, index: number, onClick: () => void }) {
+function ViewCard({ goal, index, financeGoals, pots, onClick }: { 
+    goal: Goal, 
+    index: number, 
+    financeGoals: any[],
+    pots: any[],
+    onClick: () => void 
+}) {
     const totalMilestones = goal.milestones?.length || 0
     const completedMilestones = goal.milestones?.filter(m => m.is_completed).length || 0
     const progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0
@@ -83,7 +100,7 @@ function ViewCard({ goal, index, onClick }: { goal: Goal, index: number, onClick
                             <span>Strategic Progress</span>
                             <span>{Math.round(progress)}%</span>
                         </div>
-                        <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden border border-white/5">
+                        <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden border border-white/5">
                             <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${progress}%` }}
@@ -92,6 +109,39 @@ function ViewCard({ goal, index, onClick }: { goal: Goal, index: number, onClick
                             />
                         </div>
                     </div>
+
+                    {/* Savings Progress Overlay */}
+                    {goal.linked_savings_id && (() => {
+                        const savings = goal.linked_savings_type === 'manual' 
+                            ? financeGoals.find(f => f.id === goal.linked_savings_id)
+                            : pots.find(p => p.id === goal.linked_savings_id)
+                        
+                        if (!savings) return null
+                        
+                        const current = 'current_amount' in savings ? savings.current_amount : savings.balance
+                        const target = savings.target_amount
+                        const sProgress = target > 0 ? Math.min(100, (current / target) * 100) : 0
+                        
+                        return (
+                            <div className="space-y-2 pt-2 border-t border-white/10">
+                                <div className="flex items-center justify-between text-[10px] text-emerald-400 font-bold tracking-wider uppercase">
+                                    <div className="flex items-center gap-1.5">
+                                        <PiggyBank className="w-3.5 h-3.5" />
+                                        <span>Savings</span>
+                                    </div>
+                                    <span>£{current.toLocaleString()}</span>
+                                </div>
+                                <div className="h-1 w-full bg-emerald-500/10 rounded-full overflow-hidden border border-emerald-500/20">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${sProgress}%` }}
+                                        transition={{ duration: 1, delay: 0.5 }}
+                                        className="h-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.3)]"
+                                    />
+                                </div>
+                            </div>
+                        )
+                    })()}
                 </div>
             </div>
         </motion.div>

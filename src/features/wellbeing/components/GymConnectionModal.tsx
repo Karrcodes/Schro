@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useWellbeing } from '../contexts/WellbeingContext'
-import { Activity, X, Lock, MapPin, Loader2, CheckCircle2, AlertCircle, Search } from 'lucide-react'
+import { Dumbbell, X, Lock, MapPin, Loader2, CheckCircle2, AlertCircle, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GymService } from '../services/gymService'
@@ -144,7 +144,7 @@ export function GymConnectionModal({ isOpen, onClose }: { isOpen: boolean; onClo
                         <div className="space-y-8">
                             <div className="space-y-2">
                                 <div className="w-12 h-12 rounded-2xl bg-[#002f5e]/10 flex items-center justify-center mb-4">
-                                    <Activity className="w-6 h-6 text-[#002f5e]" />
+                                    <Dumbbell className="w-6 h-6 text-[#002f5e]" />
                                 </div>
                                 <div className="text-[10px] font-black uppercase tracking-widest text-[#e31837] mb-1">The Gym Group API</div>
                                 <h2 className="text-3xl font-black uppercase tracking-tighter">

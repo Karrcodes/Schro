@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, subDays, isAfter, parseISO, startOfDay } from 'date-fns'
+import { EXERCISES } from '../constants/exercises'
 
 interface WorkoutAnalyticsProps {
     onClose: () => void
@@ -124,8 +125,8 @@ export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
         
         filteredLogs.forEach(log => {
             log.exercises.forEach(exLog => {
-                const routine = routines.find(r => r.id === log.routineId)
-                const exercise = routine?.exercises.find(e => e.id === exLog.exerciseId)
+                const exercise = EXERCISES.find(e => e.id === exLog.exerciseId) || 
+                                 routines.find(r => r.id === log.routineId)?.exercises.find(e => e.id === exLog.exerciseId)
                 
                 const group = exercise?.muscleGroup || 'Other'
                 distribution[group] = (distribution[group] || 0) + exLog.sets.length
@@ -157,11 +158,27 @@ export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
     const drillDownExercises = useMemo(() => {
         if (!selectedRoutineType) return []
         const exMap = new Map<string, string>()
-        routines
-            .filter(r => r.id.toLowerCase().includes(selectedRoutineType))
-            .forEach(r => r.exercises.forEach(e => exMap.set(e.id, e.name)))
+
+        const categoryMap: Record<string, string[]> = {
+            'push': ['Chest', 'Shoulders', 'Triceps'],
+            'pull': ['Back', 'Biceps'],
+            'legs': ['Legs', 'Calves']
+        }
+
+        const allowedMuscles = categoryMap[selectedRoutineType] || []
+
+        filteredLogs.forEach(log => {
+            log.exercises.forEach(exLog => {
+                const ex = EXERCISES.find(e => e.id === exLog.exerciseId) || 
+                           routines.find(r => r.id === log.routineId)?.exercises.find(e => e.id === exLog.exerciseId)
+                if (ex && allowedMuscles.includes(ex.muscleGroup)) {
+                    exMap.set(ex.id, ex.name)
+                }
+            })
+        })
+
         return Array.from(exMap.entries()).map(([id, name]) => ({ id, name }))
-    }, [routines, selectedRoutineType])
+    }, [filteredLogs, selectedRoutineType, routines])
 
     // Auto-select first exercise when routine type changes
     useMemo(() => {

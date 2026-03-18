@@ -25,6 +25,7 @@ export function SecretsManager() {
     const [loading, setLoading] = useState(true)
     const [adding, setAdding] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
+    const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
     const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({})
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const { settings } = useSystemSettings()
@@ -165,6 +166,7 @@ export function SecretsManager() {
             const updated = session.filter((s: Secret) => s.id !== id)
             saveSessionSecrets(updated)
             setSecrets(updated)
+            setConfirmingDeleteId(null)
             return
         }
         const { error } = await supabase
@@ -173,6 +175,7 @@ export function SecretsManager() {
             .eq('id', id)
 
         if (!error) {
+            setConfirmingDeleteId(null)
             fetchSecrets()
         }
     }
@@ -462,6 +465,24 @@ export function SecretsManager() {
                                                                         <X className="w-4 h-4" />
                                                                     </button>
                                                                 </div>
+                                                            ) : confirmingDeleteId === secret.id ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[10px] uppercase font-black tracking-widest text-red-500 mr-1">Confirm?</span>
+                                                                    <button
+                                                                        onClick={() => handleDelete(secret.id)}
+                                                                        className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-500 hover:text-white transition-all border border-red-100"
+                                                                        title="Yes, Delete"
+                                                                    >
+                                                                        <Check className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setConfirmingDeleteId(null)}
+                                                                        className="p-1.5 rounded-lg text-black/40 hover:bg-black/5 hover:text-black transition-all border border-transparent"
+                                                                        title="Cancel"
+                                                                    >
+                                                                        <X className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                </div>
                                                             ) : (
                                                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                     <button
@@ -472,7 +493,7 @@ export function SecretsManager() {
                                                                         <FileText className="w-4 h-4" />
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => handleDelete(secret.id)}
+                                                                        onClick={() => setConfirmingDeleteId(secret.id)}
                                                                         className="p-1.5 rounded-lg text-red-500/30 hover:text-red-500 hover:bg-red-50 transition-all"
                                                                         title="Delete Secret"
                                                                     >

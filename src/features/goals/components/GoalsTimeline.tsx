@@ -28,13 +28,13 @@ const STAGE_CONFIG: Record<StrategicStage, { label: string, desc: string, icon: 
     },
     extraction: {
         label: 'Extraction',
-        desc: 'Critical mission window',
+        desc: 'Critical goal window',
         icon: AlertCircle,
         color: 'text-amber-600 bg-amber-50'
     },
     secured: {
         label: 'Secured',
-        desc: 'Objectives achieved',
+        desc: 'Goals achieved',
         icon: CheckCircle2,
         color: 'text-emerald-600 bg-emerald-50'
     }

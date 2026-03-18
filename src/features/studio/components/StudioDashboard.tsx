@@ -48,8 +48,8 @@ export default function StudioDashboard() {
             {/* Standard Module Header */}
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div className="space-y-1">
-                    <h2 className="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em]">Studio Protocol</h2>
-                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Project Studio</h1>
+                    <h2 className="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em]">Creative Protocol</h2>
+                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Studio Dashboard</h1>
                 </div>
                 {!settings.is_demo_mode && (
                     <div className="flex items-center gap-3">

@@ -95,11 +95,11 @@ export function MindTab() {
                             transition={{ duration: 0.2 }}
                             className="space-y-8"
                         >
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                                <div className="lg:col-span-1 h-[420px] relative overflow-visible">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                                <div className="lg:col-span-1 relative overflow-visible flex">
                                     <MoodTracker />
                                 </div>
-                                <div className="lg:col-span-2 h-[420px] overflow-y-auto no-scrollbar">
+                                <div className="lg:col-span-2 overflow-y-auto no-scrollbar flex">
                                     <MoodHeatmap />
                                 </div>
                             </div>

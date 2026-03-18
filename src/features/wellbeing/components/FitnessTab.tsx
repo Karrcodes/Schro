@@ -6,11 +6,12 @@ import { RoutineBuilder } from './RoutineBuilder'
 import { RoutineSwitcherModal } from './RoutineSwitcherModal'
 import { EditRoutineModal } from './EditRoutineModal'
 import { GymConnectionModal } from './GymConnectionModal'
+import { DynamicWorkoutModal } from './DynamicWorkoutModal'
 import { MilestoneTracker } from './MilestoneTracker'
 import { FitnessHeatmap } from './FitnessHeatmap'
 import { WorkoutAnalytics } from './WorkoutAnalytics'
 import { useRouter } from 'next/navigation'
-import { Dumbbell, Activity, CheckCircle2, Info, Plus, Calendar, Trophy, ChevronRight, Play, ArrowRight, List, Repeat, History, Settings } from 'lucide-react'
+import { Dumbbell, Activity, CheckCircle2, Info, Plus, Calendar, Trophy, ChevronRight, Play, ArrowRight, List, Repeat, History, Settings, Sparkles } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -20,14 +21,16 @@ import { WellbeingControls } from './WellbeingControls'
 import { WellbeingTabs } from './WellbeingTabs'
 
 export function FitnessTab() {
-    const { routines, activeRoutineId, activeSession, startSession, gymStats, syncGymData, gymRecommendation, logWorkout, workoutLogs, profile, isGymModalOpen, setIsGymModalOpen } = useWellbeing()
+    const { routines, activeRoutineId, activeSession, startSession, gymStats, syncGymData, gymRecommendation, logWorkout, workoutLogs, profile, isGymModalOpen, setIsGymModalOpen, setGymOverride } = useWellbeing()
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [isSwitcherOpen, setIsSwitcherOpen] = useState(false)
+    const [isDynamicModalOpen, setIsDynamicModalOpen] = useState(false)
     const [showAnalytics, setShowAnalytics] = useState(false)
     const router = useRouter()
 
     const activeRoutine = routines.find((r: any) => r.id === activeRoutineId) || routines[0]
     const todayStr = format(new Date(), 'yyyy-MM-dd')
+    const isoDateStr = new Date().toISOString().split('T')[0]
     const hasVisitedGymToday = gymStats.visitHistory?.some((v: any) => v.date?.split('T')[0] === todayStr)
 
     const cleanRoutineName = activeRoutine?.name?.replace(/\s*\(.*?\)/g, '').trim() || 'Workout'
@@ -87,11 +90,54 @@ export function FitnessTab() {
                             <p className="text-[11px] font-bold text-black/40 uppercase">{gymRecommendation.reason}</p>
                         </div>
                     </div>
-                    {['can_go', 'pending', 'completed'].includes(gymRecommendation.status) && (
-                        <div className="hidden md:block">
-                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                                Rotational Split Active
-                            </span>
+                    {['can_go', 'pending'].includes(gymRecommendation.status) && (
+                        <div className="flex items-center gap-3">
+                            <div className="hidden md:block">
+                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+                                    Rotational Split Active
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => setGymOverride(isoDateStr, 'skip')}
+                                className="text-[10px] font-black text-black/40 hover:text-rose-500 uppercase tracking-widest bg-black/[0.03] hover:bg-rose-50 px-3 py-1.5 rounded-xl transition-colors border border-transparent hover:border-rose-100"
+                            >
+                                Skip Today
+                            </button>
+                        </div>
+                    )}
+                    {['completed'].includes(gymRecommendation.status) && (
+                        <div className="flex items-center gap-3">
+                            <div className="hidden md:block">
+                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+                                    Rotational Split Active
+                                </span>
+                            </div>
+                            {gymRecommendation.reason.includes('Manual override') && (
+                                <button
+                                    onClick={() => setGymOverride(isoDateStr, null)}
+                                    className="text-[10px] font-black text-black/40 hover:text-black uppercase tracking-widest bg-black/[0.03] hover:bg-black/5 px-3 py-1.5 rounded-xl transition-colors border border-transparent hover:border-black/5"
+                                >
+                                    Clear Override
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    {['work_day', 'overtime', 'rest_needed'].includes(gymRecommendation.status) && (
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setGymOverride(isoDateStr, 'force')}
+                                className="text-[10px] font-black text-black/40 hover:text-emerald-600 uppercase tracking-widest bg-black/[0.03] hover:bg-emerald-50 px-3 py-1.5 rounded-xl transition-colors border border-transparent hover:border-emerald-100"
+                            >
+                                Go Anyway
+                            </button>
+                            {gymRecommendation.reason.includes('Manual override') && (
+                                <button
+                                    onClick={() => setGymOverride(isoDateStr, null)}
+                                    className="text-[10px] font-black text-black/40 hover:text-black uppercase tracking-widest bg-black/[0.03] hover:bg-black/5 px-3 py-1.5 rounded-xl transition-colors border border-transparent hover:border-black/5"
+                                >
+                                    Clear Override
+                                </button>
+                            )}
                         </div>
                     )}
                 </motion.div>
@@ -105,8 +151,8 @@ export function FitnessTab() {
                     ) : (
                         <>
                             {/* Active Protocol */}
-                            <section className="bg-black text-white rounded-[32px] shadow-2xl lg:col-span-1 w-full h-[420px] relative overflow-visible group">
-                                    <div className="h-full w-full overflow-y-auto p-8 relative no-scrollbar rounded-[32px]">
+                            <section style={{ height: 380 }} className="bg-black text-white rounded-[32px] shadow-2xl lg:col-span-1 w-full relative overflow-visible group">
+                                    <div className="h-full w-full overflow-y-auto p-6 relative no-scrollbar rounded-[32px]">
                                         <div className="flex items-center justify-between relative z-10 shrink-0 mb-3">
                                             <div className="flex items-center gap-2">
                                                 <Dumbbell className="w-4 h-4 text-emerald-500" />
@@ -120,13 +166,13 @@ export function FitnessTab() {
                                             </button>
                                         </div>
 
-                                        <div className="flex flex-col gap-8">
-                                            <div className="flex flex-col items-start gap-1 relative z-10 w-full mb-4">
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex flex-col items-start gap-1 relative z-10 w-full">
                                                 <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter leading-none">{displayTitle}</h2>
                                                 <p className="text-rose-500 text-[9px] md:text-[10px] font-black uppercase tracking-widest leading-snug">{displayMuscles}</p>
                                             </div>
 
-                                            <div className="w-full flex flex-col items-center justify-center relative z-10 mt-4">
+                                            <div style={{ marginTop: '30px' }} className="w-full flex flex-col items-center justify-center relative z-10">
                                                 <div className="flex items-center justify-center gap-6 w-full">
                                                     <button
                                                         onClick={() => setIsEditModalOpen(true)}
@@ -143,7 +189,7 @@ export function FitnessTab() {
                                                                 router.push('/health/fitness/session')
                                                             }
                                                         }}
-                                                        className="w-20 h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 rounded-full bg-white text-black flex flex-col items-center justify-center hover:scale-[1.05] active:scale-[0.95] transition-all shadow-white/20 shadow-2xl group shrink-0"
+                                                        className="w-20 h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-full bg-white text-black flex flex-col items-center justify-center hover:scale-[1.05] active:scale-[0.95] transition-all shadow-white/20 shadow-2xl group shrink-0"
                                                     >
                                                         {activeSession ? (
                                                             <ArrowRight className="w-10 h-10 group-hover:translate-x-2 transition-transform" />
@@ -159,17 +205,26 @@ export function FitnessTab() {
                                                         <Repeat className="w-5 h-5 text-white/50 group-hover/btn:text-white" />
                                                     </button>
                                                 </div>
-                                                <p className="text-[9px] md:text-[10px] font-black text-white/40 uppercase tracking-widest mt-6">
+                                                <p className="text-[9px] md:text-[10px] font-black text-white/40 uppercase tracking-widest mt-4 mb-5">
                                                     {activeSession ? 'Resume Session' : 'Start Session'}
                                                 </p>
+                                                {!activeSession && (
+                                                    <button
+                                                        onClick={() => setIsDynamicModalOpen(true)}
+                                                        className="px-6 py-2.5 rounded-full border border-white/10 hover:border-violet-500/50 hover:bg-violet-500/10 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 group/dyn shadow-lg shadow-transparent hover:shadow-violet-500/10"
+                                                    >
+                                                        <Sparkles className="w-3.5 h-3.5 text-violet-500/70 group-hover/dyn:text-violet-400 group-hover/dyn:animate-pulse" />
+                                                        Generate Dynamic Session
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 </section>
 
                             {/* Operational Flow */}
-                            <div className="bg-white border border-black/5 rounded-[32px] shadow-sm lg:col-span-1 w-full h-[420px] relative overflow-visible">
-                                <div className="h-full w-full overflow-y-auto p-8 no-scrollbar">
+                            <div style={{ height: 380 }} className="bg-white border border-black/5 rounded-[32px] shadow-sm lg:col-span-1 w-full relative overflow-visible">
+                                <div className="h-full w-full overflow-y-auto p-6 no-scrollbar">
                                         <div className="flex items-center justify-between mb-6">
                                             <h3 className="text-[11px] font-black text-black/30 uppercase tracking-[0.3em]">Operational Flow</h3>
                                             <Activity className="w-4 h-4 text-black/20" />
@@ -179,7 +234,7 @@ export function FitnessTab() {
                                 </div>
                                 
                             {/* Milestones */}
-                            <div className="lg:col-span-1 h-auto relative w-full overflow-visible">
+                            <div style={{ height: 380 }} className="lg:col-span-1 relative w-full overflow-visible">
                                 <MilestoneTracker />
                             </div>
                         </>
@@ -189,6 +244,7 @@ export function FitnessTab() {
 
             <GymConnectionModal isOpen={isGymModalOpen} onClose={() => setIsGymModalOpen(false)} />
             <RoutineSwitcherModal isOpen={isSwitcherOpen} onClose={() => setIsSwitcherOpen(false)} />
+            <DynamicWorkoutModal isOpen={isDynamicModalOpen} onClose={() => setIsDynamicModalOpen(false)} />
             {activeRoutine && <EditRoutineModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} routine={activeRoutine} />}
             <AnimatePresence>
                 {showAnalytics && <WorkoutAnalytics onClose={() => setShowAnalytics(false)} />}

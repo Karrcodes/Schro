@@ -30,11 +30,20 @@ export function WellbeingHeader({ title, subtitle, activeColor }: WellbeingHeade
     }, [isSyncingGym, gymStats.lastSyncTime])
 
     return (
-        <header className="pb-2 z-10 w-full flex-shrink-0">
+        <header className="pb-2 z-10 w-full flex-shrink-0 flex items-end justify-between">
             <div className="space-y-1">
                 <h2 className={cn("text-[11px] font-black uppercase tracking-[0.3em]", activeColor)}>{subtitle}</h2>
                 <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">{title}</h1>
             </div>
+            
+            {pathname !== '/health/settings' && (
+                <button
+                    onClick={() => router.push('/health/settings')}
+                    className="flex items-center gap-2 px-4 py-2 bg-black/[0.02] hover:bg-black/[0.05] rounded-xl transition-all border border-black/[0.05]"
+                >
+                    <span className={cn("text-[10px] font-black uppercase tracking-widest", activeColor)}>Biometric Data</span>
+                </button>
+            )}
         </header>
     )
 }

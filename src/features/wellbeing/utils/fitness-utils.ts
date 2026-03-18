@@ -9,7 +9,8 @@ import type { RotaOverride } from '@/features/finance/types/finance.types'
 export function getGymRecommendation(
     date: Date,
     overrides: RotaOverride[],
-    workoutLogs: WorkoutLog[]
+    workoutLogs: WorkoutLog[],
+    gymOverrides: Record<string, 'force' | 'skip'> = {}
 ) {
     const dateStr = date.toISOString().split('T')[0]
     const override = overrides.find(o => o.date === dateStr)
@@ -23,6 +24,15 @@ export function getGymRecommendation(
     
     let status: 'can_go' | 'work_day' | 'overtime' | 'rest_needed' | 'pending' | 'completed' = 'can_go'
     let reason = 'Day off'
+
+    const gymOverride = gymOverrides[dateStr]
+    if (gymOverride === 'skip') {
+        return { status: 'rest_needed', reason: 'Manual override: Skip Today' }
+    } else if (gymOverride === 'force') {
+        const todayWorkout = workoutLogs.find(l => l.date === dateStr)
+        if (todayWorkout) return { status: 'completed', reason: 'Session logged for today' }
+        return { status: 'pending', reason: 'Manual override: Go Anyway' }
+    }
 
     if (override) {
         if (override.type === 'overtime') {

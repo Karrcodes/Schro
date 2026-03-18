@@ -2,7 +2,7 @@ export type GoalCategory = 'finance' | 'health' | 'career' | 'personal'
 export type GoalStatus = 'active' | 'completed' | 'archived'
 export type GoalPriority = 'super' | 'high' | 'mid' | 'low'
 export type GoalTimeframe = 'short' | 'medium' | 'long'
-export type WishlistStatus = 'wanted' | 'acquired' | 'archived'
+export type WishlistStatus = 'incoming' | 'queue' | 'acquired' | 'abandoned'
 
 export interface Milestone {
     id: string
@@ -25,6 +25,8 @@ export interface Goal {
     priority: GoalPriority
     timeframe: GoalTimeframe
     vision_image_url?: string
+    linked_savings_id?: string | null
+    linked_savings_type?: 'manual' | 'monzo' | null
     created_at: string
     milestones?: Milestone[]
 }
@@ -38,6 +40,8 @@ export interface CreateGoalData {
     priority?: GoalPriority
     timeframe?: GoalTimeframe
     vision_image_url?: string
+    linked_savings_id?: string | null
+    linked_savings_type?: 'manual' | 'monzo' | null
     milestones?: { title: string; is_completed?: boolean; impact_score?: number }[]
 }
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useWellbeing } from '../contexts/WellbeingContext'
-import { Settings, RefreshCw, CheckCircle2 } from 'lucide-react'
+import { Settings, RefreshCw, CheckCircle2, Dumbbell } from 'lucide-react'
 import { useRouter, usePathname } from 'next/navigation'
 import type { GymBusyness, TheGymGroupStats } from '../types'
 import { getNextOffPeriod } from '@/features/finance/utils/rotaUtils'
@@ -117,60 +117,85 @@ export function WellbeingControls() {
                         />
                     )}
 
-                    <button
-                        onClick={() => {
-                            if (requiresGymReauth) {
-                                setIsGymModalOpen(true)
-                            } else {
-                                console.log('Sync button clicked manually')
-                                syncGymData()
-                            }
-                        }}
-                        disabled={isSyncingGym}
-                        className={cn(
-                            "flex items-center gap-2 px-5 h-11 rounded-[20px] shadow-sm transition-all duration-300 border",
-                            isSyncingGym ? "bg-white border-black/5 cursor-not-allowed opacity-50" :
-                                requiresGymReauth ? "bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100 animate-pulse" :
-                                    (justSynced || gymStats.lastSyncTime) ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 group" :
-                                        "bg-white border-black/5 hover:bg-black/[0.02] group"
-                        )}
-                    >
-                        {justSynced ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500 animate-in zoom-in duration-300" />
-                        ) : (
-                            <RefreshCw className={cn(
-                                "w-4 h-4 transition-transform duration-500",
-                                isSyncingGym ? "animate-spin text-black/40" :
-                                    requiresGymReauth ? "text-rose-500" :
-                                        gymStats.lastSyncTime ? "text-emerald-500 group-hover:rotate-180" : "text-black/40 group-hover:rotate-180"
-                            )} />
-                        )}
-                        <span className={cn(
-                            "text-[10px] font-black uppercase tracking-widest whitespace-nowrap",
-                            requiresGymReauth ? "text-rose-700" :
-                                (justSynced || gymStats.lastSyncTime) ? "text-emerald-700" : "text-black"
-                        )}>
-                            {isSyncingGym ? 'Syncing...' : requiresGymReauth ? 'Re-link' : (justSynced || gymStats.lastSyncTime) ? 'Re-sync' : 'Sync'}
-                        </span>
-                    </button>
+                    <div className={cn(
+                        "flex items-center rounded-[20px] shadow-sm overflow-hidden h-11 transition-all duration-300 border border-black/5",
+                        isSyncingGym ? "bg-white opacity-50" :
+                            requiresGymReauth ? "bg-rose-50 border-rose-100" :
+                                (justSynced || gymStats.lastSyncTime) ? "bg-emerald-50 border-emerald-100" :
+                                    "bg-white"
+                    )}>
+                        <button
+                            onClick={() => {
+                                if (requiresGymReauth) {
+                                    setIsGymModalOpen(true)
+                                } else {
+                                    console.log('Sync button clicked manually')
+                                    syncGymData()
+                                }
+                            }}
+                            disabled={isSyncingGym}
+                            className={cn(
+                                "flex items-center gap-2 px-5 h-full transition-all duration-300",
+                                isSyncingGym ? "cursor-not-allowed" :
+                                    requiresGymReauth ? "text-rose-600 hover:bg-rose-100 animate-pulse" :
+                                        (justSynced || gymStats.lastSyncTime) ? "text-emerald-600 hover:bg-emerald-100 group" :
+                                            "hover:bg-black/[0.02] group"
+                            )}
+                        >
+                            {justSynced ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 animate-in zoom-in duration-300" />
+                            ) : (
+                                <RefreshCw className={cn(
+                                    "w-4 h-4 transition-transform duration-500",
+                                    isSyncingGym ? "animate-spin text-black/40" :
+                                        requiresGymReauth ? "text-rose-500" :
+                                            gymStats.lastSyncTime ? "text-emerald-500 group-hover:rotate-180" : "text-black/40 group-hover:rotate-180"
+                                )} />
+                            )}
+                            <span className={cn(
+                                "text-[10px] font-black uppercase tracking-widest whitespace-nowrap",
+                                requiresGymReauth ? "text-rose-700" :
+                                    (justSynced || gymStats.lastSyncTime) ? "text-emerald-700" : "text-black"
+                            )}>
+                                {isSyncingGym ? 'Syncing...' : requiresGymReauth ? 'Re-link' : (justSynced || gymStats.lastSyncTime) ? 'Re-sync' : 'Sync'}
+                            </span>
+                        </button>
+
+                        <div className={cn(
+                            "w-px h-6 transition-colors duration-300",
+                            requiresGymReauth ? "bg-rose-200" :
+                                (justSynced || gymStats.lastSyncTime) ? "bg-emerald-200" : "bg-black/5"
+                        )} />
+
+                        <button
+                            onClick={() => setIsGymModalOpen(true)}
+                            className={cn(
+                                "flex items-center justify-center px-4 h-full transition-all duration-300",
+                                isSyncingGym ? "cursor-not-allowed" :
+                                    requiresGymReauth ? "hover:bg-rose-100 text-rose-500" :
+                                        (justSynced || gymStats.lastSyncTime) ? "hover:bg-emerald-100 text-emerald-600" :
+                                            "hover:bg-black/[0.02] text-black/40"
+                            )}
+                            title="Manage Gym Integration"
+                        >
+                            <Dumbbell className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
                 </div>
             ) : (
-                <div className="hidden md:flex items-center gap-2 text-[10px] font-black text-black/20 uppercase tracking-widest mr-2">
-                    <span>Sensors Offline</span>
+                <div className="flex items-center gap-3">
+                    <div className="hidden md:flex items-center gap-2 text-[10px] font-black text-black/20 uppercase tracking-widest mr-2">
+                        <span>Sensors Offline</span>
+                    </div>
+                    <button
+                        onClick={() => setIsGymModalOpen(true)}
+                        className="w-11 h-11 rounded-[20px] flex items-center justify-center transition-all border bg-white border-black/5 text-black/30 hover:text-black/60 shadow-sm"
+                        title="Link Gym Sensors"
+                    >
+                        <Settings className="w-4 h-4" />
+                    </button>
                 </div>
             )}
-
-            <button
-                onClick={() => router.push('/health/settings')}
-                className={cn(
-                    "w-11 h-11 rounded-[20px] flex items-center justify-center transition-all border",
-                    pathname.includes('/settings')
-                        ? "bg-black text-white border-black"
-                        : "bg-white border-black/5 text-black/30 hover:text-black/60 shadow-sm"
-                )}
-            >
-                <Settings className="w-4 h-4" />
-            </button>
         </div>
     )
 }

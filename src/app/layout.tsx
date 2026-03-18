@@ -34,6 +34,7 @@ import { SystemSettingsProvider } from '@/features/system/contexts/SystemSetting
 import { TasksProfileProvider } from '@/features/tasks/contexts/TasksProfileContext'
 import { VaultProvider } from '@/features/vault/contexts/VaultContext'
 import { StudioProvider } from '@/features/studio/context/StudioContext'
+import { MultitaskingProvider } from '@/features/system/contexts/MultitaskingContext'
 import { SecurityLock } from '@/components/SecurityLock'
 import { GlobalQuickAction } from '@/components/GlobalQuickAction'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -42,6 +43,7 @@ import { TasksProvider } from '@/features/tasks/contexts/TasksContext'
 import { GroceryLibraryProvider } from '@/features/tasks/contexts/GroceryLibraryContext'
 import { GoalsProvider } from '@/features/goals/contexts/GoalsContext'
 import { headers } from 'next/headers'
+import { AppShell } from '@/components/AppShell'
 
 export default async function RootLayout({
   children,
@@ -71,18 +73,17 @@ export default async function RootLayout({
                       <GoalsProvider>
                         <VaultProvider>
                           <WellbeingProvider>
-                            {isShellFreePage ? (
-                              <>{children}</>
-                            ) : (
-                              <SecurityLock>
-                                <Sidebar />
-                                {/* main margin tracks --sidebar-w CSS var set by Sidebar component */}
-                                <main className="md:main-sidebar-offset min-h-screen bg-white transition-[margin] duration-300">
-                                  {children}
-                                </main>
-                                <GlobalQuickAction />
-                              </SecurityLock>
-                            )}
+                            <MultitaskingProvider>
+                              {isShellFreePage ? (
+                                <>{children}</>
+                              ) : (
+                                <SecurityLock>
+                                  <AppShell pathname={pathname}>
+                                    {children}
+                                  </AppShell>
+                                </SecurityLock>
+                              )}
+                            </MultitaskingProvider>
                           </WellbeingProvider>
                         </VaultProvider>
                       </GoalsProvider>

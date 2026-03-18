@@ -14,7 +14,7 @@ const MOOD_COLORS: Record<MoodValue | 'none', { cell: string; label: string; hex
     neutral:   { cell: 'bg-blue-400 border-blue-400/30 shadow-sm shadow-blue-400/20', label: 'Neutral', hex: '#60a5fa' },
     low:       { cell: 'bg-orange-400 border-orange-400/30 shadow-sm shadow-orange-400/20', label: 'Low', hex: '#fb923c' },
     bad:       { cell: 'bg-rose-500 border-rose-500/30 shadow-sm shadow-rose-500/20', label: 'Bad', hex: '#f43f5e' },
-    none:      { cell: 'bg-black/[0.04] border-black/5', label: 'No Entry', hex: 'transparent' },
+    none:      { cell: 'bg-black/[0.03] border-black/5', label: 'None', hex: 'transparent' },
 }
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -140,7 +140,7 @@ export function MoodHeatmap() {
     const hoveredDay = hoveredDate ? days.find(d => d.date === hoveredDate) : null
 
     return (
-        <div className="bg-white border border-black/5 rounded-[32px] p-6 md:p-8 space-y-6 shadow-sm h-full overflow-x-auto no-scrollbar">
+        <div className="bg-white border border-black/5 rounded-[32px] p-8 space-y-4 shadow-sm h-auto overflow-x-auto no-scrollbar">
             {/* Header */}
             <div className="flex items-start justify-between">
                 <div className="space-y-0.5">
@@ -164,14 +164,12 @@ export function MoodHeatmap() {
             <div className="pt-8">
                 <div className="w-full min-w-[600px]">
                     {/* Month row */}
-                    <div className="flex mb-1.5">
-                        {/* Day labels column spacer */}
-                        <div className="w-6 shrink-0" />
+                    <div className="flex mb-2">
                         <div className="flex-1 relative h-4">
                             {monthPositions.map(({ label, weekIndex }) => (
                                 <span
                                     key={label + weekIndex}
-                                    className="absolute text-[9px] font-black text-black/25 uppercase tracking-widest"
+                                    className="absolute text-[9px] font-black text-black/30 uppercase tracking-widest"
                                     style={{ left: `${(weekIndex / weeks.length) * 100}%` }}
                                 >
                                     {label}
@@ -181,79 +179,71 @@ export function MoodHeatmap() {
                     </div>
 
                     {/* Grid */}
-                    <div className="flex gap-2">
-                        {/* Day of week labels */}
-                        <div className="flex flex-col gap-1 shrink-0">
-                            {DAY_LABELS.map((d, i) => (
-                                <div key={i} className="aspect-square w-4 flex items-center justify-center">
-                                    {i % 2 === 1 && (
-                                        <span className="text-[8px] font-black text-black/20 uppercase">{d}</span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="flex gap-1 flex-1 justify-between">
-                            {weeks.map((week, wi) => (
-                                <div key={wi} className="flex flex-col gap-1 flex-1">
-                                    {Array.from({ length: 7 }, (_, di) => {
-                                        const day = week[di]
-                                        if (!day) return <div key={di} className="aspect-square w-full" />
-                                        const mood = day.mood
-                                        const colorConfig = MOOD_COLORS[mood ?? 'none']
-                                        return (
-                                            <div
-                                                key={di}
-                                                onMouseEnter={() => setHoveredDate(day.date)}
-                                                onMouseLeave={() => setHoveredDate(null)}
-                                                className={cn(
-                                                    'aspect-square w-full rounded-[2px] border transition-all duration-200 relative cursor-pointer',
-                                                    mood ? colorConfig.cell : (day.isFuture ? 'bg-black/[0.04] border-black/5' : 'bg-black/[0.15] border-black/10'),
-                                                    hoveredDate === day.date && 'scale-150 z-[100] shadow-xl',
-                                                    selectedDate === day.date && 'ring-2 ring-black ring-offset-2 scale-110 z-[50]'
-                                                )}
-                                                onClick={() => setSelectedDate(day.date)}
-                                            >
-                                                {/* Tooltip */}
-                                                {hoveredDate === day.date && (
-                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl z-[200] shadow-xl pointer-events-none text-center whitespace-nowrap">
-                                                        {format(new Date(day.date), 'EEE, MMM do')}
-                                                        <span className={cn('block mt-0.5', mood ? 'text-white/70' : 'text-white/30')}>
-                                                            {colorConfig.label}
-                                                        </span>
-                                                        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            ))}
-                        </div>
+                    <div className="flex gap-1.5 flex-1 justify-between">
+                        {weeks.map((week, wi) => (
+                            <div key={wi} className="flex flex-col gap-1.5 flex-1">
+                                {Array.from({ length: 7 }, (_, di) => {
+                                    const day = week[di]
+                                    if (!day) return <div key={di} className="aspect-square w-full" />
+                                    const mood = day.mood
+                                    const colorConfig = MOOD_COLORS[mood ?? 'none']
+                                    return (
+                                        <div
+                                            key={di}
+                                            onMouseEnter={() => setHoveredDate(day.date)}
+                                            onMouseLeave={() => setHoveredDate(null)}
+                                            className={cn(
+                                                'aspect-square w-full rounded-[6px] border transition-all duration-200 relative cursor-pointer',
+                                                mood ? colorConfig.cell : (day.isFuture ? 'bg-black/[0.02] border-black/5' : 'bg-black/[0.08] border-black/10'),
+                                                hoveredDate === day.date && 'scale-150 z-[100] shadow-xl',
+                                                selectedDate === day.date && 'ring-2 ring-black ring-offset-2 scale-110 z-[50]'
+                                            )}
+                                            onClick={() => setSelectedDate(day.date)}
+                                        >
+                                            {/* Tooltip */}
+                                            {hoveredDate === day.date && (
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl z-[200] shadow-xl pointer-events-none text-center whitespace-nowrap">
+                                                    {format(new Date(day.date), 'EEE, MMM do')}
+                                                    <span className={cn('block mt-0.5', mood ? 'text-white/70' : 'text-white/30')}>
+                                                        {colorConfig.label}
+                                                    </span>
+                                                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
 
             {/* Legend */}
-            <div className="flex items-center justify-between">
-                <span className="text-[8px] font-black text-black/20 uppercase tracking-widest">Less</span>
-                <div className="flex items-center gap-6">
-                    {(Object.entries(MOOD_COLORS) as [string, { cell: string; label: string }][]).filter(([k]) => k !== 'none').map(([k, v]) => (
-                        <div key={k} className="flex items-center gap-2">
-                            <div className={cn('w-2.5 h-2.5 rounded-[2px] border', v.cell)} />
-                            <span className="text-[8px] font-black text-black/25 uppercase tracking-tighter">{v.label}</span>
-                        </div>
-                    ))}
-                    <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-[2px] border bg-black/[0.15] border-black/10" />
-                        <span className="text-[8px] font-black text-black/25 uppercase tracking-tighter">Missed</span>
+            <div className="flex items-center justify-center gap-8 pt-6">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-[8px] font-black text-black/20 uppercase tracking-widest">Less</span>
+                    <div className="flex items-center gap-3 bg-black/[0.02] px-3 py-1.5 rounded-full border border-black/5">
+                        {(Object.entries(MOOD_COLORS) as [string, { cell: string; label: string }][]).filter(([k]) => k !== 'none').map(([k, v]) => (
+                            <div key={k} className="flex items-center gap-1.5">
+                                <div className={cn('w-2 h-2 rounded-full border', v.cell)} />
+                                <span className="text-[8px] font-black text-black/30 uppercase tracking-tighter">{v.label}</span>
+                            </div>
+                        ))}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-[2px] border bg-black/[0.04] border-black/5" />
-                        <span className="text-[8px] font-black text-black/25 uppercase tracking-tighter">Future</span>
+                    <span className="text-[8px] font-black text-black/20 uppercase tracking-widest">More</span>
+                </div>
+                
+                <div className="flex items-center gap-4 border-l border-black/10 pl-8">
+                    <div className="flex items-center gap-1.5 text-black/30">
+                        <div className="w-2 h-2 rounded-full border bg-black/[0.08] border-black/10" />
+                        <span className="text-[8px] font-black uppercase tracking-widest">Missed</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-black/20">
+                        <div className="w-2 h-2 rounded-full border bg-black/[0.02] border-black/5" />
+                        <span className="text-[8px] font-black uppercase tracking-widest">Future</span>
                     </div>
                 </div>
-                <span className="text-[8px] font-black text-black/20 uppercase tracking-widest">More</span>
             </div>
 
             {/* Daily Detail Modal */}
@@ -275,7 +265,7 @@ export function MoodHeatmap() {
                                     <div>
                                         <p className="text-[10px] font-black text-black/20 uppercase tracking-[0.3em]">Daily Summary</p>
                                         <h3 className="text-[18px] font-black text-black uppercase tracking-tight">
-                                            {format(new Date(selectedDate), 'EEEE, MMMM do')}
+                                            {format(new Date(selectedDate as string), 'EEEE, MMMM do')}
                                         </h3>
                                     </div>
                                 </div>
@@ -289,7 +279,7 @@ export function MoodHeatmap() {
 
                             {/* Modal Content */}
                             <div className="p-8 space-y-8 max-h-[60vh] overflow-y-auto no-scrollbar">
-                                {!moodMap[selectedDate] ? (
+                                {!moodMap[selectedDate as string] ? (
                                     <div className="py-12 text-center space-y-4">
                                         <div className="w-16 h-16 rounded-full bg-black/[0.03] flex items-center justify-center mx-auto">
                                             <Heart className="w-8 h-8 text-black/10" />
@@ -298,7 +288,7 @@ export function MoodHeatmap() {
                                     </div>
                                 ) : (
                                     <div className="space-y-6">
-                                        {moodMap[selectedDate].logs.map((log: MoodEntry) => {
+                                        {moodMap[selectedDate as string].logs.map((log: MoodEntry) => {
                                             const moodConfig = MOOD_COLORS[log.value]
                                             return (
                                                 <div key={log.id} className="p-6 rounded-[32px] bg-black/[0.02] border border-black/5 space-y-4">

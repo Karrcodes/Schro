@@ -8,7 +8,7 @@ import {
     BarChart3, Activity, Shield, Brain, Target, Heart,
     LayoutDashboard, SlidersHorizontal, Calendar, CreditCard,
     PiggyBank, Receipt, Sparkles, Rocket, Video, PenLine, Bell, ShoppingCart,
-    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Briefcase, ListTodo
+    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Briefcase, ListTodo, Search
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -67,13 +67,14 @@ export const navItems: NavItem[] = [
             { label: 'Pot Settings', href: '/finances/pot-settings', icon: SlidersHorizontal, caps: ['P', 'B'] }
         ]
     },
+
     {
         label: 'Studio',
         href: '/create',
         icon: Rocket,
         color: 'orange',
         sub: [
-            { label: 'Projects', href: '/create/projects', icon: Briefcase },
+            { label: 'Projects', href: '/create/projects', icon: Rocket },
             { label: 'Content', href: '/create/content', icon: Video },
             { label: 'Canvas', href: '/create/canvas', icon: PenLine },
             { label: 'Sparks', href: '/create/sparks', icon: Target },
@@ -105,6 +106,18 @@ export const navItems: NavItem[] = [
         ]
     },
 ]
+
+export const COLOR_MAP: Record<string, string> = {
+    black: 'text-black',
+    blue: 'text-blue-500',
+    purple: 'text-purple-500',
+    emerald: 'text-emerald-500',
+    orange: 'text-orange-500',
+    amber: 'text-amber-500',
+    rose: 'text-rose-500',
+    indigo: 'text-indigo-500',
+    pink: 'text-pink-500'
+}
 
 /**
  * Top-level modules suitable for display in the Control Centre quick actions.

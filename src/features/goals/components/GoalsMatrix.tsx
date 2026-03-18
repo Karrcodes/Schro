@@ -2,8 +2,10 @@
 
 import React, { useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Target, Wallet, Briefcase, Heart, User, ChevronRight, Clock } from 'lucide-react'
+import { Target, Wallet, Briefcase, Heart, User, ChevronRight, Clock, PiggyBank } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
+import { usePots } from '@/features/finance/hooks/usePots'
 import type { Goal, GoalCategory, GoalTimeframe } from '../types/goals.types'
 
 const CATEGORY_CONFIG: Record<GoalCategory, { label: string, icon: any, color: string }> = {
@@ -25,6 +27,8 @@ interface GoalsMatrixProps {
 }
 
 export default function GoalsMatrix({ goals, onGoalClick }: GoalsMatrixProps) {
+    const { goals: financeGoals } = useFinanceGoals()
+    const { pots } = usePots()
     const groupedGoals = useMemo(() => {
         const groups: Record<GoalTimeframe, Goal[]> = {
             short: [],
@@ -62,6 +66,8 @@ export default function GoalsMatrix({ goals, onGoalClick }: GoalsMatrixProps) {
                                     key={goal.id}
                                     goal={goal}
                                     index={idx}
+                                    financeGoals={financeGoals}
+                                    pots={pots}
                                     onClick={() => onGoalClick(goal)}
                                 />
                             ))}
@@ -85,7 +91,13 @@ const PRIORITY_CONFIG: Record<string, { label: string, color: string, pulse?: bo
     low: { label: 'Low Priority', color: 'bg-black/[0.04] text-black/30' }
 }
 
-function GoalMatrixCard({ goal, index, onClick }: { goal: Goal, index: number, onClick: () => void }) {
+function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: { 
+    goal: Goal, 
+    index: number, 
+    financeGoals: any[], 
+    pots: any[], 
+    onClick: () => void 
+}) {
     const totalMilestones = goal.milestones?.length || 0
     const completedMilestones = goal.milestones?.filter(m => m.is_completed).length || 0
     const progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0
@@ -155,6 +167,39 @@ function GoalMatrixCard({ goal, index, onClick }: { goal: Goal, index: number, o
                             />
                         </div>
                     </div>
+
+                    {/* Savings Progress */}
+                    {goal.linked_savings_id && (() => {
+                        const savings = goal.linked_savings_type === 'manual' 
+                            ? financeGoals.find(f => f.id === goal.linked_savings_id)
+                            : pots.find(p => p.id === goal.linked_savings_id)
+                        
+                        if (!savings) return null
+                        
+                        const current = 'current_amount' in savings ? savings.current_amount : savings.balance
+                        const target = savings.target_amount
+                        const sProgress = target > 0 ? Math.min(100, (current / target) * 100) : 0
+                        
+                        return (
+                            <div className="space-y-2 pt-2 border-t border-black/[0.03]">
+                                <div className="flex items-center justify-between text-[11px]">
+                                    <div className="flex items-center gap-1.5 text-emerald-600">
+                                        <PiggyBank className="w-3.5 h-3.5" />
+                                        <span className="font-bold uppercase tracking-wider">Savings Goal</span>
+                                    </div>
+                                    <span className="font-mono font-bold text-emerald-600">£{current.toLocaleString()} <span className="text-black/10">/ £{target.toLocaleString()}</span></span>
+                                </div>
+                                <div className="h-1.5 w-full bg-emerald-500/10 rounded-full overflow-hidden">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${sProgress}%` }}
+                                        transition={{ duration: 0.8, ease: "easeOut" }}
+                                        className="h-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+                                    />
+                                </div>
+                            </div>
+                        )
+                    })()}
 
                     <div className="flex items-center justify-between pt-2 border-t border-black/[0.04]">
                         <div className="flex items-center gap-1.5 text-black/25">

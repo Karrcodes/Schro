@@ -245,4 +245,5 @@ export interface WellbeingState {
     isGymModalOpen: boolean
     requiresGymReauth: boolean
     loading: boolean
+    gymOverrides?: Record<string, 'force' | 'skip'>
 }

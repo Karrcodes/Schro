@@ -2,8 +2,10 @@
 
 import React, { useMemo, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Target, Circle, CheckCircle2 } from 'lucide-react'
+import { Target, Circle, CheckCircle2, PiggyBank } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
+import { usePots } from '@/features/finance/hooks/usePots'
 import type { Goal } from '../types/goals.types'
 
 interface GoalsRoadmapProps {
@@ -22,6 +24,8 @@ const ROW_HEIGHT = 64 // px — must match sidebar row height
 
 export default function GoalsRoadmap({ goals, onGoalClick }: GoalsRoadmapProps) {
     const scrollRef = useRef<HTMLDivElement>(null)
+    const { goals: financeGoals } = useFinanceGoals()
+    const { pots } = usePots()
 
     const roadmapRange = useMemo(() => {
         const today = new Date()
@@ -89,7 +93,7 @@ export default function GoalsRoadmap({ goals, onGoalClick }: GoalsRoadmapProps) 
             <div className="w-[160px] md:w-[240px] shrink-0 flex flex-col border-r border-black/[0.06] bg-white">
                 {/* Header stub (same height as month row) */}
                 <div className="h-10 shrink-0 flex items-center px-4 border-b border-black/[0.06] bg-black/[0.01]">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-black/30">Mission</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-black/30">Goal</span>
                 </div>
                 {/* Rows — no internal scroll, height matches chart rows */}
                 <div className="flex flex-col" style={{ minHeight: `${goals.length * ROW_HEIGHT}px` }}>
@@ -122,7 +126,7 @@ export default function GoalsRoadmap({ goals, onGoalClick }: GoalsRoadmapProps) 
                     {goals.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                             <Target className="w-8 h-8 mb-2 text-black/10" />
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-black/15">No Active Missions</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-black/15">No Active Goals</p>
                         </div>
                     )}
                 </div>
@@ -211,9 +215,31 @@ export default function GoalsRoadmap({ goals, onGoalClick }: GoalsRoadmapProps) 
                                         className="absolute inset-y-0 left-0 bg-black/[0.06] rounded-full"
                                         style={{ width: `${progress}%` }}
                                     />
+                                    
+                                    {/* Linked Savings Bar */}
+                                    {goal.linked_savings_id && (() => {
+                                        const savings = goal.linked_savings_type === 'manual' 
+                                            ? financeGoals.find(f => f.id === goal.linked_savings_id)
+                                            : pots.find(p => p.id === goal.linked_savings_id)
+                                        
+                                        if (!savings) return null
+                                        
+                                        const current = 'current_amount' in savings ? savings.current_amount : savings.balance
+                                        const target = savings.target_amount
+                                        const sProgress = target > 0 ? Math.min(100, (current / target) * 100) : 0
+                                        
+                                        return (
+                                            <div 
+                                                className="absolute bottom-0 left-0 h-[3px] bg-emerald-500 rounded-full"
+                                                style={{ width: `${sProgress}%` }}
+                                            />
+                                        )
+                                    })()}
+
                                     <div className="relative z-10 flex items-center justify-between w-full gap-2">
-                                        <span className="text-[10px] font-bold uppercase tracking-tight truncate text-black/60">
+                                        <span className="text-[10px] font-bold uppercase tracking-tight truncate text-black/60 flex items-center gap-1.5">
                                             {goal.title}
+                                            {goal.linked_savings_id && <PiggyBank className="w-2.5 h-2.5 text-emerald-500" />}
                                         </span>
                                         <div className="flex items-center gap-0.5 shrink-0">
                                             {milestones.slice(0, 4).map(m => (

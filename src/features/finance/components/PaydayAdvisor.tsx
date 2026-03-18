@@ -74,16 +74,29 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
         const isViewingUpcoming = viewMode === 'upcoming'
         const activeDate = isViewingUpcoming ? nextThursday : lastThursday
         
-        // For 'upcoming', we use average pay. For 'last', we use the actual payslip from that week.
-        const activePayslip = !isViewingUpcoming 
-            ? payslips.find(p => {
+        // For 'upcoming', we use a synced payslip if it matches the target date (+/- 1 day)
+        // For 'last', we search for the payslip in that cycle's window.
+        const upcomingPayslip = payslips.find(p => {
+            const pDate = new Date(p.date)
+            pDate.setHours(0,0,0,0)
+            const tDate = new Date(nextThursday)
+            tDate.setHours(0,0,0,0)
+            const diff = Math.abs(pDate.getTime() - tDate.getTime())
+            return diff <= 24 * 60 * 60 * 1000
+        })
+
+        const activePayslip = isViewingUpcoming 
+            ? upcomingPayslip 
+            : payslips.find(p => {
                 const pDate = new Date(p.date)
                 return pDate >= lastThursday && pDate < nextThursday
               }) || latestPayslip
-            : null
 
         const projectedPayForTarget = getProjectedPayForDate(nextThursday)
-        const detectedNetPay = isViewingUpcoming ? projectedPayForTarget : (activePayslip?.net_pay || projectedPayForTarget)
+        const isProjected = isViewingUpcoming ? !upcomingPayslip : !activePayslip
+        const detectedNetPay = isViewingUpcoming 
+            ? (upcomingPayslip?.net_pay || projectedPayForTarget) 
+            : (activePayslip?.net_pay || projectedPayForTarget)
         
         // Define cycle lookahead (Thursday to Thursday)
         const cycleStart = activeDate
@@ -322,7 +335,7 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
         const affordableWishlistItems = []
         const availableItems = wishlist
             .filter(item => 
-                item.status !== 'acquired' && 
+                item.status === 'queue' && 
                 !dismissedItems.includes(item.id) &&
                 (item.price || 0) > 0 && 
                 (item.price || 0) <= wishlistBudget
@@ -354,6 +367,7 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
             activeDate,
             affordableWishlistItems,
             rawLatest: latestPayslip?.net_pay || 0,
+            isProjected,
             progress: (() => {
                 const all = [...mandatoryAllocations, ...potSplits]
                 const done = all.filter(a => (a as any).fulfilled).length
@@ -410,17 +424,19 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4 bg-black/[0.03] p-1.5 rounded-xl border border-black/[0.05]">
+                    <div className="bg-black/[0.03] p-1.5 rounded-xl border border-black/[0.05]">
                         <div className="text-right px-2">
-                            <span className="text-[9px] font-black text-black/20 uppercase tracking-widest block mb-0.5 whitespace-nowrap">
-                                {analysis?.activeDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })}
-                            </span>
+                            <div className="flex items-center gap-2 justify-end mb-0.5">
+                                <span className="text-[9px] font-black text-black/20 uppercase tracking-widest block whitespace-nowrap">
+                                    {analysis?.activeDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })}
+                                </span>
+                                {analysis?.isProjected ? (
+                                    <span className="text-[7px] px-1 py-0.5 bg-black/5 text-black/40 rounded uppercase font-black tracking-tighter shadow-sm border border-black/5">Projected</span>
+                                ) : (
+                                    <span className="text-[7px] px-1 py-0.5 bg-emerald-500 text-black rounded uppercase font-black tracking-tighter shadow-[0_2px_10px_-4px_rgba(16,185,129,0.5)]">Actual</span>
+                                )}
+                            </div>
                             <span className="text-[15px] font-black text-black">£{analysis?.income.toFixed(2)}</span>
-                        </div>
-                        <div className="h-6 w-px bg-black/[0.08]" />
-                        <div className="text-right px-2">
-                            <span className="text-[9px] font-black text-black/20 uppercase tracking-widest block mb-0.5 whitespace-nowrap">True Profit</span>
-                            <span className="text-[15px] font-black text-emerald-600">£{(analysis?.surplus || 0).toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
@@ -636,8 +652,8 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                         {/* Wishlist Recommendations */}
                         {analysis?.affordableWishlistItems && analysis.affordableWishlistItems.length > 0 && (
                             <div className="p-6 pt-0">
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between px-1">
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between px-1 mb-1">
                                         <div className="flex items-center gap-2">
                                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                                             <h4 className="text-[10px] font-black uppercase text-amber-900 tracking-widest leading-none">Aspirations within Reach</h4>
@@ -645,41 +661,67 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                                         <span className="text-[9px] font-bold text-black/30 uppercase tracking-[0.1em]">Funded by Fun/Surplus</span>
                                     </div>
                                     
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {analysis.affordableWishlistItems.map((item) => (
-                                            <div key={item.id} className="relative p-4 rounded-[1.5rem] bg-amber-500/10 border border-amber-500/20 overflow-hidden group">
-                                                <div className="absolute top-0 right-0 p-3 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity pointer-events-none">
-                                                    <ShoppingBag className="w-16 h-16 text-amber-500" />
-                                                </div>
-                                                <div className="flex flex-col md:flex-row gap-4 items-center relative z-10">
-                                                    <div className="flex flex-1 gap-4 items-center w-full">
-                                                        <div className="w-12 h-12 rounded-2xl overflow-hidden bg-black/5 flex-shrink-0 border border-amber-500/20">
-                                                            {item.image_url ? (
-                                                                <img src={item.image_url} alt="" className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center">
-                                                                    <Target className="w-5 h-5 text-amber-600" />
-                                                                </div>
+                                    <div className="flex flex-col gap-2">
+                                        {analysis.affordableWishlistItems.map((item) => {
+                                            const OT_RATE_NET = 20.35 * (1 - 0.1821)
+                                            const HOURS_PER_SHIFT = 11.5
+                                            const hoursNeeded = (item.price || 0) / OT_RATE_NET
+                                            const shiftsNeeded = hoursNeeded / HOURS_PER_SHIFT
+                                            const otLabel = hoursNeeded < HOURS_PER_SHIFT
+                                                ? `${hoursNeeded.toFixed(1)} OT hrs`
+                                                : `${shiftsNeeded.toFixed(1)} OT shifts`
+
+                                            return (
+                                                <div key={item.id} className="flex items-center gap-3 p-3 rounded-2xl bg-amber-500/[0.06] border border-amber-500/15 group hover:border-amber-500/30 transition-all">
+                                                    {/* Image */}
+                                                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/5 flex-shrink-0 border border-black/5">
+                                                        {item.image_url ? (
+                                                            <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                <ShoppingBag className="w-5 h-5 text-amber-400" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Info */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                                                            <span className={`px-1.5 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest border ${
+                                                                item.priority === 'super' ? 'border-purple-200 bg-purple-50 text-purple-600' :
+                                                                item.priority === 'high' ? 'border-red-200 bg-red-50 text-red-500' :
+                                                                item.priority === 'mid' ? 'border-amber-200 bg-amber-50 text-amber-600' :
+                                                                'border-black/5 bg-black/[0.03] text-black/40'
+                                                            }`}>{item.priority}</span>
+                                                            {item.category && <span className="text-[7px] font-bold text-black/25 uppercase tracking-widest">{item.category}</span>}
+                                                        </div>
+                                                        <p className="text-[13px] font-black text-black leading-tight truncate">{item.title}</p>
+                                                        {item.description && <p className="text-[9px] text-black/40 font-medium mt-0.5 line-clamp-1">{item.description}</p>}
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-[11px] font-black text-amber-700">£{Number(item.price).toFixed(2)}</span>
+                                                            <span className="w-0.5 h-0.5 rounded-full bg-black/20" />
+                                                            <span className="text-[8px] font-bold text-black/30 uppercase tracking-wide">⚡ {otLabel} to afford</span>
+                                                            {item.url && (
+                                                                <>
+                                                                    <span className="w-0.5 h-0.5 rounded-full bg-black/20" />
+                                                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[8px] font-black text-black/30 uppercase tracking-wide hover:text-amber-600 transition-colors">Store ↗</a>
+                                                                </>
                                                             )}
                                                         </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-[14px] font-black text-black truncate pr-4">{item.title}</p>
-                                                            <div className="flex items-center gap-2 mt-0.5">
-                                                                <span className="text-[11px] font-black text-amber-700">£{Number(item.price).toFixed(2)}</span>
-                                                            </div>
-                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2 w-full md:w-auto">
-                                                        <button onClick={() => setPurchaseModalItem(item)} className="flex-1 md:flex-none px-4 py-2 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.03] active:scale-[0.97] transition-all shadow-lg shadow-black/5">
-                                                            I Bought This
+
+                                                    {/* Actions */}
+                                                    <div className="flex flex-col gap-1.5 shrink-0">
+                                                        <button onClick={() => setPurchaseModalItem(item)} className="px-3 py-1.5 bg-black text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:scale-[1.03] active:scale-[0.97] transition-all">
+                                                            Bought
                                                         </button>
-                                                        <button onClick={() => setItemToDismiss(item)} className="px-4 py-2 bg-white/50 hover:bg-white text-black/50 hover:text-black rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                                                        <button onClick={() => setItemToDismiss(item)} className="px-3 py-1.5 bg-black/5 hover:bg-black/10 text-black/40 hover:text-black rounded-lg text-[8px] font-black uppercase tracking-widest transition-all">
                                                             Dismiss
                                                         </button>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             </div>

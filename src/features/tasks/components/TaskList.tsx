@@ -241,27 +241,6 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [suggestedPriority, setSuggestedPriority] = useState<{ level: 'super' | 'high' | 'mid' | 'low', reason: string } | null>(null)
     const [showSuggestions, setShowSuggestions] = useState(false)
 
-    // Derived autocomplete from history + Templates
-    const autocompleteTitles = useMemo(() => {
-        const lowerInput = newTask.toLowerCase()
-
-        // Template matches (prioritized)
-        const templateMatches = templates
-            .filter(t => t.category === category && t.title.toLowerCase().includes(lowerInput))
-            .map(t => ({ title: t.title, template: t }))
-
-        if (!newTask.trim() || newTask.length < 2) {
-            // Suggest templates even without typing if showAllFields is on
-            return showAllFields ? templateMatches.slice(0, 5) : []
-        }
-
-        // History matches
-        const historyMatches = Array.from(new Set(tasks.map(t => t.title)))
-            .filter(t => t.toLowerCase().includes(lowerInput) && t.toLowerCase() !== lowerInput)
-            .map(t => ({ title: t, template: null }))
-
-        return [...templateMatches, ...historyMatches].slice(0, 5)
-    }, [newTask, tasks, templates, category, showAllFields])
     
     const quickTemplates = useMemo(() => {
         return templates.filter(t => t.category === category && t.profile === activeProfile)
@@ -1082,37 +1061,6 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                     </div>
                 )}
 
-                {/* Tier 1: Local Autocomplete Suggestions */}
-                {autocompleteTitles.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 px-1 animate-in slide-in-from-top-1 fade-in duration-200">
-                        {autocompleteTitles.map(item => (
-                            <button
-                                key={item.title}
-                                type="button"
-                                onClick={() => {
-                                    setNewTask(item.title)
-                                    if (item.template) {
-                                        setPriority(item.template.priority)
-                                        if (item.template.strategic_category) setNewStrategicCategory(item.template.strategic_category)
-                                        if (item.template.impact_score !== undefined) setImpactScore(item.template.impact_score.toString())
-                                        if (item.template.amount) setAmount(item.template.amount)
-                                        // Auto-expand fields if using a template
-                                        setShowAllFields(true)
-                                    }
-                                }}
-                                className={cn(
-                                    "px-2 py-1 border rounded-lg text-[11px] font-bold transition-colors tracking-tight text-left truncate max-w-[200px] flex items-center gap-1.5",
-                                    item.template
-                                        ? "bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100"
-                                        : "bg-black/[0.03] hover:bg-black/[0.06] border-black/[0.05] text-black/60"
-                                )}
-                            >
-                                {item.template && <Zap className="w-2.5 h-2.5" />}
-                                {item.title}
-                            </button>
-                        ))}
-                    </div>
-                )}
 
                 {/* Quick Library row - Persistently below input if not typing Much */}
                 {newTask.length < 3 && quickTemplates.length > 0 && (
@@ -2387,24 +2335,14 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                 {task.title}
                             </span>
                             <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
-                                {category !== 'grocery' && task.estimated_duration && (
-                                    <span className="text-[10px] font-bold text-black/40 flex items-center gap-1">
-                                        <Clock className="w-3 h-3 text-black/20" />
-                                        {task.estimated_duration}m
-                                    </span>
-                                )}
+
                                 {category !== 'grocery' && task.impact_score && (
                                     <span className="text-[10px] font-black text-amber-600 flex items-center gap-0.5">
                                         <Zap className="w-3 h-3 fill-current" />
                                         {task.impact_score}
                                     </span>
                                 )}
-                                {(task.travel_to_duration || 0) > 0 && (
-                                    <span className="text-[10px] font-black text-amber-500 flex items-center gap-1">
-                                        <Car className="w-3 h-3" />
-                                        {(task.travel_to_duration || 0)}{(task.travel_from_duration || 0) !== (task.travel_to_duration || 0) ? `+${task.travel_from_duration || 0}` : ''}m
-                                    </span>
-                                )}
+
                             </div>
                         </div>
                         {/* Notes Teaser or Progress Bar */}

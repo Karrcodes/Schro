@@ -24,7 +24,7 @@ export default function WishlistPage() {
             {/* Standard Module Header */}
             <header className="flex flex-col md:flex-row md:items-end justify-between z-10 gap-6 pb-2">
                 <div className="space-y-1">
-                    <h2 className="text-[11px] font-black text-amber-500 uppercase tracking-[0.3em]">Ambitions & Desires</h2>
+                    <h2 className="text-[11px] font-black text-amber-500 uppercase tracking-[0.3em]">Desires</h2>
                     <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Wishlist</h1>
                 </div>
 
