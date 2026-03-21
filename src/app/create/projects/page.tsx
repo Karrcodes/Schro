@@ -7,22 +7,21 @@ import ProjectRoadmap from '@/features/studio/components/ProjectRoadmap'
 import CreateProjectModal from '@/features/studio/components/CreateProjectModal'
 import ProjectDetailModal from '@/features/studio/components/ProjectDetailModal'
 import { useStudio } from '@/features/studio/hooks/useStudio'
-import { Plus, Search, Shield, LayoutGrid, Network, Clock } from 'lucide-react'
+import { Search, Shield, LayoutGrid, Network, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { StudioProject } from '@/features/studio/types/studio.types'
 
 export default function ProjectsPage() {
-    const { error } = useStudio()
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+    const { projects, error } = useStudio()
     const [view, setView] = useState<'board' | 'matrix' | 'timeline'>('board')
     const [selectedProject, setSelectedProject] = useState<StudioProject | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
-    const [filterType, setFilterType] = useState<string | null>(null)
     const [showArchived, setShowArchived] = useState(false)
+    const [sortBy, setSortBy] = useState<'priority' | 'impact' | 'date'>('priority')
 
     return (
-        <main className={cn("pb-20 pt-8 md:pt-10 px-6 md:px-10 flex flex-col", view !== 'matrix' && "flex-1")}>
-            <div className={cn("mx-auto space-y-10 w-full", view === 'matrix' ? 'max-w-7xl' : 'max-w-7xl flex-1')}>
+        <main className="pb-20 pt-8 md:pt-10 px-6 md:px-10 flex flex-col flex-1">
+            <div className="mx-auto space-y-8 w-full max-w-7xl flex-1">
                 {error && error.includes('relation') && (
                     <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex flex-col gap-2">
                         <p className="text-[13px] font-bold text-red-900">Database Tables Missing</p>
@@ -32,29 +31,44 @@ export default function ProjectsPage() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-1">
-                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Studio Protocol</h2>
+                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Creative Protocol</h2>
                         <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Project Pipeline</h1>
                     </div>
 
-                    <div className="flex bg-black/[0.03] p-1.5 rounded-2xl border border-black/[0.05] items-center gap-0.5 h-fit mb-1">
-                        {[
-                            { label: 'Board', value: 'board' as const, icon: LayoutGrid },
-                            { label: 'Matrix', value: 'matrix' as const, icon: Network },
-                            { label: 'Timeline', value: 'timeline' as const, icon: Clock },
-                        ].map(({ label, value, icon: Icon }) => (
-                            <button
-                                key={value}
-                                onClick={() => setView(value)}
-                                className={cn(
-                                    "items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all",
-                                    view === value ? 'bg-white text-black shadow-sm' : 'text-black/30 hover:text-black/60',
-                                    value === 'board' ? 'flex' : 'hidden sm:flex'
-                                )}
-                            >
-                                <Icon className="w-3.5 h-3.5" />
-                                <span className={value !== 'board' ? "hidden sm:inline" : ""}>{label}</span>
-                            </button>
-                        ))}
+                    <div className="flex items-center gap-3 self-start sm:self-auto mb-1">
+                        <button
+                            onClick={() => setShowArchived(!showArchived)}
+                            className={cn(
+                                "flex items-center gap-2 px-4 h-[42px] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shrink-0",
+                                showArchived
+                                    ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20"
+                                    : "bg-black/[0.03] text-black/30 border-transparent hover:border-black/10 hover:text-black/60"
+                            )}
+                        >
+                            <Shield className={cn("w-3.5 h-3.5", showArchived ? "text-white" : "text-black/20")} />
+                            {showArchived ? 'Archives' : 'View Archives'}
+                        </button>
+
+                        {/* View toggle */}
+                        <div className="flex bg-black/[0.03] p-1.5 rounded-2xl border border-black/[0.05] items-center gap-0.5 h-[42px]">
+                            {[
+                                { label: 'Board', value: 'board' as const, icon: LayoutGrid },
+                                { label: 'Timeline', value: 'timeline' as const, icon: Clock },
+                            ].map(({ label, value, icon: Icon }) => (
+                                <button
+                                    key={value}
+                                    onClick={() => setView(value)}
+                                    className={cn(
+                                        "items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all",
+                                        view === value ? 'bg-white text-black shadow-sm' : 'text-black/30 hover:text-black/60',
+                                        value === 'board' ? 'flex' : 'hidden sm:flex'
+                                    )}
+                                >
+                                    <Icon className="w-3.5 h-3.5" />
+                                    <span className={value !== 'board' ? "hidden sm:inline" : ""}>{label}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -70,61 +84,35 @@ export default function ProjectsPage() {
                     />
                 </div>
 
-                {/* Row 3 & 4: Archives, Filters and Add */}
-                <div className="flex flex-col gap-3">
-                    <div className="flex justify-start">
-                        <button
-                            onClick={() => setShowArchived(!showArchived)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shrink-0",
-                                showArchived
-                                    ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20"
-                                    : "bg-black/[0.03] text-black/30 border-transparent hover:border-black/10 hover:text-black/60"
-                            )}
-                        >
-                            <Shield className={cn("w-3.5 h-3.5", showArchived ? "text-white" : "text-black/20")} />
-                            {showArchived ? 'Viewing Archives' : 'View Archives'}
-                        </button>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/[0.04] items-center overflow-x-auto no-scrollbar max-w-full">
-                            {[null, 'Architectural Design', 'Technology', 'Media', 'Fashion'].map((type) => (
+                {/* Row 3 & 4: Filters and Add */}
+                <div className="flex flex-col gap-4">
+                    {/* Sort By row - Positioned above categories */}
+                    <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-black/20 ml-2">Sort By</span>
+                        <div className="flex items-center gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit">
+                            {(['priority', 'impact', 'date'] as const).map(mode => (
                                 <button
-                                    key={type || 'all'}
-                                    onClick={() => setFilterType(type)}
+                                    key={mode}
+                                    onClick={() => setSortBy(mode)}
                                     className={cn(
-                                        "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all shrink-0",
-                                        filterType === type ? 'bg-white text-black shadow-sm' : 'text-black/30 hover:text-black/60'
+                                        "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                        sortBy === mode
+                                            ? "bg-white text-black shadow-sm ring-1 ring-black/5"
+                                            : "text-black/30 hover:text-black/60"
                                     )}
                                 >
-                                    {type || 'All'}
+                                    {mode}
                                 </button>
                             ))}
                         </div>
-
-                        {view !== 'matrix' && (
-                            <button
-                                onClick={() => setIsCreateModalOpen(true)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-xl text-[12px] font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 self-start sm:self-auto"
-                            >
-                                <Plus className="w-4 h-4" />
-                                <span className="hidden xs:inline">New Project</span>
-                                <span className="xs:hidden">Add</span>
-                            </button>
-                        )}
                     </div>
+
+
                 </div>
 
-                {view === 'board' && <ProjectKanban searchQuery={searchQuery} filterType={filterType} showArchived={showArchived} />}
-                {view === 'matrix' && <ProjectMatrix searchQuery={searchQuery} filterType={filterType} showArchived={showArchived} />}
-                {view === 'timeline' && <ProjectRoadmap onProjectClick={setSelectedProject} searchQuery={searchQuery} filterType={filterType} showArchived={showArchived} />}
+                {view === 'board' && <ProjectKanban searchQuery={searchQuery} showArchived={showArchived} sortBy={sortBy} />}
+                {view === 'timeline' && <ProjectRoadmap onProjectClick={setSelectedProject} searchQuery={searchQuery} showArchived={showArchived} sortBy={sortBy} />}
             </div>
-
-            <CreateProjectModal
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
-            />
 
             <ProjectDetailModal
                 isOpen={!!selectedProject}

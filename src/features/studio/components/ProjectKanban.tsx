@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Rocket, Shield, Clock, MoreVertical, Trash2, CheckCircle2, Zap } from 'lucide-react'
+import { Rocket, Shield, Clock, MoreVertical, Trash2, CheckCircle2, Zap, Plus } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import type { StudioProject, ProjectStatus, StudioMilestone, ProjectKanbanProps } from '../types/studio.types'
 import { cn } from '@/lib/utils'
 import PlatformIcon from './PlatformIcon'
 import ProjectDetailModal from './ProjectDetailModal'
+import CreateProjectModal from './CreateProjectModal'
 import ConfirmationModal from '@/components/ConfirmationModal'
 
 const COLUMNS: { label: string; value: ProjectStatus }[] = [
@@ -17,33 +18,35 @@ const COLUMNS: { label: string; value: ProjectStatus }[] = [
 ]
 
 
-export default function ProjectKanban({ searchQuery = '', filterType = null, showArchived = false }: ProjectKanbanProps) {
-    const { projects: allProjects, milestones, updateProject, deleteProject, loading } = useStudio()
+export default function ProjectKanban({ searchQuery = '', showArchived = false, sortBy = 'priority' }: ProjectKanbanProps) {
+    const { projects: allProjects, milestones, updateProject, deleteProject, loading, generatingProjectIds } = useStudio()
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [dragOverStatus, setDragOverStatus] = useState<ProjectStatus | null>(null)
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+    const [focusTab, setFocusTab] = useState<ProjectStatus>('active')
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
     const [projectToDelete, setProjectToDelete] = useState<StudioProject | null>(null)
     const [projectToArchive, setProjectToArchive] = useState<StudioProject | null>(null)
-    const [sortBy, setSortBy] = useState<'priority' | 'impact' | 'date'>('priority')
 
-    // Filter and sort projects based on search, type, archiving and sorting mode
+    const priorityOrder = { super: 1, high: 2, mid: 3, low: 4 };
+
     const projects = allProjects.filter(p => {
         const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.tagline?.toLowerCase().includes(searchQuery.toLowerCase())
-        const matchesType = !filterType || p.type === filterType
         const archiveMatch = showArchived ? p.is_archived : !p.is_archived
-        return matchesSearch && matchesType && archiveMatch
+        return matchesSearch && archiveMatch
     }).sort((a, b) => {
-        if (sortBy === 'priority') {
-            const weights = { super: 4, high: 3, mid: 2, low: 1 }
-            return (weights[b.priority || 'low'] || 0) - (weights[a.priority || 'low'] || 0)
-        }
         if (sortBy === 'impact') {
+            const diff = (b.impact_score || 0) - (a.impact_score || 0)
+            if (diff !== 0) return diff
+            return (priorityOrder[a.priority || 'low'] || 99) - (priorityOrder[b.priority || 'low'] || 99)
+        } else if (sortBy === 'priority') {
+            const diff = (priorityOrder[a.priority || 'low'] || 99) - (priorityOrder[b.priority || 'low'] || 99)
+            if (diff !== 0) return diff
             return (b.impact_score || 0) - (a.impact_score || 0)
-        }
-        if (sortBy === 'date') {
-            const dateA = a.target_date || '9999-12-31'
-            const dateB = b.target_date || '9999-12-31'
+        } else if (sortBy === 'date') {
+            const dateA = a.target_date || a.start_date || '9999-12-31'
+            const dateB = b.target_date || b.start_date || '9999-12-31'
             return dateA.localeCompare(dateB)
         }
         return 0
@@ -93,94 +96,96 @@ export default function ProjectKanban({ searchQuery = '', filterType = null, sho
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.15em] text-black/20 ml-2">Sort By</span>
-                <div className="flex items-center gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit">
-                    {(['priority', 'impact', 'date'] as const).map(mode => (
-                        <button
-                            key={mode}
-                            onClick={() => setSortBy(mode)}
-                            className={cn(
-                                "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                                sortBy === mode
-                                    ? "bg-white text-black shadow-sm ring-1 ring-black/5"
-                                    : "text-black/30 hover:text-black/60"
-                            )}
-                        >
-                            {mode}
-                        </button>
-                    ))}
-                </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 min-h-[600px]">
-                {COLUMNS.map(column => {
-                    const columnProjects = projects.filter(p => p.status === column.value)
-                    const isOver = dragOverStatus === column.value
+            {/* Status Tabs and Add Button Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+                <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-2xl w-fit max-w-full overflow-x-auto no-scrollbar">
+                    {COLUMNS.map(column => {
+                        const isActive = focusTab === column.value
+                        const isOver = dragOverStatus === column.value
+                        const count = projects.filter(p => p.status === column.value).length
 
-                    return (
-                        <div
-                            key={column.value}
-                            className="flex flex-col gap-4"
-                        >
-                            {/* Column Header */}
-                            <div className="flex items-center justify-between px-2 mb-2">
-                                <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-black/30 flex items-center gap-2">
-                                    <div className={cn(
-                                        "w-1.5 h-1.5 rounded-full",
-                                        column.value === 'idea' && "bg-black/10",
-                                        column.value === 'research' && "bg-blue-400",
-                                        column.value === 'active' && "bg-orange-400",
-                                        column.value === 'shipped' && "bg-emerald-400"
-                                    )} />
-                                    {column.label}
-                                </h3>
-                                <span className="text-[10px] font-bold text-black/20 bg-black/5 px-1.5 py-0.5 rounded-md">
-                                    {columnProjects.length}
-                                </span>
-                            </div>
-
-                            {/* Column Content Area */}
-                            <div
+                        return (
+                            <button
+                                key={column.value}
                                 data-column-status={column.value}
+                                onClick={() => setFocusTab(column.value)}
                                 className={cn(
-                                    "flex-1 rounded-[32px] transition-all p-2 space-y-3 min-h-[400px] border-2 border-transparent",
-                                    isOver ? "bg-orange-50/50 border-orange-200 shadow-inner scale-[1.01]" :
-                                        draggingId ? "bg-black/[0.01] border-dashed border-black/[0.05]" : "bg-transparent"
+                                    "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all relative whitespace-nowrap",
+                                    isActive
+                                        ? "bg-white text-black shadow-sm"
+                                        : "text-black/30 hover:text-black/60",
+                                    isOver && "bg-orange-50 text-orange-600 scale-[1.05] z-10"
                                 )}
                             >
-                                {loading ? (
-                                    <div className="space-y-3">
-                                        {[1, 2].map(i => (
-                                            <div key={i} className="h-40 bg-black/[0.02] border border-black/[0.05] rounded-2xl animate-pulse" />
-                                        ))}
-                                    </div>
-                                ) : columnProjects.length === 0 ? (
-                                    <div className="py-12 flex flex-col items-center justify-center text-center px-4 opacity-10">
-                                        <Rocket className="w-8 h-8 mb-2" />
-                                        <p className="text-[11px] font-bold uppercase tracking-widest">Empty</p>
-                                    </div>
-                                ) : (
-                                    columnProjects.map(project => (
-                                        <ProjectCard
-                                            key={project.id}
-                                            project={project}
-                                            milestones={milestones}
-                                            onPointerDragStart={(id) => setDraggingId(id)}
-                                            onPointerDragOver={handlePointerDragOver}
-                                            onPointerDrop={handlePointerDrop}
-                                            onPointerDragEnd={() => { setDraggingId(null); setDragOverStatus(null) }}
-                                            onClick={() => setSelectedProjectId(project.id)}
-                                            onArchive={() => setProjectToArchive(project)}
-                                            onDelete={() => setProjectToDelete(project)}
-                                        />
-                                    ))
+                                <div className={cn(
+                                    "w-1.5 h-1.5 rounded-full",
+                                    column.value === 'idea' && "bg-black/10",
+                                    column.value === 'research' && "bg-blue-400",
+                                    column.value === 'active' && "bg-orange-400",
+                                    column.value === 'shipped' && "bg-emerald-400"
+                                )} />
+                                {column.label}
+                                {count > 0 && (
+                                    <span className={cn(
+                                        "px-1.5 py-0.5 rounded-md text-[9px]",
+                                        isActive ? "bg-black text-white" : "bg-black/5 text-black/30"
+                                    )}>
+                                        {count}
+                                    </span>
                                 )}
-                            </div>
-                        </div>
-                    )
-                })}
+                            </button>
+                        )
+                    })}
+                </div>
 
+                <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="flex items-center gap-2 px-6 h-[46px] rounded-2xl bg-black text-white text-[11px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-xl shadow-black/10 shrink-0"
+                >
+                    <Plus className="w-4 h-4" />
+                    New Project
+                </button>
+            </div>
+
+            {/* Focused Column View */}
+            <div
+                data-column-status={focusTab}
+                className={cn(
+                    "rounded-[32px] transition-all min-h-[600px] border-2 border-transparent",
+                    dragOverStatus === focusTab ? "bg-orange-50/50 border-orange-200 shadow-inner" :
+                        draggingId ? "bg-black/[0.01] border-dashed border-black/[0.05]" : "bg-transparent"
+                )}
+            >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-2">
+                    {loading ? (
+                        [1, 2, 3].map(i => (
+                            <div key={i} className="h-48 bg-black/[0.02] border border-black/[0.05] rounded-2xl animate-pulse" />
+                        ))
+                    ) : projects.filter(p => p.status === focusTab).length === 0 ? (
+                        <div className="col-span-full py-24 flex flex-col items-center justify-center text-center px-4 opacity-10">
+                            <Rocket className="w-12 h-12 mb-4" />
+                            <p className="text-[14px] font-black uppercase tracking-[0.2em]">No projects in {focusTab}</p>
+                        </div>
+                    ) : (
+                        projects.filter(p => p.status === focusTab).map(project => (
+                            <ProjectCard
+                                key={project.id}
+                                project={project}
+                                milestones={milestones}
+                                onPointerDragStart={(id) => setDraggingId(id)}
+                                onPointerDragOver={handlePointerDragOver}
+                                onPointerDrop={handlePointerDrop}
+                                onPointerDragEnd={() => { setDraggingId(null); setDragOverStatus(null) }}
+                                onClick={() => setSelectedProjectId(project.id)}
+                                onArchive={() => setProjectToArchive(project)}
+                                onDelete={() => setProjectToDelete(project)}
+                                isGenerating={generatingProjectIds.includes(project.id)}
+                            />
+                        ))
+                    )}
+                </div>
+            </div>
                 <ProjectDetailModal
                     isOpen={!!selectedProjectId}
                     onClose={() => setSelectedProjectId(null)}
@@ -216,12 +221,15 @@ export default function ProjectKanban({ searchQuery = '', filterType = null, sho
                     confirmText={projectToArchive?.is_archived ? "Unarchive" : "Archive Project"}
                     type={projectToArchive?.is_archived ? "info" : "info"}
                 />
-            </div>
+                <CreateProjectModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+            />
         </div>
     )
 }
 
-function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOver, onPointerDrop, onPointerDragEnd, onClick, onArchive, onDelete }: {
+function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOver, onPointerDrop, onPointerDragEnd, onClick, onArchive, onDelete, isGenerating }: {
     project: StudioProject;
     milestones: StudioMilestone[];
     onPointerDragStart: (id: string) => void;
@@ -231,6 +239,7 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
     onClick: () => void;
     onArchive: () => void;
     onDelete: () => void;
+    isGenerating?: boolean;
 }) {
     const isDragging = useRef(false)
     const startPos = useRef({ x: 0, y: 0 })
@@ -325,10 +334,16 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                     onLoad={() => setImageLoading(false)}
                     className={cn(
                         "w-full h-full object-cover transition-all duration-700 group-hover:scale-110",
-                        !project.cover_url && "scale-[1.15]",
+                        (!project.cover_url || isGenerating) && "scale-[1.15]",
                         imageLoading ? "opacity-0" : "opacity-100"
                     )}
                 />
+                {isGenerating && (
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 z-[2]">
+                        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Generating...</span>
+                    </div>
+                )}
                 {imageLoading && (
                     <div className="absolute inset-0 bg-black/[0.03] animate-pulse flex items-center justify-center">
                         <div className="w-full h-full bg-gradient-to-r from-transparent via-black/[0.03] to-transparent bg-[length:200%_100%] animate-shimmer" />

@@ -153,12 +153,13 @@ export interface ProjectTimelineProps {
     searchQuery?: string;
     filterType?: string | null;
     showArchived?: boolean;
+    sortBy?: 'priority' | 'impact' | 'date';
 }
-
 export interface ProjectKanbanProps {
     searchQuery?: string;
     filterType?: string | null;
     showArchived?: boolean;
+    sortBy?: 'priority' | 'impact' | 'date';
 }
 
 // Canvas

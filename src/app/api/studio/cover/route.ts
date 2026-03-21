@@ -8,6 +8,45 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 )
 
+async function downloadAndUploadImage(imageUrl: string, folder: string, fileName: string) {
+    try {
+        console.log(`[Cover API] Mirroring image for persistence: ${imageUrl}`)
+        const response = await fetch(imageUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept': 'image/*,video/*;q=0.8,*/*;q=0.5',
+            },
+            next: { revalidate: 3600 }
+        })
+        
+        if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`)
+        
+        const contentType = response.headers.get('content-type') || 'image/jpeg'
+        const arrayBuffer = await response.arrayBuffer()
+        const buffer = Buffer.from(arrayBuffer)
+        
+        const { error: uploadError } = await supabase.storage
+            .from('studio-assets')
+            .upload(`${folder}/${fileName}`, buffer, {
+                contentType,
+                upsert: true,
+                cacheControl: '3600'
+            })
+            
+        if (uploadError) {
+            console.error('[Cover API] Supabase Upload Error:', uploadError)
+            throw uploadError
+        }
+        
+        const { data: urlData } = supabase.storage.from('studio-assets').getPublicUrl(`${folder}/${fileName}`)
+        console.log(`[Cover API] Successfully mirrored to: ${urlData.publicUrl}`)
+        return urlData.publicUrl
+    } catch (err) {
+        console.error('[Cover API] Failed to mirror/persist external image:', err)
+        return null
+    }
+}
+
 export async function GET(req: NextRequest) {
     const url = new URL(req.url)
     const title = url.searchParams.get('title') || ''
@@ -46,8 +85,6 @@ export async function GET(req: NextRequest) {
                 if (response.ok) {
                     const html = await response.text()
                     
-                    // Use Gemini to extract the most appropriate image URL from the header/HTML
-                    // Increase snippet size to handle sites with large <head> sections like Amazon
                     const extractorModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
                     const headPrompt = `Analyze this HTML content and find the main product image URL. Look for:
 1. og:image or twitter:image
@@ -63,7 +100,6 @@ Content: "${html.substring(0, 25000)}"`
                         finalImageUrl = extracted
                     }
                     
-                    // Fallback regex if AI didnt return a clean URL - search the WHOLE HTML for og:image if snippet failed
                     if (!finalImageUrl) {
                          const ogMatch = 
                             html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
@@ -95,7 +131,6 @@ Content: "${html.substring(0, 25000)}"`
 
             if (!keywords) throw new Error('No keywords')
 
-            // Fetch the initial redirect from loremflickr
             const imageRes = await fetch(`https://loremflickr.com/${w}/${h}/${keywords}?lock=${id}`, { redirect: 'manual' })
 
             finalImageUrl = imageRes.url
@@ -107,7 +142,17 @@ Content: "${html.substring(0, 25000)}"`
             }
         }
 
-        // Save the permanent URL to Supabase so it never changes unless the user explicitly removes it
+        // NEW: Download the external image and upload to Supabase Storage for persistence
+        if (finalImageUrl && !finalImageUrl.includes('supabase.co')) {
+            const folder = type === 'content' ? 'content-covers' : 
+                         type === 'project' ? 'project-covers' : 
+                         type === 'wishlist' ? 'wishlist-covers' : 
+                         type === 'canvas' ? 'canvas-images' : 'vision-covers'
+            const fileName = `${type}_${id}_${Date.now()}.jpg`
+            const internalUrl = await downloadAndUploadImage(finalImageUrl, folder, fileName)
+            if (internalUrl) finalImageUrl = internalUrl
+        }
+
         if (id && type) {
             let table = ''
             let column = 'cover_url'
@@ -122,16 +167,26 @@ Content: "${html.substring(0, 25000)}"`
                 table = 'sys_goals'
                 column = 'vision_image_url'
             }
+            else if (type === 'canvas') {
+                table = 'studio_canvas_entries'
+                column = 'images'
+            }
 
             if (table) {
-                const { error } = await supabase.from(table).update({ [column]: finalImageUrl }).eq('id', id)
-                if (error) console.error(`Error saving ${column} to ${table}:`, error)
+                if (type === 'canvas') {
+                    // For canvas, we append to the images array
+                    const { data: currentEntry } = await supabase.from(table).select('images').eq('id', id).single()
+                    const currentImages = Array.isArray(currentEntry?.images) ? currentEntry.images : []
+                    await supabase.from(table).update({ images: [...currentImages, finalImageUrl] }).eq('id', id)
+                } else {
+                    const { error } = await supabase.from(table).update({ [column]: finalImageUrl }).eq('id', id)
+                    if (error) console.error(`Error saving ${column} to ${table}:`, error)
+                }
             }
         }
 
         return NextResponse.redirect(new URL(finalImageUrl), 302)
     } catch (e) {
-        // Fallback if AI fails or rate limits
         const fallback = encodeURIComponent((title.split(' ')[0] + ',' + (type || 'abstract')).toLowerCase())
         const fallbackRes = await fetch(`https://loremflickr.com/${w}/${h}/${fallback}?lock=${id}`, { redirect: 'manual' })
         let finalImageUrlFallback = fallbackRes.url
@@ -142,6 +197,17 @@ Content: "${html.substring(0, 25000)}"`
             }
         }
 
+        // NEW: Also host the fallback image for persistence
+        if (finalImageUrlFallback && !finalImageUrlFallback.includes('supabase.co')) {
+            const folder = type === 'content' ? 'content-covers' : 
+                         type === 'project' ? 'project-covers' : 
+                         type === 'wishlist' ? 'wishlist-covers' : 
+                         type === 'canvas' ? 'canvas-images' : 'vision-covers'
+            const fileName = `${type}_${id}_fallback_${Date.now()}.jpg`
+            const internalUrl = await downloadAndUploadImage(finalImageUrlFallback, folder, fileName)
+            if (internalUrl) finalImageUrlFallback = internalUrl
+        }
+
         if (id && type) {
             let table = ''
             let column = 'cover_url'
@@ -156,9 +222,19 @@ Content: "${html.substring(0, 25000)}"`
                 table = 'sys_goals'
                 column = 'vision_image_url'
             }
+            else if (type === 'canvas') {
+                table = 'studio_canvas_entries'
+                column = 'images'
+            }
 
             if (table) {
-                await supabase.from(table).update({ [column]: finalImageUrlFallback }).eq('id', id)
+                if (type === 'canvas') {
+                    const { data: currentEntry } = await supabase.from(table).select('images').eq('id', id).single()
+                    const currentImages = Array.isArray(currentEntry?.images) ? currentEntry.images : []
+                    await supabase.from(table).update({ images: [...currentImages, finalImageUrlFallback] }).eq('id', id)
+                } else {
+                    await supabase.from(table).update({ [column]: finalImageUrlFallback }).eq('id', id)
+                }
             }
         }
 

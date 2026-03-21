@@ -21,13 +21,12 @@ type ViewRange = '1m' | '3m' | '6m' | '1y'
 export default function ProjectRoadmap({
     onProjectClick,
     searchQuery = '',
-    filterType = null,
-    showArchived = false
+    showArchived = false,
+    sortBy = 'impact'
 }: ProjectTimelineProps) {
     const { projects, milestones } = useStudio()
     const scrollRef = useRef<HTMLDivElement>(null)
     const [viewRange, setViewRange] = useState<ViewRange>('1y')
-    const [sortBy, setSortBy] = useState<'impact' | 'priority'>('impact')
 
     const filteredProjects = useMemo(() => {
         const priorityOrder = { super: 0, high: 1, mid: 2, low: 3 }
@@ -36,24 +35,28 @@ export default function ProjectRoadmap({
             .filter((p: StudioProject) => {
                 const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     p.tagline?.toLowerCase().includes(searchQuery.toLowerCase())
-                const matchesType = !filterType || p.type === filterType
                 // Users requested: completed/shipped projects shouldnt show up on the timeline.
                 const statusMatch = ['research', 'active'].includes(p.status)
                 const archiveMatch = showArchived ? p.is_archived : !p.is_archived
-                return matchesSearch && matchesType && statusMatch && archiveMatch
+                return matchesSearch && statusMatch && archiveMatch
             })
             .sort((a, b) => {
                 if (sortBy === 'impact') {
                     const diff = (b.impact_score || 0) - (a.impact_score || 0)
                     if (diff !== 0) return diff
                     return (priorityOrder[a.priority || 'low'] || 99) - (priorityOrder[b.priority || 'low'] || 99)
-                } else {
+                } else if (sortBy === 'priority') {
                     const diff = (priorityOrder[a.priority || 'low'] || 99) - (priorityOrder[b.priority || 'low'] || 99)
                     if (diff !== 0) return diff
                     return (b.impact_score || 0) - (a.impact_score || 0)
+                } else if (sortBy === 'date') {
+                    const dateA = a.target_date || a.start_date || '9999-12-31'
+                    const dateB = b.target_date || b.start_date || '9999-12-31'
+                    return dateA.localeCompare(dateB)
                 }
+                return 0
             })
-    }, [projects, searchQuery, filterType, showArchived, sortBy])
+    }, [projects, searchQuery, showArchived, sortBy])
 
     const roadmapRange = useMemo(() => {
         const today = new Date()
@@ -146,17 +149,6 @@ export default function ProjectRoadmap({
                             </button>
                         ))}
                     </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-black text-black/20 uppercase tracking-[0.2em] mr-2">Sort By</span>
-                    <button
-                        onClick={() => setSortBy(sortBy === 'impact' ? 'priority' : 'impact')}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-white border border-black/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-black/20 transition-all shadow-sm"
-                    >
-                        {sortBy === 'impact' ? <Zap className="w-3 h-3 text-orange-500" /> : <Clock className="w-3 h-3 text-purple-500" />}
-                        {sortBy}
-                    </button>
                 </div>
             </div>
 

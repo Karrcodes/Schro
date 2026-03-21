@@ -1,11 +1,18 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Plus, X, Video, Type, Globe, Calendar, Rocket, AlignLeft, UploadCloud, CheckSquare, Zap } from 'lucide-react'
-import type { ContentStatus, Platform, StudioContent, ContentCategory, PriorityLevel } from '../types/studio.types'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+    X, Plus, Target, Calendar, Rocket,
+    Video, Trash2, Sparkles, Upload, Loader2, AlertCircle, ImageIcon, GripVertical,
+    Type, AlignLeft, CheckSquare, Zap, Globe
+} from 'lucide-react'
+import ConfirmationModal from '@/components/ConfirmationModal'
+import { Reorder, useDragControls } from 'framer-motion'
+import { cn } from '@/lib/utils'
+import type { ContentStatus, Platform, ContentCategory, PriorityLevel } from '../types/studio.types'
 import { useStudio } from '../hooks/useStudio'
 import PlatformIcon from './PlatformIcon'
-import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
 interface CreateContentModalProps {
@@ -16,94 +23,80 @@ interface CreateContentModalProps {
 const PLATFORMS: Platform[] = ['youtube', 'instagram', 'tiktok', 'x', 'web', 'substack']
 const TYPES = ['video', 'reel', 'post', 'thread', 'article', 'short']
 const CATEGORIES: ContentCategory[] = ['Vlog', 'Thoughts', 'Showcase', 'Concept', 'Update', 'Other']
-
-const PRIORITY_CONFIG = {
-    super: { label: 'Super', bg: 'bg-purple-500 text-white', ring: 'ring-purple-300' },
-    high: { label: 'High', bg: 'bg-red-500 text-white', ring: 'ring-red-300' },
-    mid: { label: 'Mid', bg: 'bg-amber-400 text-white', ring: 'ring-amber-200' },
-    low: { label: 'Low', bg: 'bg-neutral-300 text-neutral-700', ring: 'ring-neutral-200' },
-} as const
-
 const MILESTONE_CATEGORIES = ['rnd', 'production', 'media', 'growth']
-
-type ContentMilestone = { title: string; impact_score: number; category: string; priority: PriorityLevel; target_date?: string }
-
-const INITIAL_FORM = {
-    title: '',
-    platforms: [] as Platform[],
-    type: 'video',
-    category: 'Vlog' as ContentCategory,
-    status: 'idea' as ContentStatus,
-    priority: 'mid' as PriorityLevel,
-    impact_score: 5,
-    notes: '',
-    deadline: '',
-    project_id: '',
-    cover_url: '',
-}
 
 export default function CreateContentModal({ isOpen, onClose }: CreateContentModalProps) {
     const { addContent, addMilestone, projects } = useStudio()
     const [loading, setLoading] = useState(false)
-    const [formData, setFormData] = useState(INITIAL_FORM)
+    const [title, setTitle] = useState('')
+    const [platforms, setPlatforms] = useState<Platform[]>([])
+    const [type, setType] = useState('video')
+    const [category, setCategory] = useState<ContentCategory>('Vlog')
+    const [status, setStatus] = useState<ContentStatus>('idea')
+    const [priority, setPriority] = useState<PriorityLevel>('mid')
+    const [impactScore, setImpactScore] = useState(5)
+    const [notes, setNotes] = useState('')
+    const [deadline, setDeadline] = useState('')
+    const [projectId, setProjectId] = useState('')
+    
     const [coverFile, setCoverFile] = useState<File | null>(null)
-    const [coverPreview, setCoverPreview] = useState<string>('')
+    const [imagePreview, setImagePreview] = useState<string | null>(null)
+    const [milestones, setMilestones] = useState<{ id: string, title: string, category: string, impact_score: number, target_date?: string }[]>([])
+    const [error, setError] = useState<string | null>(null)
+    const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null)
 
-    // Milestones
-    const [milestones, setMilestones] = useState<ContentMilestone[]>([])
-    const [newMilestone, setNewMilestone] = useState('')
-    const [newMilestoneImpact, setNewMilestoneImpact] = useState(5)
-    const [newMilestoneCategory, setNewMilestoneCategory] = useState('production')
-    const [newMilestonePriority, setNewMilestonePriority] = useState<PriorityLevel>('mid')
-    const [newMilestoneDate, setNewMilestoneDate] = useState('')
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const deadlineInputRef = useRef<HTMLInputElement>(null)
-    const publishDateInputRef = useRef<HTMLInputElement>(null)
-    const newMilestoneDateRef = useRef<HTMLInputElement>(null)
-
-    if (!isOpen) return null
+    // Reset form when opening
+    React.useEffect(() => {
+        if (isOpen) {
+            setTitle(''); setPlatforms([]); setType('video'); setCategory('Vlog'); setStatus('idea')
+            setPriority('mid'); setImpactScore(5); setNotes(''); setDeadline(''); setProjectId('')
+            setMilestones([]); setCoverFile(null); setImagePreview(null); setError(null)
+        }
+    }, [isOpen])
 
     const togglePlatform = (p: Platform) => {
-        setFormData(prev => ({
-            ...prev,
-            platforms: prev.platforms.includes(p)
-                ? prev.platforms.filter(x => x !== p)
-                : [...prev.platforms, p]
-        }))
+        setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
     }
 
-    const handleCoverFile = (file: File) => {
-        setCoverFile(file)
-        const reader = new FileReader()
-        reader.onload = e => setCoverPreview(e.target?.result as string)
-        reader.readAsDataURL(file)
-    }
-
-    const handleAddMilestone = () => {
-        if (!newMilestone.trim()) return
-        setMilestones(prev => [...prev, {
-            title: newMilestone.trim(),
-            impact_score: newMilestoneImpact,
-            category: newMilestoneCategory,
-            priority: newMilestonePriority,
-            target_date: newMilestoneDate || undefined
+    const addMilestoneItem = () => {
+        setMilestones([...milestones, { 
+            id: Math.random().toString(36).substring(2, 9), 
+            title: '', 
+            category: 'production', 
+            impact_score: 5 
         }])
-        setNewMilestone('')
-        setNewMilestoneImpact(5)
-        setNewMilestoneCategory('production')
-        setNewMilestonePriority('mid')
-        setNewMilestoneDate('')
+    }
+
+    const removeMilestone = (id: string) => {
+        setMilestoneToDelete(id)
+    }
+
+    const confirmRemoveMilestone = () => {
+        if (!milestoneToDelete) return
+        setMilestones(milestones.filter(m => m.id !== milestoneToDelete))
+        setMilestoneToDelete(null)
+    }
+
+    const updateMilestoneItem = (id: string, updates: Partial<{ title: string, category: string, impact_score: number, target_date?: string }>) => {
+        setMilestones(milestones.map(m => m.id === id ? { ...m, ...updates } : m))
+    }
+
+    const handleImageFile = (file: File) => {
+        setCoverFile(file)
+        setImagePreview(URL.createObjectURL(file))
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!formData.title) return
+        if (!title.trim() || loading) return
+        setLoading(true)
+        setError(null)
 
         try {
-            setLoading(true)
-
             // Upload cover if provided
-            let finalCoverUrl = formData.cover_url
+            let finalCoverUrl = undefined
             if (coverFile) {
                 const fileExt = coverFile.name.split('.').pop()
                 const fileName = `${Math.random().toString(36).substring(2, 11)}_${Date.now()}.${fileExt}`
@@ -116,405 +109,398 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
             }
 
             const created = await addContent({
-                ...formData,
-                cover_url: finalCoverUrl || undefined,
-                project_id: formData.project_id || null,
-                deadline: formData.deadline || undefined,
+                title,
+                platforms,
+                type,
+                category,
+                status,
+                priority,
+                impact_score: impactScore,
+                notes,
+                deadline: deadline || undefined,
+                project_id: projectId || null,
+                cover_url: finalCoverUrl
             } as any)
 
-            // Add milestones linked to this content item (reusing existing milestone system)
-            // We store them linked to the project if one is set, or standalone
-            // For now we add them as studio_milestones with a note
+            // Add milestones
             for (const m of milestones) {
+                if (!m.title.trim()) continue
                 await addMilestone({
-                    title: m.title,
+                    title: m.title.trim(),
                     impact_score: m.impact_score,
                     category: m.category,
-                    priority: m.priority,
                     target_date: m.target_date,
-                    project_id: formData.project_id || undefined,
-                    content_id: !formData.project_id ? created.id : undefined,
+                    project_id: projectId || undefined,
+                    content_id: !projectId ? created.id : undefined,
                     status: 'pending',
                 } as any)
             }
 
-            // Trigger cover generation if it doesn't have one
+            // Trigger AI cover generation if no image provided
             if (!finalCoverUrl) {
-                fetch(`/api/studio/cover?title=${encodeURIComponent(formData.title)}&tagline=${encodeURIComponent(formData.category || '')}&type=content&id=${created.id}&w=1200&h=630`);
+                fetch(`/api/studio/cover?title=${encodeURIComponent(title)}&tagline=${encodeURIComponent(category || '')}&type=content&id=${created.id}&w=1200&h=630`);
             }
 
-
             onClose()
-            setFormData(INITIAL_FORM)
-            setCoverFile(null)
-            setCoverPreview('')
-            setMilestones([])
         } catch (err: any) {
-            console.error('Failed to create content:', err)
-            alert(`Error: ${err.message || 'Failed to create content item'}`)
+            setError(err?.message || 'Failed to create content')
         } finally {
             setLoading(false)
         }
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-end">
-            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity" onClick={onClose} />
+        <>
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 md:p-6">
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                    />
 
-            <div className="relative w-full max-w-2xl h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-
-                {/* Cover Banner */}
-                {coverPreview && (
-                    <div className="w-full h-32 relative overflow-hidden flex-shrink-0">
-                        <img src={coverPreview} alt="cover" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                        <button
-                            type="button"
-                            onClick={() => { setCoverFile(null); setCoverPreview('') }}
-                            className="absolute top-3 right-3 p-1.5 bg-black/40 text-white rounded-full hover:bg-black/60 transition-colors"
-                        >
-                            <X className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
-                )}
-
-                {/* Header */}
-                <div className="p-8 pb-4 flex items-center justify-between flex-shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center">
-                            <Video className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-black text-black leading-tight">New Content Item</h2>
-                            <p className="text-[12px] font-medium text-black/40">Capture a new creative idea</p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors">
-                        <X className="w-6 h-6 text-black/20" />
-                    </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 pt-2 space-y-6">
-
-                    {/* Title */}
-                    <div className="relative">
-                        <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
-                        <input
-                            autoFocus
-                            type="text"
-                            placeholder="What are you making?"
-                            value={formData.title}
-                            onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                            className="w-full pl-11 pr-4 py-4 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[16px] font-bold focus:outline-none focus:border-blue-200 transition-all"
-                            required
-                        />
-                    </div>
-
-                    {/* Cover Image */}
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Cover Image</label>
-                        <div className="flex gap-2">
-                            <div className="relative flex-1">
-                                <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
-                                <input
-                                    type="url"
-                                    placeholder="Cover image URL (optional)"
-                                    value={formData.cover_url}
-                                    onChange={e => setFormData(prev => ({ ...prev, cover_url: e.target.value }))}
-                                    className="w-full pl-11 pr-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-medium focus:outline-none focus:border-blue-200 transition-all"
-                                />
-                            </div>
-                            <label className="cursor-pointer">
-                                <input type="file" className="hidden" accept="image/*"
-                                    onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverFile(f) }} />
-                                <div className={cn(
-                                    "h-full px-4 rounded-2xl border-2 border-dashed flex items-center justify-center transition-all",
-                                    coverFile ? "border-emerald-500 bg-emerald-50 text-emerald-600" : "border-black/[0.06] hover:border-blue-200 bg-black/[0.02]"
-                                )}>
-                                    <UploadCloud className="w-4 h-4" />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94dvh]"
+                    >
+                        {/* Header */}
+                        <div className="px-5 md:px-8 pt-5 md:pt-7 pb-4 md:pb-5 border-b border-black/5 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center">
+                                    <Video className="w-5 h-5" />
                                 </div>
-                            </label>
-                        </div>
-                    </div>
-
-                    {/* Priority Pills */}
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Priority</label>
-                        <div className="flex gap-2">
-                            {(Object.keys(PRIORITY_CONFIG) as PriorityLevel[]).map(level => (
-                                <button
-                                    key={level}
-                                    type="button"
-                                    onClick={() => setFormData(prev => ({ ...prev, priority: level }))}
-                                    className={cn(
-                                        "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all",
-                                        formData.priority === level
-                                            ? cn(PRIORITY_CONFIG[level].bg, "border-transparent scale-105 shadow-md")
-                                            : "bg-black/[0.02] border-black/[0.05] text-black/30 hover:bg-black/[0.04]"
-                                    )}
-                                >
-                                    {PRIORITY_CONFIG[level].label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Impact Score Slider */}
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2 flex justify-between items-center">
-                            Impact Score
-                            <span className="flex items-center gap-1 text-amber-500 font-black">
-                                <Zap className="w-3 h-3 fill-current" />
-                                {formData.impact_score}/10
-                            </span>
-                        </label>
-                        <input
-                            type="range" min="1" max="10"
-                            value={formData.impact_score}
-                            onChange={e => setFormData(prev => ({ ...prev, impact_score: parseInt(e.target.value) }))}
-                            className="w-full h-1.5 bg-black/[0.06] rounded-lg appearance-none cursor-pointer accent-black"
-                        />
-                    </div>
-
-                    {/* Category & Format */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Category</label>
-                            <select value={formData.category}
-                                onChange={e => setFormData(prev => ({ ...prev, category: e.target.value as ContentCategory }))}
-                                className="w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-blue-200 appearance-none cursor-pointer">
-                                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Format</label>
-                            <select value={formData.type}
-                                onChange={e => setFormData(prev => ({ ...prev, type: e.target.value }))}
-                                className="w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-blue-200 appearance-none cursor-pointer">
-                                {TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Deadline & Publish Date */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Deadline</label>
-                            <div className="relative group/dl h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden cursor-pointer"
-                                onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}
-                            >
-                                <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
-                                <input type="date"
-                                    ref={deadlineInputRef}
-                                    value={formData.deadline}
-                                    onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                                    className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0" />
-                                <span className="ml-3 text-[13px] font-bold text-black/40 truncate pointer-events-none">
-                                    {formData.deadline ? new Date(formData.deadline + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Set deadline'}
-                                </span>
-                                {formData.deadline && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData(prev => ({ ...prev, deadline: '' }))}
-                                        className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-30 pointer-events-auto"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Publish Date</label>
-                            <div className="relative group/pb h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.1] rounded-2xl overflow-hidden cursor-pointer"
-                                onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}
-                            >
-                                <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
-                                <input type="date"
-                                    ref={publishDateInputRef}
-                                    value={(formData as any).publish_date || ''}
-                                    onChange={e => setFormData(prev => ({ ...prev, publish_date: e.target.value } as any))}
-                                    className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0" />
-                                <span className="ml-3 text-[13px] font-bold text-black/40 truncate pointer-events-none">
-                                    {(formData as any).publish_date ? new Date((formData as any).publish_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Set publish date'}
-                                </span>
-                                {(formData as any).publish_date && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData(prev => ({ ...prev, publish_date: '' } as any))}
-                                        className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-30 pointer-events-auto"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Platforms */}
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Distribute To</label>
-                        <div className="flex flex-wrap gap-2 px-2">
-                            {PLATFORMS.map(p => (
-                                <button key={p} type="button" onClick={() => togglePlatform(p)}
-                                    className={cn(
-                                        "w-9 h-9 rounded-xl border transition-all flex items-center justify-center",
-                                        formData.platforms.includes(p)
-                                            ? "bg-black text-white border-black scale-110 shadow-lg shadow-black/10"
-                                            : "bg-black/[0.02] border-black/[0.05] text-black/40 hover:border-black/20"
-                                    )} title={p}>
-                                    <PlatformIcon platform={p} className="w-4 h-4" />
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Link Project */}
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Link Project (Optional)</label>
-                        <div className="relative">
-                            <Rocket className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
-                            <select value={formData.project_id || ''}
-                                onChange={e => setFormData(prev => ({ ...prev, project_id: e.target.value }))}
-                                className="w-full pl-11 pr-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-blue-200 appearance-none cursor-pointer">
-                                <option value="">No project link</option>
-                                {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Initial Notes */}
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Initial Notes</label>
-                        <div className="relative">
-                            <AlignLeft className="absolute left-4 top-4 w-4 h-4 text-black/20" />
-                            <textarea
-                                value={formData.notes}
-                                onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                                rows={3}
-                                placeholder="Quick concept, angle, or vision..."
-                                className="w-full pl-11 pr-4 py-4 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-medium focus:outline-none focus:border-blue-200 resize-none transition-all"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Milestones */}
-                    <div className="space-y-4 pt-4 border-t border-black/[0.05]">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Content Milestones</label>
-
-                        {milestones.length > 0 && (
-                            <div className="space-y-2">
-                                {milestones.map((m, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl group">
-                                        <div className="flex items-center gap-2">
-                                            <CheckSquare className="w-3.5 h-3.5 text-black/20" />
-                                            <span className="text-[12px] font-bold text-black">{m.title}</span>
-                                            <span className="text-[9px] font-black px-1.5 py-0.5 bg-black/5 rounded uppercase text-black/30">{m.category}</span>
-                                            <span className="flex items-center gap-0.5 text-[9px] font-black text-amber-500">
-                                                <Zap className="w-2.5 h-2.5 fill-current" />{m.impact_score}
-                                            </span>
-                                            {m.target_date && (
-                                                <span className="text-[9px] font-bold text-black/25">
-                                                    {new Date(m.target_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <button type="button"
-                                            onClick={() => setMilestones(prev => prev.filter((_, i) => i !== idx))}
-                                            className="p-1 rounded-md hover:bg-red-50 text-red-400 opacity-40 hover:opacity-100 transition-all">
-                                            <X className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        <div className="flex flex-col gap-4 p-5 bg-black/[0.01] border-2 border-dashed border-black/[0.07] rounded-[24px]">
-                            <div className="relative group/title">
-                                <Plus className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
-                                <input
-                                    type="text"
-                                    placeholder="Milestone title (Script Draft, Filming Day, etc.)"
-                                    value={newMilestone}
-                                    onChange={e => setNewMilestone(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter' && newMilestone.trim()) { e.preventDefault(); handleAddMilestone() } }}
-                                    className="w-full pl-11 pr-4 py-3 bg-transparent border-none text-[13px] font-bold focus:outline-none"
-                                />
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/title:opacity-100 transition-opacity">
-                                    {(['super', 'high', 'mid', 'low'] as const).map(lvl => (
-                                        <button key={lvl} type="button" onClick={() => setNewMilestonePriority(lvl)}
-                                            className={cn("w-2 h-2 rounded-full border transition-all", newMilestonePriority === lvl ? PRIORITY_CONFIG[lvl].bg : "bg-black/[0.05] border-transparent")} />
-                                    ))}
+                                <div>
+                                    <h2 className="text-[18px] md:text-[20px] font-bold text-black tracking-tight">New Content Item</h2>
+                                    <p className="text-[10px] text-black/35 font-medium uppercase tracking-wider">Creation Pipeline Layer</p>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black uppercase text-black/20 ml-2">Type</label>
-                                    <select value={newMilestoneCategory}
-                                        onChange={e => setNewMilestoneCategory(e.target.value)}
-                                        className="w-full px-3 py-2 bg-black/[0.03] border border-black/5 rounded-xl text-[11px] font-bold focus:outline-none cursor-pointer">
-                                        {MILESTONE_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat.toUpperCase()}</option>)}
+                            <button onClick={onClose} className="w-9 h-9 rounded-full border border-black/5 flex items-center justify-center hover:bg-black/5 transition-colors">
+                                <X className="w-4 h-4 text-black/40" />
+                            </button>
+                        </div>
+
+                        {/* Form */}
+                        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto no-scrollbar">
+                            <div className="p-5 md:px-10 md:pt-12 pb-16 md:pb-[86px] space-y-8">
+
+                                {/* Title */}
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Content Concept</label>
+                                    <input
+                                        autoFocus
+                                        value={title}
+                                        onChange={e => setTitle(e.target.value)}
+                                        placeholder="What are you making?"
+                                        className="w-full text-[20px] md:text-[26px] font-bold tracking-tight placeholder:text-black/10 border-none p-0 focus:ring-0 outline-none"
+                                        required
+                                    />
+                                </div>
+
+                                {/* Link Project */}
+                                <div className="space-y-3 pt-2 border-t border-black/5">
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Parent Project</label>
+                                    <select
+                                        value={projectId}
+                                        onChange={e => setProjectId(e.target.value)}
+                                        className="w-full px-4 py-3.5 bg-black/[0.02] border border-black/[0.05] rounded-xl text-[13px] font-bold focus:outline-none focus:border-blue-200 appearance-none cursor-pointer"
+                                    >
+                                        <option value="">No project link</option>
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                                     </select>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black uppercase text-black/20 ml-2">Deadline</label>
-                                    <div className="relative group/msdate h-9 flex items-center px-3 bg-black/[0.03] border border-black/5 rounded-xl overflow-hidden cursor-pointer"
-                                        onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}
+
+                                {/* Milestones */}
+                                <div className="space-y-3 pt-2 border-t border-black/5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Production Milestones</label>
+                                        <button
+                                            type="button"
+                                            onClick={addMilestoneItem}
+                                            className="text-[10px] font-bold text-black bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-lg uppercase tracking-widest flex items-center gap-1.5 transition-all"
+                                        >
+                                            <Plus className="w-3.5 h-3.5" />
+                                            Add Step
+                                        </button>
+                                    </div>
+
+                                    <Reorder.Group
+                                        axis="y"
+                                        values={milestones}
+                                        onReorder={setMilestones}
+                                        className="space-y-2"
                                     >
-                                        <Calendar className="w-3.5 h-3.5 text-black/20 shrink-0 pointer-events-none" />
-                                        <input type="date"
-                                            ref={newMilestoneDateRef}
-                                            value={newMilestoneDate}
-                                            onChange={e => setNewMilestoneDate(e.target.value)}
-                                            className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0" />
-                                        <span className="ml-2 text-[11px] font-bold text-black/40 truncate pointer-events-none">
-                                            {newMilestoneDate ? new Date(newMilestoneDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Set date'}
-                                        </span>
-                                        {newMilestoneDate && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setNewMilestoneDate('')}
-                                                className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-30 pointer-events-auto"
-                                            >
-                                                <X className="w-3.5 h-3.5" />
-                                            </button>
-                                        )}
+                                        {milestones.map((milestone) => (
+                                            <MilestoneItem
+                                                key={milestone.id}
+                                                milestone={milestone}
+                                                onUpdate={updateMilestoneItem}
+                                                onRemove={removeMilestone}
+                                                index={milestones.indexOf(milestone)}
+                                            />
+                                        ))}
+                                    </Reorder.Group>
+                                    {milestones.length === 0 && (
+                                        <p className="text-[11px] text-black/20 text-center py-4 italic font-medium">No initial milestones defined</p>
+                                    )}
+                                </div>
+
+                                {/* Type & Category */}
+                                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-black/5">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Format Type</label>
+                                        <select value={type}
+                                            onChange={e => setType(e.target.value)}
+                                            className="w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-xl text-[12px] font-bold focus:outline-none appearance-none cursor-pointer">
+                                            {TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Content Category</label>
+                                        <select value={category}
+                                            onChange={e => setCategory(e.target.value as ContentCategory)}
+                                            className="w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-xl text-[12px] font-bold focus:outline-none appearance-none cursor-pointer">
+                                            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-4 px-2">
-                                <div className="flex-1 flex items-center gap-3">
-                                    <span className="text-[9px] font-black uppercase text-black/20 shrink-0">Impact</span>
-                                    <input type="range" min="1" max="10"
-                                        value={newMilestoneImpact}
-                                        onChange={e => setNewMilestoneImpact(parseInt(e.target.value))}
-                                        className="flex-1 h-1 bg-black/5 rounded-full appearance-none accent-black" />
-                                    <span className="text-[11px] font-black text-black/40 w-4 text-center">{newMilestoneImpact}</span>
+
+                                {/* Config Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-black/5">
+                                    {/* Priority */}
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Pipeline Priority</label>
+                                        <div className="flex items-center gap-1.5 p-1 bg-black/5 rounded-xl">
+                                            {(['super', 'high', 'mid', 'low'] as const).map(p => (
+                                                <button
+                                                    key={p}
+                                                    type="button"
+                                                    onClick={() => setPriority(p)}
+                                                    className={cn(
+                                                        "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
+                                                        priority === p
+                                                            ? p === 'super' ? "bg-purple-600 text-white shadow-lg" :
+                                                                p === 'high' ? "bg-red-500 text-white shadow-lg" :
+                                                                    p === 'mid' ? "bg-amber-500 text-white shadow-lg" :
+                                                                        "bg-black text-white"
+                                                            : "text-black/30 hover:text-black/60"
+                                                    )}
+                                                >
+                                                    {p}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Dates */}
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Release Target</label>
+                                        <input
+                                            type="date"
+                                            value={deadline}
+                                            onChange={e => setDeadline(e.target.value)}
+                                            className="w-full py-2.5 px-3 rounded-xl border border-black/5 bg-black/[0.02] text-[12px] font-bold outline-none"
+                                        />
+                                    </div>
                                 </div>
-                                <button type="button" onClick={handleAddMilestone}
-                                    className="px-4 py-2 bg-black text-white text-[10px] font-black uppercase rounded-xl hover:scale-105 transition-transform">
-                                    Add
+
+                                {/* Platforms */}
+                                <div className="space-y-3 pt-2 border-t border-black/5">
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Distribution Targets</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {PLATFORMS.map(p => (
+                                            <button
+                                                key={p}
+                                                type="button"
+                                                onClick={() => togglePlatform(p)}
+                                                className={cn(
+                                                    "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                                                    platforms.includes(p)
+                                                        ? "bg-blue-600 text-white shadow-lg scale-110"
+                                                        : "bg-black/[0.04] text-black/30 hover:bg-black/[0.08]"
+                                                )}
+                                            >
+                                                <PlatformIcon platform={p} className="w-4 h-4" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Impact Score */}
+                                <div className="space-y-3 pt-2 border-t border-black/5">
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1 flex justify-between">
+                                        Strategic Impact
+                                        <span className="text-black font-black">{impactScore}/10</span>
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="10"
+                                        value={impactScore}
+                                        onChange={e => setImpactScore(parseInt(e.target.value))}
+                                        className="w-full h-1.5 bg-black/[0.05] rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                </div>
+
+                                {/* Short Notes */}
+                                <div className="space-y-2 pt-2 border-t border-black/5">
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Creative Notes</label>
+                                    <textarea
+                                        value={notes}
+                                        onChange={e => setNotes(e.target.value)}
+                                        placeholder="Quick concept or vision..."
+                                        rows={3}
+                                        className="w-full text-sm font-medium text-black/60 placeholder:text-black/15 border-none p-0 focus:ring-0 resize-none outline-none"
+                                    />
+                                </div>
+
+                                {/* Cover Image */}
+                                <div className="space-y-3 pt-2 border-t border-black/5">
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Cover Asset</label>
+
+                                    {imagePreview && (
+                                        <div className="relative w-full h-40 rounded-2xl overflow-hidden border border-black/5">
+                                            <img
+                                                src={imagePreview}
+                                                alt="Preview"
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => { setCoverFile(null); setImagePreview(null) }}
+                                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center hover:bg-black transition-colors"
+                                            >
+                                                <X className="w-3 h-3 text-white" />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="flex-1 px-5 py-4 rounded-xl border border-dashed border-black/15 bg-black/[0.01] hover:bg-black/[0.05] hover:border-black/30 transition-all cursor-pointer flex items-center justify-center gap-2 text-[12px] font-bold text-black/50"
+                                        >
+                                            <Upload className="w-4 h-4" />
+                                            <span>Upload high-res cover</span>
+                                        </button>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(f) }}
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-center text-black/20 font-medium">Or leave blank to auto-generate via Gemini Vision</p>
+                                </div>
+
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-5 md:px-8 py-4 border-t border-black/5 flex items-center justify-between gap-3 shrink-0 bg-white sticky bottom-0">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="px-5 py-2.5 rounded-xl border border-black/10 text-[12px] font-bold text-black/50 hover:bg-black/5 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading || !title.trim()}
+                                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-blue-500/10 disabled:opacity-40 disabled:scale-100"
+                                >
+                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                                    {loading ? 'Creating...' : 'Create Content'}
                                 </button>
                             </div>
-                        </div>
-                    </div>
+                        </form>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
 
-                    {/* Submit */}
-                    <button
-                        disabled={loading || !formData.title}
-                        type="submit"
-                        className="w-full py-4 bg-black text-white rounded-2xl font-black text-[14px] uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-3 shadow-xl shadow-black/10"
-                    >
-                        {loading ? (
-                            <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <>
-                                <Plus className="w-5 h-5" />
-                                Create Content Item
-                            </>
-                        )}
-                    </button>
-                </form>
+        <ConfirmationModal
+            isOpen={!!milestoneToDelete}
+            onClose={() => setMilestoneToDelete(null)}
+            onConfirm={confirmRemoveMilestone}
+            title="Remove Milestone?"
+            message="Are you sure you want to remove this production step?"
+            confirmText="Remove"
+            type="danger"
+        />
+    </>
+    )
+}
+
+interface MilestoneItemProps {
+    milestone: { id: string; title: string; category: string; impact_score: number; target_date?: string }
+    onUpdate: (id: string, updates: Partial<{ title: string, category: string, impact_score: number, target_date?: string }>) => void
+    onRemove: (id: string) => void
+    index: number
+}
+
+function MilestoneItem({ milestone, onUpdate, onRemove, index }: MilestoneItemProps) {
+    const controls = useDragControls()
+
+    return (
+        <Reorder.Item
+            value={milestone}
+            dragListener={false}
+            dragControls={controls}
+            className="flex items-center gap-2 group/item"
+        >
+            <div
+                onPointerDown={(e) => controls.start(e)}
+                className="cursor-grab active:cursor-grabbing p-2 touch-none hover:bg-black/10 rounded-lg transition-colors border border-transparent hover:border-black/5 flex items-center justify-center bg-black/5"
+            >
+                <GripVertical className="w-4 h-4 text-black/40" />
             </div>
-        </div>
+
+            <div className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center text-[9px] font-bold text-black/20 shrink-0">
+                {index + 1}
+            </div>
+
+            <div className="flex-1 flex flex-col gap-2">
+                <input
+                    value={milestone.title}
+                    onChange={e => onUpdate(milestone.id, { title: e.target.value })}
+                    placeholder="Step title..."
+                    className="w-full text-[13px] font-bold text-black border-b border-black/5 py-1 px-1 focus:border-black/20 focus:outline-none transition-all bg-transparent min-w-0"
+                />
+                <div className="flex items-center gap-3">
+                    <select
+                        value={milestone.category}
+                        onChange={e => onUpdate(milestone.id, { category: e.target.value })}
+                        className="bg-transparent border-none text-[9px] font-black uppercase text-black/40 focus:ring-0 p-0 cursor-pointer"
+                    >
+                        {MILESTONE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[8px] font-black uppercase text-black/20">Impact</span>
+                        <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={milestone.impact_score}
+                            onChange={e => onUpdate(milestone.id, { impact_score: parseInt(e.target.value) })}
+                            className="w-16 h-0.5 bg-black/5 rounded-full appearance-none accent-black/40"
+                        />
+                        <span className="text-[9px] font-black text-black/30 w-3">{milestone.impact_score}</span>
+                    </div>
+                </div>
+            </div>
+
+            <button
+                type="button"
+                onClick={() => onRemove(milestone.id)}
+                className="p-1.5 rounded hover:bg-red-50 text-black/10 hover:text-red-400 transition-colors self-start mt-1"
+            >
+                <Trash2 className="w-3.5 h-3.5" />
+            </button>
+        </Reorder.Item>
     )
 }

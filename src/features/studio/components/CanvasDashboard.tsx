@@ -1,9 +1,10 @@
 'use client'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw, Video, Rocket, ArrowUpRight, SlidersHorizontal, Zap, BookOpen, List } from 'lucide-react'
+import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw, Video, Rocket, ArrowUpRight, SlidersHorizontal, Zap, BookOpen, List, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import CanvasCard from './CanvasCard'
 import CanvasEntryModal from './CanvasEntryModal'
+import CreateMapModal from './CreateMapModal'
 import CanvasWebView from './CanvasWebView'
 import StudioComposer from './StudioComposer'
 import ArticleCard from './ArticleCard'
@@ -59,6 +60,7 @@ export default function CanvasDashboard() {
     const [renameValue, setRenameValue] = useState('')
     const [synthesisModalNodes, setSynthesisModalNodes] = useState<PolymorphicNode[] | null>(null)
     const [synthesisTitle, setSynthesisTitle] = useState('')
+    const [isCreateMapModalOpen, setIsCreateMapModalOpen] = useState(false)
     const quickInputRef = useRef<HTMLInputElement>(null)
 
     const loading = studioLoading || canvasLoading
@@ -271,8 +273,7 @@ export default function CanvasDashboard() {
     }
 
     const handleCreateMap = async () => {
-        const name = prompt('Map Name:', `Brainstorm ${maps.length + 1}`)
-        if (name) await createMap(name)
+        setIsCreateMapModalOpen(true)
     }
 
     return (
@@ -293,50 +294,66 @@ export default function CanvasDashboard() {
                 />
             )}
 
+            <CreateMapModal 
+                isOpen={isCreateMapModalOpen} 
+                onClose={() => setIsCreateMapModalOpen(false)} 
+                onCreate={createMap} 
+            />
+
 
             {/* Header */}
             <header className="px-6 md:px-10 py-8 md:py-10 border-b border-black/[0.06] bg-[#fafafa] shrink-0 z-30">
                 <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-10">
                         <div className="space-y-1">
-                            <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Studio Protocol</h2>
+                            <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Creative Protocol</h2>
                             <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Canvas</h1>
                         </div>
 
                         {viewMode === 'web' && (
-                            <div className="flex items-center gap-3 mb-1">
+                            <div className="flex items-center gap-3 self-start sm:self-auto mb-1">
                                 <button
                                     onClick={() => setShowBrowser(!showBrowser)}
                                     className={cn(
-                                        "flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold transition-all border shadow-sm",
-                                        showBrowser ? "bg-black text-white border-black" : "bg-white text-black/50 border-black/[0.06] hover:border-black/20 hover:shadow-md"
+                                        "flex items-center gap-2 px-4 h-[42px] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shrink-0",
+                                        showBrowser ? "bg-black text-white border-black shadow-lg" : "bg-white text-black/50 border-black/[0.06] hover:border-black/20"
                                     )}
                                 >
                                     <LayoutGrid className="w-3.5 h-3.5" />
                                     {showBrowser ? "Back to Canvas" : "All Maps"}
                                 </button>
-                                {!showBrowser && <div className="h-4 w-px bg-black/[0.06] mx-1" />}
-                            </div>
-                        )}
-
-                        {viewMode === 'web' && !showBrowser && (
-                            <div className="flex items-center gap-2">
-                                <select
-                                    value={currentMapId || ''}
-                                    onChange={e => { setCurrentMapId(e.target.value); setShowBrowser(false); setSelectedIds([]) }}
-                                    className="bg-black/[0.03] border border-black/[0.06] rounded-xl px-3 py-1.5 text-[12px] font-bold outline-none focus:ring-2 ring-indigo-500/20"
-                                >
-                                    {maps.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                    {maps.length === 0 && <option value="">No Mindmaps</option>}
-                                </select>
-                                <button onClick={handleCreateMap} className="w-8 h-8 rounded-xl bg-black text-white flex items-center justify-center hover:bg-black/80 transition-all shadow-md active:scale-95">
-                                    <Plus className="w-4 h-4" />
-                                </button>
+                                
+                                {!showBrowser && (
+                                    <>
+                                        <div className="h-6 w-px bg-black/[0.06] mx-1 hidden sm:block" />
+                                        <div className="flex items-center gap-2">
+                                            <div className="relative">
+                                                <select
+                                                    value={currentMapId || ''}
+                                                    onChange={e => { setCurrentMapId(e.target.value); setShowBrowser(false); setSelectedIds([]) }}
+                                                    className="bg-black/[0.03] border border-black/[0.06] rounded-xl px-4 pr-10 h-[42px] text-[12px] font-bold outline-none focus:ring-2 ring-indigo-500/20 appearance-none cursor-pointer hover:border-black/10 transition-all shrink-0 min-w-[140px]"
+                                                >
+                                                    {maps.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                                    {maps.length === 0 && <option value="">No Mindmaps</option>}
+                                                </select>
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-30">
+                                                    <Network className="w-3.5 h-3.5" />
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={handleCreateMap} 
+                                                className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 shrink-0"
+                                            >
+                                                <Plus className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 self-start sm:self-auto mb-1">
                         {/* View Archived Toggle for Board & Browser */}
                         {(viewMode === 'board' || (viewMode === 'web' && showBrowser)) && (
                             <button
@@ -348,20 +365,20 @@ export default function CanvasDashboard() {
                                     }
                                 }}
                                 className={cn(
-                                    "flex items-center gap-2 px-4 py-1.5 rounded-xl text-[12px] font-bold transition-all border shadow-sm",
+                                    "flex items-center gap-2 px-4 h-[42px] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shrink-0",
                                     (viewMode === 'board' ? activeTab === 'archived' : showArchivedMaps)
-                                        ? "bg-amber-500 text-white border-amber-600"
-                                        : "bg-white text-black/50 border-black/[0.06] hover:border-black/20"
+                                        ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20"
+                                        : "bg-black/[0.03] text-black/30 border-transparent hover:border-black/10 hover:text-black/60"
                                 )}
                             >
-                                <Archive className="w-3.5 h-3.5" />
-                                {(viewMode === 'board' ? activeTab === 'archived' : showArchivedMaps) ? "View Active" : "View Archived"}
+                                <Shield className={cn("w-3.5 h-3.5", (viewMode === 'board' ? activeTab === 'archived' : showArchivedMaps) ? "text-white" : "text-black/20")} />
+                                {(viewMode === 'board' ? activeTab === 'archived' : showArchivedMaps) ? 'Archives' : 'View Archives'}
                             </button>
                         )}
 
 
                         {/* View toggle */}
-                        <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/[0.04] items-center gap-0.5">
+                        <div className="flex bg-black/[0.03] p-1.5 rounded-2xl border border-black/[0.05] items-center gap-0.5 h-[42px]">
                             {([
                                 { label: 'Board', value: 'board' as const, icon: LayoutGrid },
                                 { label: 'Node', value: 'web' as const, icon: Network },
@@ -370,7 +387,7 @@ export default function CanvasDashboard() {
                                     key={value}
                                     onClick={() => { setViewMode(value); setSelectedIds([]) }}
                                     className={cn(
-                                        "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all",
+                                        "flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all",
                                         viewMode === value ? 'bg-white text-black shadow-sm' : 'text-black/30 hover:text-black/60'
                                     )}
                                 >

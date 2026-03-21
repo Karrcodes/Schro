@@ -34,6 +34,10 @@ interface StudioContextType {
     addNetwork: (item: Partial<StudioNetwork>) => Promise<StudioNetwork>
     updateNetwork: (id: string, updates: Partial<StudioNetwork>) => Promise<StudioNetwork>
     deleteNetwork: (id: string) => Promise<void>
+    regenerateProjectCover: (id: string) => Promise<void>
+    regenerateContentCover: (id: string) => Promise<void>
+    generatingProjectIds: string[]
+    generatingContentIds: string[]
 }
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined)
@@ -59,6 +63,8 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     const [networks, setNetworks] = useState<StudioNetwork[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [generatingProjectIds, setGeneratingProjectIds] = useState<string[]>([])
+    const [generatingContentIds, setGeneratingContentIds] = useState<string[]>([])
 
     const getSessionStudio = useCallback(() => {
         try {
@@ -218,6 +224,20 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         }
 
         setProjects(prev => [projectData, ...prev]);
+
+        // Trigger AI cover generation if no image provided
+        if (!finalCoverUrl && projectData.id) {
+            const newId = projectData.id;
+            setGeneratingProjectIds(prev => [...prev, newId]);
+            
+            fetch(`/api/studio/cover?title=${encodeURIComponent(projectData.title)}&tagline=${encodeURIComponent(projectData.tagline || '')}&type=project&id=${newId}`)
+                .finally(() => {
+                    fetchData().finally(() => {
+                        setGeneratingProjectIds(prev => prev.filter(id => id !== newId));
+                    });
+                });
+        }
+
         return projectData;
     };
 
@@ -268,6 +288,20 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         const updated = data?.[0];
         if (!updated) throw new Error('Update failed');
         setProjects(prev => prev.map(p => p.id === id ? updated : p));
+
+        // Trigger AI cover generation if content that informs the visual changed,
+        // and we still don't have an image.
+        const isContentUpdate = updates.title !== undefined || updates.type !== undefined || updates.tagline !== undefined;
+        if (!updated.cover_url && isContentUpdate) {
+            setGeneratingProjectIds(prev => [...prev, id]);
+            fetch(`/api/studio/cover?title=${encodeURIComponent(updated.title)}&tagline=${encodeURIComponent(updated.tagline || '')}&type=project&id=${id}`)
+                .finally(() => {
+                    fetchData().finally(() => {
+                        setGeneratingProjectIds(prev => prev.filter(gid => gid !== id));
+                    });
+                });
+        }
+
         return updated;
     };
 
@@ -416,7 +450,22 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         }
         const inserted = data?.[0]
         if (!inserted) throw new Error('No data returned')
+        setLoading(false)
         setContent(prev => [inserted, ...prev])
+
+        // Trigger AI cover generation if no image provided
+        if (!inserted.cover_url && inserted.id) {
+            const newId = inserted.id;
+            setGeneratingContentIds(prev => [...prev, newId]);
+            
+            fetch(`/api/studio/cover?title=${encodeURIComponent(inserted.title)}&tagline=${encodeURIComponent(inserted.category || 'Content')}&type=content&id=${newId}`)
+                .finally(() => {
+                    fetchData().finally(() => {
+                        setGeneratingContentIds(prev => prev.filter(id => id !== newId));
+                    });
+                });
+        }
+
         return inserted
     }
 
@@ -438,9 +487,23 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             setContent(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
             return { ...content.find(c => c.id === id)!, ...updates }
         }
-        const updated = data?.[0]
+        const updated = data?.[0];
         if (!updated) throw new Error('Update failed');
         setContent(prev => prev.map(c => c.id === id ? updated : c))
+
+        // Trigger AI cover generation if content that informs the visual changed,
+        // and we still don't have an image.
+        const isContentUpdate = updates.title !== undefined || updates.category !== undefined;
+        if (!updated.cover_url && isContentUpdate) {
+            setGeneratingContentIds(prev => [...prev, id]);
+            fetch(`/api/studio/cover?title=${encodeURIComponent(updated.title)}&tagline=${encodeURIComponent(updated.category || 'Content')}&type=content&id=${id}`)
+                .finally(() => {
+                    fetchData().finally(() => {
+                        setGeneratingContentIds(prev => prev.filter(gid => gid !== id));
+                    });
+                });
+        }
+
         return updated
     };
 
@@ -555,6 +618,41 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error
         setNetworks(prev => prev.filter(n => n.id !== id))
     }
+    const regenerateProjectCover = async (projectId: string) => {
+        setGeneratingProjectIds(prev => [...prev, projectId])
+        try {
+            const project = projects.find(p => p.id === projectId)
+            if (project) {
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=project&id=${project.id}&w=1200&h=630&t=${Date.now()}`)
+                if (res.ok) {
+                    const { data } = await supabase.from('studio_projects').select('*').eq('id', projectId).single()
+                    if (data) {
+                        setProjects(prev => prev.map(p => p.id === projectId ? data : p))
+                    }
+                }
+            }
+        } finally {
+            setGeneratingProjectIds(prev => prev.filter(id => id !== projectId))
+        }
+    }
+
+    const regenerateContentCover = async (contentId: string) => {
+        setGeneratingContentIds(prev => [...prev, contentId])
+        try {
+            const item = content.find(c => c.id === contentId)
+            if (item) {
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${item.id}&w=1200&h=630&t=${Date.now()}`)
+                if (res.ok) {
+                    const { data } = await supabase.from('studio_content').select('*').eq('id', contentId).single()
+                    if (data) {
+                        setContent(prev => prev.map(c => c.id === contentId ? data : c))
+                    }
+                }
+            }
+        } finally {
+            setGeneratingContentIds(prev => prev.filter(id => id !== contentId))
+        }
+    }
 
     return (
         <StudioContext.Provider value={{
@@ -565,7 +663,9 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             addMilestone, updateMilestone, deleteMilestone,
             addContent, updateContent, deleteContent,
             addPress, updatePress, deletePress,
-            addNetwork, updateNetwork, deleteNetwork
+            addNetwork, updateNetwork, deleteNetwork,
+            regenerateProjectCover, regenerateContentCover,
+            generatingProjectIds, generatingContentIds
         }}>
             {children}
         </StudioContext.Provider>

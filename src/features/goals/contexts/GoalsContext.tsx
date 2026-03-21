@@ -722,12 +722,16 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
 
         try {
             if (!settings.is_demo_mode) {
-                await supabase.from('sys_goals').update({ vision_image_url: '' }).eq('id', id)
-                await fetch(`/api/studio/cover?title=${encodeURIComponent(goal.title)}&tagline=${encodeURIComponent(goal.category || '')}&type=goal&id=${id}`)
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(goal.title)}&tagline=${encodeURIComponent(goal.category || '')}&type=goal&id=${id}&t=${Date.now()}`)
+                if (res.ok) {
+                    const { data } = await supabase.from('sys_goals').select('*').eq('id', id).single()
+                    if (data) {
+                        setGoals(prev => prev.map(g => g.id === id ? { ...data, milestones: g.milestones } : g))
+                    }
+                }
             } else {
                 await new Promise(r => setTimeout(r, 2000))
             }
-            await fetchGoals()
         } catch (err) {
             console.error('Goal cover regeneration failed:', err)
         } finally {
@@ -743,17 +747,16 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
         
         try {
             if (!settings.is_demo_mode) {
-                // 1. Clear current image in DB
-                await supabase.from('sys_wishlist').update({ image_url: '' }).eq('id', id);
-                
-                // 2. Trigger AI
-                await fetch(`/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=wishlist&productUrl=${encodeURIComponent(item.url || '')}&id=${id}`);
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=wishlist&productUrl=${encodeURIComponent(item.url || '')}&id=${id}&t=${Date.now()}`);
+                if (res.ok) {
+                    const { data } = await supabase.from('sys_wishlist').select('*').eq('id', id).single()
+                    if (data) {
+                        setWishlist(prev => prev.map(w => w.id === id ? data : w))
+                    }
+                }
             } else {
-                // Mock delay for demo mode
                 await new Promise(r => setTimeout(r, 2000));
             }
-            
-            await fetchGoals();
         } catch (err) {
             console.error('Regeneration failed:', err);
         } finally {

@@ -16,7 +16,7 @@ import PlatformIcon from './PlatformIcon'
 import type { StudioProject, StudioSpark, StudioContent } from '../types/studio.types'
 
 export default function StudioDashboard() {
-    const { projects, sparks, content, press, loading, error } = useStudio()
+    const { projects, sparks, content, press, loading, error, generatingProjectIds, generatingContentIds } = useStudio()
     const { settings } = useSystemSettings()
     const [daysUntilGTV, setDaysUntilGTV] = useState(0)
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
@@ -213,9 +213,15 @@ export default function StudioDashboard() {
                                                 alt=""
                                                 className={cn(
                                                     "w-full h-full object-cover transition-transform duration-500 group-hover:scale-110",
-                                                    !project.cover_url && "scale-[1.15]"
+                                                    (!project.cover_url || generatingProjectIds.includes(project.id)) && "scale-[1.15]"
                                                 )}
                                             />
+                                            {generatingProjectIds.includes(project.id) && (
+                                                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 z-[2]">
+                                                    <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Generating Cover...</span>
+                                                </div>
+                                            )}
                                             <div className={cn(
                                                 "absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent",
                                                 project.cover_url ? "opacity-60" : "opacity-20"
@@ -330,9 +336,15 @@ export default function StudioDashboard() {
                                                 alt=""
                                                 className={cn(
                                                     "w-full h-full object-cover transition-transform duration-500 group-hover:scale-110",
-                                                    !item.cover_url && "scale-[1.15]"
+                                                    (!item.cover_url || generatingContentIds.includes(item.id)) && "scale-[1.15]"
                                                 )}
                                             />
+                                            {generatingContentIds.includes(item.id) && (
+                                                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 z-[2]">
+                                                    <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Generating Cover...</span>
+                                                </div>
+                                            )}
                                             <div className={cn(
                                                 "absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent",
                                                 item.cover_url ? "opacity-60" : "opacity-20"

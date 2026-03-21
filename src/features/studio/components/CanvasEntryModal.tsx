@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { X, Pin, Trash2, ArrowUpRight, Tag, Archive, Image as ImageIcon, List, Loader2, Plus, Rocket, Video, Link2 } from 'lucide-react'
 import { useStudioContext } from '../context/StudioContext'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import type { StudioCanvasEntry, CanvasColor } from '../types/studio.types'
@@ -101,20 +102,28 @@ export default function CanvasEntryModal({
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
-        if (!file) return
+        if (!file || !entry) return
 
         setIsUploading(true)
         try {
-            // Using Data URL for demonstration/simplicity as no storage utility is available
-            const reader = new FileReader()
-            reader.onloadend = () => {
-                const base64 = reader.result as string
-                change(() => setImages(prev => [...prev, base64]))
-                setIsUploading(false)
-            }
-            reader.readAsDataURL(file)
+            const fileExt = file.name.split('.').pop()
+            const fileName = `canvas_${entry.id}_${Date.now()}.${fileExt}`
+            const filePath = `canvas-images/${fileName}`
+
+            const { error: uploadError } = await supabase.storage
+                .from('studio-assets')
+                .upload(filePath, file)
+
+            if (uploadError) throw uploadError
+
+            const { data: urlData } = supabase.storage.from('studio-assets').getPublicUrl(filePath)
+            const publicUrl = urlData.publicUrl
+
+            change(() => setImages(prev => [...prev, publicUrl]))
         } catch (err) {
             console.error('Upload failed:', err)
+            alert('Failed to upload image to storage')
+        } finally {
             setIsUploading(false)
         }
     }

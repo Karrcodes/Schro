@@ -1,7 +1,13 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Video, Calendar, CheckCircle2, Trash2, Plus, Zap, Rocket, Shield, ListTodo, MoreVertical, Edit, X, Hash, Clock, Link as LinkIcon, Download, Share2, Layout, FileText, Settings, Loader2, Globe, Edit3, Save, ExternalLink, MapPin, Navigation, DollarSign, Lightbulb, ChevronDown, ChevronRight, UploadCloud, Type, AlignLeft } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+    Video, Calendar, CheckCircle2, Trash2, Plus, Zap, Rocket, Shield, 
+    X, Hash, Clock, Link as LinkIcon, Globe, Edit3, Save, ExternalLink, 
+    MapPin, Navigation, DollarSign, ChevronDown, ChevronRight, UploadCloud, 
+    Loader2, MoreVertical, Archive, Layout, FileText, CheckSquare, GripVertical, Lightbulb
+} from 'lucide-react'
 import type { StudioContent, ContentStatus, Platform, ContentCategory, ContentScene, PriorityLevel } from '../types/studio.types'
 import { useStudio } from '../hooks/useStudio'
 import PlatformIcon from './PlatformIcon'
@@ -9,6 +15,7 @@ import { cn } from '@/lib/utils'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import { supabase } from '@/lib/supabase'
 import { Task } from '../../tasks/types/tasks.types'
+import { Reorder, useDragControls } from 'framer-motion'
 
 interface ContentDetailModalProps {
     isOpen: boolean
@@ -50,44 +57,36 @@ function ScriptSection({ section, value, onChange }: { section: typeof SCRIPT_SE
     const [collapsed, setCollapsed] = useState(false)
     const wc = wordCount(value)
     return (
-        <div className={cn("rounded-2xl border-l-4 overflow-hidden", section.color)}>
+        <div className={cn("rounded-2xl border-l-[3px] overflow-hidden", section.color)}>
             <button type="button" onClick={() => setCollapsed(c => !c)}
-                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-black/[0.02] transition-colors">
+                className="w-full flex items-center justify-between px-5 py-3 hover:bg-black/[0.02] transition-colors">
                 <div className="flex items-center gap-3">
-                    <span className={cn("text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md", section.badge)}>{section.label}</span>
-                    {wc > 0 && <span className="flex items-center gap-2 text-[10px] text-black/30 font-bold"><Hash className="w-3 h-3" />{wc}w <Clock className="w-3 h-3 ml-1" />{readTime(wc)}</span>}
+                    <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md", section.badge)}>{section.label}</span>
+                    {wc > 0 && <span className="flex items-center gap-2 text-[9px] text-black/30 font-bold"><Hash className="w-2.5 h-2.5" />{wc}w <Clock className="w-2.5 h-2.5 ml-1" />{readTime(wc)}</span>}
                 </div>
-                {collapsed ? <ChevronRight className="w-4 h-4 text-black/20" /> : <ChevronDown className="w-4 h-4 text-black/20" />}
+                {collapsed ? <ChevronRight className="w-3.5 h-3.5 text-black/20" /> : <ChevronDown className="w-3.5 h-3.5 text-black/20" />}
             </button>
             {!collapsed && (
                 <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={section.placeholder}
-                    className="w-full px-5 pb-4 bg-transparent text-[13px] font-medium leading-relaxed focus:outline-none resize-none text-black/80 placeholder:text-black/20 min-h-[100px]"
-                    rows={Math.max(4, value.split('\n').length + 1)} />
+                    className="w-full px-5 pb-4 bg-transparent text-[13px] font-medium leading-relaxed focus:outline-none resize-none text-black/80 placeholder:text-black/15 min-h-[80px]"
+                    rows={Math.max(3, value.split('\n').length)} />
             )}
         </div>
     )
 }
 
 export default function ContentDetailModal({ isOpen, onClose, item }: ContentDetailModalProps) {
-    const { updateContent, deleteContent, projects, milestones, addMilestone, updateMilestone, deleteMilestone } = useStudio()
+    const { updateContent, deleteContent, projects, milestones, addMilestone, updateMilestone, deleteMilestone, regenerateContentCover, generatingContentIds } = useStudio()
     const [activeTab, setActiveTab] = useState<'details' | 'script'>('details')
     const [isEditing, setIsEditing] = useState(false)
-    const [isRegenerating, setIsRegenerating] = useState(false)
     const [isClearingImage, setIsClearingImage] = useState(false)
+    const isGeneratingContent = item ? generatingContentIds.includes(item.id) : false
     const [editedData, setEditedData] = useState<Partial<StudioContent>>({})
     const [newScene, setNewScene] = useState<Partial<ContentScene>>({ type: 'public' })
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-    const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
     const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null)
     const [coverFile, setCoverFile] = useState<File | null>(null)
     const [coverPreview, setCoverPreview] = useState<string>('')
-
-    // Milestone state
-    const [newMilestoneTitle, setNewMilestoneTitle] = useState('')
-    const [newMilestoneScore, setNewMilestoneScore] = useState(5)
-    const [newMilestoneDate, setNewMilestoneDate] = useState('')
-    const [newMilestoneCategory, setNewMilestoneCategory] = useState<string>('rnd')
-    const [newMilestonePriority, setNewMilestonePriority] = useState<PriorityLevel>('mid')
 
     // Script state
     const [scriptSections, setScriptSections] = useState<ScriptSections>({ hook: '', intro: '', body: '', cta: '', outro: '' })
@@ -96,8 +95,6 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
     const [scriptSaved, setScriptSaved] = useState(false)
     const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const prevItemId = useRef<string | null>(null)
-    const deadlineInputRef = useRef<HTMLInputElement>(null)
-    const publishDateInputRef = useRef<HTMLInputElement>(null)
     const [linkedTasks, setLinkedTasks] = useState<Task[]>([])
 
     useEffect(() => {
@@ -147,29 +144,6 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
 
     if (!isOpen || !item) return null
 
-    const togglePlatform = (p: Platform) => {
-        const cur = editedData.platforms ?? item.platforms ?? []
-        setEditedData(prev => ({ ...prev, platforms: cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p] }))
-    }
-
-    const addScene = () => {
-        if (!newScene.location) return
-        const scene: ContentScene = { id: Math.random().toString(36).substring(2, 11), location: newScene.location, type: newScene.type as any, cost: newScene.cost, distance: newScene.distance }
-        setEditedData(prev => ({ ...prev, scenes: [...(prev.scenes ?? item.scenes ?? []), scene] }))
-        setNewScene({ type: 'public' })
-    }
-
-    const removeScene = (id: string) => {
-        setEditedData(prev => ({ ...prev, scenes: (prev.scenes ?? item.scenes ?? []).filter((s: ContentScene) => s.id !== id) }))
-    }
-
-    const handleCoverFile = (file: File) => {
-        setCoverFile(file)
-        const reader = new FileReader()
-        reader.onload = e => setCoverPreview(e.target?.result as string)
-        reader.readAsDataURL(file)
-    }
-
     const handleSave = async () => {
         if (Object.keys(editedData).length === 0 && !coverFile) { setIsEditing(false); return }
         try {
@@ -196,714 +170,453 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
         catch (err: any) { alert(`Failed to delete: ${err.message}`) }
     }
 
-    const handleArchiveToggle = async () => {
-        try {
-            await updateContent(item.id, { is_archived: !item.is_archived })
-            onClose()
-        } catch (err: any) { alert(`Failed to archive: ${err.message}`) }
-    }
-
     const handleRegenerateCover = async () => {
-        if (!item || isRegenerating) return;
-        setIsRegenerating(true);
+        if (!item || isGeneratingContent) return;
         setIsClearingImage(true);
         try {
-            const url = `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${item.id}&w=1200&h=630&t=${Date.now()}`;
-            await fetch(url);
-            window.location.reload();
+            await regenerateContentCover(item.id);
         } catch (err) {
             console.error('Failed to regenerate cover:', err);
-            setIsRegenerating(false);
+        } finally {
+            setIsClearingImage(false);
         }
     }
 
-    const handleAddMilestone = async () => {
-        if (!newMilestoneTitle.trim() || !item) return
-        try {
-            await addMilestone({
-                title: newMilestoneTitle,
-                impact_score: newMilestoneScore,
-                target_date: newMilestoneDate || undefined,
-                category: newMilestoneCategory,
-                priority: newMilestonePriority,
-                content_id: item.id,
-                project_id: item.project_id || undefined,
-                status: 'pending'
-            })
-            setNewMilestoneTitle('')
-            setNewMilestoneScore(5)
-            setNewMilestoneDate('')
-            setNewMilestoneCategory('rnd')
-            setNewMilestonePriority('mid')
-        } catch (err) { console.error('Failed to add milestone:', err) }
-    }
-
     const contentMilestones = milestones.filter(m => m.content_id === item.id)
-
     const totalWords = Object.values(scriptSections).reduce((s, t) => s + wordCount(t), 0)
-    const currentPriority = (editedData.priority ?? item.priority ?? 'low') as PriorityLevel
     const coverSrc = coverPreview || editedData.cover_url || item.cover_url
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-end">
-            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity" onClick={onClose} />
-
-            <div className="relative w-full max-w-2xl h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 font-outfit">
-
-                {/* Cover Banner */}
-                <div className="w-full h-36 relative overflow-hidden flex-shrink-0 bg-black/[0.02]">
-                    <img
-                        src={!isClearingImage ? (coverSrc || `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${item.id}&w=1200&h=630`) : ''}
-                        alt={item.title}
-                        className={cn(
-                            "w-full h-full object-cover transition-all duration-500",
-                            (!coverSrc || isClearingImage) && "scale-[1.15]"
-                        )}
+        <>
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-end justify-center">
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                    {isRegenerating && (
-                        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm animate-pulse flex items-center justify-center">
-                            <div className="flex flex-col items-center gap-2">
-                                <Loader2 className="w-6 h-6 text-white animate-spin" />
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Regenerating...</span>
-                            </div>
-                        </div>
-                    )}
-                    <div className="absolute top-4 right-4 flex items-center justify-center">
-                        <button
-                            onClick={handleRegenerateCover}
-                            disabled={isRegenerating}
-                            className={cn(
-                                "px-4 py-2 bg-black/40 backdrop-blur-md border border-white/20 rounded-full text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl",
-                                isRegenerating ? "opacity-50 cursor-not-allowed" : "hover:bg-black/60 active:scale-95"
+
+                    <motion.div
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="relative w-full max-w-2xl bg-white rounded-t-[32px] shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden font-outfit"
+                    >
+                        {/* Drag Handle */}
+                        <div className="w-12 h-1 bg-black/10 rounded-full mx-auto mt-3 shrink-0" />
+
+                        {/* Cover Section */}
+                        <div className="relative w-full h-40 md:h-48 bg-black/5 shrink-0 overflow-hidden">
+                            {!isClearingImage && (
+                                <img
+                                    src={coverSrc || `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${item.id}&w=1200&h=630`}
+                                    alt={item.title}
+                                    className="w-full h-full object-cover"
+                                />
                             )}
-                        >
-                            {isRegenerating ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                                <Zap className="w-3.5 h-3.5 fill-white" />
-                            )}
-                            {isRegenerating ? 'Working...' : 'Regenerate'}
-                        </button>
-                    </div>
-                    {isEditing && (coverPreview || editedData.cover_url || item.cover_url) && (
-                        <button type="button" onClick={() => { setCoverFile(null); setCoverPreview(''); setEditedData(prev => ({ ...prev, cover_url: '' })) }}
-                            className="absolute top-3 right-3 p-1.5 bg-black/40 text-white rounded-full hover:bg-black/60 transition-colors">
-                            <X className="w-3.5 h-3.5" />
-                        </button>
-                    )}
-                </div>
-
-                {/* Header */}
-                <div className="p-8 pb-0 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                            <Video className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <div className="flex items-center gap-1">
-                                    {(editedData.platforms ?? item.platforms ?? []).map((p: Platform) => (
-                                        <PlatformIcon key={p} platform={p} className="w-3 h-3 text-black/40" />
-                                    ))}
-                                </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-black/30">
-                                    {editedData.category ?? item.category ?? 'Content'} • {editedData.type ?? item.type}
-                                </span>
-                            </div>
-                            {isEditing ? (
-                                <input type="text" value={editedData.title ?? item.title}
-                                    onChange={e => setEditedData(prev => ({ ...prev, title: e.target.value }))}
-                                    className="text-xl font-black text-black bg-black/[0.02] border border-black/[0.1] rounded-lg px-2 py-0.5 focus:outline-none focus:border-blue-500 w-full" />
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <h2 className="text-xl font-black text-black">{item.title}</h2>
-                                    {item.is_archived && (
-                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black uppercase rounded-lg flex items-center gap-1">
-                                            <Shield className="w-3 h-3" />
-                                            Archived
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        {activeTab === 'details' && (
-                            isEditing ? (
-                                <button onClick={handleSave} className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20">
-                                    <Save className="w-5 h-5" />
-                                </button>
-                            ) : (
-                                <button onClick={() => setIsEditing(true)} className="p-2.5 bg-black/[0.03] text-black/40 rounded-xl hover:bg-black/[0.05] hover:text-black transition-colors">
-                                    <Edit3 className="w-5 h-5" />
-                                </button>
-                            )
-                        )}
-                        {activeTab === 'script' && (
-                            <div className={cn("text-[10px] font-black px-3 py-1.5 rounded-xl transition-all",
-                                scriptSaving ? "bg-blue-50 text-blue-500" : scriptSaved ? "bg-emerald-50 text-emerald-600" : "bg-black/[0.03] text-black/20")}>
-                                {scriptSaving ? 'Saving...' : scriptSaved ? '✓ Saved' : 'Autosave on'}
-                            </div>
-                        )}
-                        <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors">
-                            <X className="w-6 h-6 text-black/20" />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Tab Bar */}
-                <div className="px-8 pt-6 pb-0 flex items-center gap-1">
-                    {(['details', 'script'] as const).map(tab => (
-                        <button key={tab} onClick={() => setActiveTab(tab)}
-                            className={cn("flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
-                                activeTab === tab ? "bg-black text-white shadow-md" : "text-black/30 hover:text-black hover:bg-black/[0.04]")}>
-                            {tab === 'details' ? <Globe className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-                            {tab === 'details' ? 'Details' : 'Script & Ideas'}
-                            {tab === 'script' && totalWords > 0 && (
-                                <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-md", activeTab === 'script' ? "bg-white/20" : "bg-black/[0.06] text-black/40")}>
-                                    {totalWords}w
-                                </span>
-                            )}
-                        </button>
-                    ))}
-                </div>
-                <div className="border-b border-black/[0.05] mx-8 mt-4" />
-
-                {/* ── DETAILS TAB ── */}
-                {activeTab === 'details' && (
-                    <div className="flex-1 overflow-y-auto p-8 space-y-8">
-
-                        {/* Milestones Section */}
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2 flex items-center gap-2">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
-                                Content Milestones
-                            </label>
-
-                            <div className="space-y-2.5">
-                                {contentMilestones.map(m => (
-                                    <div key={m.id} className="flex flex-col gap-2 p-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl group">
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={() => updateMilestone(m.id, { status: m.status === 'completed' ? 'pending' : 'completed' })}
-                                                className={cn(
-                                                    "w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all shrink-0",
-                                                    m.status === 'completed' ? "bg-emerald-500 border-emerald-500 text-white" : "border-black/10 hover:border-black/20"
-                                                )}
-                                            >
-                                                {m.status === 'completed' && <CheckCircle2 className="w-3.5 h-3.5" />}
-                                            </button>
-                                            <input
-                                                type="text"
-                                                value={m.title}
-                                                onChange={e => updateMilestone(m.id, { title: e.target.value })}
-                                                className={cn("flex-1 bg-transparent border-none p-0 text-[13px] font-bold focus:ring-0", m.status === 'completed' && "line-through text-black/20")}
-                                            />
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/[0.03] border border-black/[0.05] rounded-lg group/date relative min-w-0 flex-1 h-7 overflow-hidden cursor-pointer"
-                                                    onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}
-                                                >
-                                                    <Calendar className="w-2.5 h-2.5 text-black/20 shrink-0 pointer-events-none" />
-                                                    <input
-                                                        type="date"
-                                                        value={m.target_date?.split('T')[0] || ''}
-                                                        onChange={e => updateMilestone(m.id, { target_date: e.target.value || null })}
-                                                        className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
-                                                    />
-                                                    <span className="text-[10px] font-bold text-black/40 truncate pointer-events-none">
-                                                        {m.target_date ? new Date(m.target_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Set date'}
-                                                    </span>
-                                                    {m.target_date && (
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); updateMilestone(m.id, { target_date: null }) }}
-                                                            className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-30 pointer-events-auto"
-                                                        >
-                                                            <X className="w-2.5 h-2.5" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/5 border border-amber-500/10 rounded-lg">
-                                                    <Zap className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
-                                                    <div className="flex items-center">
-                                                        <button
-                                                            onClick={() => updateMilestone(m.id, { impact_score: Math.max(1, (m.impact_score || 0) - 1) })}
-                                                            className="text-[12px] font-black text-amber-600/40 hover:text-amber-600 px-1"
-                                                        >-</button>
-                                                        <span className="text-[10px] font-black text-amber-600 w-4 text-center">
-                                                            {m.impact_score || 0}
-                                                        </span>
-                                                        <button
-                                                            onClick={() => updateMilestone(m.id, { impact_score: Math.min(10, (m.impact_score || 0) + 1) })}
-                                                            className="text-[12px] font-black text-amber-600/40 hover:text-amber-600 px-1"
-                                                        >+</button>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                    {(['super', 'high', 'mid', 'low'] as const).map(lvl => (
-                                                        <button key={lvl} onClick={() => updateMilestone(m.id, { priority: lvl })}
-                                                            className={cn("w-2 h-2 rounded-full", (m.priority === lvl || (!m.priority && lvl === 'mid')) ? PRIORITY_CONFIG[lvl].bg : "bg-black/[0.05]")} />
-                                                    ))}
-                                                </div>
-                                                <select value={m.category || 'rnd'} onChange={e => updateMilestone(m.id, { category: e.target.value })}
-                                                    className="text-[9px] font-black uppercase tracking-widest bg-black/[0.03] border-none rounded-lg px-2 py-1 focus:ring-0">
-                                                    {MILESTONE_CATEGORIES.map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
-                                                </select>
-                                                <button
-                                                    onClick={() => setMilestoneToDelete(m.id)}
-                                                    className="p-1.5 text-black/20 hover:text-red-500 transition-all opacity-100"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-
-                                {/* Add Milestone Form */}
-                                <div className="flex flex-col gap-3 p-3 bg-blue-50/50 border border-blue-100 rounded-2xl">
-                                    <div className="flex items-center gap-3">
-                                        <Plus className="w-4 h-4 text-blue-400 shrink-0 ml-1" />
-                                        <input
-                                            type="text"
-                                            placeholder="Add a new milestone..."
-                                            value={newMilestoneTitle}
-                                            onChange={e => setNewMilestoneTitle(e.target.value)}
-                                            onKeyDown={e => e.key === 'Enter' && handleAddMilestone()}
-                                            className="flex-1 bg-transparent border-none p-0 text-[13px] font-bold text-black placeholder:text-blue-300 focus:ring-0"
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between gap-4 pl-8">
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-blue-100 rounded-lg group/adddate relative min-w-0 flex-1 h-8 overflow-hidden cursor-pointer"
-                                                onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}
-                                            >
-                                                <Calendar className="w-3 h-3 text-blue-300 shrink-0 pointer-events-none" />
-                                                <input
-                                                    type="date"
-                                                    value={newMilestoneDate}
-                                                    onChange={e => setNewMilestoneDate(e.target.value)}
-                                                    className="absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0"
-                                                />
-                                                <span className="text-[11px] font-bold text-black/40 truncate pointer-events-none">
-                                                    {newMilestoneDate ? new Date(newMilestoneDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Deadline'}
-                                                </span>
-                                                {newMilestoneDate && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setNewMilestoneDate(''); }}
-                                                        className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-20"
-                                                    >
-                                                        <X className="w-2.5 h-2.5" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-blue-100 rounded-lg">
-                                                <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
-                                                <div className="flex items-center">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setNewMilestoneScore(s => Math.max(1, s - 1))}
-                                                        className="text-[14px] font-black text-amber-600/40 hover:text-amber-600 px-1"
-                                                    >-</button>
-                                                    <span className="w-4 text-center bg-transparent border-none p-0 text-[11px] font-black text-amber-600">
-                                                        {newMilestoneScore}
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setNewMilestoneScore(s => Math.min(10, s + 1))}
-                                                        className="text-[14px] font-black text-amber-600/40 hover:text-amber-600 px-1"
-                                                    >+</button>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1 bg-white border border-blue-100 rounded-lg p-1">
-                                                {(['super', 'high', 'mid', 'low'] as const).map(lvl => (
-                                                    <button key={lvl} type="button" onClick={() => setNewMilestonePriority(lvl)}
-                                                        className={cn("w-3 h-3 rounded-full border transition-all", newMilestonePriority === lvl ? PRIORITY_CONFIG[lvl].bg : "bg-black/[0.05] border-transparent")} />
-                                                ))}
-                                            </div>
-                                            <select value={newMilestoneCategory} onChange={e => setNewMilestoneCategory(e.target.value)}
-                                                className="bg-white border border-blue-100 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-widest text-blue-600 focus:outline-none">
-                                                {MILESTONE_CATEGORIES.map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
-                                            </select>
-                                        </div>
-                                        <button
-                                            onClick={handleAddMilestone}
-                                            disabled={!newMilestoneTitle.trim()}
-                                            className="px-6 py-1.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-50 hover:scale-105 transition-transform"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Status */}
-                        <div className="space-y-3">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Progress Stage</label>
-                            <div className="flex flex-wrap gap-1.5 p-1.5 bg-black/[0.02] rounded-2xl border border-black/[0.05]">
-                                {STATUSES.map(s => (
-                                    <button key={s} onClick={() => updateContent(item.id, { status: s })}
-                                        className={cn("flex-1 px-2 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all",
-                                            item.status === s ? "bg-white text-blue-600 shadow-sm border border-black/[0.05]" : "text-black/30 hover:text-black hover:bg-black/5")}>
-                                        {s}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Cover Image (edit) */}
-                        {isEditing && (
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Cover Image</label>
-                                <div className="flex gap-2">
-                                    <div className="relative flex-1">
-                                        <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
-                                        <input type="url" placeholder="Cover image URL"
-                                            value={editedData.cover_url ?? item.cover_url ?? ''}
-                                            onChange={e => setEditedData(prev => ({ ...prev, cover_url: e.target.value }))}
-                                            className="w-full pl-11 pr-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-medium focus:outline-none focus:border-blue-200 transition-all" />
-                                    </div>
-                                    <label className="cursor-pointer">
-                                        <input type="file" className="hidden" accept="image/*"
-                                            onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverFile(f) }} />
-                                        <div className={cn("h-full px-4 rounded-2xl border-2 border-dashed flex items-center justify-center transition-all",
-                                            coverFile ? "border-emerald-500 bg-emerald-50 text-emerald-600" : "border-black/[0.06] hover:border-blue-200 bg-black/[0.02]")}>
-                                            <UploadCloud className="w-4 h-4" />
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Priority Pills */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Priority</label>
-                            <div className="flex gap-2">
-                                {(Object.keys(PRIORITY_CONFIG) as PriorityLevel[]).map(level => (
-                                    <button key={level} type="button"
-                                        onClick={() => updateContent(item.id, { priority: level })}
-                                        className={cn(
-                                            "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer hover:bg-black/[0.04]",
-                                            currentPriority === level
-                                                ? cn(PRIORITY_CONFIG[level].bg, "border-transparent scale-105 shadow-md")
-                                                : "bg-black/[0.02] border-black/[0.05] text-black/30"
-                                        )}>
-                                        {PRIORITY_CONFIG[level].label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Impact Score */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2 flex justify-between items-center">
-                                Impact Score
-                                <span className="flex items-center gap-1 text-amber-500 font-black">
-                                    <Zap className="w-3 h-3 fill-current" />
-                                    {editedData.impact_score ?? item.impact_score ?? 5}/10
-                                </span>
-                            </label>
-                            <input type="range" min="1" max="10" disabled={!isEditing}
-                                value={editedData.impact_score ?? item.impact_score ?? 5}
-                                onChange={e => setEditedData(prev => ({ ...prev, impact_score: parseInt(e.target.value) }))}
-                                className="w-full h-1.5 bg-black/[0.06] rounded-lg appearance-none cursor-pointer accent-black disabled:opacity-60 disabled:cursor-default" />
-                        </div>
-
-                        {/* Category, Format, Project */}
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Category</label>
-                                <select disabled={!isEditing} value={editedData.category ?? item.category ?? 'Vlog'}
-                                    onChange={e => setEditedData(prev => ({ ...prev, category: e.target.value as ContentCategory }))}
-                                    className="w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none appearance-none disabled:opacity-100">
-                                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Format</label>
-                                <select disabled={!isEditing} value={editedData.type ?? item.type}
-                                    onChange={e => setEditedData(prev => ({ ...prev, type: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none appearance-none disabled:opacity-100">
-                                    {TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-                                </select>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Project</label>
-                                <div className="relative">
-                                    <Rocket className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/20" />
-                                    <select disabled={!isEditing} value={editedData.project_id ?? item.project_id ?? ''}
-                                        onChange={e => setEditedData(prev => ({ ...prev, project_id: e.target.value }))}
-                                        className="w-full pl-9 pr-3 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[12px] font-bold focus:outline-none appearance-none disabled:opacity-100">
-                                        <option value="">None</option>
-                                        {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Platforms */}
-                        <div className="space-y-3">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Distribute To</label>
-                            <div className="flex flex-wrap gap-2 px-2">
-                                {PLATFORMS.map(p => (
-                                    <button key={p} disabled={!isEditing} type="button" onClick={() => togglePlatform(p)}
-                                        className={cn("w-8 h-8 rounded-xl border transition-all flex items-center justify-center",
-                                            (editedData.platforms ?? item.platforms ?? []).includes(p)
-                                                ? "bg-black text-white border-black scale-110 shadow-lg shadow-black/10"
-                                                : "bg-black/[0.02] border-black/[0.05] text-black/40 hover:border-black/20",
-                                            !isEditing && "cursor-default"
-                                        )} title={p}>
-                                        <PlatformIcon platform={p} className="w-4 h-4" />
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Dates */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Deadline</label>
-                                <div className="relative group/maindate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.05] rounded-2xl cursor-pointer"
-                                    onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}
-                                >
-                                    <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
-                                    <input readOnly={!isEditing} type="date"
-                                        ref={deadlineInputRef}
-                                        value={(editedData.deadline ?? item.deadline ?? '').split('T')[0]}
-                                        onChange={e => setEditedData(prev => ({ ...prev, deadline: e.target.value || null }))}
-                                        className={cn("absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0", !isEditing && "pointer-events-none")} />
-                                    <span className="ml-3 text-[12px] font-bold text-black/40 truncate pointer-events-none">
-                                        {(editedData.deadline ?? item.deadline) ? new Date((editedData.deadline ?? item.deadline!) + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No deadline'}
-                                    </span>
-                                    {isEditing && (editedData.deadline ?? item.deadline) && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); setEditedData(prev => ({ ...prev, deadline: null })) }}
-                                            className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-20"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Publish Date</label>
-                                <div className="relative group/pubdate h-12 flex items-center px-4 bg-black/[0.02] border border-black/[0.05] rounded-2xl cursor-pointer"
-                                    onClick={(e) => (e.currentTarget.querySelector('input[type="date"]') as any)?.showPicker?.()}
-                                >
-                                    <Calendar className="w-4 h-4 text-black/20 shrink-0 pointer-events-none" />
-                                    <input readOnly={!isEditing} type="date"
-                                        ref={publishDateInputRef}
-                                        value={(editedData.publish_date ?? item.publish_date ?? '').split('T')[0]}
-                                        onChange={e => setEditedData(prev => ({ ...prev, publish_date: e.target.value || null }))}
-                                        className={cn("absolute inset-0 w-full h-full text-transparent bg-transparent border-none cursor-pointer z-10 p-0", !isEditing && "pointer-events-none")} />
-                                    <span className="ml-3 text-[12px] font-bold text-black/40 truncate pointer-events-none">
-                                        {(editedData.publish_date ?? item.publish_date) ? new Date((editedData.publish_date ?? item.publish_date!) + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not scheduled'}
-                                    </span>
-                                    {isEditing && (editedData.publish_date ?? item.publish_date) && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); setEditedData(prev => ({ ...prev, publish_date: null })) }}
-                                            className="relative ml-auto p-1 text-black/20 hover:text-red-500 transition-colors z-20"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* URL */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">External Link</label>
-                            <div className="relative flex gap-2">
-                                <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
-                                <input readOnly={!isEditing} type="url" placeholder="Add URL..."
-                                    value={editedData.url ?? item.url ?? ''}
-                                    onChange={e => setEditedData(prev => ({ ...prev, url: e.target.value }))}
-                                    className="flex-1 pl-11 pr-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-blue-200" />
-                                {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-colors"><ExternalLink className="w-5 h-5" /></a>}
-                            </div>
-                        </div>
-
-                        {/* Scenes */}
-                        <div className="space-y-4 pt-4 border-t border-black/[0.05]">
-                            <div className="flex items-center justify-between px-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30">Production Scenes</label>
-                                {isEditing && (
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                            
+                            {/* Stats/Labels on Cover */}
+                            <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
+                                <div className="space-y-2">
                                     <div className="flex items-center gap-2">
-                                        <div className="flex items-center gap-1 bg-black/[0.02] border border-black/[0.05] rounded-xl p-1">
-                                            <input placeholder="Location" value={newScene.location || ''} onChange={e => setNewScene(prev => ({ ...prev, location: e.target.value }))} className="text-[11px] font-bold px-2 py-1 bg-transparent focus:outline-none w-24" />
-                                            <select value={newScene.type || 'public'} onChange={e => setNewScene(prev => ({ ...prev, type: e.target.value as any }))} className="text-[10px] font-bold bg-transparent border-l border-black/[0.05] px-1 focus:outline-none">
-                                                <option value="public">Pub</option><option value="private">Priv</option>
-                                            </select>
-                                            <input placeholder="Cost" value={newScene.cost || ''} onChange={e => setNewScene(prev => ({ ...prev, cost: e.target.value }))} className="text-[11px] font-bold px-2 py-1 bg-transparent border-l border-black/[0.05] focus:outline-none w-16" />
-                                            <input placeholder="Dist" value={newScene.distance || ''} onChange={e => setNewScene(prev => ({ ...prev, distance: e.target.value }))} className="text-[11px] font-bold px-2 py-1 bg-transparent border-l border-black/[0.05] focus:outline-none w-16" />
+                                        <div className="flex items-center gap-1">
+                                            {(editedData.platforms ?? item.platforms ?? []).map((p: Platform) => (
+                                                <PlatformIcon key={p} platform={p} className="w-3.5 h-3.5 text-white/80" />
+                                            ))}
                                         </div>
-                                        <button onClick={addScene} className="p-1.5 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all"><Plus className="w-4 h-4" /></button>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                                            {editedData.category ?? item.category ?? 'Content'} • {editedData.type ?? item.type}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none">{item.title}</h2>
+                                </div>
+                                
+                                <button
+                                    onClick={handleRegenerateCover}
+                                    disabled={isGeneratingContent}
+                                    className="px-4 py-2 bg-white/20 backdrop-blur-md border border-white/20 rounded-full text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all hover:bg-white/30"
+                                >
+                                    {isGeneratingContent ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 fill-white" />}
+                                    {isGeneratingContent ? 'Drawing...' : 'Regenerate'}
+                                </button>
+                            </div>
+
+                            <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-all">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Navigation Tabs */}
+                        <div className="px-8 pt-6 pb-2 border-b border-black/5 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-1">
+                                {(['details', 'script'] as const).map(tab => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={cn(
+                                            "px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
+                                            activeTab === tab ? "bg-black text-white shadow-lg" : "text-black/30 hover:bg-black/5"
+                                        )}
+                                    >
+                                        {tab === 'details' ? 'Standard Protocol' : 'Creative Layer'}
+                                    </button>
+                                ))}
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                {activeTab === 'script' && (
+                                    <div className={cn("text-[9px] font-black px-3 py-1.5 rounded-lg border", scriptSaving ? "bg-blue-50 text-blue-600 border-blue-100" : scriptSaved ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-black/5 text-black/30 border-transparent")}>
+                                        {scriptSaving ? 'SYNCING...' : scriptSaved ? 'SYNCED' : `${totalWords} WORDS`}
                                     </div>
                                 )}
-                            </div>
-                            <div className="overflow-hidden rounded-3xl border border-black/[0.05] bg-black/[0.01]">
-                                <table className="w-full text-left border-collapse">
-                                    <thead><tr className="bg-black/[0.02] border-b border-black/[0.05]">
-                                        <th className="px-4 py-2.5 text-[9px] font-black uppercase text-black/30">Location</th>
-                                        <th className="px-4 py-2.5 text-[9px] font-black uppercase text-black/30">Type</th>
-                                        <th className="px-4 py-2.5 text-[9px] font-black uppercase text-black/30">Cost</th>
-                                        <th className="px-4 py-2.5 text-[9px] font-black uppercase text-black/30">Dist.</th>
-                                        {isEditing && <th className="px-4 py-2.5" />}
-                                    </tr></thead>
-                                    <tbody className="divide-y divide-black/[0.03]">
-                                        {(editedData.scenes ?? item.scenes ?? []).map((scene: ContentScene) => (
-                                            <tr key={scene.id} className="group hover:bg-black/[0.02]">
-                                                <td className="px-4 py-3 text-[12px] font-bold"><div className="flex items-center gap-2"><MapPin className="w-3 h-3 text-black/20" />{scene.location}</div></td>
-                                                <td className="px-4 py-3"><span className={cn("text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border", scene.type === 'private' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-emerald-50 text-emerald-600 border-emerald-100")}>{scene.type}</span></td>
-                                                <td className="px-4 py-3"><div className="flex items-center gap-1 text-[11px] font-bold text-black/50"><DollarSign className="w-3 h-3" />{scene.cost || 'Free'}</div></td>
-                                                <td className="px-4 py-3"><div className="flex items-center gap-1 text-[11px] font-bold text-black/50"><Navigation className="w-3 h-3" />{scene.distance || '-'}</div></td>
-                                                {isEditing && <td className="px-4 py-3 text-right"><button onClick={() => removeScene(scene.id)} className="p-1.5 text-black/20 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-3.5 h-3.5" /></button></td>}
-                                            </tr>
-                                        ))}
-                                        {(editedData.scenes ?? item.scenes ?? []).length === 0 && (
-                                            <tr><td colSpan={isEditing ? 5 : 4} className="px-4 py-8 text-center"><p className="text-[11px] font-bold text-black/20 uppercase tracking-widest italic">No scenes listed</p></td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
+                                <button
+                                    onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+                                    className={cn(
+                                        "w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm",
+                                        isEditing ? "bg-blue-600 text-white shadow-blue-500/20" : "bg-black/5 text-black/40 hover:text-black"
+                                    )}
+                                >
+                                    {isEditing ? <CheckCircle2 className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
+                                </button>
+                                <button
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="w-10 h-10 rounded-xl bg-red-50 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                >
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
                             </div>
                         </div>
 
-                        {/* Linked Operations Tasks */}
-                        {linkedTasks.length > 0 && (
-                            <div className="mt-6 pt-6 border-t border-black/[0.05]">
-                                <h4 className="text-[11px] font-black uppercase tracking-widest text-black/30 mb-3 flex items-center gap-2">
-                                    <Clock className="w-3.5 h-3.5" />
-                                    Linked Operations Tasks
-                                </h4>
-                                <div className="space-y-2">
-                                    {linkedTasks.map(task => (
-                                        <div key={task.id} className="flex flex-col gap-1.5 p-3 bg-black/[0.02] border border-black/[0.05] rounded-xl group/task">
-                                            <div className="flex items-center gap-3">
-                                                <div className={cn(
-                                                    "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0",
-                                                    task.is_completed ? "bg-emerald-500 border-emerald-500" : "border-black/20"
-                                                )}>
-                                                    {task.is_completed && <CheckCircle2 className="w-3 h-3 text-white" />}
-                                                </div>
-                                                <span className={cn(
-                                                    "text-[12px] font-bold flex-1 truncate",
-                                                    task.is_completed ? "text-black/30 line-through" : "text-black/80"
-                                                )}>
-                                                    {task.title}
-                                                </span>
-                                                {task.due_date && (
-                                                    <span className="text-[10px] font-bold text-black/30 bg-black/5 px-2 py-0.5 rounded-md shrink-0">
-                                                        Due {new Date(task.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                                                    </span>
-                                                )}
+                        {/* Content Body */}
+                        <div className="flex-1 overflow-y-auto no-scrollbar">
+                            {activeTab === 'details' ? (
+                                <div className="p-8 space-y-10">
+                                    
+                                    {/* Progress Grid */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/5 space-y-1">
+                                            <p className="text-[9px] font-black text-black/20 uppercase tracking-widest">Status</p>
+                                            <select
+                                                value={editedData.status ?? item.status}
+                                                onChange={e => updateContent(item.id, { status: e.target.value as ContentStatus })}
+                                                className="w-full bg-transparent border-none p-0 text-[13px] font-black text-blue-600 focus:ring-0 uppercase cursor-pointer"
+                                            >
+                                                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/5 space-y-1">
+                                            <p className="text-[9px] font-black text-black/20 uppercase tracking-widest">Priority</p>
+                                            <select
+                                                value={editedData.priority ?? item.priority}
+                                                onChange={e => updateContent(item.id, { priority: e.target.value as PriorityLevel })}
+                                                className="w-full bg-transparent border-none p-0 text-[13px] font-black text-black focus:ring-0 uppercase cursor-pointer"
+                                            >
+                                                {(Object.keys(PRIORITY_CONFIG) as PriorityLevel[]).map(p => <option key={p} value={p}>{p}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/5 space-y-1">
+                                            <p className="text-[9px] font-black text-black/20 uppercase tracking-widest">Deadline</p>
+                                            <div className="relative h-5">
+                                                <input
+                                                    type="date"
+                                                    value={(editedData.deadline ?? item.deadline ?? '').split('T')[0]}
+                                                    onChange={e => updateContent(item.id, { deadline: e.target.value || null })}
+                                                    className="absolute inset-0 w-full opacity-0 cursor-pointer z-10"
+                                                />
+                                                <p className="text-[13px] font-black text-black">
+                                                    {(editedData.deadline ?? item.deadline) ? new Date((editedData.deadline ?? item.deadline!) + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Set Date'}
+                                                </p>
                                             </div>
                                         </div>
-                                    ))}
+                                        <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/5 space-y-1">
+                                            <p className="text-[9px] font-black text-black/20 uppercase tracking-widest">Impact</p>
+                                            <div className="flex items-center gap-1.5">
+                                                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                                                <span className="text-[14px] font-black text-black">{item.impact_score}/10</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Milestones / Production Steps */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-[11px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
+                                                <Layout className="w-4 h-4 text-blue-500" />
+                                                Production Pipeline
+                                            </h3>
+                                            <button
+                                                onClick={() => {
+                                                    addMilestone({
+                                                        title: 'New Production Step',
+                                                        status: 'pending',
+                                                        content_id: item.id,
+                                                        project_id: item.project_id || undefined
+                                                    } as any)
+                                                }}
+                                                className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1"
+                                            >
+                                                <Plus className="w-4 h-4" /> Add Step
+                                            </button>
+                                        </div>
+
+                                        <Reorder.Group
+                                            axis="y"
+                                            values={contentMilestones}
+                                            onReorder={(newOrder) => {
+                                                // Logically reorder if weight implementation exists, 
+                                                // for now we just show them.
+                                            }}
+                                            className="space-y-2"
+                                        >
+                                            {contentMilestones.map(m => (
+                                                <MilestoneRow 
+                                                    key={m.id} 
+                                                    milestone={m} 
+                                                    updateMilestone={updateMilestone}
+                                                    deleteMilestone={deleteMilestone}
+                                                />
+                                            ))}
+                                            {contentMilestones.length === 0 && (
+                                                <div className="py-12 border-2 border-dashed border-black/5 rounded-3xl flex flex-col items-center justify-center gap-2">
+                                                    <p className="text-[12px] font-bold text-black/20 uppercase">No production steps defined</p>
+                                                </div>
+                                            )}
+                                        </Reorder.Group>
+                                    </div>
+
+                                    {/* Meta Section */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-black/5">
+                                        {/* Linked Tasks */}
+                                        <div className="space-y-4">
+                                            <h3 className="text-[11px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
+                                                <Clock className="w-4 h-4" />
+                                                Operations Sync
+                                            </h3>
+                                            <div className="space-y-2">
+                                                {linkedTasks.map(task => (
+                                                    <div key={task.id} className="flex items-center gap-3 p-3 bg-black/[0.02] rounded-2xl border border-black/5">
+                                                        <div className={cn("w-4 h-4 rounded border-2 shrink-0", task.is_completed ? "bg-emerald-500 border-emerald-500 text-white" : "border-black/20")}>
+                                                            {task.is_completed && <CheckCircle2 className="w-3 h-3" />}
+                                                        </div>
+                                                        <span className={cn("text-[13px] font-bold flex-1 truncate", task.is_completed && "text-black/30 line-through")}>{task.title}</span>
+                                                        {task.due_date && <span className="text-[10px] font-black text-black/30 uppercase">{new Date(task.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
+                                                    </div>
+                                                ))}
+                                                {linkedTasks.length === 0 && <p className="text-[11px] text-black/20 italic">No linked tasks in operations</p>}
+                                            </div>
+                                        </div>
+
+                                        {/* External Links */}
+                                        <div className="space-y-4">
+                                            <h3 className="text-[11px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
+                                                <LinkIcon className="w-4 h-4" />
+                                                Assets & Links
+                                            </h3>
+                                            <div className="space-y-3">
+                                                <div className="relative group/link">
+                                                    <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                                                    <input
+                                                        placeholder="Add project URL..."
+                                                        value={editedData.url ?? item.url ?? ''}
+                                                        onChange={e => setEditedData(prev => ({ ...prev, url: e.target.value }))}
+                                                        onBlur={handleSave}
+                                                        className="w-full pl-11 pr-12 py-3 bg-black/[0.02] border border-black/5 rounded-2xl text-[13px] font-bold focus:bg-white focus:border-blue-100 transition-all outline-none"
+                                                    />
+                                                    {(editedData.url ?? item.url) && (
+                                                        <a href={editedData.url ?? item.url ?? ''} target="_blank" className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-black/5 flex items-center justify-center hover:bg-black hover:text-white transition-all">
+                                                            <ExternalLink className="w-4 h-4" />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-[9px] font-bold text-black/20 uppercase tracking-widest text-center mt-3">Manage these tasks in Operations</p>
-                            </div>
-                        )}
-                    </div>
-                )}
+                            ) : (
+                                <div className="p-8 space-y-8">
+                                    <div className="space-y-4">
+                                        <h3 className="text-[11px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
+                                            <FileText className="w-4 h-4 text-purple-500" />
+                                            Content Architecture
+                                        </h3>
+                                        <div className="space-y-3">
+                                            {SCRIPT_SECTIONS.map(s => (
+                                                <ScriptSection 
+                                                    key={s.id} 
+                                                    section={s} 
+                                                    value={scriptSections[s.id as keyof ScriptSections]}
+                                                    onChange={v => {
+                                                        const newSections = { ...scriptSections, [s.id]: v }
+                                                        setScriptSections(newSections)
+                                                        triggerAutosave(newSections, brainstorm)
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
 
-                {/* ── SCRIPT TAB ── */}
-                {activeTab === 'script' && (
-                    <div className="flex-1 overflow-y-auto p-8 space-y-6">
-                        {totalWords > 0 && (
-                            <div className="flex items-center gap-4 px-4 py-3 bg-black/[0.02] rounded-2xl border border-black/[0.04]">
-                                <span className="flex items-center gap-2 text-[11px] font-black text-black/40"><Hash className="w-3.5 h-3.5" />{totalWords} words</span>
-                                <span className="flex items-center gap-2 text-[11px] font-black text-black/40"><Clock className="w-3.5 h-3.5" />{readTime(totalWords)} read</span>
-                            </div>
-                        )}
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-2 px-1">
-                                <Lightbulb className="w-4 h-4 text-amber-500" />
-                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30">Brainstorm & Concept</label>
-                            </div>
-                            <textarea value={brainstorm} onChange={e => { setBrainstorm(e.target.value); triggerAutosave(scriptSections, e.target.value) }}
-                                placeholder="Dump your raw ideas, angle, references, inspiration..."
-                                className="w-full px-5 py-4 bg-amber-50/50 border border-amber-100 rounded-3xl text-[13px] font-medium leading-relaxed focus:outline-none focus:border-amber-200 resize-none text-black/80 placeholder:text-black/20 min-h-[120px]" rows={5} />
-                        </div>
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-2 px-1">
-                                <FileText className="w-4 h-4 text-blue-500" />
-                                <label className="text-[10px] font-black uppercase tracking-widest text-black/30">Script Sections</label>
-                            </div>
-                            <div className="space-y-3">
-                                {SCRIPT_SECTIONS.map(section => (
-                                    <ScriptSection key={section.id} section={section}
-                                        value={scriptSections[section.id as keyof ScriptSections]}
-                                        onChange={val => { const next = { ...scriptSections, [section.id]: val }; setScriptSections(next); triggerAutosave(next, brainstorm) }} />
-                                ))}
-                            </div>
-                        </div>
-                        <p className="text-center text-[10px] font-bold text-black/15 uppercase tracking-widest pb-2">Changes autosave as you type</p>
-                    </div>
-                )}
-
-                {/* Footer */}
-                <div className="p-8 pt-4 flex items-center justify-between bg-black/[0.01] border-t border-black/[0.05]">
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => setShowDeleteConfirm(true)} className="flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl transition-all font-bold text-[12px]">
-                            <Trash2 className="w-4 h-4" />Delete Item
-                        </button>
-                        <button
-                            onClick={() => setShowArchiveConfirm(true)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold transition-all border",
-                                item.is_archived
-                                    ? "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
-                                    : "bg-black/[0.02] text-black/40 border-transparent hover:bg-black/5 hover:text-black/60"
+                                    <div className="space-y-4 pt-6 border-t border-black/5">
+                                        <h3 className="text-[11px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
+                                            <Lightbulb className="w-4 h-4 text-amber-500" />
+                                            Brainstorming & Raw Notes
+                                        </h3>
+                                        <textarea
+                                            value={brainstorm}
+                                            onChange={e => {
+                                                setBrainstorm(e.target.value)
+                                                triggerAutosave(scriptSections, e.target.value)
+                                            }}
+                                            placeholder="Dump thoughts, research, links, and loose ideas here..."
+                                            className="w-full min-h-[200px] p-6 bg-black/[0.02] border border-black/5 rounded-[32px] text-[15px] font-medium text-black/70 leading-relaxed focus:outline-none focus:bg-white focus:border-blue-100 transition-all resize-none"
+                                        />
+                                    </div>
+                                </div>
                             )}
-                        >
-                            <Shield className="w-4 h-4" />
-                            {item.is_archived ? 'Unarchive' : 'Archive'}
-                        </button>
+                        </div>
+
+                        {/* Archive Footer (Mobile Safe) */}
+                        {!item.is_archived && (
+                            <div className="px-8 py-6 bg-black/[0.01] border-t border-black/5 flex items-center justify-between shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <Shield className="w-4 h-4 text-blue-600" />
+                                    <span className="text-[11px] font-black uppercase tracking-widest text-black/30">Stable Release Layer</span>
+                                </div>
+                                <button
+                                    onClick={() => updateContent(item.id, { is_archived: true })}
+                                    className="px-6 py-2 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-black/10 flex items-center gap-2"
+                                >
+                                    <Archive className="w-3.5 h-3.5" />
+                                    Archive Item
+                                </button>
+                            </div>
+                        )}
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
+
+        <ConfirmationModal
+            isOpen={showDeleteConfirm}
+            onClose={() => setShowDeleteConfirm(false)}
+            onConfirm={handleDelete}
+            title="Purge Content Idea?"
+            message="This will permanently delete this concept and all associated data from the production pipeline."
+            confirmText="Purge"
+            type="danger"
+        />
+
+        <ConfirmationModal
+            isOpen={!!milestoneToDelete}
+            onClose={() => setMilestoneToDelete(null)}
+            onConfirm={() => {
+                if (milestoneToDelete) {
+                    deleteMilestone(milestoneToDelete)
+                    setMilestoneToDelete(null)
+                }
+            }}
+            title="Remove Production Step?"
+            message="This step will be removed from your content roadmap."
+            confirmText="Remove"
+            type="danger"
+        />
+        </>
+    )
+}
+
+function MilestoneRow({ milestone: m, updateMilestone, deleteMilestone }: { 
+    milestone: any, 
+    updateMilestone: any, 
+    deleteMilestone: any 
+}) {
+    const [isEditing, setIsEditing] = useState(false)
+    const controls = useDragControls()
+
+    return (
+        <Reorder.Item
+            value={m}
+            dragListener={false}
+            dragControls={controls}
+            className="group flex flex-col gap-2 p-4 bg-black/[0.02] border border-black/5 rounded-2xl hover:bg-black/[0.04] transition-all"
+        >
+            <div className="flex items-center gap-3">
+                <div onPointerDown={(e) => controls.start(e)} className="cursor-grab active:cursor-grabbing p-1.5 opacity-20 hover:opacity-100 transition-opacity">
+                    <GripVertical className="w-4 h-4" />
+                </div>
+
+                <button
+                    onClick={() => updateMilestone(m.id, { status: m.status === 'completed' ? 'pending' : 'completed' })}
+                    className={cn(
+                        "w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all",
+                        m.status === 'completed' ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "bg-white border-black/10"
+                    )}
+                >
+                    {m.status === 'completed' && <CheckSquare className="w-3.5 h-3.5" />}
+                </button>
+
+                <div className="flex-1 min-w-0">
+                    <input
+                        value={m.title}
+                        onChange={e => updateMilestone(m.id, { title: e.target.value })}
+                        className={cn(
+                            "w-full bg-transparent border-none p-0 text-[14px] font-bold focus:ring-0",
+                            m.status === 'completed' ? "text-black/20 line-through" : "text-black"
+                        )}
+                    />
+                </div>
+
+                <div className="flex items-center gap-4 shrink-0">
+                    <div className="flex items-center gap-1">
+                        <Zap className={cn("w-3.5 h-3.5", m.status === 'completed' ? "text-black/10" : "text-amber-500 fill-amber-500")} />
+                        <span className={cn("text-[11px] font-black", m.status === 'completed' ? "text-black/10" : "text-black/40")}>{m.impact_score || 5}</span>
                     </div>
-                    <div className={cn("text-[11px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest",
-                        item.status === 'published' ? "bg-emerald-50 text-emerald-600" :
-                            item.status === 'scripted' ? "bg-blue-50 text-blue-500" :
-                                item.status === 'filmed' ? "bg-amber-50 text-amber-500" :
-                                    item.status === 'edited' ? "bg-purple-50 text-purple-500" :
-                                        item.status === 'scheduled' ? "bg-cyan-50 text-cyan-500" :
-                                            "bg-black/[0.03] text-black/20")}>
-                        {item.status}
-                    </div>
+
+                    <button
+                        onClick={() => deleteMilestone(m.id)}
+                        className="opacity-0 group-hover:opacity-100 p-2 text-black/20 hover:text-red-500 transition-all"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                 </div>
             </div>
 
-            <ConfirmationModal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} onConfirm={handleDelete}
-                title="Delete Content" message={`Delete "${item.title}"? This cannot be undone.`} confirmText="Delete" type="danger" />
+            <div className="flex items-center gap-4 ml-12">
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-black/5 rounded-lg relative">
+                    <Calendar className="w-3 h-3 text-black/20" />
+                    <input
+                        type="date"
+                        value={m.target_date?.split('T')[0] || ''}
+                        onChange={e => updateMilestone(m.id, { target_date: e.target.value || null })}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                    <span className="text-[9px] font-black text-black/40 uppercase">
+                        {m.target_date ? new Date(m.target_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'No Date'}
+                    </span>
+                </div>
 
-            <ConfirmationModal
-                isOpen={showArchiveConfirm}
-                onClose={() => setShowArchiveConfirm(false)}
-                onConfirm={handleArchiveToggle}
-                title={item.is_archived ? "Restore Content" : "Archive Content"}
-                message={item.is_archived
-                    ? "This content will be moved back to your active pipeline."
-                    : "This content will be hidden from your active pipeline but preserved in archives."
-                }
-                type="warning"
-                confirmText={item.is_archived ? "Restore" : "Archive"}
-            />
+                <div className="flex items-center gap-1">
+                    {(['super', 'high', 'mid', 'low'] as const).map(lvl => (
+                        <button
+                            key={lvl}
+                            onClick={() => updateMilestone(m.id, { priority: lvl })}
+                            className={cn(
+                                "w-2.5 h-2.5 rounded-full border transition-all",
+                                m.priority === lvl ? PRIORITY_CONFIG[lvl].bg : "bg-black/5 hover:bg-black/10"
+                            )}
+                        />
+                    ))}
+                </div>
 
-            <ConfirmationModal
-                isOpen={!!milestoneToDelete}
-                onClose={() => setMilestoneToDelete(null)}
-                onConfirm={() => {
-                    if (milestoneToDelete) {
-                        deleteMilestone(milestoneToDelete)
-                        setMilestoneToDelete(null)
-                    }
-                }}
-                title="Delete Milestone"
-                message="Are you sure you want to delete this milestone? This cannot be undone."
-                confirmText="Delete"
-                type="danger"
-            />
-        </div>
+                <select
+                    value={m.category || 'rnd'}
+                    onChange={e => updateMilestone(m.id, { category: e.target.value })}
+                    className="bg-transparent border-none p-0 text-[9px] font-black uppercase tracking-widest text-black/30 focus:ring-0 cursor-pointer"
+                >
+                    {MILESTONE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+            </div>
+        </Reorder.Item>
     )
 }
