@@ -35,6 +35,7 @@ interface GoalsContextType {
     generatingGoalIds: string[]
     debugLogs: Array<{time: string, msg: string, type: 'info' | 'error' | 'success'}>
     addDebugLog: (msg: string, type?: 'info' | 'error' | 'success') => void
+    convertGoalToWishlist: (goalId: string) => Promise<void>
 }
 
 const GoalsContext = createContext<GoalsContextType | undefined>(undefined)
@@ -792,6 +793,76 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    const convertGoalToWishlist = async (goalId: string) => {
+        try {
+            const goal = goals.find(g => g.id === goalId)
+            if (!goal) return
+
+            const { data: { session } } = await supabase.auth.getSession()
+            const userId = session?.user?.id
+
+            const wishlistData: CreateWishlistItemData = {
+                title: goal.title,
+                description: goal.description || '',
+                category: goal.category,
+                priority: goal.priority,
+                image_url: goal.vision_image_url || '',
+                status: 'incoming'
+            }
+
+            if (settings.is_demo_mode) {
+                const newItem: WishlistItem = {
+                    id: Math.random().toString(36).substring(2, 9),
+                    user_id: 'demo-user',
+                    ...wishlistData,
+                    price: null,
+                    url: null,
+                    image_url: wishlistData.image_url || null,
+                    description: wishlistData.description || null,
+                    category: wishlistData.category || 'personal',
+                    priority: wishlistData.priority || 'mid',
+                    status: wishlistData.status || 'incoming',
+                    created_at: new Date().toISOString()
+                }
+                const currentWishlist = getSessionWishlist() || []
+                const updatedWishlist = [newItem, ...currentWishlist]
+                saveSessionWishlist(updatedWishlist)
+                setWishlist(updatedWishlist)
+                
+                const currentGoals = getSessionGoals() || []
+                const filteredGoals = currentGoals.filter(g => g.id !== goalId)
+                saveSessionGoals(filteredGoals)
+                setGoals(filteredGoals)
+                addDebugLog(`🔄 [Demo] Converted goal "${goal.title}" to wishlist`, 'success')
+                return
+            }
+
+            // Live mode
+            const { error: insertError } = await supabase
+                .from('sys_wishlist')
+                .insert([{
+                    user_id: userId,
+                    ...wishlistData
+                }])
+
+            if (insertError) throw insertError
+
+            const { error: deleteError } = await supabase
+                .from('sys_goals')
+                .delete()
+                .eq('id', goalId)
+
+            if (deleteError) throw deleteError
+
+            await fetchGoals()
+            addDebugLog(`🔄 Converted goal "${goal.title}" to wishlist item`, 'success')
+        } catch (err: any) {
+            console.error('Conversion failed:', err)
+            setError(err.message)
+            addDebugLog(`❌ Conversion failed: ${err.message}`, 'error')
+        }
+    }
+
     return (
         <GoalsContext.Provider value={{
             goals,
@@ -813,7 +884,8 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
             generatingWishlistIds,
             generatingGoalIds,
             debugLogs,
-            addDebugLog
+            addDebugLog,
+            convertGoalToWishlist
         }}>
             {children}
         </GoalsContext.Provider>
