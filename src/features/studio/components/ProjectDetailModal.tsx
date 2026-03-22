@@ -133,7 +133,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                 isGeneratingProject && "blur-md"
                                             )}
                                         />
-                                        <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 via-black/20 to-transparent">
+                                        <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/90 via-black/40 to-transparent rounded-b-[24px]">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{project.type}</span>
@@ -151,7 +151,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                             </div>
                                         </div>
                                         {isGeneratingProject && (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm gap-2">
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm gap-2 rounded-[24px]">
                                                 <Loader2 className="w-8 h-8 text-white animate-spin" />
                                                 <span className="text-[10px] font-black text-white uppercase tracking-widest">Rendering...</span>
                                             </div>

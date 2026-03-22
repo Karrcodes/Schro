@@ -319,7 +319,7 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
     return (
         <div
             className={cn(
-                "group relative bg-white border border-black/[0.05] rounded-2xl hover:border-orange-200 hover:shadow-xl transition-all overflow-hidden",
+                "group relative bg-white border border-black/[0.05] rounded-2xl hover:border-orange-200 hover:shadow-xl transition-[box-shadow,border-color] duration-300 overflow-hidden",
                 isDraggingThis && "opacity-30 scale-95 shadow-none"
             )}
         >

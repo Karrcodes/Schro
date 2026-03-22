@@ -6,7 +6,8 @@ import {
     Video, Calendar, CheckCircle2, Trash2, Plus, Zap, Rocket, Shield, 
     X, Hash, Clock, Link as LinkIcon, Globe, Edit3, Save, ExternalLink, 
     MapPin, Navigation, DollarSign, ChevronDown, ChevronRight, UploadCloud, 
-    Loader2, MoreVertical, Archive, Layout, FileText, CheckSquare, GripVertical, Lightbulb
+    Loader2, MoreVertical, Archive, Layout, FileText, CheckSquare, GripVertical, Lightbulb,
+    Pencil, Target, Wand2, AlignLeft
 } from 'lucide-react'
 import type { StudioContent, ContentStatus, Platform, ContentCategory, ContentScene, PriorityLevel } from '../types/studio.types'
 import { useStudio } from '../hooks/useStudio'
@@ -30,10 +31,10 @@ const CATEGORIES: ContentCategory[] = ['Vlog', 'Thoughts', 'Showcase', 'Concept'
 const MILESTONE_CATEGORIES = ['rnd', 'production', 'media', 'growth']
 
 const PRIORITY_CONFIG = {
-    super: { label: 'Super', bg: 'bg-purple-500 text-white', border: 'border-purple-300' },
-    high: { label: 'High', bg: 'bg-red-500 text-white', border: 'border-red-300' },
-    mid: { label: 'Mid', bg: 'bg-amber-400 text-white', border: 'border-amber-300' },
-    low: { label: 'Low', bg: 'bg-neutral-300 text-neutral-700', border: 'border-black/10' },
+    super: { label: 'Super', color: 'bg-purple-50 text-purple-600 border-purple-200 shadow-purple-500/10' },
+    high: { label: 'High', color: 'bg-red-50 text-red-600 border-red-200 shadow-red-500/10' },
+    mid: { label: 'Mid', color: 'bg-yellow-50 text-yellow-600 border-yellow-200 shadow-yellow-500/10' },
+    low: { label: 'Low', color: 'bg-black/5 text-black/60 border-black/10 shadow-black/5' },
 } as const
 
 const SCRIPT_SECTIONS = [
@@ -190,11 +191,13 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
         <>
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-end justify-center">
+                <>
                     <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90]"
                     />
 
                     <motion.div
@@ -202,299 +205,399 @@ export default function ContentDetailModal({ isOpen, onClose, item }: ContentDet
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative w-full max-w-2xl bg-white rounded-t-[32px] shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden font-outfit"
+                        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[100] max-h-[90vh] overflow-y-auto shadow-2xl border-t border-black/5 no-scrollbar font-outfit"
                     >
-                        {/* Drag Handle */}
-                        <div className="w-12 h-1 bg-black/10 rounded-full mx-auto mt-3 shrink-0" />
-
-                        {/* Cover Section */}
-                        <div className="relative w-full h-40 md:h-48 bg-black/5 shrink-0 overflow-hidden">
-                            {!isClearingImage && (
-                                <img
-                                    src={coverSrc || `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${item.id}&w=1200&h=630`}
-                                    alt={item.title}
-                                    className="w-full h-full object-cover"
-                                />
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                            
-                            {/* Stats/Labels on Cover */}
-                            <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex items-center gap-1">
-                                            {(editedData.platforms ?? item.platforms ?? []).map((p: Platform) => (
-                                                <PlatformIcon key={p} platform={p} className="w-3.5 h-3.5 text-white/80" />
-                                            ))}
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
-                                            {editedData.category ?? item.category ?? 'Content'} • {editedData.type ?? item.type}
-                                        </span>
-                                    </div>
-                                    <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none">{item.title}</h2>
-                                </div>
-                                
-                                <button
-                                    onClick={handleRegenerateCover}
-                                    disabled={isGeneratingContent}
-                                    className="px-4 py-2 bg-white/20 backdrop-blur-md border border-white/20 rounded-full text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all hover:bg-white/30"
-                                >
-                                    {isGeneratingContent ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 fill-white" />}
-                                    {isGeneratingContent ? 'Drawing...' : 'Regenerate'}
-                                </button>
-                            </div>
-
-                            <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-all">
-                                <X className="w-5 h-5" />
-                            </button>
+                        {/* Handle */}
+                        <div className="flex justify-center p-4">
+                            <div className="w-12 h-1.5 bg-black/10 rounded-full" />
                         </div>
 
-                        {/* Navigation Tabs */}
-                        <div className="px-8 pt-6 pb-2 border-b border-black/5 flex items-center justify-between shrink-0">
-                            <div className="flex items-center gap-1">
-                                {(['details', 'script'] as const).map(tab => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab)}
-                                        className={cn(
-                                            "px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
-                                            activeTab === tab ? "bg-black text-white shadow-lg" : "text-black/30 hover:bg-black/5"
+                        <div className="max-w-4xl mx-auto px-6 md:px-8 pb-20 pt-8">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                                {/* Left Column: Visual & Meta */}
+                                <div className="md:col-span-1 space-y-8">
+                                    <div className="relative group aspect-[4/5] rounded-[24px] overflow-hidden border border-black/5 shadow-2xl shadow-black/10">
+                                        {!isClearingImage && (
+                                            <img
+                                                src={item?.cover_url || coverPreview || `/api/studio/cover?title=${encodeURIComponent(item?.title || '')}&tagline=${encodeURIComponent(item?.category || '')}&type=content&id=${item?.id}&w=1200&h=630`}
+                                                alt={item.title}
+                                                className={cn(
+                                                    "w-full h-full object-cover transition-transform duration-700 group-hover:scale-110",
+                                                    isGeneratingContent && "blur-md"
+                                                )}
+                                            />
                                         )}
-                                    >
-                                        {tab === 'details' ? 'Standard Protocol' : 'Creative Layer'}
-                                    </button>
-                                ))}
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                                {activeTab === 'script' && (
-                                    <div className={cn("text-[9px] font-black px-3 py-1.5 rounded-lg border", scriptSaving ? "bg-blue-50 text-blue-600 border-blue-100" : scriptSaved ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-black/5 text-black/30 border-transparent")}>
-                                        {scriptSaving ? 'SYNCING...' : scriptSaved ? 'SYNCED' : `${totalWords} WORDS`}
-                                    </div>
-                                )}
-                                <button
-                                    onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                                    className={cn(
-                                        "w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm",
-                                        isEditing ? "bg-blue-600 text-white shadow-blue-500/20" : "bg-black/5 text-black/40 hover:text-black"
-                                    )}
-                                >
-                                    {isEditing ? <CheckCircle2 className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
-                                </button>
-                                <button
-                                    onClick={() => setShowDeleteConfirm(true)}
-                                    className="w-10 h-10 rounded-xl bg-red-50 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                                >
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Content Body */}
-                        <div className="flex-1 overflow-y-auto no-scrollbar">
-                            {activeTab === 'details' ? (
-                                <div className="p-8 space-y-10">
-                                    
-                                    {/* Progress Grid */}
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                        <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/5 space-y-1">
-                                            <p className="text-[9px] font-black text-black/20 uppercase tracking-widest">Status</p>
-                                            <select
-                                                value={editedData.status ?? item.status}
-                                                onChange={e => updateContent(item.id, { status: e.target.value as ContentStatus })}
-                                                className="w-full bg-transparent border-none p-0 text-[13px] font-black text-blue-600 focus:ring-0 uppercase cursor-pointer"
-                                            >
-                                                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/5 space-y-1">
-                                            <p className="text-[9px] font-black text-black/20 uppercase tracking-widest">Priority</p>
-                                            <select
-                                                value={editedData.priority ?? item.priority}
-                                                onChange={e => updateContent(item.id, { priority: e.target.value as PriorityLevel })}
-                                                className="w-full bg-transparent border-none p-0 text-[13px] font-black text-black focus:ring-0 uppercase cursor-pointer"
-                                            >
-                                                {(Object.keys(PRIORITY_CONFIG) as PriorityLevel[]).map(p => <option key={p} value={p}>{p}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/5 space-y-1">
-                                            <p className="text-[9px] font-black text-black/20 uppercase tracking-widest">Deadline</p>
-                                            <div className="relative h-5">
-                                                <input
-                                                    type="date"
-                                                    value={(editedData.deadline ?? item.deadline ?? '').split('T')[0]}
-                                                    onChange={e => updateContent(item.id, { deadline: e.target.value || null })}
-                                                    className="absolute inset-0 w-full opacity-0 cursor-pointer z-10"
-                                                />
-                                                <p className="text-[13px] font-black text-black">
-                                                    {(editedData.deadline ?? item.deadline) ? new Date((editedData.deadline ?? item.deadline!) + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Set Date'}
-                                                </p>
+                                        <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/90 via-black/40 to-transparent rounded-b-[24px]">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{editedData.category ?? item.category ?? 'Content'}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        {(editedData.platforms ?? item.platforms ?? []).map((p: Platform) => (
+                                                            <PlatformIcon key={p} platform={p} className="w-3.5 h-3.5 text-white/80" />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={handleRegenerateCover}
+                                                    disabled={isGeneratingContent}
+                                                    className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/40 transition-colors"
+                                                >
+                                                    {isGeneratingContent ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 fill-white" />}
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/5 space-y-1">
-                                            <p className="text-[9px] font-black text-black/20 uppercase tracking-widest">Impact</p>
-                                            <div className="flex items-center gap-1.5">
-                                                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                                                <span className="text-[14px] font-black text-black">{item.impact_score}/10</span>
+                                        {isGeneratingContent && (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm gap-2 rounded-[24px]">
+                                                <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Generating...</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Quick Stats Overlay */}
+                                    <div className="p-6 bg-black/[0.02] rounded-3xl border border-black/5 space-y-6">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[9px] font-black text-black/20 uppercase">Tactical Progress</span>
+                                                <span className="text-[16px] font-black text-black">
+                                                    {contentMilestones.filter(m => m.status === 'completed').length}/{contentMilestones.length}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[9px] font-black text-black/20 uppercase">Deployment</span>
+                                                <span className={cn(
+                                                    "text-[14px] font-black uppercase tracking-tight",
+                                                    item.status === 'published' ? "text-emerald-500" : "text-blue-600"
+                                                )}>{item.status}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Milestones / Production Steps */}
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="text-[11px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
-                                                <Layout className="w-4 h-4 text-blue-500" />
-                                                Production Pipeline
-                                            </h3>
+                                    <div className="space-y-3">
+                                        {!isEditing && (
                                             <button
                                                 onClick={() => {
-                                                    addMilestone({
-                                                        title: 'New Production Step',
-                                                        status: 'pending',
-                                                        content_id: item.id,
-                                                        project_id: item.project_id || undefined
-                                                    } as any)
+                                                    setEditedData(item)
+                                                    setIsEditing(true)
                                                 }}
-                                                className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1"
+                                                className="w-full flex items-center justify-center gap-2 py-3 bg-black/[0.03] hover:bg-black/[0.06] rounded-2xl text-[11px] font-black uppercase tracking-widest text-black/40"
                                             >
-                                                <Plus className="w-4 h-4" /> Add Step
+                                                <Pencil className="w-3.5 h-3.5" />
+                                                Edit Content
                                             </button>
-                                        </div>
+                                        )}
 
-                                        <Reorder.Group
-                                            axis="y"
-                                            values={contentMilestones}
-                                            onReorder={(newOrder) => {
-                                                // Logically reorder if weight implementation exists, 
-                                                // for now we just show them.
-                                            }}
-                                            className="space-y-2"
+                                        <button
+                                            onClick={() => setShowDeleteConfirm(true)}
+                                            className="w-full py-3 text-red-400 hover:text-red-500 text-[11px] font-black uppercase tracking-widest transition-colors"
                                         >
-                                            {contentMilestones.map(m => (
-                                                <MilestoneRow 
-                                                    key={m.id} 
-                                                    milestone={m} 
-                                                    updateMilestone={updateMilestone}
-                                                    deleteMilestone={deleteMilestone}
-                                                />
-                                            ))}
-                                            {contentMilestones.length === 0 && (
-                                                <div className="py-12 border-2 border-dashed border-black/5 rounded-3xl flex flex-col items-center justify-center gap-2">
-                                                    <p className="text-[12px] font-bold text-black/20 uppercase">No production steps defined</p>
-                                                </div>
-                                            )}
-                                        </Reorder.Group>
+                                            Archive Content
+                                        </button>
                                     </div>
+                                    
+                                    <button onClick={onClose} className="w-full py-3 text-black/20 hover:text-black/40 text-[11px] font-black uppercase tracking-widest transition-colors">
+                                        Close Portal
+                                    </button>
+                                </div>
 
-                                    {/* Meta Section */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-black/5">
-                                        {/* Linked Tasks */}
-                                        <div className="space-y-4">
-                                            <h3 className="text-[11px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
-                                                <Clock className="w-4 h-4" />
-                                                Operations Sync
-                                            </h3>
-                                            <div className="space-y-2">
-                                                {linkedTasks.map(task => (
-                                                    <div key={task.id} className="flex items-center gap-3 p-3 bg-black/[0.02] rounded-2xl border border-black/5">
-                                                        <div className={cn("w-4 h-4 rounded border-2 shrink-0", task.is_completed ? "bg-emerald-500 border-emerald-500 text-white" : "border-black/20")}>
-                                                            {task.is_completed && <CheckCircle2 className="w-3 h-3" />}
-                                                        </div>
-                                                        <span className={cn("text-[13px] font-bold flex-1 truncate", task.is_completed && "text-black/30 line-through")}>{task.title}</span>
-                                                        {task.due_date && <span className="text-[10px] font-black text-black/30 uppercase">{new Date(task.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
-                                                    </div>
-                                                ))}
-                                                {linkedTasks.length === 0 && <p className="text-[11px] text-black/20 italic">No linked tasks in operations</p>}
-                                            </div>
-                                        </div>
-
-                                        {/* External Links */}
-                                        <div className="space-y-4">
-                                            <h3 className="text-[11px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
-                                                <LinkIcon className="w-4 h-4" />
-                                                Assets & Links
-                                            </h3>
-                                            <div className="space-y-3">
-                                                <div className="relative group/link">
-                                                    <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                                {/* Right Column: Content & Controls */}
+                                <div className="md:col-span-2 space-y-12">
+                                    {isEditing ? (
+                                        <div className="space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                                            {/* Core Identity Setup */}
+                                            <div className="space-y-6">
+                                                <div className="space-y-3">
+                                                    <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Content Designation</label>
                                                     <input
-                                                        placeholder="Add project URL..."
-                                                        value={editedData.url ?? item.url ?? ''}
-                                                        onChange={e => setEditedData(prev => ({ ...prev, url: e.target.value }))}
-                                                        onBlur={handleSave}
-                                                        className="w-full pl-11 pr-12 py-3 bg-black/[0.02] border border-black/5 rounded-2xl text-[13px] font-bold focus:bg-white focus:border-blue-100 transition-all outline-none"
+                                                        autoFocus
+                                                        value={editedData.title || ''}
+                                                        onChange={e => setEditedData(prev => ({ ...prev, title: e.target.value }))}
+                                                        placeholder="e.g. Masterclass on Schrödinger"
+                                                        className="w-full text-[24px] md:text-[32px] font-bold tracking-tight placeholder:text-black/10 border-none p-0 focus:ring-0 outline-none bg-transparent text-black"
+                                                        required
                                                     />
-                                                    {(editedData.url ?? item.url) && (
-                                                        <a href={editedData.url ?? item.url ?? ''} target="_blank" className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-black/5 flex items-center justify-center hover:bg-black hover:text-white transition-all">
-                                                            <ExternalLink className="w-4 h-4" />
-                                                        </a>
-                                                    )}
+                                                </div>
+
+                                                <div className="space-y-2 pt-2 border-t border-black/5">
+                                                    <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Secondary Designation (Category)</label>
+                                                    <input
+                                                        value={editedData.category || ''}
+                                                        onChange={e => setEditedData(prev => ({ ...prev, category: e.target.value as ContentCategory }))}
+                                                        placeholder="e.g. Education, Vlog, Thoughts..."
+                                                        className="w-full text-lg font-bold text-black placeholder:text-black/10 border-none p-0 focus:ring-0 outline-none bg-transparent"
+                                                    />
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="p-8 space-y-8">
-                                    <div className="space-y-4">
-                                        <h3 className="text-[11px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
-                                            <FileText className="w-4 h-4 text-purple-500" />
-                                            Content Architecture
-                                        </h3>
-                                        <div className="space-y-3">
-                                            {SCRIPT_SECTIONS.map(s => (
-                                                <ScriptSection 
-                                                    key={s.id} 
-                                                    section={s} 
-                                                    value={scriptSections[s.id as keyof ScriptSections]}
-                                                    onChange={v => {
-                                                        const newSections = { ...scriptSections, [s.id]: v }
-                                                        setScriptSections(newSections)
-                                                        triggerAutosave(newSections, brainstorm)
-                                                    }}
+
+                                            {/* Status selection */}
+                                            <div className="space-y-3 pt-4 border-t border-black/5">
+                                                <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Production Phase</label>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                                    {STATUSES.map(s => {
+                                                        const active = (editedData.status || item.status) === s
+                                                        return (
+                                                            <button
+                                                                key={s}
+                                                                type="button"
+                                                                onClick={() => setEditedData(prev => ({ ...prev, status: s }))}
+                                                                className={cn(
+                                                                    "py-2 rounded-xl border transition-all text-[10px] font-black uppercase tracking-tight",
+                                                                    active ? "bg-black text-white border-black" : "bg-white border-black/5 text-black/20 hover:border-black/20"
+                                                                )}
+                                                            >
+                                                                {s}
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-black/5">
+                                                {/* Priority Setup */}
+                                                <div className="space-y-2">
+                                                    <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Priority Logic</label>
+                                                    <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-xl border border-black/5">
+                                                        {(['super', 'high', 'mid', 'low'] as const).map(p => {
+                                                            const currentPriority = editedData.priority || item.priority
+                                                            const isActive = currentPriority === p
+                                                            return (
+                                                                <button
+                                                                    key={p}
+                                                                    type="button"
+                                                                    onClick={() => setEditedData(prev => ({ ...prev, priority: p }))}
+                                                                    className={cn(
+                                                                        "flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all border",
+                                                                        isActive
+                                                                            ? PRIORITY_CONFIG[p].color
+                                                                            : "bg-transparent text-black/30 border-transparent hover:text-black/5 pointer-events-auto"
+                                                                    )}
+                                                                >
+                                                                    {p}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Platforms Selection */}
+                                                <div className="space-y-2">
+                                                    <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Distribution Targets</label>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {PLATFORMS.map(p => {
+                                                            const active = (editedData.platforms ?? item.platforms ?? []).includes(p)
+                                                            return (
+                                                                <button
+                                                                    key={p}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const current = editedData.platforms ?? item.platforms ?? []
+                                                                        const next = current.includes(p) ? current.filter(x => x !== p) : [...current, p]
+                                                                        setEditedData(prev => ({ ...prev, platforms: next }))
+                                                                    }}
+                                                                    className={cn(
+                                                                        "w-9 h-9 rounded-xl flex items-center justify-center transition-all",
+                                                                        active ? "bg-black text-white shadow-lg scale-110" : "bg-black/[0.03] text-black/20 hover:bg-black/[0.06]"
+                                                                    )}
+                                                                >
+                                                                    <PlatformIcon platform={p} className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Timeline Setup */}
+                                            <div className="space-y-3 pt-4 border-t border-black/5">
+                                                <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Final Deployment Deadline</label>
+                                                <input
+                                                    type="date"
+                                                    value={(editedData.deadline || item.deadline || '').split('T')[0]}
+                                                    onChange={e => setEditedData(prev => ({ ...prev, deadline: e.target.value }))}
+                                                    className="w-full bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 text-[12px] font-bold outline-none focus:bg-white transition-all text-black"
                                                 />
-                                            ))}
+                                            </div>
+
+                                            {/* Impact Control */}
+                                            <div className="p-6 bg-black/[0.03] border border-black/5 rounded-[24px] space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <Zap className="w-3.5 h-3.5 text-black/40" />
+                                                        <label className="text-[9px] font-black text-black/30 uppercase tracking-widest">Impact Score</label>
+                                                    </div>
+                                                    <span className="text-[14px] font-black text-black">{editedData.impact_score || item.impact_score || 5}/10</span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="1"
+                                                    max="10"
+                                                    value={editedData.impact_score || item.impact_score || 5}
+                                                    onChange={e => setEditedData(prev => ({ ...prev, impact_score: parseInt(e.target.value) }))}
+                                                    className="w-full h-1 bg-black/10 rounded-full appearance-none cursor-pointer accent-black"
+                                                />
+                                            </div>
+
+                                            <div className="flex items-center gap-3 pt-4">
+                                                <button
+                                                    onClick={handleSave}
+                                                    className="flex-1 py-4 bg-black text-white rounded-2xl text-[12px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/20"
+                                                >
+                                                    Save
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsEditing(false)}
+                                                    className="px-6 py-4 bg-black/[0.03] text-black/40 rounded-2xl text-[12px] font-black uppercase tracking-widest hover:bg-black/[0.06] transition-all"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <div className="space-y-12">
+                                            {/* View Mode Header */}
+                                            <div className="space-y-6">
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center gap-3 mb-1">
+                                                        <div className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest", PRIORITY_CONFIG[item.priority || 'low'].color)}>
+                                                            {item.priority || 'Priority Unset'}
+                                                        </div>
+                                                        {item.deadline && (
+                                                            <div className="flex items-center gap-1.5 text-[9px] font-black text-black/40 uppercase tracking-widest">
+                                                                <Clock className="w-3 h-3" />
+                                                                {new Date(item.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <h1 className="text-[32px] md:text-[42px] font-black tracking-tight text-black leading-none">{item.title}</h1>
+                                                    {item.category && <p className="text-[14px] md:text-[16px] font-medium text-black/40 uppercase tracking-[0.2em]">{item.category}</p>}
+                                                </div>
 
-                                    <div className="space-y-4 pt-6 border-t border-black/5">
-                                        <h3 className="text-[11px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
-                                            <Lightbulb className="w-4 h-4 text-amber-500" />
-                                            Brainstorming & Raw Notes
-                                        </h3>
-                                        <textarea
-                                            value={brainstorm}
-                                            onChange={e => {
-                                                setBrainstorm(e.target.value)
-                                                triggerAutosave(scriptSections, e.target.value)
-                                            }}
-                                            placeholder="Dump thoughts, research, links, and loose ideas here..."
-                                            className="w-full min-h-[200px] p-6 bg-black/[0.02] border border-black/5 rounded-[32px] text-[15px] font-medium text-black/70 leading-relaxed focus:outline-none focus:bg-white focus:border-blue-100 transition-all resize-none"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                                                {/* Tab Selection */}
+                                                <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-2xl w-fit">
+                                                    {(['details', 'script'] as const).map(tab => (
+                                                        <button
+                                                            key={tab}
+                                                            onClick={() => setActiveTab(tab)}
+                                                            className={cn(
+                                                                "px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                                                activeTab === tab ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/60"
+                                                            )}
+                                                        >
+                                                            {tab === 'details' ? 'Strategic Layer' : 'Creative Layer'}
+                                                        </button>
+                                                    ))}
+                                                </div>
 
-                        {/* Archive Footer (Mobile Safe) */}
-                        {!item.is_archived && (
-                            <div className="px-8 py-6 bg-black/[0.01] border-t border-black/5 flex items-center justify-between shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <Shield className="w-4 h-4 text-blue-600" />
-                                    <span className="text-[11px] font-black uppercase tracking-widest text-black/30">Stable Release Layer</span>
+                                                {activeTab === 'details' ? (
+                                                    <div className="space-y-12 animate-in fade-in duration-500">
+                                                        {/* Brainstorm / Description Section */}
+                                                        <div className="p-8 bg-black/[0.01] border border-black/[0.03] rounded-[32px] space-y-4">
+                                                            <div className="flex items-center gap-2 text-black/20 mb-2">
+                                                                <AlignLeft className="w-4 h-4" />
+                                                                <span className="text-[10px] font-black uppercase tracking-widest">Content Brief & Notes</span>
+                                                            </div>
+                                                            <p className="text-[15px] font-medium text-black/70 leading-relaxed whitespace-pre-wrap">
+                                                                {item.notes || 'No brainstorming notes yet. Switch to Edit Content to add vision.'}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Milestones / Production Steps */}
+                                                        <div className="space-y-6">
+                                                            <div className="flex items-center justify-between">
+                                                                <h3 className="text-[12px] font-black uppercase tracking-widest text-black/30">Production Pipeline</h3>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        addMilestone({
+                                                                            title: 'New Production Step',
+                                                                            status: 'pending',
+                                                                            content_id: item.id,
+                                                                            project_id: item.project_id || undefined
+                                                                        } as any)
+                                                                    }}
+                                                                    className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1"
+                                                                >
+                                                                    <Plus className="w-4 h-4" /> Add Step
+                                                                </button>
+                                                            </div>
+
+                                                            <Reorder.Group
+                                                                axis="y"
+                                                                values={contentMilestones}
+                                                                onReorder={() => {}}
+                                                                className="space-y-3"
+                                                            >
+                                                                {contentMilestones.map(m => (
+                                                                    <MilestoneRow 
+                                                                        key={m.id} 
+                                                                        milestone={m} 
+                                                                        updateMilestone={updateMilestone}
+                                                                        deleteMilestone={deleteMilestone}
+                                                                    />
+                                                                ))}
+                                                            </Reorder.Group>
+                                                        </div>
+
+                                                        {/* Meta Grid */}
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-black/5">
+                                                            <div className="space-y-4">
+                                                                <div className="flex items-center gap-2 text-black/30">
+                                                                    <Target className="w-4 h-4" />
+                                                                    <span className="text-[11px] font-black uppercase tracking-tight">Impact Profile</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 px-4 py-3 bg-black/[0.02] rounded-2xl border border-black/5">
+                                                                    <Zap className="w-4 h-4 text-orange-500 fill-orange-500" />
+                                                                    <span className="text-[14px] font-black text-black">Impact Score: {item.impact_score || 5}/10</span>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div className="space-y-4">
+                                                                <div className="flex items-center gap-2 text-black/30">
+                                                                    <LinkIcon className="w-4 h-4" />
+                                                                    <span className="text-[11px] font-black uppercase tracking-tight">Network Asset</span>
+                                                                </div>
+                                                                {item.url ? (
+                                                                    <a href={item.url} target="_blank" className="flex items-center justify-between px-4 py-3 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all">
+                                                                        <span className="text-[13px] font-bold truncate max-w-[150px]">{item.url}</span>
+                                                                        <ExternalLink className="w-4 h-4" />
+                                                                    </a>
+                                                                ) : (
+                                                                    <div className="px-4 py-3 bg-black/[0.02] rounded-2xl border border-black/5 text-black/20 text-[13px] italic">No active link</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                                                        <div className="flex items-center justify-between mb-4">
+                                                            <div className={cn("text-[10px] font-black px-4 py-2 rounded-xl border", scriptSaving ? "bg-blue-50 text-blue-600 border-blue-100" : scriptSaved ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-black/5 text-black/30 border-transparent")}>
+                                                                {scriptSaving ? 'SYNCING...' : scriptSaved ? 'SYNCED' : `${totalWords} WORDS · ${readTime(totalWords)}`}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="space-y-4">
+                                                            {SCRIPT_SECTIONS.map(s => (
+                                                                <ScriptSection 
+                                                                    key={s.id} 
+                                                                    section={s} 
+                                                                    value={scriptSections[s.id as keyof ScriptSections]}
+                                                                    onChange={v => {
+                                                                        const newSections = { ...scriptSections, [s.id]: v }
+                                                                        setScriptSections(newSections)
+                                                                        triggerAutosave(newSections, brainstorm)
+                                                                    }}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <button
-                                    onClick={() => updateContent(item.id, { is_archived: true })}
-                                    className="px-6 py-2 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-black/10 flex items-center gap-2"
-                                >
-                                    <Archive className="w-3.5 h-3.5" />
-                                    Archive Item
-                                </button>
                             </div>
-                        )}
+                        </div>
                     </motion.div>
-                </div>
+                </>
             )}
         </AnimatePresence>
 
@@ -603,7 +706,7 @@ function MilestoneRow({ milestone: m, updateMilestone, deleteMilestone }: {
                             onClick={() => updateMilestone(m.id, { priority: lvl })}
                             className={cn(
                                 "w-2.5 h-2.5 rounded-full border transition-all",
-                                m.priority === lvl ? PRIORITY_CONFIG[lvl].bg : "bg-black/5 hover:bg-black/10"
+                                m.priority === lvl ? PRIORITY_CONFIG[lvl].color : "bg-black/5 hover:bg-black/10"
                             )}
                         />
                     ))}

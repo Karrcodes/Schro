@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
         - NO explanation, NO quotes, NO extra text.
         - Prioritize broad, searchable terms like "technology", "nature", "success", "creativity".`
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
         const result = await model.generateContent(prompt)
         const rawResponse = result.response.text().trim().toLowerCase()
 

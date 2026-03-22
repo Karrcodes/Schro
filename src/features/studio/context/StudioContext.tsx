@@ -230,7 +230,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             const newId = projectData.id;
             setGeneratingProjectIds(prev => [...prev, newId]);
             
-            fetch(`/api/studio/cover?title=${encodeURIComponent(projectData.title)}&tagline=${encodeURIComponent(projectData.tagline || '')}&type=project&id=${newId}`)
+            fetch(`/api/studio/cover?title=${encodeURIComponent(projectData.title)}&tagline=${encodeURIComponent(projectData.tagline || '')}&type=project&id=${newId}&json=true`)
                 .finally(() => {
                     fetchData().finally(() => {
                         setGeneratingProjectIds(prev => prev.filter(id => id !== newId));
@@ -294,7 +294,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         const isContentUpdate = updates.title !== undefined || updates.type !== undefined || updates.tagline !== undefined;
         if (!updated.cover_url && isContentUpdate) {
             setGeneratingProjectIds(prev => [...prev, id]);
-            fetch(`/api/studio/cover?title=${encodeURIComponent(updated.title)}&tagline=${encodeURIComponent(updated.tagline || '')}&type=project&id=${id}`)
+            fetch(`/api/studio/cover?title=${encodeURIComponent(updated.title)}&tagline=${encodeURIComponent(updated.tagline || '')}&type=project&id=${id}&json=true`)
                 .finally(() => {
                     fetchData().finally(() => {
                         setGeneratingProjectIds(prev => prev.filter(gid => gid !== id));
@@ -458,7 +458,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             const newId = inserted.id;
             setGeneratingContentIds(prev => [...prev, newId]);
             
-            fetch(`/api/studio/cover?title=${encodeURIComponent(inserted.title)}&tagline=${encodeURIComponent(inserted.category || 'Content')}&type=content&id=${newId}`)
+            fetch(`/api/studio/cover?title=${encodeURIComponent(inserted.title)}&tagline=${encodeURIComponent(inserted.category || 'Content')}&type=content&id=${newId}&json=true`)
                 .finally(() => {
                     fetchData().finally(() => {
                         setGeneratingContentIds(prev => prev.filter(id => id !== newId));
@@ -496,7 +496,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         const isContentUpdate = updates.title !== undefined || updates.category !== undefined;
         if (!updated.cover_url && isContentUpdate) {
             setGeneratingContentIds(prev => [...prev, id]);
-            fetch(`/api/studio/cover?title=${encodeURIComponent(updated.title)}&tagline=${encodeURIComponent(updated.category || 'Content')}&type=content&id=${id}`)
+            fetch(`/api/studio/cover?title=${encodeURIComponent(updated.title)}&tagline=${encodeURIComponent(updated.category || 'Content')}&type=content&id=${id}&json=true`)
                 .finally(() => {
                     fetchData().finally(() => {
                         setGeneratingContentIds(prev => prev.filter(gid => gid !== id));
@@ -623,7 +623,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         try {
             const project = projects.find(p => p.id === projectId)
             if (project) {
-                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=project&id=${project.id}&w=1200&h=630&t=${Date.now()}`)
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=project&id=${project.id}&w=1200&h=630&t=${Date.now()}&json=true`)
                 if (res.ok) {
                     const { data } = await supabase.from('studio_projects').select('*').eq('id', projectId).single()
                     if (data) {
@@ -641,7 +641,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         try {
             const item = content.find(c => c.id === contentId)
             if (item) {
-                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${item.id}&w=1200&h=630&t=${Date.now()}`)
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${item.id}&w=1200&h=630&t=${Date.now()}&json=true`)
                 if (res.ok) {
                     const { data } = await supabase.from('studio_content').select('*').eq('id', contentId).single()
                     if (data) {

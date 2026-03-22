@@ -351,7 +351,7 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                 style={{ touchAction: 'none' }}
             >
                 <img
-                    src={item.cover_url || `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || 'Content')}&type=${encodeURIComponent(item.type || '')}&id=${item.id}&w=1200&h=630`}
+                    src={item.cover_url || `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || 'Content')}&type=content&id=${item.id}&w=1200&h=630`}
                     alt=""
                     onLoad={() => setImageLoading(false)}
                     className={cn(

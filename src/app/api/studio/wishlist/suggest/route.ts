@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
         const prompt = `You are a shopping assistant for Schrö.
 Item Concept: "${title}".
 Suggest 3 to 5 realistic specific products that match this concept.
