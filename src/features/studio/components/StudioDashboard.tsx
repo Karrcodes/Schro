@@ -537,7 +537,6 @@ export default function StudioDashboard() {
                     z-index: 10;
                 }
             `}</style>
-                <KarrFooter />
             </div>
         </div>
     )

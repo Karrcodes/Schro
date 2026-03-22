@@ -17,16 +17,14 @@ interface GoalDetailSheetProps {
     onToggleMilestone: (milestoneId: string, completed: boolean) => void
     onUpdateMilestone: (milestoneId: string, updates: Partial<Milestone>) => void
     onDeleteGoal: (id: string) => void
-    onConvertToWishlist: (id: string) => void
     onEdit: (goal: Goal) => void
 }
 
-export default function GoalDetailSheet({ goal, isOpen, onClose, onToggleMilestone, onUpdateMilestone, onDeleteGoal, onConvertToWishlist, onEdit }: GoalDetailSheetProps) {
+export default function GoalDetailSheet({ goal, isOpen, onClose, onToggleMilestone, onUpdateMilestone, onDeleteGoal, onEdit }: GoalDetailSheetProps) {
     const { regenerateGoalCover, generatingGoalIds } = useGoals()
     const { goals: financeGoals } = useFinanceGoals()
     const { pots } = usePots()
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-    const [showConvertConfirm, setShowConvertConfirm] = useState(false)
 
     if (!goal) return null
 
@@ -169,14 +167,6 @@ export default function GoalDetailSheet({ goal, isOpen, onClose, onToggleMilesto
                                             className="w-full flex items-center justify-center gap-2 py-3 bg-black/[0.04] hover:bg-black/[0.08] rounded-xl transition-colors text-[12px] font-bold uppercase tracking-widest text-black mb-1"
                                         >
                                             Refine Goal
-                                        </button>
-
-                                        <button
-                                            onClick={() => setShowConvertConfirm(true)}
-                                            className="w-full flex items-center justify-center gap-2 py-3 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors text-[12px] font-bold uppercase tracking-widest text-amber-600 mb-1"
-                                        >
-                                            <AlertTriangle className="w-4 h-4" />
-                                            Downgrade to Wishlist
                                         </button>
 
                                         <button
@@ -342,19 +332,6 @@ export default function GoalDetailSheet({ goal, isOpen, onClose, onToggleMilesto
                     </motion.div>
                 </>
             )}
-
-            <ConfirmationModal
-                isOpen={showConvertConfirm}
-                onClose={() => setShowConvertConfirm(false)}
-                onConfirm={async () => {
-                    onConvertToWishlist(goal.id)
-                    onClose()
-                }}
-                title="Convert to Wishlist?"
-                message={`Are you sure you want to convert "${goal.title}" to a wishlist item? This will remove all associated milestones and milestones data, as wishlist items focus purely on the target desire.`}
-                confirmText="Convert"
-                type="warning"
-            />
 
             <ConfirmationModal
                 isOpen={showDeleteConfirm}

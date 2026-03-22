@@ -168,7 +168,6 @@ export default function GoalsDashboard() {
                     onToggleMilestone={toggleMilestone}
                     onUpdateMilestone={updateMilestone}
                     onDeleteGoal={deleteGoal}
-                    onConvertToWishlist={convertGoalToWishlist}
                     onEdit={handleEditGoal}
                 />
             )}
