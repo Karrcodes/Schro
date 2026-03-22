@@ -74,6 +74,8 @@ export interface StudioContent {
     notes?: string;
     script?: string;
     cover_url?: string;
+    read_time?: number;
+    word_count?: number;
     is_archived?: boolean;
     scenes?: ContentScene[];
     created_at: string;

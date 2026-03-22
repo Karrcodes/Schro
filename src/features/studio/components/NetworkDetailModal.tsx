@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { X, Users, Globe, MapPin, Activity, Calendar, Link as LinkIcon, MessageCircle, Hash, Edit3, Save, Trash2, ExternalLink } from 'lucide-react'
+import DatePickerInput from '@/components/DatePickerInput'
 import { useStudio } from '../hooks/useStudio'
 import type { NetworkType, NetworkStatus, StudioNetwork } from '../types/studio.types'
 import { cn } from '@/lib/utils'
@@ -204,30 +205,20 @@ export default function NetworkDetailModal({ isOpen, onClose, item }: NetworkDet
                         {currentTypeVal === 'event' ? (
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Event Date</label>
-                                <div className="flex items-center gap-3 w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl h-[46px] focus-within:border-purple-200 transition-colors">
-                                    <Calendar className="w-4 h-4 text-black/20 shrink-0" />
-                                    <input
-                                        readOnly={!isEditing}
-                                        type="date"
-                                        value={editedData.event_date ?? item.event_date ?? ''}
-                                        onChange={e => setEditedData(prev => ({ ...prev, event_date: e.target.value }))}
-                                        className="flex-1 text-[13px] font-bold bg-transparent focus:outline-none cursor-pointer appearance-none min-w-0"
-                                    />
-                                </div>
+                                <DatePickerInput
+                                    readOnly={!isEditing}
+                                    value={editedData.event_date ?? item.event_date ?? ''}
+                                    onChange={val => setEditedData(prev => ({ ...prev, event_date: val }))}
+                                />
                             </div>
                         ) : (
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Last Contact Date</label>
-                                <div className="flex items-center gap-3 w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl h-[46px] focus-within:border-purple-200 transition-colors">
-                                    <Calendar className="w-4 h-4 text-black/20 shrink-0" />
-                                    <input
-                                        readOnly={!isEditing}
-                                        type="date"
-                                        value={editedData.last_contact ?? item.last_contact ?? ''}
-                                        onChange={e => setEditedData(prev => ({ ...prev, last_contact: e.target.value }))}
-                                        className="flex-1 text-[13px] font-bold bg-transparent focus:outline-none cursor-pointer appearance-none min-w-0"
-                                    />
-                                </div>
+                                <DatePickerInput
+                                    readOnly={!isEditing}
+                                    value={editedData.last_contact ?? item.last_contact ?? ''}
+                                    onChange={val => setEditedData(prev => ({ ...prev, last_contact: val }))}
+                                />
                             </div>
                         )}
 

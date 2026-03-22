@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Plus, X, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Loader2 } from 'lucide-react'
+import DatePickerInput from '@/components/DatePickerInput'
 import { supabase } from '@/lib/supabase'
 import type { Pot, Goal, RecurringObligation } from '../types/finance.types'
 import { FINANCE_CATEGORIES, getCategoryById } from '../constants/categories'
@@ -675,8 +676,7 @@ export function QuickActionFAB({ pots = [], goals = [], onSuccess }: QuickAction
                                             </div>
                                             <div className="flex-[1.5] min-w-0">
                                                 <label className="text-[11px] uppercase tracking-wider text-black/40 font-semibold mb-1.5 block">Next Payment</label>
-                                                <input type="date" value={libDate} onChange={(e) => setLibDate(e.target.value)}
-                                                    className="w-full min-w-0 appearance-none flex flex-row items-center bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 h-[46px] text-[12px] sm:text-[14px] text-black outline-none focus:border-black/40 transition-colors box-border" />
+                                                <DatePickerInput value={libDate ?? ''} onChange={val => setLibDate(val)} />
                                             </div>
                                         </div>
 
@@ -696,8 +696,7 @@ export function QuickActionFAB({ pots = [], goals = [], onSuccess }: QuickAction
                                             ) : (
                                                 <div className={`min-w-0 ${selectedLenderId === 'currys' ? '' : 'opacity-50 grayscale hover:opacity-100 hover:grayscale-0 focus-within:opacity-100 focus-within:grayscale-0 transition-all'}`}>
                                                     <label className="text-[11px] uppercase tracking-wider text-black/40 font-bold mb-1.5 block">End Date (Optional)</label>
-                                                    <input type="date" value={libEndDate} onChange={(e) => setLibEndDate(e.target.value)}
-                                                        className="w-full min-w-0 appearance-none flex flex-row items-center bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 h-[46px] text-[12px] sm:text-[14px] text-black outline-none focus:border-black/40 transition-colors box-border" />
+                                                    <DatePickerInput value={libEndDate ?? ''} onChange={val => setLibEndDate(val)} />
                                                 </div>
                                             )}
                                         </div>
@@ -718,8 +717,7 @@ export function QuickActionFAB({ pots = [], goals = [], onSuccess }: QuickAction
                                         {activeTab === 'income' && (
                                             <div className="w-full md:w-[150px] shrink-0 min-w-0">
                                                 <label className="text-[11px] uppercase tracking-wider text-black/40 font-semibold mb-1.5 block">Date</label>
-                                                <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                                                    className="w-full min-w-0 appearance-none flex flex-row items-center bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 h-[46px] text-[12px] sm:text-[14px] font-medium text-black outline-none focus:border-black/40 transition-colors box-border" />
+                                                <DatePickerInput value={date ?? ''} onChange={val => setDate(val)} />
                                             </div>
                                         )}
                                     </div>

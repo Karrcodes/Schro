@@ -6,6 +6,7 @@ import { useSchedule, ScheduleItem } from '@/hooks/useSchedule'
 import { cn } from '@/lib/utils'
 import { useTasks } from '../hooks/useTasks'
 import { Plus, X as CloseIcon, Edit2, Trash2, CheckCircle2, AlertCircle, Zap, ExternalLink } from 'lucide-react'
+import DatePickerInput from '@/components/DatePickerInput'
 
 export function TasksCalendar() {
     const [calMonth, setCalMonth] = useState(() => {
@@ -301,11 +302,9 @@ export function TasksCalendar() {
                                     {selectedItem.originalTask?.category !== 'grocery' && selectedItem.originalTask?.category !== 'reminder' && (
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-black/30 uppercase tracking-widest pl-1">Due Date</label>
-                                            <input
-                                                type="date"
+                                            <DatePickerInput
                                                 value={editedDate}
-                                                onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedDate(e.target.value)}
-                                                className="block w-full min-w-full appearance-none bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 text-[14px] font-medium outline-none focus:border-black/20 focus:bg-white transition-all min-h-[46px]"
+                                                onChange={val => setEditedDate(val)}
                                             />
                                         </div>
                                     )}

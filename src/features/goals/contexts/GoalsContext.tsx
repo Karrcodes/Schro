@@ -20,7 +20,6 @@ interface GoalsContextType {
     createWishlistItem: (data: CreateWishlistItemData, imageFile?: File) => Promise<void>
     updateWishlistItem: (id: string, updates: Partial<WishlistItem>, imageFile?: File) => Promise<void>
     deleteWishlistItem: (id: string) => Promise<void>
-    convertWishlistToGoal: (id: string) => Promise<void>
     regenerateWishlistCover: (id: string) => Promise<void>
     regenerateGoalCover: (id: string) => Promise<void>
     suggestWishlistDetails: (title: string) => Promise<Array<{
@@ -34,6 +33,8 @@ interface GoalsContextType {
     }>>
     generatingWishlistIds: string[]
     generatingGoalIds: string[]
+    debugLogs: Array<{time: string, msg: string, type: 'info' | 'error' | 'success'}>
+    addDebugLog: (msg: string, type?: 'info' | 'error' | 'success') => void
 }
 
 const GoalsContext = createContext<GoalsContextType | undefined>(undefined)
@@ -58,6 +59,12 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
     const [error, setError] = useState<string | null>(null)
     const [generatingWishlistIds, setGeneratingWishlistIds] = useState<string[]>([])
     const [generatingGoalIds, setGeneratingGoalIds] = useState<string[]>([])
+    const [debugLogs, setDebugLogs] = useState<Array<{time: string, msg: string, type: 'info'|'error'|'success'}>>([])
+
+    const addDebugLog = (msg: string, type: 'info'|'error'|'success' = 'info') => {
+        const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' })
+        setDebugLogs(prev => [...prev, { time, msg, type }])
+    }
 
     const getSessionGoals = useCallback(() => {
         if (typeof window === 'undefined') return null
@@ -697,43 +704,38 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    const convertWishlistToGoal = async (id: string) => {
-        const item = wishlist.find(i => i.id === id)
-        if (!item) return
 
-        try {
-            await createGoal({
-                title: item.title,
-                description: item.description || `Converted from wishlist item: ${item.title}`,
-                category: item.category,
-                vision_image_url: item.image_url || undefined,
-            })
-            await deleteWishlistItem(id)
-        } catch (err: any) {
-            setError(err.message)
-            throw err
-        }
-    }
     const regenerateGoalCover = async (id: string) => {
         const goal = goals.find(g => g.id === id)
         if (!goal) return
 
         setGeneratingGoalIds(prev => [...prev, id])
+        addDebugLog(`🔮 Initiating Imagen 4.0 for Goal: ${goal.title}`, 'info')
 
         try {
             if (!settings.is_demo_mode) {
-                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(goal.title)}&tagline=${encodeURIComponent(goal.category || '')}&type=goal&id=${id}&t=${Date.now()}`)
-                if (res.ok) {
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(goal.title)}&tagline=${encodeURIComponent(goal.category || '')}&type=goal&id=${id}&json=true&t=${Date.now()}`)
+                const responseData = await res.json()
+                
+                if (responseData.debug && Array.isArray(responseData.debug)) {
+                    responseData.debug.forEach((msg: string) => addDebugLog(msg, msg.includes('❌') ? 'error' : msg.includes('✅') ? 'success' : 'info'))
+                }
+
+                if (res.ok && responseData.url) {
                     const { data } = await supabase.from('sys_goals').select('*').eq('id', id).single()
                     if (data) {
                         setGoals(prev => prev.map(g => g.id === id ? { ...data, milestones: g.milestones } : g))
                     }
+                } else {
+                    addDebugLog(`❌ API Rejected: ${res.statusText}`, 'error')
                 }
             } else {
                 await new Promise(r => setTimeout(r, 2000))
+                addDebugLog(`✅ Demo Mode: Cover updated virtually`, 'success')
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Goal cover regeneration failed:', err)
+            addDebugLog(`❌ Critical Fail: ${err.message}`, 'error')
         } finally {
             setGeneratingGoalIds(prev => prev.filter(gid => gid !== id))
         }
@@ -744,21 +746,32 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
         if (!item) return;
         
         setGeneratingWishlistIds(prev => [...prev, id]);
+        addDebugLog(`🔮 Initiating Imagen 4.0 for Wishlist: ${item.title}`, 'info')
         
         try {
             if (!settings.is_demo_mode) {
-                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=wishlist&productUrl=${encodeURIComponent(item.url || '')}&id=${id}&t=${Date.now()}`);
-                if (res.ok) {
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=wishlist&productUrl=${encodeURIComponent(item.url || '')}&id=${id}&json=true&t=${Date.now()}`);
+                const responseData = await res.json()
+                
+                if (responseData.debug && Array.isArray(responseData.debug)) {
+                    responseData.debug.forEach((msg: string) => addDebugLog(msg, msg.includes('❌') ? 'error' : msg.includes('✅') ? 'success' : 'info'))
+                }
+
+                if (res.ok && responseData.url) {
                     const { data } = await supabase.from('sys_wishlist').select('*').eq('id', id).single()
                     if (data) {
                         setWishlist(prev => prev.map(w => w.id === id ? data : w))
                     }
+                } else {
+                    addDebugLog(`❌ API Rejected: ${res.statusText}`, 'error')
                 }
             } else {
                 await new Promise(r => setTimeout(r, 2000));
+                addDebugLog(`✅ Demo Mode: Cover updated virtually`, 'success')
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Regeneration failed:', err);
+            addDebugLog(`❌ Critical Fail: ${err.message}`, 'error')
         } finally {
             setGeneratingWishlistIds(prev => prev.filter(gid => gid !== id));
         }
@@ -794,12 +807,13 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
             createWishlistItem,
             updateWishlistItem,
             deleteWishlistItem,
-            convertWishlistToGoal,
             regenerateWishlistCover,
             regenerateGoalCover,
             suggestWishlistDetails,
             generatingWishlistIds,
-            generatingGoalIds
+            generatingGoalIds,
+            debugLogs,
+            addDebugLog
         }}>
             {children}
         </GoalsContext.Provider>

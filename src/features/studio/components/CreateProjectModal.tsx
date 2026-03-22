@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import type { ProjectStatus, ProjectType, Platform } from '../types/studio.types'
 import { useStudio } from '../hooks/useStudio'
 import PlatformIcon from './PlatformIcon'
+import DatePickerInput from '@/components/DatePickerInput'
 
 interface CreateProjectModalProps {
     isOpen: boolean
@@ -312,20 +313,16 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="flex flex-col gap-1.5">
                                                     <span className="text-[9px] font-bold text-black/30 uppercase ml-1">Start</span>
-                                                    <input
-                                                        type="date"
+                                                    <DatePickerInput
                                                         value={startDate}
-                                                        onChange={e => setStartDate(e.target.value)}
-                                                        className="w-full py-2.5 px-3 rounded-xl border border-black/5 bg-black/[0.02] text-[11px] font-bold outline-none"
+                                                        onChange={val => setStartDate(val)}
                                                     />
                                                 </div>
                                                 <div className="flex flex-col gap-1.5">
                                                     <span className="text-[9px] font-bold text-black/30 uppercase ml-1">Target</span>
-                                                    <input
-                                                        type="date"
+                                                    <DatePickerInput
                                                         value={targetDate}
-                                                        onChange={e => setTargetDate(e.target.value)}
-                                                        className="w-full py-2.5 px-3 rounded-xl border border-black/5 bg-black/[0.02] text-[11px] font-bold outline-none"
+                                                        onChange={val => setTargetDate(val)}
                                                     />
                                                 </div>
                                             </div>
@@ -505,6 +502,13 @@ function MilestoneItem({ milestone, onUpdate, onRemove, index }: MilestoneItemPr
                             className="w-16 h-0.5 bg-black/5 rounded-full appearance-none accent-black/40"
                         />
                         <span className="text-[9px] font-black text-black/30 w-3">{milestone.impact_score}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0 max-w-[100px]">
+                        <DatePickerInput
+                            className="scale-75 origin-left"
+                            value={milestone.target_date || ''}
+                            onChange={val => onUpdate(milestone.id, { target_date: val || undefined })}
+                        />
                     </div>
                 </div>
             </div>

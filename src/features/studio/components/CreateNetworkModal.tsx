@@ -5,6 +5,7 @@ import { X, Users, Globe, MapPin, Activity, Calendar, Link as LinkIcon, MessageC
 import { useStudio } from '../hooks/useStudio'
 import type { NetworkType, NetworkStatus, StudioNetwork } from '../types/studio.types'
 import { cn } from '@/lib/utils'
+import DatePickerInput from '@/components/DatePickerInput'
 
 interface CreateNetworkModalProps {
     isOpen: boolean
@@ -196,28 +197,18 @@ export default function CreateNetworkModal({ isOpen, onClose }: CreateNetworkMod
                             {formData.type === 'event' ? (
                                 <div className="space-y-2">
                                     <label className="text-[11px] font-black uppercase tracking-widest text-black/30 ml-2">Event Date</label>
-                                    <div className="flex items-center gap-3 w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl h-[46px] focus-within:border-purple-200 transition-colors">
-                                        <Calendar className="w-4 h-4 text-black/20 shrink-0" />
-                                        <input
-                                            type="date"
-                                            value={formData.event_date}
-                                            onChange={e => setFormData(prev => ({ ...prev, event_date: e.target.value }))}
-                                            className="flex-1 text-[12px] font-bold bg-transparent focus:outline-none cursor-pointer appearance-none min-w-0"
-                                        />
-                                    </div>
+                                    <DatePickerInput
+                                        value={formData.event_date}
+                                        onChange={val => setFormData(prev => ({ ...prev, event_date: val }))}
+                                    />
                                 </div>
                             ) : (
                                 <div className="space-y-2">
                                     <label className="text-[11px] font-black uppercase tracking-widest text-black/30 ml-2">Last Contact Date</label>
-                                    <div className="flex items-center gap-3 w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl h-[46px] focus-within:border-purple-200 transition-colors">
-                                        <Calendar className="w-4 h-4 text-black/20 shrink-0" />
-                                        <input
-                                            type="date"
-                                            value={formData.last_contact}
-                                            onChange={e => setFormData(prev => ({ ...prev, last_contact: e.target.value }))}
-                                            className="flex-1 text-[12px] font-bold bg-transparent focus:outline-none cursor-pointer appearance-none min-w-0"
-                                        />
-                                    </div>
+                                    <DatePickerInput
+                                        value={formData.last_contact}
+                                        onChange={val => setFormData(prev => ({ ...prev, last_contact: val }))}
+                                    />
                                 </div>
                             )}
 

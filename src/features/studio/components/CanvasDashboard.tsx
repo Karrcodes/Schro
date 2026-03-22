@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw, Video, Rocket, ArrowUpRight, SlidersHorizontal, Zap, BookOpen, List, Shield } from 'lucide-react'
+import { PenLine, Search, Pin, Plus, X, LayoutGrid, Network, Trash2, Archive, RotateCcw, Video, Rocket, ArrowUpRight, SlidersHorizontal, Zap, BookOpen, List, Shield, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import CanvasCard from './CanvasCard'
 import CanvasEntryModal from './CanvasEntryModal'
@@ -14,6 +14,7 @@ import { useStudioContext } from '../context/StudioContext'
 import { useCanvas } from '../hooks/useCanvas'
 import { useDrafts } from '../hooks/useDrafts'
 import { supabase } from '@/lib/supabase'
+import { initiateTwitterAuth, handleTwitterCallback, postTweet } from '../services/twitter'
 import type { StudioCanvasEntry, CanvasColor, StudioProject, StudioContent, CanvasMap, CanvasMapNode, CanvasConnection, PolymorphicNode, ProjectType, StudioDraft } from '../types/studio.types'
 
 type ViewMode = 'board' | 'web'
@@ -50,18 +51,100 @@ export default function CanvasDashboard() {
     const [search, setSearch] = useState('')
     const [filterTag, setFilterTag] = useState<string | null>(null)
     const [pinnedFirst, setPinnedFirst] = useState(true)
+    const [pinnedOnly, setPinnedOnly] = useState(false)
     const [quickTitle, setQuickTitle] = useState('')
     const [confirmAction, setConfirmAction] = useState<{
         type: 'delete_note' | 'archive_note' | 'delete_map' | 'archive_map' | 'rename_map' | 'delete_draft' | 'archive_draft',
         id: string,
         title: string
     } | null>(null)
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+    const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+        setToast({ message, type })
+        setTimeout(() => setToast(null), 3000)
+    }
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [renameValue, setRenameValue] = useState('')
     const [synthesisModalNodes, setSynthesisModalNodes] = useState<PolymorphicNode[] | null>(null)
     const [synthesisTitle, setSynthesisTitle] = useState('')
-    const [isCreateMapModalOpen, setIsCreateMapModalOpen] = useState(false)
+    const [isTwitterConnected, setIsTwitterConnected] = useState(false)
+    const [isConnectingTwitter, setIsConnectingTwitter] = useState(false)
+    const [isAuthorizingTwitter, setIsAuthorizingTwitter] = useState(false)
+    const [tweetConfirmation, setTweetConfirmation] = useState<{ text: string; noteId?: string } | null>(null)
     const quickInputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search)
+        const code = urlParams.get('code')
+        const state = urlParams.get('state')
+
+        if (code && state) {
+            setIsAuthorizingTwitter(true)
+            handleTwitterCallback(code, state)
+                .then(() => {
+                    showToast('X Account Connected Successfully!')
+                    setIsTwitterConnected(true)
+                    setIsConnectingTwitter(false)
+                    window.history.replaceState({}, document.title, window.location.pathname)
+                })
+                .catch(err => {
+                    console.error('Twitter OAuth failed:', err)
+                    showToast('X Connection Failed: ' + err.message, 'error')
+                })
+                .finally(() => setIsAuthorizingTwitter(false))
+        } else {
+            const saved = localStorage.getItem('schro_twitter_connected')
+            if (saved === 'true') setIsTwitterConnected(true)
+        }
+    }, [])
+
+    const handleConfirmTweet = async () => {
+        if (!tweetConfirmation) return
+        
+        const { text, noteId } = tweetConfirmation
+        setTweetConfirmation(null)
+        
+        try {
+            if (noteId) {
+                // For existing notes, update tags
+                const entry = entries.find(e => e.id === noteId)
+                if (entry) {
+                    const currentTags = entry.tags || []
+                    if (!currentTags.includes('tweeted')) {
+                        await updateEntry(noteId, { tags: [...currentTags, 'tweeted'] })
+                    }
+                }
+                await postTweet(text)
+                showToast('Tweet Published Successfully!')
+            } else {
+                // For quick tweets, create a new note
+                const entry = await createEntry({
+                    title: text,
+                    tags: ['tweeted'],
+                    color: 'blue'
+                })
+                if (entry) {
+                    setSelectedEntry(entry)
+                    await postTweet(text)
+                    showToast('Tweet Published Successfully!')
+                }
+            }
+        } catch (err: any) {
+            console.error('Failed to post tweet:', err)
+            showToast('Failed to Tweet: ' + err.message, 'error')
+        }
+    }
+    const handleTwitterConnect = async () => {
+        try {
+            await initiateTwitterAuth()
+        } catch (err: any) {
+            console.error('Auth initiation failed:', err)
+            showToast('Failed to start X authorization', 'error')
+        }
+    }
+
+    const [isCreateMapModalOpen, setIsCreateMapModalOpen] = useState(false)
 
     const loading = studioLoading || canvasLoading
 
@@ -92,9 +175,10 @@ export default function CanvasDashboard() {
             list = list.filter(e => e.title.toLowerCase().includes(q) || e.body?.toLowerCase().includes(q))
         }
         if (filterTag) list = list.filter(e => e.tags?.includes(filterTag))
-        if (pinnedFirst && activeTab === 'active') list = [...list.filter(e => e.pinned), ...list.filter(e => !e.pinned)]
+        if (pinnedOnly) list = list.filter(e => e.pinned)
+        else if (pinnedFirst && activeTab === 'active') list = [...list.filter(e => e.pinned), ...list.filter(e => !e.pinned)]
         return list
-    }, [entries, search, filterTag, pinnedFirst, activeTab])
+    }, [entries, search, filterTag, pinnedFirst, pinnedOnly, activeTab])
 
     const filteredDrafts = useMemo(() => {
         let list = drafts.filter(d => d.is_archived === (activeTab === 'archived'))
@@ -102,35 +186,37 @@ export default function CanvasDashboard() {
             const q = search.toLowerCase()
             list = list.filter(d => d.title.toLowerCase().includes(q) || d.body?.toLowerCase().includes(q))
         }
-        if (pinnedFirst && activeTab === 'active') list = [...list.filter(d => d.pinned), ...list.filter(d => !d.pinned)]
+        if (pinnedOnly) list = list.filter(d => d.pinned)
+        else if (pinnedFirst && activeTab === 'active') list = [...list.filter(d => d.pinned), ...list.filter(d => !d.pinned)]
         return list
-    }, [drafts, search, pinnedFirst, activeTab])
+    }, [drafts, search, pinnedFirst, pinnedOnly, activeTab])
 
     const handleQuickCreate = async () => {
         if (!quickTitle.trim()) return
         if (boardTab === 'notes') {
-            await createEntry({ title: quickTitle.trim() })
+            const entry = await createEntry({ title: quickTitle.trim() })
+            if (entry) setSelectedEntry(entry)
         } else {
-            await createDraft({ title: quickTitle.trim() })
+            const draft = await createDraft({ title: quickTitle.trim() })
+            if (draft) setActiveDraft(draft)
         }
         setQuickTitle('')
     }
 
     const handleQuickTweet = async () => {
         if (!quickTitle.trim()) return
-        if (boardTab === 'notes') {
-            await createEntry({
-                title: quickTitle.trim(),
-                tags: ['to tweet'],
-                color: 'blue'
-            })
+        
+        if (!isTwitterConnected) {
+            setIsConnectingTwitter(true)
+            return
         }
-        setQuickTitle('')
+
+        if (boardTab === 'notes') {
+            setTweetConfirmation({ text: quickTitle.trim() })
+            setQuickTitle('')
+        }
     }
 
-    const handlePromoteToSpark = async (entry: StudioCanvasEntry) => {
-        window.open(`/create/sparks?from_canvas=${encodeURIComponent(entry.title)}`, '_self')
-    }
 
     const connectionDataMap = useMemo(() => {
         const map: Record<string, { notes: number; projects: { id: string; title: string }[]; content: { id: string; title: string }[] }> = {}
@@ -723,7 +809,10 @@ export default function CanvasDashboard() {
                                             onRemoveNode={deleteMapNode}
                                             onDropNode={addNodeToMap}
                                             onArchiveNode={(id) => setConfirmAction({ type: 'archive_note', id, title: 'Note' })}
-                                            onCreateNode={(data) => createEntry({ ...data })}
+                                            onCreateNode={async (data) => {
+                                                const entry = await createEntry({ ...data })
+                                                if (entry) setSelectedEntry(entry)
+                                            }}
                                             onCompose={handleCompose}
                                             selectedIds={selectedIds}
                                             onSelectionChange={setSelectedIds}
@@ -799,13 +888,16 @@ export default function CanvasDashboard() {
                                             onClick={handleQuickTweet}
                                             disabled={!quickTitle.trim()}
                                             className={cn(
-                                                "flex items-center gap-1 flex-shrink-0 px-3 py-1.5 text-[11px] font-black rounded-xl transition-all",
+                                                "flex items-center gap-1.5 flex-shrink-0 px-4 py-1.5 text-[11px] font-black rounded-xl transition-all border",
                                                 quickTitle.trim()
-                                                    ? "bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/20"
-                                                    : "bg-blue-50 text-blue-300 cursor-not-allowed"
+                                                    ? isTwitterConnected 
+                                                        ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20"
+                                                        : "bg-white text-blue-600 border-blue-200 hover:bg-blue-50"
+                                                    : "bg-black/[0.02] text-black/20 border-transparent cursor-not-allowed"
                                             )}
                                         >
-                                            Tweet
+                                            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                            {isTwitterConnected ? 'Tweet' : 'Connect X'}
                                         </button>
                                     )}
                                     {quickTitle && (
@@ -857,12 +949,24 @@ export default function CanvasDashboard() {
                                 className={cn(
                                     "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all",
                                     pinnedFirst
-                                        ? 'bg-black/[0.05] text-black/70 border-black/[0.08]'
+                                        ? 'bg-black/[0.1] text-black/70 border-black/10'
                                         : 'bg-white text-black/40 border-black/[0.06] hover:border-black/15'
                                 )}
                             >
                                 <Pin className="w-3 h-3" />
                                 Pinned first
+                            </button>
+                            <button
+                                onClick={() => setPinnedOnly(!pinnedOnly)}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all",
+                                    pinnedOnly
+                                        ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20'
+                                        : 'bg-white text-black/40 border-black/[0.06] hover:border-black/15'
+                                )}
+                            >
+                                <Pin className={cn("w-3 h-3", pinnedOnly && "fill-current")} />
+                                Pinned only
                             </button>
                         </div>
 
@@ -948,10 +1052,135 @@ export default function CanvasDashboard() {
                         )}
                     </main>
                 </div>
-            )
-            }
+            )}
 
             {/* Detail Modal */}
+            {/* X Connection Modal */}
+            {isConnectingTwitter && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[1000] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsConnectingTwitter(false)}>
+                    <div className="bg-white rounded-[40px] p-10 max-w-[420px] w-full shadow-2xl border border-black/5 animate-in zoom-in-95 duration-200 overflow-hidden relative" onClick={e => e.stopPropagation()}>
+                        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 via-blue-600 to-black" />
+                        <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl" />
+                        
+                        <div className="relative z-10 flex flex-col items-center text-center">
+                            <div className="w-20 h-20 bg-black text-white rounded-[24px] flex items-center justify-center mb-8 shadow-2xl shadow-blue-500/20 active:scale-95 transition-all">
+                                <svg viewBox="0 0 24 24" className="w-10 h-10 fill-current"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </div>
+
+                            <h3 className="text-[24px] font-black tracking-tighter text-black mb-3 italic">Connect your X Profile</h3>
+                            <p className="text-[14px] text-black/40 font-medium leading-relaxed mb-10">
+                                Link your account to push ideas directly from your Canvas to the world. Schro handles the formatting and social protocol.
+                            </p>
+
+                            <div className="w-full space-y-3">
+                                <button
+                                    onClick={handleTwitterConnect}
+                                    disabled={isAuthorizingTwitter}
+                                    className={cn(
+                                        "w-full py-4 bg-black text-white rounded-[22px] font-black text-[12px] uppercase tracking-[0.2em] shadow-xl hover:bg-neutral-800 hover:-translate-y-1 transition-all active:translate-y-0 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed",
+                                        isAuthorizingTwitter && "bg-neutral-800"
+                                    )}
+                                >
+                                    {isAuthorizingTwitter ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Authenticating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                            Authorize with X
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => setIsConnectingTwitter(false)}
+                                    className="w-full py-4 text-[11px] font-black uppercase tracking-widest text-black/30 hover:text-black/50 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+
+                            <div className="mt-8 pt-8 border-t border-black/[0.04] w-full">
+                                <p className="text-[10px] text-black/20 font-bold uppercase tracking-widest">Safe & Encryption Secure</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tweet Confirmation Modal */}
+            {tweetConfirmation && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setTweetConfirmation(null)}></div>
+                    <div className="relative w-full max-w-md bg-[#0A0A0B] border border-white/10 rounded-[30px] p-8 shadow-2xl overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-[80px] -mr-16 -mt-16 pointer-events-none" />
+                        
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-12 h-12 rounded-2xl bg-black border border-white/10 flex items-center justify-center">
+                                <Zap className="w-6 h-6 text-blue-400 fill-current" />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-[18px] uppercase tracking-[0.1em] text-white">Broadcast to X</h3>
+                                <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Review your transmission</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-black/40 border border-white/5 rounded-2xl p-6 mb-8 relative">
+                            <textarea
+                                value={tweetConfirmation.text}
+                                onChange={e => setTweetConfirmation({ ...tweetConfirmation, text: e.target.value })}
+                                className="w-full bg-transparent border-none outline-none text-[15px] leading-relaxed text-white font-medium italic resize-none min-h-[100px] placeholder:text-white/20"
+                                placeholder="Your broadcast..."
+                            />
+                            <div className="absolute bottom-2 right-4 flex items-center gap-1">
+                                <span className={cn(
+                                    "text-[9px] font-black tracking-widest uppercase",
+                                    tweetConfirmation.text.length > 280 ? "text-red-400" : "text-white/20"
+                                )}>
+                                    {tweetConfirmation.text.length}/280
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setTweetConfirmation(null)}
+                                className="flex-1 px-6 py-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-black text-[10px] uppercase tracking-widest text-white/60 hover:text-white"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleConfirmTweet}
+                                disabled={tweetConfirmation.text.length > 280}
+                                className="flex-[2] px-6 py-4 rounded-2xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_30px_-5px_rgba(59,130,246,0.5)] transition-all font-black text-[10px] uppercase tracking-[0.2em] text-white"
+                            >
+                                Launch Tweet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[2000] animate-in slide-in-from-bottom-5 duration-300">
+                    <div className={cn(
+                        "px-6 py-4 rounded-[20px] shadow-2xl flex items-center gap-3 border backdrop-blur-md",
+                        toast.type === 'success' 
+                            ? "bg-black text-white border-white/10" 
+                            : "bg-red-500 text-white border-red-400/20"
+                    )}>
+                        {toast.type === 'success' ? (
+                            <Zap className="w-5 h-5 text-blue-400 fill-current" />
+                        ) : (
+                            <X className="w-5 h-5" />
+                        )}
+                        <span className="font-black text-[12px] uppercase tracking-[0.1em]">{toast.message}</span>
+                    </div>
+                </div>
+            )}
+
             <CanvasEntryModal
                 entry={selectedEntry}
                 isOpen={!!selectedEntry}
@@ -959,7 +1188,6 @@ export default function CanvasDashboard() {
                 onUpdate={(id, upd) => { updateEntry(id, upd); setSelectedEntry(prev => prev ? { ...prev, ...upd } : prev) }}
                 onDelete={(id) => setConfirmAction({ type: 'delete_note', id, title: selectedEntry?.title || '' })}
                 onArchive={(id) => setConfirmAction({ type: 'archive_note', id, title: selectedEntry?.title || '' })}
-                onPromoteToSpark={handlePromoteToSpark}
                 connections={selectedEntry ? connectionDataMap[selectedEntry.id] : undefined}
                 onAddLink={createConnection}
                 onRemoveLink={(entryId, targetId) => {
@@ -967,6 +1195,13 @@ export default function CanvasDashboard() {
                     if (conn) deleteConnection(conn.id)
                 }}
                 allTags={allTags}
+                onTweet={(id: string, title: string) => {
+                    if (!isTwitterConnected) {
+                        setIsConnectingTwitter(true)
+                        return
+                    }
+                    setTweetConfirmation({ text: title, noteId: id })
+                }}
             />
 
             {/* Global Confirmation Modal */}

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Target, Wallet, Briefcase, Heart, User, ChevronRight, Clock, PiggyBank } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -98,6 +98,37 @@ function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: {
     pots: any[], 
     onClick: () => void 
 }) {
+    const isDragging = useRef(false)
+    const startPos = useRef({ x: 0, y: 0 })
+    const [isDraggingThis, setIsDraggingThis] = useState(false)
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+        e.preventDefault()
+        startPos.current = { x: e.clientX, y: e.clientY }
+        isDragging.current = false
+
+        const handleMove = (ev: PointerEvent) => {
+            const dx = ev.clientX - startPos.current.x
+            const dy = ev.clientY - startPos.current.y
+            if (!isDragging.current && Math.sqrt(dx * dx + dy * dy) > 8) {
+                isDragging.current = true
+                setIsDraggingThis(true)
+            }
+        }
+
+        const handleUp = (ev: PointerEvent) => {
+            window.removeEventListener('pointermove', handleMove)
+            window.removeEventListener('pointerup', handleUp)
+            setIsDraggingThis(false)
+            if (!isDragging.current) {
+                onClick()
+            }
+        }
+
+        window.addEventListener('pointermove', handleMove)
+        window.addEventListener('pointerup', handleUp)
+    }
+
     const totalMilestones = goal.milestones?.length || 0
     const completedMilestones = goal.milestones?.filter(m => m.is_completed).length || 0
     const progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0
@@ -111,10 +142,17 @@ function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
             onClick={onClick}
-            className="group relative bg-white border border-black/[0.06] rounded-2xl hover:border-black/20 hover:shadow-xl hover:shadow-black/5 transition-all cursor-pointer overflow-hidden flex flex-col"
+            className={cn(
+                "group relative bg-white border border-black/[0.06] rounded-2xl hover:border-black/20 hover:shadow-xl hover:shadow-black/5 transition-all cursor-pointer overflow-hidden flex flex-col",
+                isDraggingThis && "opacity-30 scale-95 shadow-none"
+            )}
         >
             {/* Image Header */}
-            <div className="relative w-full aspect-[21/9] bg-black/[0.02] overflow-hidden border-b border-black/[0.04]">
+            <div 
+                className="relative w-full aspect-[21/9] bg-black/[0.02] overflow-hidden border-b border-black/[0.04] cursor-grab active:cursor-grabbing"
+                onPointerDown={handlePointerDown}
+                style={{ touchAction: 'none' }}
+            >
                 {goal.vision_image_url ? (
                     <img
                         src={goal.vision_image_url}

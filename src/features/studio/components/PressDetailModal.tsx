@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Edit3, Save, Trash2, ExternalLink, Rocket, Target, Zap, CheckCircle2 } from 'lucide-react'
+import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Edit3, Save, Trash2, ExternalLink, Rocket, Target, Zap, CheckCircle2, Check, Edit2 } from 'lucide-react'
+import DatePickerInput from '@/components/DatePickerInput'
 import { useStudio } from '../hooks/useStudio'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import type { PressType, PressStatus, StudioPress } from '../types/studio.types'
@@ -56,7 +57,7 @@ export default function PressDetailModal({ isOpen, onClose, item }: PressDetailM
         try {
             const submissionData = { ...editedData }
             if ('project_id' in submissionData && !submissionData.project_id) {
-                submissionData.project_id = null as any
+                submissionData.project_id = null
             }
             await updatePress(item.id, submissionData)
             setIsEditing(false)
@@ -112,14 +113,14 @@ export default function PressDetailModal({ isOpen, onClose, item }: PressDetailM
                                 onClick={handleSave}
                                 className="p-2.5 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors shadow-lg shadow-orange-500/20"
                             >
-                                <Save className="w-5 h-5" />
+                                <Check className="w-5 h-5" />
                             </button>
                         ) : (
                             <button
                                 onClick={() => setIsEditing(true)}
                                 className="p-2.5 bg-black/[0.03] text-black/40 rounded-xl hover:bg-black/[0.05] hover:text-black transition-colors"
                             >
-                                <Edit3 className="w-5 h-5" />
+                                <Edit2 className="w-5 h-5" />
                             </button>
                         )}
                         <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors">
@@ -170,16 +171,11 @@ export default function PressDetailModal({ isOpen, onClose, item }: PressDetailM
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-3">
                             <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Deadline / Achievement Date</label>
-                            <div className="flex items-center gap-3 w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl h-[46px] focus-within:border-orange-200 transition-colors">
-                                <Calendar className="w-4 h-4 text-black/20 shrink-0" />
-                                <input
-                                    readOnly={!isEditing}
-                                    type="date"
-                                    value={editedData.deadline ?? item.deadline ?? ''}
-                                    onChange={e => setEditedData(prev => ({ ...prev, deadline: e.target.value }))}
-                                    className="flex-1 text-[13px] font-bold bg-transparent focus:outline-none cursor-pointer appearance-none min-w-0"
-                                />
-                            </div>
+                            <DatePickerInput
+                                readOnly={!isEditing}
+                                value={editedData.deadline ?? item.deadline ?? ''}
+                                onChange={val => setEditedData(prev => ({ ...prev, deadline: val }))}
+                            />
                         </div>
 
                         <div className="space-y-3">

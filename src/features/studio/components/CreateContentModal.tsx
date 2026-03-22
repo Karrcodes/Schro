@@ -14,6 +14,7 @@ import type { ContentStatus, Platform, ContentCategory, PriorityLevel } from '..
 import { useStudio } from '../hooks/useStudio'
 import PlatformIcon from './PlatformIcon'
 import { supabase } from '@/lib/supabase'
+import DatePickerInput from '@/components/DatePickerInput'
 
 interface CreateContentModalProps {
     isOpen: boolean
@@ -38,6 +39,7 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
     const [notes, setNotes] = useState('')
     const [deadline, setDeadline] = useState('')
     const [projectId, setProjectId] = useState('')
+    const [url, setUrl] = useState('')
     
     const [coverFile, setCoverFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -52,7 +54,7 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
         if (isOpen) {
             setTitle(''); setPlatforms([]); setType('video'); setCategory('Vlog'); setStatus('idea')
             setPriority('mid'); setImpactScore(5); setNotes(''); setDeadline(''); setProjectId('')
-            setMilestones([]); setCoverFile(null); setImagePreview(null); setError(null)
+            setUrl(''); setMilestones([]); setCoverFile(null); setImagePreview(null); setError(null)
         }
     }, [isOpen])
 
@@ -119,7 +121,8 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                 notes,
                 deadline: deadline || undefined,
                 project_id: projectId || null,
-                cover_url: finalCoverUrl
+                cover_url: finalCoverUrl,
+                url: url || undefined
             } as any)
 
             // Add milestones
@@ -268,7 +271,7 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                                 </div>
 
                                 {/* Config Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-black/5">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2 border-t border-black/5">
                                     {/* Priority */}
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Pipeline Priority</label>
@@ -294,17 +297,47 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                                         </div>
                                     </div>
 
+                                    {/* Status Selection */}
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Production Status</label>
+                                        <select
+                                            value={status}
+                                            onChange={e => setStatus(e.target.value as ContentStatus)}
+                                            className="w-full px-4 py-2.5 bg-black/[0.02] border border-black/[0.05] rounded-xl text-[12px] font-bold focus:outline-none appearance-none cursor-pointer"
+                                        >
+                                            {['idea', 'scripted', 'filmed', 'edited', 'scheduled', 'published'].map(s => (
+                                                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
                                     {/* Dates */}
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Release Target</label>
-                                        <input
-                                            type="date"
+                                        <DatePickerInput
                                             value={deadline}
-                                            onChange={e => setDeadline(e.target.value)}
-                                            className="w-full py-2.5 px-3 rounded-xl border border-black/5 bg-black/[0.02] text-[12px] font-bold outline-none"
+                                            onChange={val => setDeadline(val)}
                                         />
                                     </div>
                                 </div>
+
+                                {/* Published Link - Automatic when status is published */}
+                                {status === 'published' && (
+                                    <div className="space-y-3 pt-4 border-t border-black/5 animate-in slide-in-from-top-4 duration-300">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Globe className="w-3.5 h-3.5 text-emerald-500" />
+                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-widest">Published URL (YouTube/TikTok/etc)</label>
+                                        </div>
+                                        <div className="relative">
+                                            <input
+                                                value={url}
+                                                onChange={e => setUrl(e.target.value)}
+                                                placeholder="https://..."
+                                                className="w-full px-4 py-4 bg-black/[0.03] border border-black/5 rounded-2xl text-[13px] font-black placeholder:text-black/10 focus:ring-1 focus:ring-emerald-500/20 focus:border-emerald-500/30 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Platforms */}
                                 <div className="space-y-3 pt-2 border-t border-black/5">
@@ -490,6 +523,13 @@ function MilestoneItem({ milestone, onUpdate, onRemove, index }: MilestoneItemPr
                             className="w-16 h-0.5 bg-black/5 rounded-full appearance-none accent-black/40"
                         />
                         <span className="text-[9px] font-black text-black/30 w-3">{milestone.impact_score}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0 max-w-[100px]">
+                        <DatePickerInput
+                            className="scale-75 origin-left"
+                            value={milestone.target_date || ''}
+                            onChange={val => onUpdate(milestone.id, { target_date: val || undefined })}
+                        />
                     </div>
                 </div>
             </div>

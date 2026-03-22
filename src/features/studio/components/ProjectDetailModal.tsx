@@ -5,12 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     X, Plus, Target, Calendar, Rocket,
     Clock, Trash2, CheckCircle2, Circle, Image as ImageIcon, Pencil, Loader2, Zap,
-    Shield, ExternalLink, Link as LinkIcon, Trash, CheckSquare, Sparkles, Wand2, AlignLeft
+    Shield, ExternalLink, Link as LinkIcon, Trash, CheckSquare, Sparkles, Wand2, AlignLeft, RefreshCw, ChevronRight, Globe, Layers
 } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
-import type { StudioProject, StudioMilestone, Platform, ProjectType, ProjectStatus } from '../types/studio.types'
+import type { StudioProject, StudioMilestone, Platform, ProjectType, ProjectStatus, PriorityLevel } from '../types/studio.types'
 import { cn } from '@/lib/utils'
+import DatePickerInput from '@/components/DatePickerInput'
 import { supabase } from '@/lib/supabase'
 import PlatformIcon from './PlatformIcon'
 import ConfirmationModal from '@/components/ConfirmationModal'
@@ -25,6 +26,13 @@ interface ProjectDetailModalProps {
 const PROJECT_TYPES: ProjectType[] = ['Architectural Design', 'Technology', 'Fashion', 'Product Design', 'Media', 'Other']
 const PLATFORMS: Platform[] = ['youtube', 'instagram', 'substack', 'tiktok', 'x', 'web']
 const MILESTONE_CATEGORIES = ['rnd', 'production', 'media', 'growth']
+
+const PRIORITY_CONFIG = {
+    super: { label: 'Super', color: 'bg-purple-50 text-purple-600 border-purple-200 shadow-purple-500/10' },
+    high: { label: 'High', color: 'bg-red-50 text-red-600 border-red-200 shadow-red-500/10' },
+    mid: { label: 'Mid', color: 'bg-yellow-50 text-yellow-600 border-yellow-200 shadow-yellow-500/10' },
+    low: { label: 'Low', color: 'bg-black/5 text-black/60 border-black/10 shadow-black/5' },
+} as const
 
 export default function ProjectDetailModal({ isOpen, onClose, project }: ProjectDetailModalProps) {
     const { milestones, addMilestone, updateMilestone, deleteMilestone, updateProject, deleteProject, regenerateProjectCover, generatingProjectIds } = useStudio()
@@ -94,6 +102,133 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
         }
     }
 
+    const milestonesSection = (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <h3 className="text-[12px] font-black uppercase tracking-widest text-black/30">Tactical Milestones</h3>
+                <div className="flex items-center gap-2 text-[10px] font-black text-black/20 uppercase">
+                    <Target className="w-3 h-3" />
+                    Active Roadmap
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                {projectMilestones.map(m => (
+                    <div
+                        key={m.id}
+                        className={cn(
+                            "w-full flex flex-col gap-3 p-5 rounded-[24px] border transition-all group",
+                            m.status === 'completed'
+                                ? "bg-emerald-50 border-emerald-100 opacity-60 shadow-sm shadow-emerald-500/5"
+                                : "bg-white border-black/5 hover:border-black/20 hover:shadow-xl hover:shadow-black/5"
+                        )}
+                    >
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => toggleMilestone(m)}
+                                className={cn(
+                                    "w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0",
+                                    m.status === 'completed' ? "bg-emerald-500 text-white" : "bg-black/5 text-black/20 group-hover:bg-black group-hover:text-white"
+                                )}
+                            >
+                                {m.status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                                <input
+                                    type="text"
+                                    value={m.title}
+                                    onChange={(e) => updateMilestone(m.id, { title: e.target.value })}
+                                    className={cn(
+                                        "w-full bg-transparent border-none outline-none text-[15px] font-bold p-0",
+                                        m.status === 'completed' && "line-through text-emerald-900/40"
+                                    )}
+                                    placeholder="Milestone title..."
+                                    readOnly={!isEditing}
+                                />
+                            </div>
+                            {isEditing && (
+                                <button
+                                    onClick={() => setMilestoneToDelete(m.id)}
+                                    className="p-2 opacity-0 group-hover:opacity-100 text-black/10 hover:text-red-500 transition-all"
+                                >
+                                    <Trash className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+
+                        {isEditing && (
+                            <div className="flex flex-nowrap items-center gap-4 pl-8 border-t border-black/5 pt-3 overflow-x-auto no-scrollbar">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[8px] font-black uppercase text-black/20 whitespace-nowrap">Impact Score</span>
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="10"
+                                        value={m.impact_score || 5}
+                                        onChange={(e) => updateMilestone(m.id, { impact_score: parseInt(e.target.value) })}
+                                        className="w-20 h-0.5 bg-black/5 rounded-full appearance-none accent-black/40"
+                                    />
+                                    <span className="text-[10px] font-black text-black/40 w-4 text-center">{m.impact_score || 5}</span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="w-3 h-3 text-black/10" />
+                                    <DatePickerInput
+                                        className="scale-75 origin-left"
+                                        value={m.target_date?.split('T')[0] || ''}
+                                        onChange={val => updateMilestone(m.id, { target_date: val || null })}
+                                    />
+                                </div>
+
+                                <select
+                                    value={m.category || 'rnd'}
+                                    onChange={e => updateMilestone(m.id, { category: e.target.value })}
+                                    className="bg-transparent border-none p-0 text-[10px] font-black uppercase text-black/30 tracking-widest focus:ring-0 cursor-pointer"
+                                >
+                                    {MILESTONE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+
+                                {m.linked_task_id && (
+                                    <div className="flex items-center gap-1.5 ml-auto text-emerald-600">
+                                        <LinkIcon className="w-3 h-3" />
+                                        <span className="text-[9px] font-black uppercase tracking-widest">Synced to Tasks</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                ))}
+
+                {/* New Milestone Form */}
+                {isEditing && (
+                    <form onSubmit={handleAddMilestone} className="relative group/new p-5 bg-black/[0.01] border-2 border-dashed border-black/[0.1] rounded-[24px] hover:border-black/30 transition-all">
+                        <div className="flex items-center gap-4">
+                            <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center text-black/20 group-hover/new:bg-black group-hover/new:text-white transition-all">
+                                <Plus className="w-5 h-5" />
+                            </div>
+                            <input
+                                value={newMilestoneTitle}
+                                onChange={e => setNewMilestoneTitle(e.target.value)}
+                                placeholder="Define next tactical step..."
+                                className="flex-1 bg-transparent border-none outline-none text-[15px] font-bold text-black placeholder:text-black/10"
+                            />
+                            <button
+                                type="submit"
+                                disabled={!newMilestoneTitle.trim()}
+                                className={cn(
+                                    "px-5 py-2 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                    !newMilestoneTitle.trim() ? "opacity-0 scale-90" : "opacity-100 scale-100"
+                                )}
+                            >
+                                Add Step
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </div>
+        </div>
+    )
+
 
 
     return (
@@ -115,6 +250,29 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                         className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[100] max-h-[90vh] overflow-y-auto shadow-2xl border-t border-black/5 no-scrollbar"
                     >
+                        {/* Command Center: Absolute to Modal Sheet, Far Right */}
+                        <div className="absolute top-8 right-8 md:top-10 md:right-12 flex items-center gap-3 z-50">
+                            {!isEditing && (
+                                <button
+                                    onClick={() => {
+                                        setEditedData(project)
+                                        setIsEditing(true)
+                                    }}
+                                    className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-black text-white rounded-full transition-all active:scale-90 shadow-xl shadow-black/10 hover:scale-110 group"
+                                    title="Edit Project"
+                                >
+                                    <Pencil className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                </button>
+                            )}
+                            <button
+                                onClick={onClose}
+                                className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-black/[0.03] hover:bg-black/[0.1] rounded-full transition-all active:scale-90 border border-black/5 group"
+                                title="Close Portal"
+                            >
+                                <X className="w-4 h-4 md:w-5 md:h-5 text-black/40 group-hover:text-black transition-colors" />
+                            </button>
+                        </div>
+
                         {/* Handle */}
                         <div className="flex justify-center p-4">
                             <div className="w-12 h-1.5 bg-black/10 rounded-full" />
@@ -146,7 +304,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                     disabled={isGeneratingProject}
                                                     className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/40 transition-colors"
                                                 >
-                                                    {isGeneratingProject ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                                                    {isGeneratingProject ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                                                 </button>
                                             </div>
                                         </div>
@@ -162,7 +320,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                     <div className="p-6 bg-black/[0.02] rounded-3xl border border-black/5 space-y-6">
                                         <div className="space-y-4">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/30">Endeavor Progress</span>
+                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/30">Project Progress</span>
                                                 <span className="text-[14px] font-black text-black">{Math.round(progress)}%</span>
                                             </div>
                                             <div className="h-2 w-full bg-black/5 rounded-full overflow-hidden">
@@ -189,31 +347,19 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                         </div>
                                     </div>
 
-                                    <div className="space-y-3">
-                                        {!isEditing && (
-                                            <button
-                                                onClick={() => {
-                                                    setEditedData(project)
-                                                    setIsEditing(true)
-                                                }}
-                                                className="w-full flex items-center justify-center gap-2 py-3 bg-black/[0.03] hover:bg-black/[0.06] rounded-2xl text-[11px] font-black uppercase tracking-widest text-black/40"
-                                            >
-                                                <Pencil className="w-3.5 h-3.5" />
-                                                Edit Project
-                                            </button>
-                                        )}
-
+                                    <div className="space-y-3 pt-4">
                                         <button
                                             onClick={() => setShowDeleteConfirm(true)}
-                                            className="w-full py-3 text-red-400 hover:text-red-500 text-[11px] font-black uppercase tracking-widest transition-colors"
+                                            className="w-full py-4 border border-rose-500/10 bg-rose-500/5 text-rose-500 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all active:scale-95 shadow-lg shadow-rose-500/5"
                                         >
+                                            <Trash2 className="w-3.5 h-3.5 inline mr-2" />
                                             Archive Project
                                         </button>
                                     </div>
                                 </div>
 
                                 {/* Right Column: Content & Milestones */}
-                                <div className="md:col-span-2 space-y-12">
+                                <div className="md:col-span-2 space-y-12 self-start">
                                     {isEditing ? (
                                         <div className="space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
                                             {/* Core Identity Setup */}
@@ -249,6 +395,10 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                         rows={4}
                                                         className="w-full text-[15px] font-medium text-black/60 placeholder:text-black/15 border-none p-0 focus:ring-0 resize-none outline-none bg-transparent leading-relaxed"
                                                     />
+                                                </div>
+
+                                                <div className="pt-4 border-t border-black/5">
+                                                    {milestonesSection}
                                                 </div>
                                             </div>
 
@@ -304,14 +454,8 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                     <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Priority Logic</label>
                                                     <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-xl border border-black/5">
                                                         {(['super', 'high', 'mid', 'low'] as const).map(p => {
-                                                            const currentPriority = editedData.priority || project.priority
+                                                            const currentPriority = editedData.priority || project.priority || 'low'
                                                             const isActive = currentPriority === p
-                                                            const colors = {
-                                                                super: 'bg-purple-50 text-purple-600 border-purple-200 shadow-purple-500/10',
-                                                                high: 'bg-red-50 text-red-600 border-red-200 shadow-red-500/10',
-                                                                mid: 'bg-yellow-50 text-yellow-600 border-yellow-200 shadow-yellow-500/10',
-                                                                low: 'bg-black/5 text-black/60 border-black/10 shadow-black/5'
-                                                            }
                                                             return (
                                                                 <button
                                                                     key={p}
@@ -320,7 +464,7 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                                     className={cn(
                                                                         "flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all border",
                                                                         isActive
-                                                                            ? colors[p]
+                                                                            ? PRIORITY_CONFIG[p].color
                                                                             : "bg-transparent text-black/30 border-transparent hover:text-black/5 pointer-events-auto"
                                                                     )}
                                                                 >
@@ -363,20 +507,16 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5">
                                                 <div className="space-y-2">
                                                     <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Activation Date</label>
-                                                    <input
-                                                        type="date"
-                                                        value={(editedData.start_date || project.start_date || '').split('T')[0]}
-                                                        onChange={e => setEditedData(prev => ({ ...prev, start_date: e.target.value }))}
-                                                        className="w-full bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 text-[12px] font-bold outline-none focus:bg-white transition-all"
+                                                    <DatePickerInput
+                                                        value={(editedData.start_date ?? project.start_date ?? '').split('T')[0]}
+                                                        onChange={val => setEditedData(prev => ({ ...prev, start_date: val }))}
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
                                                     <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Target Deadline</label>
-                                                    <input
-                                                        type="date"
-                                                        value={(editedData.target_date || project.target_date || '').split('T')[0]}
-                                                        onChange={e => setEditedData(prev => ({ ...prev, target_date: e.target.value }))}
-                                                        className="w-full bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 text-[12px] font-bold outline-none focus:bg-white transition-all"
+                                                    <DatePickerInput
+                                                        value={(editedData.target_date ?? project.target_date ?? '').split('T')[0]}
+                                                        onChange={val => setEditedData(prev => ({ ...prev, target_date: val }))}
                                                     />
                                                 </div>
                                             </div>
@@ -400,6 +540,33 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                 />
                                             </div>
 
+                                            {/* GTV Portfolio Toggle (Edit Mode) */}
+                                            {!settings.is_demo_mode && (
+                                                <div className="p-6 bg-blue-50/50 border border-blue-100/50 rounded-[24px] flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-[14px] bg-blue-100 text-blue-600 flex items-center justify-center">
+                                                            <Shield className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-[12px] font-black text-blue-900">GTV Portfolio Recognition</h4>
+                                                            <p className="text-[10px] font-medium text-blue-600/60 uppercase tracking-widest">Mark as verified evidence</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setEditedData(prev => ({ ...prev, gtv_featured: prev.gtv_featured !== undefined ? !prev.gtv_featured : !project.gtv_featured }))
+                                                        }}
+                                                        className={cn(
+                                                            "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                                            (editedData.gtv_featured !== undefined ? editedData.gtv_featured : project.gtv_featured) ? "bg-blue-600 text-white shadow-lg" : "bg-white border border-blue-200 text-blue-600 hover:bg-blue-50"
+                                                        )}
+                                                    >
+                                                        {(editedData.gtv_featured !== undefined ? editedData.gtv_featured : project.gtv_featured) ? 'Featured' : 'Include'}
+                                                    </button>
+                                                </div>
+                                            )}
+
                                             <div className="flex items-center gap-3 pt-4">
                                                 <button
                                                     onClick={handleSave}
@@ -416,9 +583,26 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="space-y-12">
-                                            <div className="space-y-6">
-                                                <div className="space-y-2">
+                                        <div className="space-y-6">
+                                            <div className="space-y-2">
+                                                    <div className="flex items-center gap-3 mb-1">
+                                                        <div className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border", PRIORITY_CONFIG[project.priority || 'low'].color)}>
+                                                            {project.priority || 'Priority Unset'}
+                                                        </div>
+                                                        {project.impact_score && (
+                                                            <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-500/5 rounded-md border border-orange-500/5 mb-0.5">
+                                                                <Zap className="w-2.5 h-2.5 text-orange-500 fill-orange-500" />
+                                                                <span className="text-[10px] font-black text-orange-600">{project.impact_score}</span>
+                                                            </div>
+                                                        )}
+
+                                                        {project.target_date && (
+                                                            <div className="flex items-center gap-1.5 text-[9px] font-black text-black/40 uppercase tracking-widest">
+                                                                <Clock className="w-3 h-3" />
+                                                                {new Date(project.target_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     <h1 className="text-[32px] md:text-[42px] font-black tracking-tight text-black leading-none">{project.title}</h1>
                                                     {project.tagline && <p className="text-[14px] md:text-[16px] font-medium text-black/40 uppercase tracking-[0.2em]">{project.tagline}</p>}
                                                 </div>
@@ -426,127 +610,18 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                 <div className="p-8 bg-black/[0.01] border border-black/[0.03] rounded-[32px] space-y-4">
                                                     <div className="flex items-center gap-2 text-black/20 mb-2">
                                                         <AlignLeft className="w-4 h-4" />
-                                                        <span className="text-[10px] font-black uppercase tracking-widest">Endeavor Brief</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest">Project Brief</span>
                                                     </div>
                                                     <p className="text-[15px] font-medium text-black/70 leading-relaxed whitespace-pre-wrap">{project.description || 'No description provided.'}</p>
                                                 </div>
-                                            </div>
+                                        </div>
+                                    )}
 
-                                            {/* Milestones Section */}
-                                            <div className="space-y-6">
-                                                <div className="flex items-center justify-between">
-                                                    <h3 className="text-[12px] font-black uppercase tracking-widest text-black/30">Tactical Milestones</h3>
-                                                    <div className="flex items-center gap-2 text-[10px] font-black text-black/20 uppercase">
-                                                        <Target className="w-3 h-3" />
-                                                        Active Roadmap
-                                                    </div>
-                                                </div>
+                                    {/* Milestones Section (View Mode Only) */}
+                                    {!isEditing && milestonesSection}
 
-                                                <div className="space-y-4">
-                                                    {projectMilestones.map(m => (
-                                                        <div
-                                                            key={m.id}
-                                                            className={cn(
-                                                                "w-full flex flex-col gap-3 p-5 rounded-[24px] border transition-all group",
-                                                                m.status === 'completed'
-                                                                    ? "bg-emerald-50 border-emerald-100 opacity-60 shadow-sm shadow-emerald-500/5"
-                                                                    : "bg-white border-black/5 hover:border-black/20 hover:shadow-xl hover:shadow-black/5"
-                                                            )}
-                                                        >
-                                                            <div className="flex items-center gap-4">
-                                                                <button
-                                                                    onClick={() => toggleMilestone(m)}
-                                                                    className={cn(
-                                                                        "w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0",
-                                                                        m.status === 'completed' ? "bg-emerald-500 text-white" : "bg-black/5 text-black/20 group-hover:bg-black group-hover:text-white"
-                                                                    )}
-                                                                >
-                                                                    {m.status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                                                                </button>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={m.title}
-                                                                        onChange={(e) => updateMilestone(m.id, { title: e.target.value })}
-                                                                        className={cn(
-                                                                            "w-full bg-transparent border-none outline-none text-[15px] font-bold p-0",
-                                                                            m.status === 'completed' && "line-through text-emerald-900/40"
-                                                                        )}
-                                                                        placeholder="Milestone title..."
-                                                                    />
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => setMilestoneToDelete(m.id)}
-                                                                    className="p-2 opacity-0 group-hover:opacity-100 text-black/10 hover:text-red-500 transition-all"
-                                                                >
-                                                                    <Trash className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
-
-                                                            <div className="flex flex-wrap items-center gap-6 pl-12 border-t border-black/5 pt-3">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-[8px] font-black uppercase text-black/20 whitespace-nowrap">Impact Score</span>
-                                                                    <input
-                                                                        type="range"
-                                                                        min="1"
-                                                                        max="10"
-                                                                        value={m.impact_score || 5}
-                                                                        onChange={(e) => updateMilestone(m.id, { impact_score: parseInt(e.target.value) })}
-                                                                        className="w-20 h-0.5 bg-black/5 rounded-full appearance-none accent-black/40"
-                                                                    />
-                                                                    <span className="text-[10px] font-black text-black/40 w-4 text-center">{m.impact_score || 5}</span>
-                                                                </div>
-
-                                                                <div className="flex items-center gap-2">
-                                                                    <Calendar className="w-3 h-3 text-black/10" />
-                                                                    <span className="text-[10px] font-black text-black/30 uppercase tracking-widest">
-                                                                        {m.target_date ? new Date(m.target_date).toLocaleDateString('en-GB') : 'No Date'}
-                                                                    </span>
-                                                                </div>
-
-                                                                <div className="px-2 py-0.5 bg-black/5 rounded text-[8px] font-black uppercase text-black/40 tracking-widest">
-                                                                    {m.category || 'RND'}
-                                                                </div>
-
-                                                                {m.linked_task_id && (
-                                                                    <div className="flex items-center gap-1.5 ml-auto text-emerald-600">
-                                                                        <LinkIcon className="w-3 h-3" />
-                                                                        <span className="text-[9px] font-black uppercase tracking-widest">Synced to Tasks</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-
-                                                    {/* New Milestone Form */}
-                                                    <form onSubmit={handleAddMilestone} className="relative group/new p-5 bg-black/[0.01] border-2 border-dashed border-black/[0.1] rounded-[24px] hover:border-black/30 transition-all">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center text-black/20 group-hover/new:bg-black group-hover/new:text-white transition-all">
-                                                                <Plus className="w-5 h-5" />
-                                                            </div>
-                                                            <input
-                                                                value={newMilestoneTitle}
-                                                                onChange={e => setNewMilestoneTitle(e.target.value)}
-                                                                placeholder="Define next tactical step..."
-                                                                className="flex-1 bg-transparent border-none outline-none text-[15px] font-bold text-black placeholder:text-black/10"
-                                                            />
-                                                            <button
-                                                                type="submit"
-                                                                disabled={!newMilestoneTitle.trim()}
-                                                                className={cn(
-                                                                    "px-5 py-2 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                                                    !newMilestoneTitle.trim() ? "opacity-0 scale-90" : "opacity-100 scale-100"
-                                                                )}
-                                                            >
-                                                                Add Step
-                                                            </button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-
-                                            {/* GTV Portfolio (Conditional) */}
-                                            {!settings.is_demo_mode && (
+                                    {/* GTV Portfolio (Passive View Mode) */}
+                                            {(!settings.is_demo_mode && !isEditing && project.gtv_featured) && (
                                                 <div className="pt-12 border-t border-black/5 space-y-6">
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-3">
@@ -555,23 +630,17 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                             </div>
                                                             <div>
                                                                 <h4 className="text-[14px] font-black text-black">GTV Portfolio Recognition</h4>
-                                                                <p className="text-[11px] font-medium text-black/30 uppercase tracking-widest">Status: {project.gtv_featured ? 'Verified Evidence' : 'Draft Endeavor'}</p>
+                                                                <p className="text-[11px] font-medium text-black/30 uppercase tracking-widest">Status: Verified Evidence</p>
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => updateProject(project.id, { gtv_featured: !project.gtv_featured })}
-                                                            className={cn(
-                                                                "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                                                project.gtv_featured ? "bg-blue-600 text-white shadow-lg" : "bg-black/[0.03] text-black/40 hover:bg-black/[0.06]"
-                                                            )}
-                                                        >
-                                                            {project.gtv_featured ? 'Featured in Portfolio' : 'Feature for GTV'}
-                                                        </button>
+                                                        <div className="px-5 py-2 rounded-xl bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest border border-blue-100">
+                                                            Featured in Portfolio
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}
-                                        </div>
-                                    )}
+                                    
+                                    {/* Duplicated Save/Cancel buttons removed for consistency */}
                                 </div>
                             </div>
                         </div>

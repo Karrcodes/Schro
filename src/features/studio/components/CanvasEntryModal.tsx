@@ -24,7 +24,6 @@ interface Props {
     onUpdate: (id: string, updates: Partial<StudioCanvasEntry>) => void
     onDelete: (id: string) => void
     onArchive: (id: string) => void
-    onPromoteToSpark: (entry: StudioCanvasEntry) => void
     connections?: {
         notes: number
         projects: { id: string; title: string }[]
@@ -33,11 +32,12 @@ interface Props {
     onAddLink: (fromId: string, toId: string) => void
     onRemoveLink: (entryId: string, targetId: string) => void
     allTags?: string[]
+    onTweet?: (id: string, title: string) => void
 }
 
 export default function CanvasEntryModal({
-    entry, isOpen, onClose, onUpdate, onDelete, onArchive, onPromoteToSpark,
-    connections, onAddLink, onRemoveLink, allTags = []
+    entry, isOpen, onClose, onUpdate, onDelete, onArchive,
+    connections, onAddLink, onRemoveLink, allTags = [], onTweet
 }: Props) {
     const { projects, content } = useStudioContext()
     const [title, setTitle] = useState('')
@@ -87,7 +87,10 @@ export default function CanvasEntryModal({
         setTagInput('')
     }
 
-    const removeTag = (tag: string) => change(() => setTags(t => t.filter(x => x !== tag)))
+    const removeTag = (tag: string) => {
+        if (tag === 'tweeted') return
+        change(() => setTags(t => t.filter(x => x !== tag)))
+    }
 
     const suggestedTags = (allTags || [])
         .filter(tag => !tags.includes(tag))
@@ -222,14 +225,14 @@ export default function CanvasEntryModal({
                             >
                                 <Pin className={cn("w-4 h-4", pinned && "fill-current")} />
                             </button>
-                            {/* Promote to Spark */}
-                            {!entry.promoted_to_spark_id && (
+                            {/* Tweet */}
+                            {onTweet && (
                                 <button
-                                    onClick={() => { onPromoteToSpark(entry); onClose() }}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white text-[11px] font-black rounded-xl hover:bg-orange-600 transition-all"
+                                    onClick={() => onTweet(entry.id, title)}
+                                    className="w-8 h-8 rounded-xl flex items-center justify-center text-black/30 hover:text-blue-500 hover:bg-blue-50 transition-all"
+                                    title="Tweet title"
                                 >
-                                    <ArrowUpRight className="w-3.5 h-3.5" />
-                                    Promote to Spark
+                                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                                 </button>
                             )}
                             {/* Archive */}
@@ -431,12 +434,26 @@ export default function CanvasEntryModal({
                             )}
                             <div className="flex items-center gap-1.5 flex-wrap">
                                 <Tag className="w-3.5 h-3.5 text-black/25 shrink-0" />
-                                {tags.map(tag => (
-                                    <span key={tag} className="flex items-center gap-1 text-[11px] font-bold text-black/50 bg-black/[0.05] px-2 py-0.5 rounded-full border border-black/[0.03]">
-                                        {tag}
-                                        <button onClick={() => removeTag(tag)} className="text-black/30 hover:text-black/60 transition-colors leading-none">&times;</button>
-                                    </span>
-                                ))}
+                                {tags.map(tag => {
+                                    const isTweeted = tag === 'tweeted';
+                                    return (
+                                        <span 
+                                            key={tag} 
+                                            className={cn(
+                                                "flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border transition-all",
+                                                isTweeted 
+                                                    ? "bg-black text-white border-black shadow-lg shadow-black/10" 
+                                                    : "text-black/50 bg-black/[0.05] border-black/[0.03]"
+                                            )}
+                                        >
+                                            {isTweeted && <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-current mr-0.5"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>}
+                                            {tag}
+                                            {!isTweeted && (
+                                                <button onClick={() => removeTag(tag)} className="text-black/30 hover:text-black/60 transition-colors leading-none">&times;</button>
+                                            )}
+                                        </span>
+                                    );
+                                })}
                                 <input
                                     value={tagInput}
                                     onChange={e => setTagInput(e.target.value)}

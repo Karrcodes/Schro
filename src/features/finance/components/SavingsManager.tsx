@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Pencil, Check, X, Loader2, PiggyBank } from 'lucide-react'
+import DatePickerInput from '@/components/DatePickerInput'
 import { useGoals } from '@/features/finance/hooks/useGoals'
 import { usePots } from '@/features/finance/hooks/usePots'
 import { useFinanceProfile } from '@/features/finance/contexts/FinanceProfileContext'
@@ -107,11 +108,9 @@ export function SavingsManager() {
                                                 {!isMonzo && (
                                                     <div>
                                                         <label className="text-[10px] text-black/40 font-bold uppercase mb-1 block">Deadline</label>
-                                                        <input
-                                                            type="date"
-                                                            className="w-full bg-black/[0.03] border border-black/[0.08] rounded-lg px-3 py-2 text-[14px] outline-none"
-                                                            value={form.deadline || ''}
-                                                            onChange={e => setForm({ ...form, deadline: e.target.value })}
+                                                        <DatePickerInput
+                                                            value={form.deadline ?? ''}
+                                                            onChange={val => setForm({ ...form, deadline: val })}
                                                         />
                                                     </div>
                                                 )}

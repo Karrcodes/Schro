@@ -28,6 +28,7 @@ import { useStudio } from '@/features/studio/hooks/useStudio'
 import type { StudioMilestone } from '@/features/studio/types/studio.types'
 import ProjectDetailModal from '@/features/studio/components/ProjectDetailModal'
 import ContentDetailModal from '@/features/studio/components/ContentDetailModal'
+import DatePickerInput from '@/components/DatePickerInput'
 import { QuickImportModal } from './QuickImportModal'
 import { aiService } from '../services/aiService'
 
@@ -1251,22 +1252,18 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             <div className="flex flex-wrap items-center gap-2">
                                 <div className="flex items-center gap-1.5 bg-black/[0.03] border border-black/5 rounded-xl px-3 py-1.5">
                                     <Calendar className="w-3 h-3 text-black/30 shrink-0" />
-                                    <input
-                                        type="date"
+                                    <DatePickerInput
                                         value={dueDate}
-                                        onChange={(e) => setDueDate(e.target.value)}
-                                        className="bg-transparent text-[11px] font-bold text-black/60 outline-none uppercase tracking-tight w-full"
+                                        onChange={val => setDueDate(val)}
                                     />
                                 </div>
                                 {dueDateMode === 'range' && (
                                     <div className="flex items-center gap-2 bg-black/[0.03] border border-black/5 rounded-xl px-3 py-1.5">
                                         <span className="text-[10px] font-bold text-black/20 uppercase tracking-tighter">to</span>
                                         <Calendar className="w-3 h-3 text-black/30 shrink-0" />
-                                        <input
-                                            type="date"
+                                        <DatePickerInput
                                             value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
-                                            className="bg-transparent text-[11px] font-bold text-black/60 outline-none uppercase tracking-tight w-full"
+                                            onChange={val => setEndDate(val)}
                                         />
                                     </div>
                                 )}
@@ -2010,24 +2007,18 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                             {editDueDateMode !== 'none' && editDueDateMode !== 'recurring' && (
                                 <div className="flex flex-wrap items-center gap-2">
                                     <div className="flex items-center gap-2 bg-black/[0.03] border border-black/5 rounded-lg px-2.5 py-1 min-w-[110px]">
-                                        <Calendar className="w-3 h-3 text-black/30 shrink-0" />
-                                        <input
-                                            type="date"
-                                            value={editDueDate}
-                                            onChange={(e) => setEditDueDate(e.target.value)}
-                                            className="bg-transparent text-[10px] font-bold text-black/60 outline-none uppercase tracking-tight w-full"
+                                        <DatePickerInput
+                                            value={editDueDate ?? ''}
+                                            onChange={val => setEditDueDate(val)}
                                         />
                                     </div>
                                     {editDueDateMode === 'range' && (
                                         <>
                                             <span className="text-[10px] font-bold text-black/20 uppercase tracking-tighter">to</span>
                                             <div className="flex items-center gap-2 bg-black/[0.03] border border-black/5 rounded-lg px-2.5 py-1 min-w-[110px]">
-                                                <Calendar className="w-3 h-3 text-black/30 shrink-0" />
-                                                <input
-                                                    type="date"
-                                                    value={editEndDate}
-                                                    onChange={(e) => setEditEndDate(e.target.value)}
-                                                    className="bg-transparent text-[10px] font-bold text-black/60 outline-none uppercase tracking-tight w-full"
+                                                <DatePickerInput
+                                                    value={editEndDate ?? ''}
+                                                    onChange={val => setEditEndDate(val)}
                                                 />
                                             </div>
                                         </>

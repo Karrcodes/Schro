@@ -3,6 +3,7 @@
 import ManifestDashboard from '@/features/goals/components/ManifestDashboard'
 import { Target, ArrowRight, Compass } from 'lucide-react'
 import Link from 'next/link'
+import ManifestDebugger from '@/features/goals/components/ManifestDebugger'
 import { KarrFooter } from '@/components/KarrFooter'
 
 export default function ManifestPage() {
@@ -18,6 +19,8 @@ export default function ManifestPage() {
             </header>
 
             <ManifestDashboard />
+            
+            <ManifestDebugger />
         </div>
     )
 }

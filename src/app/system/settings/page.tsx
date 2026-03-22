@@ -9,6 +9,7 @@ import { useFinanceProfile } from '@/features/finance/contexts/FinanceProfileCon
 import { KarrFooter } from '@/components/KarrFooter'
 import { subscribeToPushNotifications, checkPushSubscription, unsubscribeFromPushNotifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
+import DatePickerInput from '@/components/DatePickerInput'
 
 export default function SettingsPage() {
     const router = useRouter()
@@ -491,11 +492,9 @@ export default function SettingsPage() {
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-[11px] font-bold text-black/40 ml-1">Pattern Anchor Date</label>
-                                        <input
-                                            type="date"
+                                        <DatePickerInput
                                             value={shiftStart}
-                                            onChange={(e) => setShiftStart(e.target.value)}
-                                            className="w-full bg-black/[0.03] border border-black/[0.06] rounded-xl px-4 py-2 text-[13px] [color-scheme:light]"
+                                            onChange={val => setShiftStart(val)}
                                         />
                                     </div>
                                 </div>

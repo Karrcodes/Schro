@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Plus, Trash2, Pencil, Check, X, Loader2, LayoutGrid, List, Sparkles } from 'lucide-react'
+import DatePickerInput from '@/components/DatePickerInput'
 import { cn } from '@/lib/utils'
 import { useRecurring } from '@/features/finance/hooks/useRecurring'
 import type { RecurringObligation } from '@/features/finance/types/finance.types'
@@ -194,7 +195,7 @@ export function LiabilitiesManager() {
 
                 <div>
                     <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Next Payment</label>
-                    <input className="input-field w-full bg-black/[0.03] border-none font-bold" type="date" value={form.next_due_date ?? ''} onChange={(e) => setForm({ ...form, next_due_date: e.target.value })} />
+                    <DatePickerInput value={form.next_due_date ?? ''} onChange={val => setForm({ ...form, next_due_date: val })} />
                 </div>
 
                 {/* Frequency & Payments Left / End Date */}
@@ -217,7 +218,7 @@ export function LiabilitiesManager() {
                     ) : (
                         <>
                             <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">End Date (optional)</label>
-                            <input className="input-field w-full bg-black/[0.03] border-none font-bold" type="date" value={form.end_date ?? ''} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+                            <DatePickerInput value={form.end_date ?? ''} onChange={val => setForm({ ...form, end_date: val })} />
                         </>
                     )}
                 </div>

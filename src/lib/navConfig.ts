@@ -71,7 +71,7 @@ export const navItems: NavItem[] = [
     {
         label: 'Studio',
         href: '/create',
-        icon: Rocket,
+        icon: Sparkles,
         color: 'orange',
         sub: [
             { label: 'Projects', href: '/create/projects', icon: Rocket },

@@ -9,6 +9,7 @@ import {
 import ConfirmationModal from '@/components/ConfirmationModal'
 import { Reorder, useDragControls } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import DatePickerInput from '@/components/DatePickerInput'
 import type { Goal, GoalCategory, GoalPriority, CreateGoalData, GoalStatus } from '../types/goals.types'
 import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
 import { usePots } from '@/features/finance/hooks/usePots'
@@ -470,12 +471,9 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Target Deadline</label>
                                         <div className="rounded-xl border border-black/5 bg-black/[0.02] focus-within:border-black/20 focus-within:bg-white transition-all overflow-hidden">
-                                            <input
-                                                type="date"
+                                            <DatePickerInput
                                                 value={targetDate}
-                                                onChange={e => setTargetDate(e.target.value)}
-                                                style={{ minWidth: 0 }}
-                                                className="block w-full py-3 px-4 text-[12px] font-bold outline-none bg-transparent border-none"
+                                                onChange={val => setTargetDate(val)}
                                             />
                                         </div>
                                     </div>

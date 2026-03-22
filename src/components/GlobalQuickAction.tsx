@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, CheckSquare, Clipboard, Loader2, Sparkles, ListChecks, Calendar, Info, Clock, Heart, Briefcase, User, Beaker, Factory, Tv, Video, TrendingUp, Building2, User2, Lock, PenLine, Youtube, Instagram, Music2, Twitter, Utensils, Database, ChefHat, Smile, Meh, Frown, Sun, CloudRain, Dumbbell, Apple, Code, Map, MessageCircle, MessageSquare, ListTodo } from 'lucide-react'
+import DatePickerInput from '@/components/DatePickerInput'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { usePathname, useRouter } from 'next/navigation'
@@ -258,7 +259,7 @@ export function GlobalQuickAction() {
                                                                 {PRIORITY_OPTS.map(p => (
                                                                     <button key={p.id} type="button" onClick={() => setForm({ ...form, taskPriority: p.id as any })}
                                                                         className={cn('px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all border shrink-0', form.taskPriority === p.id ? cn(p.color, 'text-white border-transparent shadow-md scale-105') : 'bg-black/[0.03] text-black/40 border-black/5 hover:bg-black/[0.06]')}
-                                                                    >{p.label}</button>
+                                                                >{p.label}</button>
                                                                 ))}
                                                             </div>
                                                         </div>
@@ -275,18 +276,12 @@ export function GlobalQuickAction() {
                                                                 <div className="flex flex-col gap-2">
                                                                     <div className="flex items-center gap-2">
                                                                         {form.dueDateMode === 'range' && <span className="text-[9px] font-black text-black/20 uppercase w-8">Start</span>}
-                                                                        <div className={cn(inputBase, 'relative flex-1 h-[42px] py-0')}>
-                                                                            <input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="w-full bg-transparent border-none outline-none py-2 text-[12px] font-bold" />
-                                                                            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/20 pointer-events-none" />
-                                                                        </div>
+                                                                        <DatePickerInput value={form.dueDate ?? ''} onChange={val => setForm({ ...form, dueDate: val })} />
                                                                     </div>
                                                                     {form.dueDateMode === 'range' && (
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="text-[9px] font-black text-black/20 uppercase w-8">End</span>
-                                                                            <div className={cn(inputBase, 'relative flex-1 h-[42px] py-0')}>
-                                                                                <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full bg-transparent border-none outline-none py-2 text-[12px] font-bold" />
-                                                                                <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/20 pointer-events-none" />
-                                                                            </div>
+                                                                            <DatePickerInput value={form.endDate ?? ''} onChange={val => setForm({ ...form, endDate: val })} />
                                                                         </div>
                                                                     )}
                                                                 </div>

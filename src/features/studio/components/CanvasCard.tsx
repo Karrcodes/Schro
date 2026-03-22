@@ -144,7 +144,15 @@ export default function CanvasCard({ entry, connections, onClick, onPin, onDelet
             {entry.tags && entry.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-auto pt-1">
                     {entry.tags.slice(0, 4).map(tag => (
-                        <span key={tag} className="text-[10px] font-bold text-black/40 bg-black/[0.04] px-2 py-0.5 rounded-full">
+                        <span 
+                            key={tag} 
+                            className={cn(
+                                "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                                tag === 'tweeted' 
+                                    ? "bg-black text-white" 
+                                    : "text-black/40 bg-black/[0.04]"
+                            )}
+                        >
                             {tag}
                         </span>
                     ))}

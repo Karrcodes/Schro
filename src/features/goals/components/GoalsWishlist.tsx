@@ -6,12 +6,15 @@ import {
     Plus, Trash2, ExternalLink, Rocket, MoreVertical, 
     Star, Tag, PoundSterling, Edit2, GripVertical, CheckCircle2, XCircle,
     UploadCloud, X, AlertTriangle, Image as ImageIcon,
-    Loader2, Zap, RefreshCw, Sparkles, Wand2, ChevronRight, ChevronDown
+    Loader2, Zap, RefreshCw, Sparkles, Wand2, ChevronRight, ChevronDown,
+    Globe, Upload
 } from 'lucide-react'
 import type { WishlistItem, CreateWishlistItemData, GoalCategory, WishlistStatus } from '../types/goals.types'
 import { useGoals } from '../hooks/useGoals'
 import { cn } from '@/lib/utils'
 import ConfirmationModal from '@/components/ConfirmationModal'
+
+import WishlistDetailModal from './WishlistDetailModal'
 
 interface GoalsWishlistProps {
     items: WishlistItem[]
@@ -27,14 +30,15 @@ const COLUMNS: { label: string; value: WishlistStatus; color: string }[] = [
 ]
 
 export default function GoalsWishlist({ items, isCreatingExternal, onCreatingExternalChange }: GoalsWishlistProps) {
-    const { createWishlistItem, updateWishlistItem, deleteWishlistItem, convertWishlistToGoal } = useGoals()
+    const { createWishlistItem, updateWishlistItem, deleteWishlistItem } = useGoals()
     const [isCreatingInternal, setIsCreatingInternal] = useState(false)
     const isCreating = isCreatingExternal ?? isCreatingInternal
     const setIsCreating = (val: boolean) => {
         setIsCreatingInternal(val)
         onCreatingExternalChange?.(val)
     }
-    const [editingItem, setEditingItem] = useState<WishlistItem | null>(null)
+    const [selectedItem, setSelectedItem] = useState<WishlistItem | null>(null)
+    const [startInEdit, setStartInEdit] = useState(false)
     const [dragOverStatus, setDragOverStatus] = useState<WishlistStatus | null>(null)
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [expandedStacks, setExpandedStacks] = useState<Record<string, boolean>>({
@@ -122,26 +126,26 @@ export default function GoalsWishlist({ items, isCreatingExternal, onCreatingExt
                                     </button>
                                 )}
 
-                                {column.value === 'incoming' ? (
-                                    <div className="space-y-6">
-                                        {['super', 'high', 'mid', 'low'].map((prio) => {
-                                            const prioItems = columnItems
-                                                .filter(item => item.priority === prio)
-                                                .sort((a, b) => (b.price || 0) - (a.price || 0))
-                                            
-                                            if (prioItems.length === 0) return null
+                                <div className="space-y-6">
+                                    {['super', 'high', 'mid', 'low'].map((prio) => {
+                                        const prioItems = columnItems
+                                            .filter(item => item.priority === prio)
+                                            .sort((a, b) => (b.price || 0) - (a.price || 0))
+                                        
+                                        if (prioItems.length === 0) return null
 
-                                            const isExpanded = expandedStacks[prio]
-                                            const topItem = prioItems[0]
+                                        const isExpanded = expandedStacks[prio]
 
-                                            return (
-                                                <div key={prio} className="space-y-3">
-                                                    <div className="flex items-center justify-between px-2">
-                                                        <h4 className="text-[9px] font-black uppercase tracking-widest text-black/20 flex items-center gap-2">
-                                                            <span>{prio} priority</span>
-                                                            <span className="w-1 h-1 rounded-full bg-black/10" />
-                                                            <span className="font-bold opacity-60">£{prioItems.reduce((acc, curr) => acc + (curr.price || 0), 0).toLocaleString()}</span>
-                                                        </h4>
+                                        return (
+                                            <div key={prio} className="space-y-3 group/stack">
+                                                <div className="flex items-center justify-between px-2">
+                                                    <h4 className="text-[9px] font-black uppercase tracking-widest text-black/20 flex items-center gap-2 group-hover/stack:text-black/40 transition-colors">
+                                                        <span>{prio} priority</span>
+                                                        <span className="w-1 h-1 rounded-full bg-black/10" />
+                                                        <span className="font-bold opacity-60">£{prioItems.reduce((acc, curr) => acc + (curr.price || 0), 0).toLocaleString()}</span>
+                                                    </h4>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-[8px] font-black text-black/20 uppercase tracking-tighter opacity-0 group-hover/stack:opacity-100 transition-opacity">Swipe to cycle</span>
                                                         <button 
                                                             onClick={() => toggleStack(prio)}
                                                             className="p-1 hover:bg-black/5 rounded-md transition-colors"
@@ -149,89 +153,54 @@ export default function GoalsWishlist({ items, isCreatingExternal, onCreatingExt
                                                             {isExpanded ? <ChevronDown className="w-3 h-3 text-black/30" /> : <ChevronRight className="w-3 h-3 text-black/30" />}
                                                         </button>
                                                     </div>
-
-                                                    <div className="relative">
-                                                        {isExpanded ? (
-                                                            <div className="flex flex-col gap-3">
-                                                                {prioItems.map(item => (
-                                                                    <WishlistCard 
-                                                                        key={item.id} 
-                                                                        item={item} 
-                                                                        onEdit={() => setEditingItem(item)}
-                                                                        onUpdate={(updates, file) => updateWishlistItem(item.id, updates, file)}
-                                                                        onDelete={() => deleteWishlistItem(item.id)}
-                                                                        onConvertToGoal={() => convertWishlistToGoal(item.id)}
-                                                                        onPointerDragStart={(id) => setDraggingId(id)}
-                                                                        onPointerDragOver={handlePointerDragOver}
-                                                                        onPointerDrop={handlePointerDrop}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="relative">
-                                                                {/* Render up to 2 ghost cards below, in reverse so card 1 is on top */}
-                                                                <div className="relative">
-                                                                    {/* Card 3 (bottom of stack) */}
-                                                                    {prioItems.length > 2 && (
-                                                                        <div 
-                                                                            className="absolute -bottom-3 left-3 right-3 h-12 rounded-[22px] bg-black/[0.035] border border-black/[0.06]"
-                                                                            style={{ transform: 'scale(0.94)', transformOrigin: 'bottom center' }}
-                                                                        />
-                                                                    )}
-                                                                    {/* Card 2 (middle of stack) */}
-                                                                    {prioItems.length > 1 && (
-                                                                        <div 
-                                                                            className="absolute -bottom-1.5 left-1.5 right-1.5 h-12 rounded-[23px] bg-black/[0.055] border border-black/[0.08]"
-                                                                            style={{ transform: 'scale(0.97)', transformOrigin: 'bottom center' }}
-                                                                        />
-                                                                    )}
-
-                                                                    {/* Top Card */}
-                                                                    <div className="relative z-20 mb-6">
-                                                                        <WishlistCard 
-                                                                            item={topItem} 
-                                                                            onEdit={() => setEditingItem(topItem)}
-                                                                            onUpdate={(updates, file) => updateWishlistItem(topItem.id, updates, file)}
-                                                                            onDelete={() => deleteWishlistItem(topItem.id)}
-                                                                            onConvertToGoal={() => convertWishlistToGoal(topItem.id)}
-                                                                            onPointerDragStart={(id) => setDraggingId(id)}
-                                                                            onPointerDragOver={handlePointerDragOver}
-                                                                            onPointerDrop={handlePointerDrop}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                                {prioItems.length > 1 && (
-                                                                    <div 
-                                                                        onClick={() => toggleStack(prio)}
-                                                                        className="flex items-center justify-center gap-1 -mt-4 cursor-pointer group/more"
-                                                                    >
-                                                                        <span className="text-[8px] font-black uppercase tracking-wider text-black/25 group-hover/more:text-black/50 transition-colors">+{prioItems.length - 1} more — tap to expand</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
                                                 </div>
-                                            )
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-4">
-                                        {columnItems.map((item) => (
-                                            <WishlistCard 
-                                                key={item.id} 
-                                                item={item} 
-                                                onEdit={() => setEditingItem(item)}
-                                                onUpdate={(updates, file) => updateWishlistItem(item.id, updates, file)}
-                                                onDelete={() => deleteWishlistItem(item.id)}
-                                                onConvertToGoal={() => convertWishlistToGoal(item.id)}
-                                                onPointerDragStart={(id) => setDraggingId(id)}
-                                                onPointerDragOver={handlePointerDragOver}
-                                                onPointerDrop={handlePointerDrop}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
+
+                                                <div className="relative">
+                                                    {isExpanded ? (
+                                                        <div className="flex flex-col gap-3">
+                                                            {prioItems.map(item => (
+                                                                <WishlistCard 
+                                                                    key={item.id} 
+                                                                    item={item} 
+                                                                    onClick={() => {
+                                                                        setSelectedItem(item)
+                                                                        setStartInEdit(false)
+                                                                    }}
+                                                                    onEdit={() => {
+                                                                        setSelectedItem(item)
+                                                                        setStartInEdit(true)
+                                                                    }}
+                                                                    onUpdate={(updates, file) => updateWishlistItem(item.id, updates, file)}
+                                                                    onDelete={() => deleteWishlistItem(item.id)}
+                                                                    onPointerDragStart={(id) => setDraggingId(id)}
+                                                                    onPointerDragOver={handlePointerDragOver}
+                                                                    onPointerDrop={handlePointerDrop}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <InteractiveSwipeStack 
+                                                            items={prioItems}
+                                                            onView={(item) => {
+                                                                setSelectedItem(item)
+                                                                setStartInEdit(false)
+                                                            }}
+                                                            onEdit={(item) => {
+                                                                setSelectedItem(item)
+                                                                setStartInEdit(true)
+                                                            }}
+                                                            onUpdate={updateWishlistItem}
+                                                            onDelete={deleteWishlistItem}
+                                                            onPointerDragStart={setDraggingId}
+                                                            onPointerDragOver={handlePointerDragOver}
+                                                            onPointerDrop={handlePointerDrop}
+                                                        />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
 
                                 {columnItems.length === 0 && column.value !== 'incoming' && (
                                     <div className="py-12 flex flex-col items-center justify-center text-center px-4 opacity-5">
@@ -246,42 +215,169 @@ export default function GoalsWishlist({ items, isCreatingExternal, onCreatingExt
             </div>
 
             <AnimatePresence>
-                {(isCreating || editingItem) && (
+                {isCreating && (
                     <WishlistModal 
-                        item={editingItem || undefined}
+                        item={undefined}
                         onClose={() => {
                             setIsCreating(false)
-                            setEditingItem(null)
                         }} 
                         onSave={async (data, file) => {
-                            if (editingItem) {
-                                await updateWishlistItem(editingItem.id, data, file)
-                            } else {
-                                await createWishlistItem(data, file)
-                            }
+                            await createWishlistItem(data, file)
                             setIsCreating(false)
-                            setEditingItem(null)
                         }}
                     />
                 )}
             </AnimatePresence>
+
+            <WishlistDetailModal
+                isOpen={!!selectedItem}
+                onClose={() => {
+                    setSelectedItem(null)
+                    setStartInEdit(false)
+                }}
+                item={selectedItem}
+                initialEditMode={startInEdit}
+                onDelete={async (id) => {
+                    await deleteWishlistItem(id)
+                    setSelectedItem(null)
+                    setStartInEdit(false)
+                }}
+            />
+        </div>
+    )
+}
+
+interface InteractiveSwipeStackProps {
+    items: WishlistItem[]
+    onView: (item: WishlistItem) => void
+    onEdit: (item: WishlistItem) => void
+    onUpdate: (id: string, updates: Partial<WishlistItem>, file?: File) => void
+    onDelete: (id: string) => void
+    onPointerDragStart: (id: string) => void
+    onPointerDragOver: (x: number, y: number) => void
+    onPointerDrop: (id: string, x: number, y: number) => void
+}
+
+function InteractiveSwipeStack({ 
+    items, onView, onEdit, onUpdate, onDelete,
+    onPointerDragStart, onPointerDragOver, onPointerDrop
+}: InteractiveSwipeStackProps) {
+    const [index, setIndex] = useState(0)
+    const containerRef = useRef<HTMLDivElement>(null)
+    const lastScrollTime = useRef(0)
+
+    useEffect(() => {
+        const el = containerRef.current
+        if (!el) return
+
+        const handleWheel = (e: WheelEvent) => {
+            if (Math.abs(e.deltaY) < 10) return
+            
+            // Only cycle if we're not busy
+            const now = Date.now()
+            if (now - lastScrollTime.current < 400) return
+
+            const direction = e.deltaY > 0 ? 1 : -1
+            const newIndex = index + direction
+            if (newIndex >= 0 && newIndex < items.length) {
+                setIndex(newIndex)
+                lastScrollTime.current = now
+            }
+        }
+
+        el.addEventListener('wheel', handleWheel)
+        return () => el.removeEventListener('wheel', handleWheel)
+    }, [index, items.length])
+
+    return (
+        <div 
+            ref={containerRef}
+            onMouseEnter={() => {
+                document.body.style.overflow = 'hidden'
+            }}
+            onMouseLeave={() => {
+                document.body.style.overflow = ''
+            }}
+            className="relative group/stack-nav h-[240px] mb-12 select-none"
+        >
+            {/* The actual visible stack */}
+            <div className="relative w-full h-full">
+                <AnimatePresence mode="popLayout" initial={false}>
+                    {items.map((item, idx) => {
+                        if (idx !== index) return null
+
+                        return (
+                            <motion.div
+                                key={item.id}
+                                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                                animate={{
+                                    scale: 1, 
+                                    y: 0, 
+                                    opacity: 1,
+                                    zIndex: 20,
+                                }}
+                                exit={{ 
+                                    opacity: 0, 
+                                    y: -30, 
+                                    filter: 'blur(4px)',
+                                    scale: 1.05
+                                }}
+                                transition={{ 
+                                    type: 'spring', 
+                                    stiffness: 300, 
+                                    damping: 30,
+                                    opacity: { duration: 0.15 }
+                                }}
+                                className="absolute inset-0 z-20"
+                            >
+                                <WishlistCard 
+                                    item={item} 
+                                    onClick={() => onView(item)}
+                                    onEdit={() => onEdit(item)}
+                                    onUpdate={(updates, file) => onUpdate(item.id, updates, file)}
+                                    onDelete={() => onDelete(item.id)}
+                                    onPointerDragStart={onPointerDragStart}
+                                    onPointerDragOver={onPointerDragOver}
+                                    onPointerDrop={onPointerDrop}
+                                />
+                            </motion.div>
+                        )
+                    })}
+                </AnimatePresence>
+            </div>
+
+            {/* Persistent Navigation Indicators */}
+            {items.length > 1 && (
+                <div className="absolute -right-4 top-0 bottom-0 flex flex-col justify-center gap-1.5 transition-opacity">
+                    {items.map((_, i) => (
+                        <div 
+                            key={i}
+                            onClick={() => setIndex(i)}
+                            className={cn(
+                                "w-1 h-1 rounded-full transition-all duration-300 cursor-pointer hover:bg-amber-500/50",
+                                i === index ? "bg-amber-500 h-3" : "bg-black/10"
+                            )}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     )
 }
 
 interface WishlistCardProps {
     item: WishlistItem
+    onClick?: () => void
     onEdit: () => void
     onUpdate: (updates: Partial<WishlistItem>, file?: File) => void
     onDelete: () => void
-    onConvertToGoal: () => void
     onPointerDragStart: (id: string) => void
     onPointerDragOver: (x: number, y: number) => void
     onPointerDrop: (id: string, x: number, y: number) => void
 }
 
 function WishlistCard({ 
-    item, onEdit, onUpdate, onDelete, onConvertToGoal,
+    item, onClick, onEdit, onUpdate, onDelete,
     onPointerDragStart, onPointerDragOver, onPointerDrop
 }: WishlistCardProps) {
     const { generatingWishlistIds } = useGoals()
@@ -349,6 +445,8 @@ function WishlistCard({
             if (isDragging.current) {
                 onPointerDrop(item.id, ev.clientX, ev.clientY)
                 isDragging.current = false
+            } else {
+                if (onClick) onClick()
             }
         }
 
@@ -361,8 +459,9 @@ function WishlistCard({
             layout
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
+            onClick={onClick}
             className={cn(
-                "group relative bg-white border border-black/[0.05] rounded-[32px] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-black/5 transition-all flex flex-col min-h-[160px]",
+                "group relative bg-white border border-black/[0.05] rounded-[32px] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-black/5 transition-all flex flex-col min-h-[160px] cursor-pointer",
                 isDraggingThis && "opacity-20 scale-95"
             )}
         >
@@ -516,6 +615,9 @@ function WishlistModal({ item, onClose, onSave }: WishlistModalProps) {
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string>(item?.image_url || '')
     const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -559,326 +661,310 @@ function WishlistModal({ item, onClose, onSave }: WishlistModalProps) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
+        setError(null)
         try {
             await onSave(formData, imageFile || undefined)
+            onClose()
+        } catch (err: any) {
+            setError(err?.message || 'Failed to manifest desire')
         } finally {
             setLoading(false)
         }
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 md:p-6">
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={onClose}
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
             <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="relative bg-white w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94dvh]"
             >
-                <div className="p-8 md:p-10 overflow-y-auto flex-1">
-                    <div className="flex items-center justify-between mb-8">
+                {/* Header */}
+                <div className="px-5 md:px-8 pt-5 md:pt-7 pb-4 md:pb-5 border-b border-black/5 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
+                            <Zap className="w-5 h-5 fill-current" />
+                        </div>
                         <div>
-                            <h2 className="text-[11px] font-black text-amber-500 uppercase tracking-[0.3em] mb-1">
-                                {item ? 'Altering Reality' : 'Reality Anchor'}
+                            <h2 className="text-[18px] md:text-[20px] font-bold text-black tracking-tight">
+                                {item ? 'Evolutionary Branching' : 'Manifest Desire'}
                             </h2>
-                            <h3 className="text-3xl font-black text-black tracking-tighter uppercase">
-                                {item ? 'Edit Desire' : 'Manifest Item'}
-                            </h3>
+                            <p className="text-[10px] text-black/35 font-medium uppercase tracking-wider">Concept Anchor Pipeline</p>
                         </div>
                     </div>
+                    <button onClick={onClose} className="w-9 h-9 rounded-full border border-black/5 flex items-center justify-center hover:bg-black/5 transition-colors">
+                        <X className="w-4 h-4 text-black/40" />
+                    </button>
+                </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="space-y-4">
-                             <div className="relative group/title">
-                                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black/30 block mb-2 px-1">Concept</label>
-                                <div className="relative">
-                                    <input
-                                        required
-                                        type="text"
-                                        placeholder="e.g. Dream Apartment in London"
-                                        value={formData.title}
-                                        onChange={e => setFormData({ ...formData, title: e.target.value })}
-                                        className="w-full bg-black/[0.03] border-2 border-transparent focus:border-black/5 focus:bg-white rounded-2xl px-6 py-4 text-sm font-bold outline-none transition-all pr-14"
-                                    />
-                                    <button
-                                        type="button"
-                                        disabled={isSuggesting || !formData.title}
-                                        onClick={handleSuggest}
-                                        className={cn(
-                                            "absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                                            isSuggesting ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" : 
-                                            suggestions.length > 0 ? "bg-amber-100 text-amber-600" : "bg-black/[0.03] hover:bg-black text-black/30 hover:text-white"
-                                        )}
-                                        title="AI Manifest Details"
-                                    >
-                                        {isSuggesting ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <Wand2 className="w-4 h-4" />
-                                        )}
-                                    </button>
-                                </div>
-
-                                <AnimatePresence>
-                                    {suggestions.length > 0 && (
-                                        <motion.div 
-                                            ref={suggestionsRef}
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 4 }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                            className="absolute left-0 right-0 top-full mt-2 z-[110] bg-white/90 border border-black/5 shadow-2xl shadow-black/20 rounded-2xl overflow-hidden backdrop-blur-xl"
-                                        >
-                                            <div className="p-3 border-b border-black/5 bg-black/[0.02] flex items-center justify-between">
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-black/40 px-2 font-mono">Manifested Options</p>
-                                                <button 
-                                                    onClick={() => setSuggestions([])}
-                                                    className="w-6 h-6 rounded-lg flex items-center justify-center text-black/20 hover:text-black hover:bg-black/[0.05] transition-all"
-                                                >
-                                                    <X className="w-3 h-3" />
-                                                </button>
-                                            </div>
-                                            <div className="max-h-[280px] overflow-y-auto custom-scrollbar">
-                                                {suggestions.map((s, idx) => (
-                                                    <div
-                                                        key={idx}
-                                                        className="w-full flex items-center gap-4 px-6 py-4 hover:bg-black/[0.03] transition-all border-b border-black/[0.02] last:border-0 group relative"
-                                                    >
-                                                        {/* Info */}
-                                                        <div 
-                                                            className="flex-1 min-w-0 cursor-pointer"
-                                                            onClick={() => handleSelectSuggestion(s)}
-                                                        >
-                                                            <div className="flex items-center gap-2 mb-0.5">
-                                                                <p className="text-[11px] font-black text-black group-hover:text-amber-600 transition-colors uppercase truncate tracking-tight">{s.title}</p>
-                                                                <span className="text-[9px] font-black text-black/40 shrink-0 bg-black/[0.03] px-1.5 py-0.5 rounded-md self-start mt-0.5">£{s.price}</span>
-                                                            </div>
-                                                            <p className="text-[10px] font-bold text-black/30 line-clamp-1 leading-relaxed">{s.description}</p>
-                                                        </div>
-
-                                                        {/* Actions */}
-                                                        <div className="flex items-center gap-1">
-                                                            {s.url && (
-                                                                <a
-                                                                    href={s.url}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-black/20 hover:text-black hover:bg-black/[0.05] transition-all"
-                                                                    title="Visit Website"
-                                                                >
-                                                                    <ExternalLink className="w-3.5 h-3.5" />
-                                                                </a>
-                                                            )}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleSelectSuggestion(s)}
-                                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-black/20 hover:text-amber-600 hover:bg-amber-50 transition-all group-hover:text-amber-500"
-                                                                title="Insert Details"
-                                                            >
-                                                                <Plus className="w-3.5 h-3.5" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="col-span-1">
-                                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black/30 block mb-2 px-1">Value (GBP)</label>
-                                    <div className="relative">
-                                        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-[12px] font-black text-black/20">£</div>
-                                        <input
-                                            type="number"
-                                            placeholder="0"
-                                            value={formData.price || ''}
-                                            onChange={e => setFormData({ ...formData, price: e.target.value ? parseFloat(e.target.value) : undefined })}
-                                            className="w-full h-[58px] bg-black/[0.03] border-2 border-transparent focus:border-black/5 focus:bg-white rounded-2xl pl-12 pr-6 py-4 text-sm font-bold outline-none transition-all"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="col-span-1">
-                                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black/30 block mb-2 px-1">Status</label>
-                                    <select
-                                        value={formData.status}
-                                        onChange={e => setFormData({ ...formData, status: e.target.value as WishlistStatus })}
-                                        className="w-full h-[58px] bg-black/[0.03] border-2 border-transparent focus:border-black/5 focus:bg-white rounded-2xl px-6 py-4 text-sm font-bold outline-none transition-all appearance-none"
-                                    >
-                                        {COLUMNS.map(col => (
-                                            <option key={col.value} value={col.value}>{col.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black/30 block mb-2 px-1">Category</label>
-                                <div className="flex gap-2 p-1.5 bg-black/[0.03] rounded-2xl">
-                                    {['personal', 'finance', 'career', 'health'].map(cat => (
-                                        <button
-                                            key={cat}
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, category: cat as GoalCategory })}
-                                            className={cn(
-                                                "flex-1 py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                                formData.category === cat 
-                                                    ? cn(
-                                                        "text-white shadow-lg shadow-black/10",
-                                                        cat === 'personal' && "bg-amber-500",
-                                                        cat === 'finance' && "bg-emerald-500",
-                                                        cat === 'career' && "bg-blue-500",
-                                                        cat === 'health' && "bg-rose-500"
-                                                    )
-                                                    : "text-black/30 hover:text-black hover:bg-black/[0.02]"
-                                            )}
-                                        >
-                                            {cat}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black/30 block mb-2 px-1">Priority</label>
-                                <div className="flex gap-2 p-1.5 bg-black/[0.03] rounded-2xl">
-                                    {['low', 'mid', 'high', 'super'].map(pri => (
-                                        <button
-                                            key={pri}
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, priority: pri as any })}
-                                            className={cn(
-                                                "flex-1 py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                                formData.priority === pri 
-                                                    ? cn(
-                                                        "text-white shadow-lg shadow-black/10",
-                                                        pri === 'low' && "bg-slate-400",
-                                                        pri === 'mid' && "bg-yellow-500",
-                                                        pri === 'high' && "bg-red-600",
-                                                        pri === 'super' && "bg-purple-600"
-                                                    )
-                                                    : "text-black/30 hover:text-black hover:bg-black/[0.02]"
-                                            )}
-                                        >
-                                            {pri}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black/30 block mb-2 px-1">Resource URL</label>
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto no-scrollbar">
+                    <div className="p-5 md:px-10 md:pt-10 pb-16 md:pb-[86px] space-y-8">
+                        {/* Concept Title */}
+                        <div className="space-y-4 relative group/title">
+                            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Concept Designation</label>
+                            <div className="relative">
                                 <input
-                                    type="url"
-                                    placeholder="https://..."
-                                    value={formData.url || ''}
-                                    onChange={e => setFormData({ ...formData, url: e.target.value })}
-                                    className="w-full bg-black/[0.03] border-2 border-transparent focus:border-black/5 focus:bg-white rounded-2xl px-6 py-4 text-sm font-bold outline-none transition-all"
+                                    autoFocus
+                                    required
+                                    type="text"
+                                    placeholder="e.g. Masterwork Camera Setup"
+                                    value={formData.title}
+                                    onChange={e => setFormData({ ...formData, title: e.target.value })}
+                                    className="w-full text-[20px] md:text-[28px] font-bold tracking-tight placeholder:text-black/10 border-none p-0 focus:ring-0 outline-none pr-14"
                                 />
+                                <button
+                                    type="button"
+                                    disabled={isSuggesting || !formData.title}
+                                    onClick={handleSuggest}
+                                    className={cn(
+                                        "absolute right-0 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                                        isSuggesting ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" : 
+                                        suggestions.length > 0 ? "bg-amber-100 text-amber-600" : "bg-black/[0.03] hover:bg-black text-black/30 hover:text-white"
+                                    )}
+                                >
+                                    {isSuggesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                </button>
                             </div>
 
-                             <div>
-                                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-black/30 block mb-2 px-1">Visual Representation</label>
+                            <AnimatePresence>
+                                {suggestions.length > 0 && (
+                                    <motion.div 
+                                        ref={suggestionsRef}
+                                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 4 }}
+                                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                        className="absolute left-0 right-0 top-full mt-2 z-[110] bg-white/95 border border-black/5 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-xl"
+                                    >
+                                        <div className="p-3 border-b border-black/5 bg-black/[0.02] flex items-center justify-between">
+                                            <p className="text-[9px] font-black uppercase tracking-widest text-black/40 px-2">Manifested Options</p>
+                                            <button onClick={() => setSuggestions([])} className="p-1 hover:bg-black/5 rounded-lg"><X className="w-3 h-3" /></button>
+                                        </div>
+                                        <div className="max-h-[280px] overflow-y-auto no-scrollbar">
+                                            {suggestions.map((s, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => handleSelectSuggestion(s)}
+                                                    className="w-full flex items-center gap-4 px-6 py-4 hover:bg-black/[0.03] transition-all border-b border-black/[0.02] last:border-0 cursor-pointer group"
+                                                >
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <p className="text-[11px] font-black text-black group-hover:text-amber-600 transition-colors uppercase truncate tracking-tight">{s.title}</p>
+                                                            <span className="text-[9px] font-black text-black/40 shrink-0 bg-black/[0.03] px-1.5 py-0.5 rounded-md">£{s.price}</span>
+                                                        </div>
+                                                        <p className="text-[10px] font-bold text-black/30 line-clamp-1">{s.description}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* Tagline / Brief Description */}
+                        <div className="space-y-2 pt-2 border-t border-black/5">
+                            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Concept Brief</label>
+                            <textarea
+                                value={formData.description}
+                                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                placeholder="Define the nature of this desire..."
+                                rows={2}
+                                className="w-full text-sm font-medium text-black/60 placeholder:text-black/15 border-none p-0 focus:ring-0 resize-none outline-none"
+                            />
+                        </div>
+
+                        {/* Config Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2 border-t border-black/5">
+                            {/* Reality Value */}
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Reality Value (GBP)</label>
+                                <div className="relative group">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-black/20">£</div>
+                                    <input
+                                        type="number"
+                                        placeholder="0"
+                                        value={formData.price || ''}
+                                        onChange={e => setFormData({ ...formData, price: e.target.value ? parseFloat(e.target.value) : undefined })}
+                                        className="w-full bg-black/[0.03] border border-black/5 focus:border-black/10 focus:bg-transparent rounded-xl pl-9 pr-4 py-3 text-sm font-bold outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Status */}
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Current State</label>
+                                <select
+                                    value={formData.status}
+                                    onChange={e => setFormData({ ...formData, status: e.target.value as WishlistStatus })}
+                                    className="w-full bg-black/[0.03] border border-black/5 focus:border-black/10 focus:bg-transparent rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all appearance-none"
+                                >
+                                    {COLUMNS.map(col => (
+                                        <option key={col.value} value={col.value}>{col.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Row 2: Category & Priority */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2 border-t border-black/5">
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Sector</label>
+                                <div className="grid grid-cols-2 gap-2 p-1 bg-black/5 rounded-xl">
+                                    {['personal', 'finance', 'career', 'health'].map(cat => {
+                                        const active = formData.category === cat
+                                        return (
+                                            <button
+                                                key={cat}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, category: cat as GoalCategory })}
+                                                className={cn(
+                                                    "py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
+                                                    active ? "bg-black text-white shadow-lg" : "text-black/30 hover:text-black/60"
+                                                )}
+                                            >
+                                                {cat}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Anchor Priority</label>
+                                <div className="grid grid-cols-2 gap-2 p-1 bg-black/5 rounded-xl">
+                                    {(['low', 'mid', 'high', 'super'] as const).map(pr => {
+                                        const active = formData.priority === pr
+                                        return (
+                                            <button
+                                                key={pr}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, priority: pr })}
+                                                className={cn(
+                                                    "py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
+                                                    active 
+                                                        ? pr === 'super' ? "bg-purple-600 text-white shadow-lg" :
+                                                          pr === 'high' ? "bg-rose-600 text-white shadow-lg" :
+                                                          pr === 'mid' ? "bg-amber-500 text-white shadow-lg" : "bg-black text-white"
+                                                        : "text-black/30 hover:text-black/60"
+                                                )}
+                                            >
+                                                {pr}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* URL & Asset */}
+                        <div className="space-y-6 pt-2 border-t border-black/5">
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Reality Endpoint (URL)</label>
+                                <div className="relative group">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-black/20"><Globe className="w-4 h-4" /></div>
+                                    <input
+                                        type="url"
+                                        placeholder="https://..."
+                                        value={formData.url || ''}
+                                        onChange={e => setFormData({ ...formData, url: e.target.value })}
+                                        className="w-full bg-black/[0.03] border border-black/5 focus:border-black/10 focus:bg-transparent rounded-xl pl-11 pr-4 py-3 text-[13px] font-medium outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Visual Asset</label>
                                 <div className="flex gap-3">
-                                    <div className="flex-1">
+                                    <div className="flex-1 relative">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-black/20"><ImageIcon className="w-4 h-4" /></div>
                                         <input
                                             type="url"
-                                            placeholder="https://images.unsplash.com/..."
+                                            placeholder="Cover image URL..."
                                             value={formData.image_url || ''}
-                                            onChange={e => {
-                                                setFormData({ ...formData, image_url: e.target.value })
-                                                setImagePreview(e.target.value)
-                                            }}
-                                            className="w-full h-[58px] bg-black/[0.03] border-2 border-transparent focus:border-black/5 focus:bg-white rounded-2xl px-6 text-sm font-bold outline-none transition-all"
+                                            onChange={e => { setFormData({ ...formData, image_url: e.target.value }); setImagePreview(e.target.value) }}
+                                            className="w-full bg-black/[0.03] border border-black/5 focus:border-black/10 focus:bg-transparent rounded-xl pl-11 pr-4 py-3 text-[13px] font-medium outline-none transition-all"
                                         />
                                     </div>
-                                    <label className="cursor-pointer group/upload relative">
-                                        <input 
-                                            type="file" 
-                                            className="hidden" 
-                                            accept="image/*"
-                                            onChange={handleFileChange}
-                                        />
-                                        <div className={cn(
-                                            "w-[58px] h-[58px] rounded-2xl border-2 border-dashed flex items-center justify-center transition-all",
-                                            imageFile ? "border-amber-500 bg-amber-50 text-amber-600" : "border-black/[0.06] hover:border-black/20 bg-black/[0.03]"
-                                        )}>
-                                            <UploadCloud className="w-5 h-5" />
-                                        </div>
-                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className={cn(
+                                            "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
+                                            imageFile ? "bg-amber-500 text-white shadow-lg" : "bg-black/[0.04] text-black/30 hover:bg-black/[0.08]"
+                                        )}
+                                    >
+                                        <Upload className="w-5 h-5" />
+                                    </button>
+                                    <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                                 </div>
+
                                 {imagePreview && (
-                                    <div className="mt-4 flex items-center gap-4 bg-black/[0.02] p-3 rounded-2xl border border-black/5">
-                                        <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-black/[0.02] border border-black/5 shrink-0">
-                                             <img src={imagePreview} alt="Preview" className={cn("w-full h-full object-cover", isGenerating && "animate-pulse blur-[2px]")} />
-                                             <button 
-                                                 type="button"
-                                                 onClick={() => {
-                                                     setImageFile(null)
-                                                     setImagePreview('')
-                                                     setFormData({ ...formData, image_url: '' })
-                                                 }}
-                                                 className="absolute top-1 right-1 w-5 h-5 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-all shadow-sm z-10"
-                                             >
-                                                 <X className="w-3 h-3" />
-                                             </button>
-                                             {isGenerating && (
-                                                 <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm z-20">
-                                                     <Loader2 className="w-4 h-4 text-white animate-spin" />
-                                                 </div>
-                                             )}
-                                         </div>
-                                         <div className="flex-1 min-w-0">
-                                             <div className="flex items-center justify-between mb-1">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-black">Reality Anchor Set</p>
+                                    <div className="mt-4 flex items-center gap-4 bg-black/[0.02] p-4 rounded-2xl border border-black/5">
+                                        <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-black/[0.02] border border-black/5 shrink-0">
+                                            <img src={imagePreview} alt="Preview" className={cn("w-full h-full object-cover", isGenerating && "animate-pulse blur-[2px]")} />
+                                            {isGenerating && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+                                                    <Loader2 className="w-5 h-5 text-white animate-spin" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-black mb-1">Reality Prop Anchor</p>
+                                            <div className="flex items-center gap-2">
                                                 {item && (
                                                     <button
                                                         type="button"
                                                         disabled={isGenerating}
                                                         onClick={() => regenerateWishlistCover(item.id)}
-                                                        className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg transition-all disabled:opacity-50"
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg transition-all"
                                                     >
-                                                        {isGenerating ? (
-                                                            <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                                                        ) : (
-                                                            <RefreshCw className="w-2.5 h-2.5" />
-                                                        )}
-                                                        <span className="text-[9px] font-black uppercase">Regenerate</span>
+                                                        {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                                                        <span className="text-[9px] font-black uppercase tracking-widest">Regenerate</span>
                                                     </button>
                                                 )}
-                                             </div>
-                                             <p className="text-[9px] font-bold text-black/30 truncate">{imageFile ? imageFile.name : 'Visual from URL'}</p>
-                                         </div>
-    </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setImageFile(null); setImagePreview(''); setFormData({ ...formData, image_url: '' }) }}
+                                                    className="p-1.5 rounded-lg border border-black/5 hover:bg-black/5 text-black/30 hover:text-black transition-all"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         </div>
+                    </div>
 
-                        <div className="flex gap-3 pt-4">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="flex-1 px-8 py-4 bg-black/[0.03] hover:bg-black/[0.06] text-black/60 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={loading || !formData.title}
-                                className="flex-[2] px-8 py-4 bg-black text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/20 disabled:opacity-50 disabled:hover:scale-100"
-                            >
-                                {loading ? 'Processing...' : item ? 'Update Reality' : 'Anchor to Reality'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    {/* Footer */}
+                    <div className="px-5 md:px-8 py-4 border-t border-black/5 flex items-center justify-between gap-3 shrink-0 bg-white sticky bottom-0 z-50">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-6 py-2.5 rounded-xl border border-black/10 text-[12px] font-bold text-black/50 hover:bg-black/5 transition-all"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading || !formData.title.trim()}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-10 py-2.5 bg-black text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/10 disabled:opacity-40 disabled:scale-100"
+                        >
+                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 fill-current" />}
+                            {loading ? 'Processing...' : item ? 'Update Reality' : 'Anchor to Reality'}
+                        </button>
+                    </div>
+                </form>
             </motion.div>
         </div>
     )

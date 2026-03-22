@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react'
 import { Star, Sparkles, ArrowRight, Wallet, Calendar, ShieldCheck, Target, TrendingUp, Info, ShoppingBag, Briefcase, Check, Clock, X, ChevronDown, ChevronUp } from 'lucide-react'
+import DatePickerInput from '@/components/DatePickerInput'
 import { usePots } from '../hooks/usePots'
 import { useRecurring } from '../hooks/useRecurring'
 import { usePayslips } from '../hooks/usePayslips'
@@ -894,11 +895,9 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-black text-black/30 uppercase tracking-widest block mb-2">Next Due</label>
-                                                <input 
-                                                    type="date"
-                                                    value={bnplForm.next_date}
-                                                    onChange={e => setBnplForm({ ...bnplForm, next_date: e.target.value })}
-                                                    className="w-full py-4 px-4 bg-black/[0.03] border-none rounded-xl text-[10px] font-black outline-none"
+                                                <DatePickerInput 
+                                                    value={bnplForm.next_date ?? ''}
+                                                    onChange={val => setBnplForm({ ...bnplForm, next_date: val })}
                                                 />
                                             </div>
                                         </div>

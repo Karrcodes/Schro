@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Video, Calendar, CheckCircle2, Trash2, Plus, Zap, Rocket, Shield, ListTodo, MoreVertical, LayoutGrid, Search, Clock } from 'lucide-react'
+import { Video, Calendar, CheckCircle2, Trash2, Plus, Zap, Rocket, Shield, ListTodo, MoreVertical, LayoutGrid, Search, Clock, Sparkles, Globe } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import type { StudioContent, ContentStatus, StudioProject, StudioMilestone } from '../types/studio.types'
 import { cn } from '@/lib/utils'
@@ -43,17 +43,35 @@ export default function ContentKanban({
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [dragOverStatus, setDragOverStatus] = useState<ContentStatus | null>(null)
     const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
+    const [modalInitialTab, setModalInitialTab] = useState<'details' | 'script'>('details')
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
     const [localShowArchived, setLocalShowArchived] = useState(false)
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
     const [contentToArchive, setContentToArchive] = useState<StudioContent | null>(null)
 
+    const priorityOrder: Record<string, number> = { super: 1, high: 2, mid: 3, low: 4 };
+
     const filteredContent = content.filter(item => {
         const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.type?.toLowerCase().includes(searchQuery.toLowerCase())
-        const matchesArchived = isArchived ? true : !item.is_archived
+        const matchesArchived = isArchived ? !!item.is_archived : !item.is_archived
         return matchesSearch && matchesArchived
+    }).sort((a, b) => {
+        if (sortBy === 'impact') {
+            const diff = (b.impact_score || 0) - (a.impact_score || 0)
+            if (diff !== 0) return diff
+            return (priorityOrder[a.priority as string || 'low'] || 99) - (priorityOrder[b.priority as string || 'low'] || 99)
+        } else if (sortBy === 'priority') {
+            const diff = (priorityOrder[a.priority as string || 'low'] || 99) - (priorityOrder[b.priority as string || 'low'] || 99)
+            if (diff !== 0) return diff
+            return (b.impact_score || 0) - (a.impact_score || 0)
+        } else if (sortBy === 'date') {
+            const dateA = a.deadline || a.publish_date || '9999-12-31'
+            const dateB = b.deadline || b.publish_date || '9999-12-31'
+            return dateA.localeCompare(dateB)
+        }
+        return 0
     })
 
     const handlePointerDragOver = (x: number, y: number) => {
@@ -185,7 +203,8 @@ export default function ContentKanban({
                                 onPointerDragOver={handlePointerDragOver}
                                 onPointerDrop={handlePointerDrop}
                                 onPointerDragEnd={() => { setDraggingId(null); setDragOverStatus(null) }}
-                                onClick={() => setSelectedContentId(item.id)}
+                                onClick={() => { setSelectedContentId(item.id); setModalInitialTab('details'); }}
+                                onWrite={() => { setSelectedContentId(item.id); setModalInitialTab('script'); }}
                                 onArchive={() => setContentToArchive(item)}
                                 onDelete={() => setDeleteConfirmId(item.id)}
                                 isGenerating={generatingContentIds.includes(item.id)}
@@ -204,6 +223,7 @@ export default function ContentKanban({
                 isOpen={!!selectedContentId}
                 onClose={() => setSelectedContentId(null)}
                 item={content.find(c => c.id === selectedContentId) || null}
+                initialTab={modalInitialTab}
             />
 
             <ConfirmationModal
@@ -239,7 +259,7 @@ export default function ContentKanban({
     )
 }
 
-function ContentCard({ item, project, milestones, onPointerDragStart, onPointerDragOver, onPointerDrop, onPointerDragEnd, onClick, onArchive, onDelete, isGenerating }: {
+function ContentCard({ item, project, milestones, onPointerDragStart, onPointerDragOver, onPointerDrop, onPointerDragEnd, onClick, onWrite, onArchive, onDelete, isGenerating }: {
     item: StudioContent;
     project?: StudioProject;
     milestones: StudioMilestone[];
@@ -248,6 +268,7 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
     onPointerDrop: (id: string, x: number, y: number) => void;
     onPointerDragEnd: () => void;
     onClick: () => void;
+    onWrite: () => void;
     onArchive: () => void;
     onDelete: () => void;
     isGenerating?: boolean;
@@ -321,32 +342,14 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
 
     return (
         <div
+            onClick={onClick}
             className={cn(
                 "group relative bg-white border border-black/[0.05] rounded-2xl hover:border-blue-200 hover:shadow-xl transition-[box-shadow,border-color] duration-300 overflow-hidden flex flex-col h-full",
                 isDraggingThis && "opacity-30 scale-95 shadow-none"
             )}
         >
-            {/* Action Overlay */}
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center gap-1">
-                <button
-                    onClick={(e) => { e.stopPropagation(); onArchive(); }}
-                    className={cn(
-                        "p-1.5 rounded-lg transition-all",
-                        item.is_archived ? "bg-blue-600 text-white shadow-lg" : "bg-white/80 backdrop-blur-md text-black/40 hover:text-blue-600 hover:bg-white"
-                    )}
-                >
-                    <Shield className="w-3 h-3" />
-                </button>
-                <button
-                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                    className="p-1.5 rounded-lg bg-white/80 backdrop-blur-md text-black/40 hover:text-red-600 hover:bg-white transition-all"
-                >
-                    <Trash2 className="w-3 h-3" />
-                </button>
-            </div>
-
             <div 
-                className="h-24 w-full overflow-hidden relative shrink-0 bg-black/[0.02] cursor-grab active:cursor-grabbing"
+                className="h-32 w-full overflow-hidden relative shrink-0 bg-black/[0.02] cursor-grab active:cursor-grabbing"
                 onPointerDown={handlePointerDown}
                 style={{ touchAction: 'none' }}
             >
@@ -362,8 +365,8 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                 />
                 {isGenerating && (
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 z-[2]">
-                        <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        <span className="text-[8px] font-black text-white uppercase tracking-widest">Generating...</span>
+                        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Generating...</span>
                     </div>
                 )}
                 {imageLoading && (
@@ -376,50 +379,83 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                     item.cover_url ? "opacity-60" : "opacity-20"
                 )} />
                 {item.platforms && item.platforms.length > 0 && (
-                    <div className="absolute top-2 left-2 flex -space-x-1 ring-1 ring-white/20 rounded-full p-0.5 bg-black/10 backdrop-blur-md">
+                    <div className="absolute top-3 left-3 flex -space-x-1.5 ring-1 ring-white/20 rounded-full p-0.5 bg-black/10 backdrop-blur-md">
                         {item.platforms.map(p => (
-                            <div key={p} className="w-4 h-4 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]" title={p}>
-                                <PlatformIcon platform={p} className="w-2 h-2" />
+                            <div key={p} className="w-5 h-5 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]" title={p}>
+                                <PlatformIcon platform={p} className="w-2.5 h-2.5" />
                             </div>
                         ))}
                     </div>
                 )}
             </div>
 
-            <div className="p-4 flex flex-col flex-1 cursor-pointer" onClick={onClick}>
-                <div className="flex justify-between items-start mb-2">
-                    <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                         <div className={cn(
-                            "px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight",
-                            item.status === 'scheduled' ? "bg-cyan-50 text-cyan-600" :
-                            item.status === 'edited' ? "bg-orange-50 text-orange-600" :
-                            item.status === 'filmed' ? "bg-purple-50 text-purple-600" :
-                            item.status === 'scripted' ? "bg-blue-50 text-blue-600" :
-                            item.status === 'published' ? "bg-emerald-50 text-emerald-600" :
-                            "bg-black/5 text-black/30"
-                        )}>
-                            {item.status}
+            <div className="p-4 flex flex-col flex-1">
+                <div className="flex justify-between items-start mb-3">
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-0">                        <div className="flex flex-wrap items-center gap-1.5">
+                            {!item.cover_url && item.platforms && item.platforms.length > 0 && (
+                                <div className="flex -space-x-1 mr-1">
+                                    {item.platforms.map(p => (
+                                        <div
+                                            key={p}
+                                            className="w-4 h-4 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]"
+                                            title={p}
+                                        >
+                                            <PlatformIcon platform={p} className="w-2 h-2" />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {item.category && (
+                                <div className={cn(
+                                    "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight truncate max-w-[120px]",
+                                    item.category === 'Thoughts' && "bg-blue-50 text-blue-600",
+                                    item.category === 'Concept' && "bg-emerald-50 text-emerald-600",
+                                    item.category === 'Vlog' && "bg-purple-50 text-purple-600",
+                                    item.category === 'Showcase' && "bg-rose-50 text-rose-600",
+                                    item.category === 'Update' && "bg-amber-50 text-amber-600",
+                                    !['Thoughts', 'Concept', 'Vlog', 'Showcase', 'Update'].includes(item.category as any) && "bg-black/[0.03] text-black/40"
+                                )}>
+                                    {item.category}
+                                </div>
+                            )}
+                            {item.priority && (
+                                <div className={cn(
+                                    "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter w-fit",
+                                    item.priority === 'super' ? "bg-purple-50 text-purple-600 border border-purple-100" :
+                                    item.priority === 'high' ? "bg-red-50 text-red-600 border border-red-100" :
+                                    item.priority === 'mid' ? "bg-yellow-50 text-yellow-600 border border-yellow-100" :
+                                    "bg-black/5 text-black/40"
+                                )}>
+                                    {item.priority}
+                                </div>
+                            )}
                         </div>
-                        {item.category && (
-                             <div className="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight bg-black/[0.03] text-black/40 truncate max-w-[80px]">
-                                {item.category}
-                            </div>
-                        )}
                     </div>
-                    {item.impact_score && (
-                        <div className="flex items-center gap-0.5 shrink-0">
-                            <Zap className="w-3 h-3 text-orange-500 fill-orange-500" />
-                            <span className="text-[11px] font-black text-orange-600">{item.impact_score}</span>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <div className="flex items-center gap-2">
+                            {item.deadline && (
+                                <div className="flex items-center gap-1 text-[9px] font-black text-black/30 uppercase tracking-tighter">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    {new Date(item.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                </div>
+                            )}
+                            {item.impact_score && (
+                                <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-500/5 rounded-md border border-orange-500/5">
+                                    <Zap className="w-2.5 h-2.5 text-orange-500 fill-orange-500" />
+                                    <span className="text-[10px] font-black text-orange-600">{item.impact_score}</span>
+                                </div>
+                            )}
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                <h4 className="text-[13px] font-black text-black leading-tight line-clamp-2 group-hover:text-blue-600 transition-colors">
+                <h4 className="text-[13px] font-black text-black leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors">
                     {item.title}
                 </h4>
 
                 {project && (
-                    <div className="mt-2 flex items-center gap-1.5">
+                    <div className="mt-2.5 flex items-center gap-1.5">
                         <Rocket className="w-2.5 h-2.5 text-orange-500" />
                         <span className="text-[9px] font-black text-black/30 uppercase truncate">{project.title}</span>
                     </div>
@@ -427,11 +463,11 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
 
                 {/* Milestone preview */}
                 {milestones.length > 0 && (
-                    <div className="mt-3 space-y-1">
-                        {milestones.slice(0, 2).map(m => (
-                            <div key={m.id} className="flex items-center gap-1.5">
+                    <div className="mt-4 space-y-1.5">
+                        {milestones.slice(0, 3).map(m => (
+                            <div key={m.id} className="flex items-center gap-2">
                                 {m.status === 'completed' ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" /> : <div className="w-2.5 h-2.5 rounded-full border border-black/10" />}
-                                <span className={cn("text-[10px] truncate", m.status === 'completed' ? "text-black/20 line-through" : "text-black/40")}>
+                                <span className={cn("text-[10px] font-medium truncate", m.status === 'completed' ? "text-black/20 line-through" : "text-black/40")}>
                                     {m.title}
                                 </span>
                             </div>
@@ -439,11 +475,47 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                     </div>
                 )}
 
-                <div className="mt-auto pt-3 flex items-center justify-between">
-                     <p className="text-[9px] text-black/25 font-bold uppercase">
-                        {new Date(item.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                    </p>
-                    <MoreVertical className="w-3 h-3 text-black/10 group-hover:text-black/30 transition-colors" />
+                <div className="mt-auto pt-6">
+                    <div className="border-t border-black/[0.03] pt-4 flex items-center justify-end">
+                    <div className="flex items-center gap-1">
+                        {item.url && (
+                            <a
+                                href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all flex items-center justify-center mr-1 shadow-sm"
+                                title="View Online"
+                            >
+                                <Globe className="w-3.5 h-3.5" />
+                            </a>
+                        )}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onWrite(); }}
+                            className="p-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-all flex items-center justify-center"
+                            title="Write Mode"
+                        >
+                            <Sparkles className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onArchive(); }}
+                            className={cn(
+                                "p-1.5 rounded-lg transition-all flex items-center justify-center",
+                                item.is_archived ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "bg-black/[0.03] text-black/30 hover:bg-black/5 hover:text-black"
+                            )}
+                            title={item.is_archived ? "Unarchive" : "Archive"}
+                        >
+                            <Shield className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                            className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-all flex items-center justify-center"
+                            title="Delete"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                    </div>
                 </div>
             </div>
         </div>

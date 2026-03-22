@@ -6,7 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import Heading from '@tiptap/extension-heading'
-import { Bold, Italic, Heading1, Heading2, Type, Wand2, Image as ImageIcon, Loader2, Check, X, Sparkles, Search, Dna, Plus } from 'lucide-react'
+import { Bold, Italic, Heading1, Heading2, Type, Wand2, Image as ImageIcon, Loader2, Check, X, Sparkles, Search, Dna, Plus, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ZenEditorProps {
@@ -43,6 +43,93 @@ const AILoaderNode = Node.create({
     },
 })
 
+const ZenImageView = (props: any) => {
+    const { src, alt, prompt } = props.node.attrs
+
+    const handleRegenerate = async () => {
+        const pos = props.getPos()
+        const editor = props.editor
+        const loaderId = `regen-${Date.now()}`
+
+        // Replacing image with loader
+        // Note: we insert at pos and delete pos+1 which is the old image
+        try {
+            editor.chain()
+                .focus()
+                .insertContentAt(pos, {
+                    type: 'aiLoader',
+                    attrs: { label: 'Regenerating...', id: loaderId }
+                })
+                .deleteRange({ from: pos + 1, to: pos + 2 })
+                .run()
+
+            const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(prompt)}&json=true&type=content`)
+            const data = await res.json()
+
+            // Re-find loader position in case of edits
+            let loaderPos = -1
+            editor.state.doc.descendants((node: any, p: number) => {
+                if (node.type.name === 'aiLoader' && node.attrs.id === loaderId) {
+                    loaderPos = p
+                    return false
+                }
+            })
+
+            if (res.ok && data.url && loaderPos !== -1) {
+                editor.chain()
+                    .focus()
+                    .deleteRange({ from: loaderPos, to: loaderPos + 1 })
+                    .insertContentAt(loaderPos, {
+                        type: 'image',
+                        attrs: { src: data.url, alt, prompt }
+                    })
+                    .run()
+            } else {
+                // If fails, we probably should restore or just delete the loader
+                if (loaderPos !== -1) {
+                    editor.chain().focus().deleteRange({ from: loaderPos, to: loaderPos + 1 }).run()
+                }
+            }
+        } catch (err) {
+            console.error('AI Image Regeneration Failed:', err)
+        }
+    }
+
+    return (
+        <NodeViewWrapper className="relative my-12 group">
+            <img
+                src={src}
+                alt={alt}
+                className="rounded-[40px] shadow-2xl max-w-full bg-black/5 mx-auto border border-black/5 transition-transform duration-500 group-hover:scale-[1.01] cursor-pointer"
+            />
+            {prompt && (
+                <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-20">
+                    <button
+                        onClick={handleRegenerate}
+                        className="p-3 bg-white border border-black/10 text-indigo-600 rounded-2xl shadow-2xl hover:bg-black hover:text-white hover:scale-110 active:scale-95 transition-all flex items-center gap-2 group/btn"
+                    >
+                        <RotateCcw className="w-4 h-4 group-hover/btn:rotate-180 transition-transform duration-500" />
+                        <span className="text-[11px] font-black uppercase tracking-widest pr-1">Regenerate</span>
+                    </button>
+                </div>
+            )}
+        </NodeViewWrapper>
+    )
+}
+
+const ZenImage = Image.extend({
+    name: 'image',
+    addAttributes() {
+        return {
+            ...this.parent?.(),
+            prompt: { default: null },
+        }
+    },
+    addNodeView() {
+        return ReactNodeViewRenderer(ZenImageView)
+    },
+})
+
 const AILoaderView = (props: any) => {
     return (
         <NodeViewWrapper className="ai-loader-node my-10 px-4">
@@ -55,13 +142,10 @@ const AILoaderView = (props: any) => {
                     </div>
 
                     <div className="text-center">
-                        <div className="flex items-center gap-2 justify-center mb-1">
+                        <div className="flex items-center gap-2 justify-center">
                             <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                             <p className="text-[14px] font-black text-black uppercase tracking-[0.2em]">{props.node.attrs.label}</p>
                         </div>
-                        <p className="text-[11px] text-black/30 font-bold max-w-[200px] leading-relaxed italic">
-                            "Nanobana is weaving pixels into your story..."
-                        </p>
                     </div>
                 </div>
 
@@ -80,23 +164,19 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
     const [isGeneratingImage, setIsGeneratingImage] = useState(false)
     const [isFindingImage, setIsFindingImage] = useState(false)
     const [showImageOptions, setShowImageOptions] = useState(false)
+    const [, setSelectionUpdate] = useState(0)
 
     const editor = useEditor({
         immediatelyRender: false,
         extensions: [
             StarterKit,
             AILoaderNode,
+            ZenImage,
             Heading.configure({
                 levels: [1, 2, 3],
             }),
             Placeholder.configure({
                 placeholder: 'Start writing...',
-            }),
-            Image.configure({
-                inline: false,
-                HTMLAttributes: {
-                    class: 'rounded-[40px] shadow-2xl my-12 max-w-full bg-black/5 mx-auto border border-black/5 animate-in slide-in-from-bottom-6 duration-1000',
-                },
             }),
         ],
         content: content,
@@ -124,6 +204,9 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
         },
         onUpdate: ({ editor }) => {
             onChange(editor.getHTML())
+        },
+        onSelectionUpdate: () => {
+            setSelectionUpdate(Date.now())
         }
     })
 
@@ -195,7 +278,7 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
 
             // Find specific loader by ID to ensure we replace the right one
             let loaderPos = -1
-            editor.state.doc.descendants((node, pos) => {
+            editor.state.doc.descendants((node: any, pos: number) => {
                 if (node.type.name === 'aiLoader' && node.attrs.id === loaderId) {
                     loaderPos = pos
                     return false
@@ -208,7 +291,7 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
                     .deleteRange({ from: loaderPos, to: loaderPos + 1 })
                     .insertContentAt(loaderPos, {
                         type: 'image',
-                        attrs: { src: data.url, alt: selectedText }
+                        attrs: { src: data.url, alt: selectedText, prompt: selectedText }
                     })
                     .run()
             } else {
@@ -222,7 +305,7 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
         } catch (err) {
             console.error('AI Image Generation Failed:', err)
             let loaderPos = -1
-            editor.state.doc.descendants((node, pos) => {
+            editor.state.doc.descendants((node: any, pos: number) => {
                 if (node.type.name === 'aiLoader' && node.attrs.id === loaderId) {
                     loaderPos = pos
                     return false
@@ -254,20 +337,16 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
 
         editor.chain().focus().insertContentAt(insertPos, {
             type: 'aiLoader',
-            attrs: { label: 'Finding AI Photo...', id: loaderId }
+            attrs: { label: 'Generating Magic...', id: loaderId }
         }).run()
 
         try {
-            const res = await fetch('/api/ai/studio/find-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: selectedText })
-            })
+            const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(selectedText)}&json=true&type=content`)
             const data = await res.json()
 
             // Find specific loader by ID
             let loaderPos = -1
-            editor.state.doc.descendants((node, pos) => {
+            editor.state.doc.descendants((node: any, pos: number) => {
                 if (node.type.name === 'aiLoader' && node.attrs.id === loaderId) {
                     loaderPos = pos
                     return false
@@ -280,7 +359,7 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
                     .deleteRange({ from: loaderPos, to: loaderPos + 1 })
                     .insertContentAt(loaderPos, {
                         type: 'image',
-                        attrs: { src: data.url, alt: selectedText }
+                        attrs: { src: data.url, alt: selectedText, prompt: selectedText }
                     })
                     .run()
             } else {
@@ -294,7 +373,7 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
         } catch (err) {
             console.error('AI Image Search Failed:', err)
             let loaderPos = -1
-            editor.state.doc.descendants((node, pos) => {
+            editor.state.doc.descendants((node: any, pos: number) => {
                 if (node.type.name === 'aiLoader' && node.attrs.id === loaderId) {
                     loaderPos = pos
                     return false
@@ -408,17 +487,17 @@ export const ZenEditor = forwardRef<ZenEditorRef, ZenEditorProps>(({ content, on
                                     "w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90",
                                     (isFindingImage || editor.state.selection.empty) ? "opacity-30 grayscale cursor-not-allowed" : "text-emerald-500 hover:bg-emerald-50 hover:shadow-emerald-500/10"
                                 )}
-                                title="Find AI Photo"
+                                title="Generate AI Image"
                             >
-                                {isFindingImage ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <Search className="w-4.5 h-4.5" />}
+                                {isFindingImage ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <ImageIcon className="w-4.5 h-4.5" />}
                             </button>
-
+ 
                             {/* Tooltip */}
                             <div className={cn(
                                 "absolute px-3 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover/ai-image:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl z-[60]",
                                 (showAssistant || showScaffold) ? "bottom-full mb-3 left-1/2 -translate-x-1/2" : "right-full mr-3 top-1/2 -translate-y-1/2"
                             )}>
-                                AI Photo Search
+                                AI Image Generator
                             </div>
                         </div>
                     </div>

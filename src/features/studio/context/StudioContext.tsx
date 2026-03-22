@@ -38,6 +38,8 @@ interface StudioContextType {
     regenerateContentCover: (id: string) => Promise<void>
     generatingProjectIds: string[]
     generatingContentIds: string[]
+    debugLogs: { msg: string; type: 'info' | 'error' | 'success'; time: string }[]
+    addDebugLog: (msg: string, type?: 'info' | 'error' | 'success') => void
 }
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined)
@@ -65,6 +67,11 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     const [error, setError] = useState<string | null>(null)
     const [generatingProjectIds, setGeneratingProjectIds] = useState<string[]>([])
     const [generatingContentIds, setGeneratingContentIds] = useState<string[]>([])
+    const [debugLogs, setDebugLogs] = useState<{ msg: string; type: 'info' | 'error' | 'success'; time: string }[]>([])
+
+    const addDebugLog = (msg: string, type: 'info' | 'error' | 'success' = 'info') => {
+        setDebugLogs(prev => [{ msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 50))
+    }
 
     const getSessionStudio = useCallback(() => {
         try {
@@ -623,14 +630,33 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         try {
             const project = projects.find(p => p.id === projectId)
             if (project) {
-                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=project&id=${project.id}&w=1200&h=630&t=${Date.now()}&json=true`)
+                addDebugLog(`Starting AI Cover Generation for: "${project.title}"...`, 'info')
+                const timestamp = Date.now()
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=project&id=${projectId}&w=1200&h=630&json=true&t=${timestamp}`)
+                
                 if (res.ok) {
-                    const { data } = await supabase.from('studio_projects').select('*').eq('id', projectId).single()
-                    if (data) {
-                        setProjects(prev => prev.map(p => p.id === projectId ? data : p))
+                    const data = await res.json()
+                    const { url, debug } = data
+                    
+                    if (debug && Array.isArray(debug)) {
+                        debug.forEach((msg: string) => addDebugLog(msg, msg.includes('❌') || msg.includes('⚠️') ? 'error' : 'success'))
+                    }
+
+                    if (url) {
+                        const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?' }v=${Date.now()}`
+                        setProjects(prev => prev.map(p => p.id === projectId ? { ...p, cover_url: cacheBustedUrl } : p))
+                        if (settings.is_demo_mode) {
+                            const session = getSessionStudio()
+                            if (session && session.projects) {
+                                const updated = { ...session, projects: session.projects.map((p: any) => p.id === projectId ? { ...p, cover_url: cacheBustedUrl } : p) }
+                                saveSessionStudio(updated)
+                            }
+                        }
                     }
                 }
             }
+        } catch (e: any) {
+            console.error('Project regeneration error:', e)
         } finally {
             setGeneratingProjectIds(prev => prev.filter(id => id !== projectId))
         }
@@ -641,14 +667,24 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         try {
             const item = content.find(c => c.id === contentId)
             if (item) {
-                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${item.id}&w=1200&h=630&t=${Date.now()}&json=true`)
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || '')}&type=content&id=${contentId}&w=1200&h=630&json=true`)
                 if (res.ok) {
-                    const { data } = await supabase.from('studio_content').select('*').eq('id', contentId).single()
-                    if (data) {
-                        setContent(prev => prev.map(c => c.id === contentId ? data : c))
+                    const { url } = await res.json()
+                    if (url) {
+                        const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?' }v=${Date.now()}`
+                        setContent(prev => prev.map(c => c.id === contentId ? { ...c, cover_url: cacheBustedUrl } : c))
+                        if (settings.is_demo_mode) {
+                            const session = getSessionStudio()
+                            if (session && session.content) {
+                                const updated = { ...session, content: session.content.map((c: any) => c.id === contentId ? { ...c, cover_url: cacheBustedUrl } : c) }
+                                saveSessionStudio(updated)
+                            }
+                        }
                     }
                 }
             }
+        } catch (e: any) {
+            console.error('Content regeneration error:', e)
         } finally {
             setGeneratingContentIds(prev => prev.filter(id => id !== contentId))
         }
@@ -665,7 +701,8 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             addPress, updatePress, deletePress,
             addNetwork, updateNetwork, deleteNetwork,
             regenerateProjectCover, regenerateContentCover,
-            generatingProjectIds, generatingContentIds
+            generatingProjectIds, generatingContentIds,
+            debugLogs, addDebugLog
         }}>
             {children}
         </StudioContext.Provider>

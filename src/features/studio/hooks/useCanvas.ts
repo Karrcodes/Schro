@@ -148,7 +148,7 @@ export function useCanvas() {
             if (currentMapId && data.x !== undefined && data.y !== undefined) {
                 setMapNodes(prev => [...prev, session.mapNodes[session.mapNodes.length - 1]])
             }
-            return
+            return newEntry
         }
         const { data: inserted, error } = await supabase
             .from('studio_canvas_entries')
@@ -164,7 +164,7 @@ export function useCanvas() {
         if (error) {
             console.error('Canvas insert error:', error.message, error.code, (error as any).details, (error as any).hint)
             await fetchEntries()
-            return
+            return null
         }
         const newEntry = inserted?.[0]
         if (newEntry) {
@@ -179,8 +179,12 @@ export function useCanvas() {
                 }])
                 fetchMapNodes()
             }
+            return newEntry as StudioCanvasEntry
         }
-        else await fetchEntries()
+        else {
+            await fetchEntries()
+            return null
+        }
     }, [fetchEntries, currentMapId, fetchMapNodes, settings.is_demo_mode, getSessionCanvas, saveSessionCanvas])
 
     const updateEntry = useCallback(async (id: string, updates: Partial<StudioCanvasEntry>) => {

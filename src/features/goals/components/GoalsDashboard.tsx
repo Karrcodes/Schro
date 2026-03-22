@@ -16,7 +16,7 @@ import type { Goal, GoalCategory } from '../types/goals.types'
 import { KarrFooter } from '@/components/KarrFooter'
 
 export default function GoalsDashboard() {
-    const { goals, wishlist, loading, createGoal, toggleMilestone, deleteGoal, updateGoal, updateMilestone } = useGoals()
+    const { goals, wishlist, loading, createGoal, toggleMilestone, deleteGoal, updateGoal, updateMilestone, convertGoalToWishlist } = useGoals()
     const [view, setView] = useState<GoalsView>('matrix')
     const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
     const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
@@ -168,6 +168,7 @@ export default function GoalsDashboard() {
                     onToggleMilestone={toggleMilestone}
                     onUpdateMilestone={updateMilestone}
                     onDeleteGoal={deleteGoal}
+                    onConvertToWishlist={convertGoalToWishlist}
                     onEdit={handleEditGoal}
                 />
             )}

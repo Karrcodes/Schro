@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Plus, Rocket, Target, Zap } from 'lucide-react'
+import DatePickerInput from '@/components/DatePickerInput'
 import { useStudio } from '../hooks/useStudio'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import type { PressType, PressStatus, StudioPress } from '../types/studio.types'
@@ -187,10 +188,9 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
                                 <label className="text-[11px] font-black uppercase tracking-widest text-black/30 ml-2">Deadline / Achievement Date</label>
                                 <div className="flex items-center gap-3 w-full px-4 py-3 bg-black/[0.02] border border-black/[0.05] rounded-2xl h-[46px] focus-within:border-orange-200 transition-colors">
                                     <Calendar className="w-4 h-4 text-black/20 shrink-0" />
-                                    <input
-                                        type="date"
-                                        value={formData.deadline}
-                                        onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
+                                    <DatePickerInput
+                                        value={formData.deadline ?? ''}
+                                        onChange={val => setFormData(prev => ({ ...prev, deadline: val }))}
                                         className="flex-1 text-[12px] font-bold bg-transparent focus:outline-none cursor-pointer appearance-none min-w-0"
                                     />
                                 </div>

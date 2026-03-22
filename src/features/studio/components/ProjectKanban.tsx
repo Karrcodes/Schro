@@ -28,7 +28,7 @@ export default function ProjectKanban({ searchQuery = '', showArchived = false, 
     const [projectToDelete, setProjectToDelete] = useState<StudioProject | null>(null)
     const [projectToArchive, setProjectToArchive] = useState<StudioProject | null>(null)
 
-    const priorityOrder = { super: 1, high: 2, mid: 3, low: 4 };
+    const priorityOrder: Record<string, number> = { super: 1, high: 2, mid: 3, low: 4 };
 
     const projects = allProjects.filter(p => {
         const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -39,9 +39,9 @@ export default function ProjectKanban({ searchQuery = '', showArchived = false, 
         if (sortBy === 'impact') {
             const diff = (b.impact_score || 0) - (a.impact_score || 0)
             if (diff !== 0) return diff
-            return (priorityOrder[a.priority || 'low'] || 99) - (priorityOrder[b.priority || 'low'] || 99)
+            return (priorityOrder[a.priority as string || 'low'] || 99) - (priorityOrder[b.priority as string || 'low'] || 99)
         } else if (sortBy === 'priority') {
-            const diff = (priorityOrder[a.priority || 'low'] || 99) - (priorityOrder[b.priority || 'low'] || 99)
+            const diff = (priorityOrder[a.priority as string || 'low'] || 99) - (priorityOrder[b.priority as string || 'low'] || 99)
             if (diff !== 0) return diff
             return (b.impact_score || 0) - (a.impact_score || 0)
         } else if (sortBy === 'date') {
@@ -95,10 +95,10 @@ export default function ProjectKanban({ searchQuery = '', showArchived = false, 
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
 
             {/* Status Tabs and Add Button Row */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-2xl w-fit max-w-full overflow-x-auto no-scrollbar">
                     {COLUMNS.map(column => {
                         const isActive = focusTab === column.value
@@ -318,6 +318,7 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
     }
     return (
         <div
+            onClick={onClick}
             className={cn(
                 "group relative bg-white border border-black/[0.05] rounded-2xl hover:border-orange-200 hover:shadow-xl transition-[box-shadow,border-color] duration-300 overflow-hidden",
                 isDraggingThis && "opacity-30 scale-95 shadow-none"
@@ -377,17 +378,17 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                         {/* Tags section */}
                         <div className="flex flex-wrap items-center gap-1.5">
                             {!project.cover_url && project.platforms && project.platforms.length > 0 && (
-                                <div className="flex -space-x-1 mr-1">
-                                    {project.platforms.map(p => (
-                                        <div
-                                            key={p}
-                                            className="w-4 h-4 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]"
-                                            title={p}
-                                        >
-                                            <PlatformIcon platform={p} className="w-2 h-2" />
-                                        </div>
-                                    ))}
-                                </div>
+                                 <div className="flex -space-x-1 mr-1">
+                                     {project.platforms.map(p => (
+                                         <div
+                                             key={p}
+                                             className="w-4 h-4 rounded-full bg-white border border-black/[0.1] flex items-center justify-center text-black shadow-sm z-[1]"
+                                             title={p}
+                                         >
+                                             <PlatformIcon platform={p} className="w-2 h-2" />
+                                         </div>
+                                     ))}
+                                 </div>
                             )}
                             <div className={cn(
                                 "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight w-fit truncate",
@@ -400,24 +401,27 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                             )}>
                                 {project.type || 'Other'}
                             </div>
+                            {project.priority && (
+                                <div className={cn(
+                                    "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter w-fit",
+                                    project.priority === 'super' ? "bg-purple-50 text-purple-600 border border-purple-100" :
+                                        project.priority === 'high' ? "bg-red-50 text-red-600 border border-red-100" :
+                                            project.priority === 'mid' ? "bg-yellow-50 text-yellow-600 border border-yellow-100" :
+                                                "bg-black/5 text-black/40"
+                                )}>
+                                    {project.priority}
+                                </div>
+                            )}
+                            {project.gtv_featured && (
+                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-100 rounded-md">
+                                    <Shield className="w-2.5 h-2.5 text-blue-600" />
+                                    <span className="text-[8px] font-black text-blue-900 uppercase">GTV</span>
+                                </div>
+                            )}
                         </div>
-
-
-                        {project.priority && (
-                            <div className={cn(
-                                "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter w-fit",
-                                project.priority === 'super' ? "bg-purple-50 text-purple-600 border border-purple-100" :
-                                    project.priority === 'high' ? "bg-red-50 text-red-600 border border-red-100" :
-                                        project.priority === 'mid' ? "bg-yellow-50 text-yellow-600 border border-yellow-100" :
-                                            "bg-black/5 text-black/40"
-                            )}>
-                                {project.priority}
-                            </div>
-                        )}
                     </div>
 
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        {/* Top Right: Impact & Date */}
                         <div className="flex items-center gap-2">
                             {project.target_date && (
                                 <div className="flex items-center gap-1 text-[9px] font-black text-black/30 uppercase tracking-tighter">
@@ -426,37 +430,28 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                                 </div>
                             )}
                             {project.impact_score && (
-                                <div className="flex items-center gap-0.5">
-                                    <Zap className="w-3 h-3 text-orange-500 fill-orange-500" />
-                                    <span className="text-[11px] font-black text-orange-600">
-                                        {project.impact_score}
-                                    </span>
+                                <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-500/5 rounded-md border border-orange-500/5">
+                                    <Zap className="w-2.5 h-2.5 text-orange-500 fill-orange-500" />
+                                    <span className="text-[10px] font-black text-orange-600">{project.impact_score}</span>
                                 </div>
                             )}
-
                         </div>
-                        {project.gtv_featured && (
-                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-100 rounded-md">
-                                <Shield className="w-3 h-3 text-blue-600" />
-                                <span className="text-[8px] font-black text-blue-900 uppercase">GTV</span>
-                            </div>
-                        )}
                     </div>
                 </div>
 
 
-                <h4 className="text-[13px] font-black text-black leading-tight group-hover:text-orange-600 transition-colors">
+                <h4 className="text-[13px] font-black text-black leading-snug group-hover:text-orange-600 transition-colors">
                     {project.title}
                 </h4>
 
                 {project.tagline && (
-                    <p className="text-[11px] text-black/40 mt-1 line-clamp-2 leading-relaxed">
+                    <p className="text-[11px] text-black/40 mt-2 line-clamp-2 leading-relaxed">
                         {project.tagline}
                     </p>
                 )}
 
                 {/* Milestone Preview (Max 3) */}
-                <div className="mt-3 space-y-1.5">
+                <div className="mt-4 space-y-1.5">
                     {milestones?.filter((m: any) => m.project_id === project.id).slice(0, 3).map((m: any) => (
                         <div key={m.id} className="flex items-center gap-2">
                             {m.status === 'completed' ? (
@@ -474,7 +469,8 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                     ))}
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-black/[0.03] flex items-center justify-end">
+                <div className="mt-auto pt-6">
+                    <div className="border-t border-black/[0.03] pt-4 flex items-center justify-end">
                     <div className="flex items-center gap-1">
                         <button
                             onClick={handleArchive}
@@ -498,11 +494,9 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                         >
                             <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                        <button className="p-1 rounded-md hover:bg-black/5 text-black/20 hover:text-black/60 transition-all">
-                            <MoreVertical className="w-3.5 h-3.5" />
-                        </button>
                     </div>
                 </div>
+            </div>
             </div>
 
 

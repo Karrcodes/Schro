@@ -9,6 +9,7 @@ import {
 import { usePlannerEngine, PlannerItem } from '../hooks/usePlannerEngine'
 import { getNextOffPeriod, isShiftDay } from '@/features/finance/utils/rotaUtils'
 import { cn } from '@/lib/utils'
+import DatePickerInput from '@/components/DatePickerInput'
 
 function getIcon(id: string, type: string, isStalled?: boolean) {
     const iconProps = { className: "w-4 h-4" }
@@ -209,12 +210,9 @@ function RescheduleModal({ task, onClose, onConfirm }: { task: PlannerItem, onCl
 
                     <div className="p-4 rounded-2xl border-2 border-black/5 bg-black/[0.01]">
                         <div className="text-[11px] font-black text-black/40 uppercase tracking-widest mb-3">Custom Date</div>
-                        <input
-                            type="date"
+                        <DatePickerInput
                             value={selectedDateStr}
-                            onChange={(e) => setSelectedDateStr(e.target.value)}
-                            className="w-full min-w-0 appearance-none flex flex-row items-center box-border bg-white border border-black/10 rounded-xl px-4 py-3 text-[12px] sm:text-[14px] font-medium text-black focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
-                            required
+                            onChange={val => setSelectedDateStr(val)}
                         />
                     </div>
 
