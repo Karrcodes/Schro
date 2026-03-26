@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Plus, Rocket, Target, Zap } from 'lucide-react'
+import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Plus, Rocket, Target, Zap, Upload, Image as ImageIcon } from 'lucide-react'
 import DatePickerInput from '@/components/DatePickerInput'
 import { useStudio } from '../hooks/useStudio'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
@@ -34,6 +34,9 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
     const { addPress, projects } = useStudio()
     const { settings } = useSystemSettings()
     const [loading, setLoading] = useState(false)
+    const fileInputRef = React.useRef<HTMLInputElement>(null)
+    const [coverFile, setCoverFile] = useState<File | null>(null)
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const [formData, setFormData] = useState({
         title: '',
         organization: '',
@@ -58,7 +61,7 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
             await addPress({
                 ...formData,
                 project_id: formData.project_id || null as any
-            })
+            }, coverFile || undefined)
             onClose()
             setFormData({
                 title: '',
@@ -72,6 +75,8 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
                 milestone_goal: '',
                 is_strategy_goal: false
             })
+            setCoverFile(null)
+            setPreviewUrl(null)
         } catch (err: any) {
             alert(`Failed to create item: ${err.message}`)
         } finally {
@@ -257,6 +262,69 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
                                     </div>
                                 </button>
                             )}
+                        </div>
+
+                        {/* Cover Image Section */}
+                        <div className="space-y-4 pt-4 border-t border-black/[0.05]">
+                            <label className="text-[11px] font-black uppercase tracking-widest text-black/30 ml-2">Cover Asset</label>
+                            
+                            {previewUrl ? (
+                                <div className="relative w-full h-48 rounded-[32px] overflow-hidden group">
+                                    <img src={previewUrl} alt="Cover preview" className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <button 
+                                            type="button"
+                                            onClick={() => { setCoverFile(null); setPreviewUrl(null); }}
+                                            className="p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full text-white transition-all transform hover:scale-110"
+                                        >
+                                            <X className="w-6 h-6" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="w-full py-8 border-2 border-dashed border-black/[0.05] rounded-[32px] bg-black/[0.01] hover:bg-black/[0.03] hover:border-black/10 transition-all flex flex-col items-center justify-center gap-3 group"
+                                    >
+                                        <div className="w-12 h-12 rounded-2xl bg-black/[0.03] flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <Upload className="w-6 h-6 text-black/20" />
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-[13px] font-black text-black/40">Upload Cover Image</p>
+                                            <p className="text-[10px] text-black/20 font-bold uppercase tracking-wider mt-1">PNG, JPG up to 10MB</p>
+                                        </div>
+                                    </button>
+                                    <div className="flex items-center gap-3 px-4">
+                                        <div className="h-[1px] flex-1 bg-black/[0.05]" />
+                                        <span className="text-[10px] font-bold text-black/20 uppercase tracking-[0.2em]">or</span>
+                                        <div className="h-[1px] flex-1 bg-black/[0.05]" />
+                                    </div>
+                                    <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                                            <ImageIcon className="w-5 h-5 text-orange-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[12px] font-black text-orange-900Leading-none">AI Generation</p>
+                                            <p className="text-[10px] text-orange-600/60 font-bold">Leave blank to auto-generate via Gemini Vision</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) {
+                                        setCoverFile(file)
+                                        setPreviewUrl(URL.createObjectURL(file))
+                                    }
+                                }}
+                            />
                         </div>
 
                         {/* Milestone Goal */}

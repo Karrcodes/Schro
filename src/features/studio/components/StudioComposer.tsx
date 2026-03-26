@@ -7,8 +7,10 @@ import { StudioDraft, PolymorphicNode, ProjectType, NodeReference } from '../typ
 import { ZenEditor, type ZenEditorRef } from './ZenEditor'
 import { useStudioContext } from '../context/StudioContext'
 import { useCanvas } from '../hooks/useCanvas'
-import { Search, Filter, Hash, Image as ImageIcon, FileText, Check } from 'lucide-react'
+import { Search, Filter, Hash, Image as ImageIcon, FileText, Check, AlertTriangle } from 'lucide-react'
 import { PublishModal } from './PublishModal'
+import { FramerSyncStatus } from './FramerSyncStatus'
+import ConfirmationModal from '@/components/ConfirmationModal'
 
 interface StudioComposerProps {
     draftId?: string
@@ -19,7 +21,7 @@ interface StudioComposerProps {
 
 export default function StudioComposer({ draftId, initialDraft, initialNodes = [], onBack }: StudioComposerProps) {
     const { drafts, updateDraft, loading: draftsLoading } = useDrafts()
-    const { projects, content, loading: studioLoading } = useStudioContext()
+    const { projects, content, refresh, stageItem, loading: studioLoading } = useStudioContext()
     const { entries, connections, loading: canvasLoading } = useCanvas()
 
     const [draft, setDraft] = useState<StudioDraft | null>(initialDraft || null)
@@ -192,19 +194,20 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
         }
     }
 
-    // Auto-save logic
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            const hasBodyChanged = body !== (draft?.body || '')
-            const hasTitleChanged = title !== (draft?.title || 'Untitled Draft')
-            const hasRefsChanged = JSON.stringify(nodeRefs) !== JSON.stringify(draft?.node_references || [])
+    const handleBeforeSync = async () => {
+        if (!draft || draft.cover_url) return
 
-            if (hasBodyChanged || hasTitleChanged || hasRefsChanged) {
-                handleSave(draft?.id, body, title, nodeRefs)
+        try {
+            const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(title)}&type=content&id=${draft.id}&json=true`)
+            const data = await res.json()
+            if (data.url) {
+                const updated = await updateDraft(draft.id, { cover_url: data.url })
+                if (updated) setDraft(updated)
             }
-        }, 1500)
-        return () => clearTimeout(timer)
-    }, [body, title, nodeRefs, draft?.id])
+        } catch (err) {
+            console.error('Failed to generate article cover:', err)
+        }
+    }
 
     // Final save on unmount or refresh
     useEffect(() => {
@@ -566,7 +569,29 @@ export default function StudioComposer({ draftId, initialDraft, initialNodes = [
                                 </div>
                             </div>
                         )}
-                        <div className="space-y-6 pt-6">
+                        <div className="space-y-6 pt-6 border-t border-black/[0.03]">
+                            {draft && (
+                                <div>
+                                    <h4 className="text-[10px] font-black uppercase tracking-tighter text-black/30 mb-3">Website Sync</h4>
+                                    <FramerSyncStatus
+                                        itemId={draft.id}
+                                        itemType="draft"
+                                        framerCmsId={draft.framer_cms_id}
+                                        isStaged={draft.is_staged}
+                                        collectionName="Articles"
+                                        onBeforeSync={handleBeforeSync}
+                                        onStage={async (staged) => {
+                                            await stageItem(draft.id, 'draft', staged)
+                                            await refresh()
+                                        }}
+                                        onStatusChange={() => {
+                                            refresh()
+                                        }}
+                                        className="bg-black/[0.02] p-4 rounded-2xl border border-black/5"
+                                    />
+                                </div>
+                            )}
+
                             <div>
                                 <h4 className="text-[10px] font-black uppercase tracking-tighter text-black/30 mb-3">Draft Metadata</h4>
                                 <div className="space-y-2">

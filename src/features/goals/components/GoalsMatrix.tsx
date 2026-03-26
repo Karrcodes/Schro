@@ -99,6 +99,7 @@ function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: {
     onClick: () => void 
 }) {
     const isDragging = useRef(false)
+    const wasDragging = useRef(false)
     const startPos = useRef({ x: 0, y: 0 })
     const [isDraggingThis, setIsDraggingThis] = useState(false)
 
@@ -106,12 +107,14 @@ function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: {
         e.preventDefault()
         startPos.current = { x: e.clientX, y: e.clientY }
         isDragging.current = false
+        wasDragging.current = false
 
         const handleMove = (ev: PointerEvent) => {
             const dx = ev.clientX - startPos.current.x
             const dy = ev.clientY - startPos.current.y
             if (!isDragging.current && Math.sqrt(dx * dx + dy * dy) > 8) {
                 isDragging.current = true
+                wasDragging.current = true
                 setIsDraggingThis(true)
             }
         }
@@ -120,8 +123,8 @@ function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: {
             window.removeEventListener('pointermove', handleMove)
             window.removeEventListener('pointerup', handleUp)
             setIsDraggingThis(false)
-            if (!isDragging.current) {
-                onClick()
+            if (isDragging.current) {
+                isDragging.current = false
             }
         }
 
@@ -141,7 +144,10 @@ function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            onClick={onClick}
+            onClick={() => {
+                if (wasDragging.current) return
+                onClick()
+            }}
             className={cn(
                 "group relative bg-white border border-black/[0.06] rounded-2xl hover:border-black/20 hover:shadow-xl hover:shadow-black/5 transition-all cursor-pointer overflow-hidden flex flex-col",
                 isDraggingThis && "opacity-30 scale-95 shadow-none"

@@ -1,5 +1,5 @@
-'use client'
-import { Pin, Trash2, Archive, Link2, Rocket, Video, BookOpen, Image as ImageIcon } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Pin, Trash2, Archive, Link2, Rocket, Video, BookOpen, Image as ImageIcon, Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { StudioDraft } from '../types/studio.types'
 
@@ -12,6 +12,103 @@ interface Props {
 }
 
 export default function ArticleCard({ draft, onClick, onPin, onDelete, onArchive }: Props) {
+    const [isDraggingThis, setIsDraggingThis] = useState(false)
+    const isDraggingRef = useRef(false)
+    const startPosRef = useRef({ x: 0, y: 0 })
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+        if (e.button !== 0 && e.pointerType !== 'touch') return
+        if ((e.target as HTMLElement).closest('button')) return
+        document.body.style.userSelect = 'none'
+        
+        startPosRef.current = { x: e.clientX, y: e.clientY }
+        isDraggingRef.current = false
+
+        let ghost: HTMLDivElement | null = null
+
+        const handleMove = (ev: PointerEvent) => {
+            const dx = ev.clientX - startPosRef.current.x
+            const dy = ev.clientY - startPosRef.current.y
+            
+            if (!isDraggingRef.current && Math.sqrt(dx * dx + dy * dy) > 10) {
+                isDraggingRef.current = true
+                setIsDraggingThis(true)
+                
+                ghost = document.createElement('div')
+                ghost.style.cssText = `
+                    position: fixed;
+                    pointer-events: none;
+                    z-index: 9999;
+                    width: 260px;
+                    background: white;
+                    border-radius: 20px;
+                    box-shadow: 0 24px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+                    padding: 16px;
+                    font-family: ui-sans-serif, system-ui, sans-serif;
+                    transform: rotate(-2deg) scale(0.95);
+                    transition: transform 0.1s linear, opacity 0.1s linear;
+                    opacity: 0.96;
+                    user-select: none;
+                `
+                ghost.innerHTML = `
+                    <div style="font-size: 13px; font-weight: 800; color: #000; margin-bottom: 2px;">${draft.title || 'Untitled Article'}</div>
+                    <div style="font-size: 10px; font-weight: 700; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.05em;">Article</div>
+                `
+                document.body.appendChild(ghost)
+            }
+
+            if (isDraggingRef.current && ghost) {
+                const targets = document.querySelectorAll('[data-conversion-target]')
+                let minDistance = 1000
+
+                targets.forEach(t => {
+                    const rect = t.getBoundingClientRect()
+                    const cx = rect.left + rect.width / 2
+                    const cy = rect.top + rect.height / 2
+                    const dist = Math.sqrt(Math.pow(ev.clientX - cx, 2) + Math.pow(ev.clientY - cy, 2))
+                    if (dist < minDistance) minDistance = dist
+                })
+
+                // Scaling logic: Start shrinking at 300px, reach min scale at 40px
+                const startShrink = 300
+                const minScaleDist = 40
+                const factor = Math.max(0, Math.min(1, (minDistance - minScaleDist) / (startShrink - minScaleDist)))
+                const targetScale = 0.5 + (factor * 0.45) // range 0.5 to 0.95
+                const targetOpacity = 0.6 + (factor * 0.36) // range 0.6 to 0.96
+
+                ghost.style.left = `${ev.clientX - 130}px`
+                ghost.style.top = `${ev.clientY - 40}px`
+                ghost.style.transform = `rotate(-2deg) scale(${targetScale})`
+                ghost.style.opacity = `${targetOpacity}`
+
+                window.dispatchEvent(new CustomEvent('studio-canvas-card-drag', {
+                    detail: { x: ev.clientX, y: ev.clientY }
+                }))
+            }
+        }
+
+        const handleUp = (ev: PointerEvent) => {
+            window.removeEventListener('pointermove', handleMove)
+            window.removeEventListener('pointerup', handleUp)
+            document.body.style.userSelect = ''
+            
+            if (ghost) { ghost.remove(); ghost = null }
+            setIsDraggingThis(false)
+            window.dispatchEvent(new CustomEvent('studio-canvas-card-drag-end'))
+
+            if (isDraggingRef.current) {
+                window.dispatchEvent(new CustomEvent('studio-canvas-card-drop', {
+                    detail: { id: draft.id, type: 'article', clientX: ev.clientX, clientY: ev.clientY }
+                }))
+                isDraggingRef.current = false
+            } else {
+                onClick()
+            }
+        }
+
+        window.addEventListener('pointermove', handleMove)
+        window.addEventListener('pointerup', handleUp)
+    }
     const references = draft.node_references || []
     const counts = {
         notes: references.filter(r => r.node_type === 'entry').length,
@@ -35,12 +132,19 @@ export default function ArticleCard({ draft, onClick, onPin, onDelete, onArchive
 
     return (
         <div
-            className="group relative rounded-[32px] border border-black/[0.06] p-5 cursor-pointer transition-all hover:shadow-xl hover:border-black/10 flex flex-col gap-3 bg-white hover:-translate-y-1 duration-300 overflow-hidden"
-            onClick={onClick}
+            onPointerDown={handlePointerDown}
+            className={cn(
+                "group relative rounded-[32px] border border-black/[0.06] p-5 cursor-pointer transition-all hover:shadow-xl hover:border-black/10 flex flex-col gap-3 bg-white hover:-translate-y-1 duration-300 overflow-hidden touch-none",
+                isDraggingThis ? "opacity-30 scale-95 shadow-none" : ""
+            )}
         >
-            {/* Header Row: Icon and Counts */}
             <div className="flex items-center gap-2 mb-1 relative z-20">
                 <div className={cn("w-2 h-2 rounded-full shrink-0", images.length > 0 ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]" : "bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.4)]")} />
+                {draft.framer_cms_id && (
+                    <div className="flex items-center gap-1 text-[8px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full uppercase tracking-widest border border-green-500/20">
+                        <Globe className="w-2.5 h-2.5" /> LIVE
+                    </div>
+                )}
 
                 {hasReferences && (
                     <div className="flex items-center gap-2 opacity-60">

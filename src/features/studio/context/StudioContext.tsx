@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { StudioProject, StudioSpark, StudioMilestone, StudioContent, StudioPress, StudioNetwork } from '../types/studio.types'
+import type { StudioProject, StudioSpark, StudioMilestone, StudioContent, StudioPress, StudioNetwork, StudioDraft, NodeReference } from '../types/studio.types'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { MOCK_STUDIO } from '@/lib/demoData'
 
@@ -11,6 +11,7 @@ interface StudioContextType {
     sparks: StudioSpark[]
     milestones: StudioMilestone[]
     content: StudioContent[]
+    drafts: StudioDraft[]
     loading: boolean
     error: string | null
     refresh: () => Promise<void>
@@ -27,19 +28,25 @@ interface StudioContextType {
     updateContent: (id: string, updates: Partial<StudioContent>) => Promise<StudioContent>
     deleteContent: (id: string) => Promise<void>
     press: StudioPress[]
-    addPress: (item: Partial<StudioPress>) => Promise<StudioPress>
-    updatePress: (id: string, updates: Partial<StudioPress>) => Promise<StudioPress>
+    addPress: (item: Partial<StudioPress>, coverFile?: File) => Promise<StudioPress>
+    updatePress: (id: string, updates: Partial<StudioPress>, coverFile?: File) => Promise<StudioPress>
     deletePress: (id: string) => Promise<void>
     networks: StudioNetwork[]
     addNetwork: (item: Partial<StudioNetwork>) => Promise<StudioNetwork>
     updateNetwork: (id: string, updates: Partial<StudioNetwork>) => Promise<StudioNetwork>
     deleteNetwork: (id: string) => Promise<void>
+    addDraft: (data: Partial<StudioDraft>) => Promise<StudioDraft | null>
+    updateDraft: (id: string, updates: Partial<StudioDraft>) => Promise<StudioDraft | null>
+    deleteDraft: (id: string) => Promise<boolean>
     regenerateProjectCover: (id: string) => Promise<void>
     regenerateContentCover: (id: string) => Promise<void>
+    regeneratePressCover: (id: string) => Promise<void>
     generatingProjectIds: string[]
     generatingContentIds: string[]
+    generatingPressIds: string[]
     debugLogs: { msg: string; type: 'info' | 'error' | 'success'; time: string }[]
     addDebugLog: (msg: string, type?: 'info' | 'error' | 'success') => void
+    stageItem: (id: string, type: 'project' | 'press' | 'content' | 'draft', staged: boolean, stageData?: Record<string, any>) => Promise<void>
 }
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined)
@@ -63,10 +70,12 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     const [content, setContent] = useState<StudioContent[]>([])
     const [press, setPress] = useState<StudioPress[]>([])
     const [networks, setNetworks] = useState<StudioNetwork[]>([])
+    const [drafts, setDrafts] = useState<StudioDraft[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [generatingProjectIds, setGeneratingProjectIds] = useState<string[]>([])
     const [generatingContentIds, setGeneratingContentIds] = useState<string[]>([])
+    const [generatingPressIds, setGeneratingPressIds] = useState<string[]>([])
     const [debugLogs, setDebugLogs] = useState<{ msg: string; type: 'info' | 'error' | 'success'; time: string }[]>([])
 
     const addDebugLog = (msg: string, type: 'info' | 'error' | 'success' = 'info') => {
@@ -103,7 +112,8 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
                     press: MOCK_STUDIO.press,
                     sparks: [],
                     milestones: [],
-                    networks: []
+                    networks: [],
+                    drafts: MOCK_STUDIO.drafts || []
                 }
                 saveSessionStudio(sessionData)
             }
@@ -113,6 +123,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             setPress(sessionData.press as any)
             setMilestones(sessionData.milestones as any)
             setNetworks(sessionData.networks as any)
+            setDrafts(sessionData.drafts || [])
             setSparks(sessionData.sparks || [])
 
             setLoading(false)
@@ -121,13 +132,13 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
 
         try {
             setLoading(true)
-            const [projectsRes, sparksRes, milestonesRes, contentRes, pressRes, networksRes] = await Promise.all([
+            const [projectsRes, sparksRes, milestonesRes, contentRes, pressRes, networksRes, draftsRes] = await Promise.all([
                 supabase.from('studio_projects').select('*').order('created_at', { ascending: false }),
                 supabase.from('studio_sparks').select('*').order('created_at', { ascending: false }),
-                supabase.from('studio_milestones').select('*').order('created_at', { ascending: true }),
-                supabase.from('studio_content').select('*').order('created_at', { ascending: false }),
+                supabase.from('studio_milestones').select('*').order('created_at', { ascending: true }),                supabase.from('studio_content').select('*').order('created_at', { ascending: false }),
                 supabase.from('studio_press').select('*').order('created_at', { ascending: false }),
-                supabase.from('studio_networks').select('*').order('created_at', { ascending: false })
+                supabase.from('studio_networks').select('*').order('created_at', { ascending: false }),
+                supabase.from('studio_drafts').select('*').is('is_archived', false).order('updated_at', { ascending: false })
             ])
 
             if (projectsRes.error) throw projectsRes.error
@@ -136,6 +147,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             if (contentRes.error) throw contentRes.error
             if (pressRes.error) throw pressRes.error
             if (networksRes.error) throw networksRes.error
+            if (draftsRes.error) throw draftsRes.error
 
             setProjects(projectsRes.data || [])
             setSparks(sparksRes.data || [])
@@ -143,6 +155,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             setContent(contentRes.data || [])
             setPress(pressRes.data || [])
             setNetworks(networksRes.data || [])
+            setDrafts(draftsRes.data || [])
             setError(null)
         } catch (err: any) {
             console.error('Error fetching studio data:', err)
@@ -528,34 +541,75 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         setContent(prev => prev.filter(c => c.id !== id))
     }
 
-    const addPress = async (item: Partial<StudioPress>) => {
+    const addPress = async (item: Partial<StudioPress>, coverFile?: File) => {
+        let cover_url = item.cover_url
+
+        if (coverFile) {
+            const fileExt = coverFile.name.split('.').pop()
+            const fileName = `press_${Date.now()}.${fileExt}`
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('studio-assets')
+                .upload(`press-covers/${fileName}`, coverFile)
+            if (uploadError) throw uploadError
+            const { data: urlData } = supabase.storage.from('studio-assets').getPublicUrl(uploadData.path)
+            cover_url = urlData.publicUrl
+        }
+
         if (settings.is_demo_mode) {
-            const newItem = { ...item, id: `demo-pr-${Date.now()}` }
+            const newItem = { ...item, cover_url, id: `demo-pr-${Date.now()}` }
             const session = getSessionStudio()
             const updated = { ...session, press: [newItem, ...(session.press || [])] }
             saveSessionStudio(updated)
             setPress(updated.press)
             return newItem as StudioPress
         }
-        const { data, error } = await supabase.from('studio_press').insert([item]).select()
+        const { data, error } = await supabase.from('studio_press').insert([{ ...item, cover_url }]).select()
         if (error) throw error
         const inserted = data?.[0]
         if (!inserted) throw new Error('No data returned')
         setPress(prev => [inserted, ...prev])
+
+        // Trigger AI cover generation if no image provided
+        if (!cover_url && inserted.id) {
+            const newId = inserted.id;
+            setGeneratingPressIds(prev => [...prev, newId]);
+            fetch(`/api/studio/cover?title=${encodeURIComponent(inserted.title)}&tagline=${encodeURIComponent(inserted.organization)}&type=press&id=${newId}&json=true`)
+                .finally(() => {
+                    fetchData().finally(() => {
+                        setGeneratingPressIds(prev => prev.filter(id => id !== newId));
+                    });
+                });
+        }
+
         return inserted
     }
 
-    const updatePress = async (id: string, updates: Partial<StudioPress>) => {
+    const updatePress = async (id: string, updates: Partial<StudioPress>, coverFile?: File) => {
+        let cover_url = updates.cover_url
+
+        if (coverFile) {
+            const fileExt = coverFile.name.split('.').pop()
+            const fileName = `press_${id}_${Date.now()}.${fileExt}`
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('studio-assets')
+                .upload(`press-covers/${fileName}`, coverFile, { upsert: true })
+            if (uploadError) throw uploadError
+            const { data: urlData } = supabase.storage.from('studio-assets').getPublicUrl(uploadData.path)
+            cover_url = urlData.publicUrl
+        }
+
+        const finalUpdates = { ...updates, ...(cover_url ? { cover_url } : {}) }
+
         if (settings.is_demo_mode) {
             const session = getSessionStudio()
-            const updatedPress = session.press.map((p: any) => p.id === id ? { ...p, ...updates } : p)
+            const updatedPress = session.press.map((p: any) => p.id === id ? { ...p, ...finalUpdates } : p)
             const updated = { ...session, press: updatedPress }
             saveSessionStudio(updated)
             setPress(updatedPress)
             return updatedPress.find((p: any) => p.id === id)
         }
-        if (!updates || Object.keys(updates).length === 0) return press.find(p => p.id === id)!
-        const { data, error } = await supabase.from('studio_press').update(updates).eq('id', id).select()
+        if (!finalUpdates || Object.keys(finalUpdates).length === 0) return press.find(p => p.id === id)!
+        const { data, error } = await supabase.from('studio_press').update(finalUpdates).eq('id', id).select()
         if (error) throw error
         const updated = data?.[0]
         if (!updated) throw new Error('Update failed')
@@ -625,6 +679,86 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error
         setNetworks(prev => prev.filter(n => n.id !== id))
     }
+ 
+    const addDraft = async (data: Partial<StudioDraft>) => {
+        if (settings.is_demo_mode) {
+            const newDraft = {
+                id: `demo-dr-${Date.now()}`,
+                ...data,
+                status: data.status || 'draft',
+                is_archived: data.is_archived || false,
+                pinned: data.pinned || false,
+                last_snapshot_at: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            } as StudioDraft
+ 
+            const session = getSessionStudio()
+            const updated = { ...session, drafts: [newDraft, ...(session.drafts || [])] }
+            saveSessionStudio(updated)
+            setDrafts(prev => [newDraft, ...prev])
+            return newDraft
+        }
+        const { data: inserted, error } = await supabase
+            .from('studio_drafts')
+            .insert([{
+                ...data,
+                status: data.status || 'draft'
+            }])
+
+            .select()
+ 
+        if (error) {
+            console.error('Create draft error:', error.message)
+            return null
+        }
+        const newDraft = inserted?.[0] as StudioDraft
+        if (newDraft) setDrafts(prev => [newDraft, ...prev])
+        return newDraft
+    }
+ 
+    const updateDraft = async (id: string, updates: Partial<StudioDraft>) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedDrafts = session.drafts.map((d: any) => d.id === id ? { ...d, ...updates, updated_at: new Date().toISOString() } : d)
+            const updated = { ...session, drafts: updatedDrafts }
+            saveSessionStudio(updated)
+            setDrafts(prev => prev.map(d => d.id === id ? updatedDrafts.find((ud: any) => ud.id === id) : d))
+            return updatedDrafts.find((ud: any) => ud.id === id) as StudioDraft
+        }
+        const { data, error } = await supabase
+            .from('studio_drafts')
+            .update({ ...updates, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .select()
+ 
+        if (error) {
+            console.error('Update draft error:', error.message)
+            return null
+        }
+        const updated = data?.[0] as StudioDraft
+        if (updated) setDrafts(prev => prev.map(d => d.id === id ? updated : d))
+        return updated
+    }
+ 
+    const deleteDraft = async (id: string) => {
+        if (settings.is_demo_mode) {
+            const session = getSessionStudio()
+            const updatedDrafts = session.drafts.filter((d: any) => d.id !== id)
+            const updated = { ...session, drafts: updatedDrafts }
+            saveSessionStudio(updated)
+            setDrafts(prev => prev.filter(d => d.id !== id))
+            return true
+        }
+        const { error } = await supabase.from('studio_drafts').delete().eq('id', id)
+        if (error) {
+            console.error('Delete draft error:', error.message)
+            return false
+        }
+        setDrafts(prev => prev.filter(d => d.id !== id))
+        return true
+    }
+ 
     const regenerateProjectCover = async (projectId: string) => {
         setGeneratingProjectIds(prev => [...prev, projectId])
         try {
@@ -690,6 +824,48 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    const regeneratePressCover = async (pressId: string) => {
+        setGeneratingPressIds(prev => [...prev, pressId])
+        try {
+            const item = press.find(p => p.id === pressId)
+            if (item) {
+                const res = await fetch(`/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.organization)}&type=press&id=${pressId}&w=1200&h=630&json=true`)
+                if (res.ok) {
+                    const { url } = await res.json()
+                    if (url) {
+                        const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?' }v=${Date.now()}`
+                        setPress(prev => prev.map(p => p.id === pressId ? { ...p, cover_url: cacheBustedUrl } : p))
+                        if (settings.is_demo_mode) {
+                            const session = getSessionStudio()
+                            if (session && session.press) {
+                                const updated = { ...session, press: session.press.map((p: any) => p.id === pressId ? { ...p, cover_url: cacheBustedUrl } : p) }
+                                saveSessionStudio(updated)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: any) {
+            console.error('Press regeneration error:', e)
+        } finally {
+            setGeneratingPressIds(prev => prev.filter(id => id !== pressId))
+        }
+    }
+
+    const stageItem = async (id: string, type: 'project' | 'press' | 'content' | 'draft', staged: boolean, stageData?: Record<string, any>) => {
+        const tableMap = { project: 'studio_projects', press: 'studio_press', content: 'studio_content', draft: 'studio_drafts' }
+        const table = tableMap[type]
+        const updates: any = { is_staged: staged }
+        if (stageData !== undefined) updates.stage_data = stageData
+        const { error } = await supabase.from(table).update(updates).eq('id', id)
+        if (error) throw error
+        // Refresh local state
+        if (type === 'project') setProjects(prev => prev.map(p => p.id === id ? { ...p, is_staged: staged, ...(stageData ? { stage_data: stageData } : {}) } as any : p))
+        else if (type === 'press') setPress(prev => prev.map(p => p.id === id ? { ...p, is_staged: staged, ...(stageData ? { stage_data: stageData } : {}) } as any : p))
+        else if (type === 'content') setContent(prev => prev.map(p => p.id === id ? { ...p, is_staged: staged, ...(stageData ? { stage_data: stageData } : {}) } as any : p))
+        else if (type === 'draft') setDrafts(prev => prev.map(p => p.id === id ? { ...p, is_staged: staged, ...(stageData ? { stage_data: stageData } : {}) } as any : p))
+    }
+
     return (
         <StudioContext.Provider value={{
             projects, sparks, milestones, content, press, networks, loading, error,
@@ -700,9 +876,11 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             addContent, updateContent, deleteContent,
             addPress, updatePress, deletePress,
             addNetwork, updateNetwork, deleteNetwork,
-            regenerateProjectCover, regenerateContentCover,
-            generatingProjectIds, generatingContentIds,
-            debugLogs, addDebugLog
+            drafts, addDraft, updateDraft, deleteDraft,
+            regenerateProjectCover, regenerateContentCover, regeneratePressCover,
+            generatingProjectIds, generatingContentIds, generatingPressIds,
+            debugLogs, addDebugLog,
+            stageItem
         }}>
             {children}
         </StudioContext.Provider>

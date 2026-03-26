@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Studio Sync</title>
+    <style>
+      body { margin: 0; padding: 20px; font-family: -apple-system, sans-serif; background: #fff; color: #000; min-width: 280px; }
+      .container { display: flex; flex-direction: column; gap: 12px; }
+      h1 { font-size: 15px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+      p { font-size: 11px; color: rgba(0,0,0,0.4); margin: 0; }
+      label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: rgba(0,0,0,0.4); }
+      select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); font-size: 12px; background: #fafafa; box-sizing: border-box; }
+      button { width: 100%; padding: 14px; background: #000; color: #fff; border: none; border-radius: 10px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; }
+      button:disabled { opacity: 0.3; cursor: not-allowed; }
+      #status { padding: 10px; border-radius: 10px; font-size: 11px; font-weight: 700; text-align: center; }
+      .hidden { display: none; }
+      .loading { background: #f0f7ff; color: #0070f3; }
+      .success { background: #f0fff4; color: #22c55e; }
+      .error { background: #fff5f5; color: #ef4444; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Studio Sync</h1>
+      <p>Push Studio projects to Framer CMS.</p>
+
+      <div>
+        <label>Target Collection</label>
+        <select id="collection-select"><option value="">Click "Load Collections" first</option></select>
+      </div>
+
+      <div id="status" class="hidden"></div>
+      <button id="load-btn">Load Collections</button>
+      <button id="sync-btn" disabled>Sync Projects</button>
+    </div>
+
+    <script>
+      const loadBtn = document.getElementById('load-btn')
+      const syncBtn = document.getElementById('sync-btn')
+      const statusEl = document.getElementById('status')
+      const select = document.getElementById('collection-select')
+
+      function setStatus(msg, type) {
+        statusEl.className = type
+        statusEl.innerText = msg
+      }
+
+      loadBtn.onclick = async () => {
+        loadBtn.disabled = true
+        setStatus('Loading...', 'loading')
+        try {
+          // Check if framer is available
+          if (typeof framer === 'undefined') {
+            throw new Error('Framer API not available. Make sure plugin is open inside Framer Desktop.')
+          }
+          const collections = await framer.getCollections()
+          if (!collections.length) throw new Error('No CMS collections found in this project.')
+          select.innerHTML = '<option value="">Select a collection...</option>' +
+            collections.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
+          setStatus('Collections loaded! Select one and click Sync.', 'success')
+          syncBtn.disabled = false
+        } catch (err) {
+          setStatus(err.message, 'error')
+          loadBtn.disabled = false
+        }
+      }
+
+      syncBtn.onclick = async () => {
+        const collectionId = select.value
+        if (!collectionId) { setStatus('Please select a collection first.', 'error'); return }
+        syncBtn.disabled = true
+        setStatus('Fetching Studio projects...', 'loading')
+        try {
+          const res = await fetch('http://localhost:3000/api/studio/sync')
+          if (!res.ok) throw new Error('Could not reach Studio API. Is your app running on port 3000?')
+          const { projects } = await res.json()
+          if (!projects?.length) throw new Error('No projects found in Studio.')
+          setStatus(`Syncing ${projects.length} projects...`, 'loading')
+          const collections = await framer.getCollections()
+          const collection = collections.find(c => c.id === collectionId)
+          if (!collection) throw new Error('Selected collection not found.')
+          const fields = await collection.getFields()
+          const items = projects.map(p => {
+            const fieldData = {}
+            fields.forEach(f => {
+              const key = f.name.toLowerCase()
+              if (key.includes('title')) fieldData[f.id] = p.title
+              else if (key.includes('tagline') || key.includes('subtitle')) fieldData[f.id] = p.tagline || ''
+              else if (key.includes('desc')) fieldData[f.id] = p.description || ''
+              else if (key.includes('image') || key.includes('cover')) fieldData[f.id] = p.cover_url || ''
+            })
+            return { id: p.id, slug: p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''), fieldData }
+          })
+          await collection.addItems(items)
+          setStatus(`Synced ${items.length} projects successfully!`, 'success')
+        } catch (err) {
+          setStatus(err.message || 'Sync failed', 'error')
+        } finally {
+          syncBtn.disabled = false
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -93,7 +93,8 @@ export async function GET(req: NextRequest) {
             debug.push(`✅ Image Buffer Received (${buffer.length} bytes)`)
             const folder = type === 'content' ? 'content-covers' : 
                            type === 'goal' ? 'goal-covers' :
-                           type === 'wishlist' ? 'wishlist-covers' : 'project-covers'
+                           type === 'wishlist' ? 'wishlist-covers' :
+                           type === 'press' ? 'press-covers' : 'project-covers'
             const fileName = `${type}_${id || 'anon'}_${Date.now()}.png`
             
             debug.push(`📤 Uploading to Supabase Storage...`)
@@ -108,6 +109,7 @@ export async function GET(req: NextRequest) {
                     
                     if (type === 'content') table = 'studio_content'
                     else if (type === 'project') table = 'studio_projects'
+                    else if (type === 'press') table = 'studio_press'
                     else if (type === 'goal') { table = 'sys_goals'; column = 'vision_image_url' }
                     else if (type === 'wishlist') { table = 'sys_wishlist'; column = 'image_url' }
                     

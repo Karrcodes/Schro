@@ -18,6 +18,7 @@ import ConfirmationModal from '@/components/ConfirmationModal'
 import { supabase } from '@/lib/supabase'
 import { Task } from '../../tasks/types/tasks.types'
 import { Reorder, useDragControls } from 'framer-motion'
+import { FramerSyncStatus } from './FramerSyncStatus'
 
 interface ContentDetailModalProps {
     isOpen: boolean
@@ -153,7 +154,7 @@ function NotepadEditor({ value, onChange }: { value: string; onChange: (v: strin
 }
 
 export default function ContentDetailModal({ isOpen, onClose, item, initialTab }: ContentDetailModalProps) {
-    const { updateContent, deleteContent, projects, milestones, addMilestone, updateMilestone, deleteMilestone, regenerateContentCover, generatingContentIds } = useStudio()
+    const { refresh, updateContent, deleteContent, projects, milestones, addMilestone, updateMilestone, deleteMilestone, regenerateContentCover, generatingContentIds, stageItem } = useStudio()
     const [activeTab, setActiveTab] = useState<'details' | 'script'>(initialTab || 'details')
     const [isEditing, setIsEditing] = useState(false)
     const [isClearingImage, setIsClearingImage] = useState(false)
@@ -529,6 +530,23 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
                                                 </div>
                                             )}
                                         </div>
+
+                                        {/* Framer Sync Status */}
+                                        <FramerSyncStatus
+                                            itemId={item.id}
+                                            itemType="content"
+                                            framerCmsId={item.framer_cms_id}
+                                            isStaged={item.is_staged}
+                                            collectionName="Media"
+                                            onStage={async (staged) => {
+                                                await stageItem(item.id, 'content', staged)
+                                                await refresh()
+                                            }}
+                                            onStatusChange={() => {
+                                                refresh()
+                                            }}
+                                            className="p-6 bg-black/[0.02] rounded-3xl border border-black/5"
+                                        />
 
                                         <div className="p-6 bg-black/[0.02] rounded-3xl border border-black/5 space-y-6">
                                             <div className="space-y-4">

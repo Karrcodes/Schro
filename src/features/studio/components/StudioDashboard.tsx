@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Sparkles, Briefcase, Target, LayoutDashboard, Shield, Plus, Clock, ExternalLink, ArrowRight, Activity, Award, Zap, Video, Rocket, Users, Globe } from 'lucide-react'
+import { Sparkles, Briefcase, Target, LayoutDashboard, Shield, Plus, Clock, ExternalLink, ArrowRight, Activity, Award, Zap, Video, Rocket, Users, Globe, PenLine, Settings as SettingsIcon } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { KarrFooter } from '@/components/KarrFooter'
@@ -14,17 +14,38 @@ import SparkDetailModal from './SparkDetailModal'
 import ContentDetailModal from './ContentDetailModal'
 import PlatformIcon from './PlatformIcon'
 import type { StudioProject, StudioSpark, StudioContent } from '../types/studio.types'
+import FramerSyncSettings from './FramerSyncSettings'
+import { FramerSyncService } from '../services/FramerSyncService'
 
 export default function StudioDashboard() {
-    const { projects, sparks, content, press, loading, error, generatingProjectIds, generatingContentIds } = useStudio()
+    const { projects, sparks, content, press, loading, error, generatingProjectIds, generatingContentIds, drafts } = useStudio()
     const { settings } = useSystemSettings()
     const [daysUntilGTV, setDaysUntilGTV] = useState(0)
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
     const [isSparkModalOpen, setIsSparkModalOpen] = useState(false)
+    const [showSettings, setShowSettings] = useState(false)
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
     const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
     const [selectedSparkId, setSelectedSparkId] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active')
+    const [pulseCount, setPulseCount] = useState(0)
+
+    useEffect(() => {
+        const checkPulse = async () => {
+            const stored = localStorage.getItem('framer_sync_config')
+            if (!stored) return
+            const { siteId } = JSON.parse(stored)
+            if (!siteId) return
+
+            try {
+                const unmatched = await FramerSyncService.getUnmatchedItems(siteId, projects, press, content, drafts)
+                setPulseCount(unmatched.length)
+            } catch (e) {
+                console.error('Pulse check failed', e)
+            }
+        }
+        checkPulse()
+    }, [projects, press, content, drafts])
 
     useEffect(() => {
         const target = new Date('2026-09-01')
@@ -49,15 +70,39 @@ export default function StudioDashboard() {
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-1">
                         <h2 className="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em]">Creative Protocol</h2>
-                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Studio Dashboard</h1>
+                        <div className="flex items-center gap-4">
+                            <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Studio Dashboard</h1>
+                            {pulseCount > 0 && (
+                                <Link 
+                                    href="/create/portfolio?tab=live"
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full animate-in fade-in slide-in-from-left-4 duration-500 hover:bg-emerald-500/20 transition-all group"
+                                >
+                                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">
+                                        Website Pulse: {pulseCount} new items
+                                    </span>
+                                    <ArrowRight className="w-3 h-3 text-emerald-50 group-hover:translate-x-0.5 transition-transform" />
+                                </Link>
+                            )}
+                        </div>
                     </div>
                     {!settings.is_demo_mode && (
                         <div className="flex items-center gap-3">
+                            <button 
+                                onClick={() => setShowSettings(true)}
+                                className="px-3 py-1.5 rounded-full bg-black/5 hover:bg-black/10 border border-black/5 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all"
+                            >
+                                <SettingsIcon className="w-3 h-3" />
+                                Framer
+                            </button>
                             <div className="bg-black/[0.03] border border-black/5 rounded-2xl px-5 py-3 flex items-center gap-4">
                                 <div className="space-y-0.5 text-center px-2">
                                     <p className="text-[9px] font-black text-black/30 uppercase tracking-wider">Optimization</p>
                                     <p className="text-[13px] font-black text-black uppercase">
-                                        {Math.min(100, Math.round(((projects.filter(p => p.gtv_featured).length + press.filter(p => p.is_portfolio_item && (p.status === 'achieved' || p.status === 'published')).length) / 10) * 100))}%
+                                        {Math.min(100, Math.round(((
+                                            projects.filter(p => p.gtv_featured || p.framer_cms_id).length + 
+                                            press.filter(p => (p.is_portfolio_item || p.framer_cms_id) && (p.status === 'achieved' || p.status === 'published')).length
+                                        ) / 10) * 100))}%
                                     </p>
                                 </div>
                             </div>
@@ -70,6 +115,15 @@ export default function StudioDashboard() {
                         </div>
                     )}
                 </header>
+
+                {showSettings && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
+                        <div className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200">
+                            <FramerSyncSettings onClose={() => setShowSettings(false)} />
+                        </div>
+                    </div>
+                )}
 
                 <div className="space-y-12">
                     {error && error.includes('relation') && (
@@ -108,7 +162,12 @@ export default function StudioDashboard() {
                                             )}
                                         </div>
                                         <p className="text-[12px] md:text-[13px] font-bold text-blue-100/70">
-                                            Portfolio is <span className="text-white font-black">{Math.min(100, Math.round(((projects.filter(p => p.gtv_featured).length + press.filter(p => p.is_portfolio_item && (p.status === 'achieved' || p.status === 'published')).length) / 10) * 100))}%</span> optimized
+                                            Portfolio is <span className="text-white font-black">
+                                                {Math.min(100, Math.round(((
+                                                    projects.filter(p => p.gtv_featured || p.framer_cms_id).length + 
+                                                    press.filter(p => (p.is_portfolio_item || p.framer_cms_id) && (p.status === 'achieved' || p.status === 'published')).length
+                                                ) / 10) * 100))}%
+                                            </span> optimized
                                         </p>
                                     </div>
                                 </div>
@@ -121,10 +180,11 @@ export default function StudioDashboard() {
                         {[
                             { label: 'Projects', href: '/create/projects', icon: Rocket, color: 'text-orange-600', bg: 'bg-orange-500/10' },
                             { label: 'Content', href: '/create/content', icon: Video, color: 'text-blue-600', bg: 'bg-blue-600/10' },
+                            { label: 'Canvas', href: '/create/canvas', icon: PenLine, color: 'text-rose-600', bg: 'bg-rose-500/10' },
                             { label: 'Sparks', href: '/create/sparks', icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
                             { label: 'Network', href: '/create/network', icon: Users, color: 'text-purple-600', bg: 'bg-purple-500/10' },
                             { label: 'Press', href: '/create/press', icon: Award, color: 'text-amber-600', bg: 'bg-amber-500/10' },
-                            ...(!settings.is_demo_mode ? [{ label: 'Portfolio', href: '/create/portfolio', icon: Shield, color: 'text-blue-600', bg: 'bg-blue-500/10' }] : [])
+                            ...(!settings.is_demo_mode ? [{ label: 'Portfolio', href: '/create/portfolio', icon: Shield, color: 'text-indigo-600', bg: 'bg-indigo-500/10' }] : [])
                         ].map((item) => (
                             <Link
                                 key={item.label}
@@ -206,7 +266,7 @@ export default function StudioDashboard() {
                                                 onClick={() => setSelectedProjectId(project.id)}
                                                 className="bg-white border border-black/[0.05] rounded-2xl hover:border-orange-200 hover:shadow-lg transition-all group cursor-pointer overflow-hidden flex flex-col"
                                             >
-                                                <div className="h-24 w-full relative shrink-0 bg-black/[0.02]">
+                                                <div className="h-24 w-full relative shrink-0 bg-black/[0.02] overflow-hidden">
                                                     <img
                                                         src={project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=${encodeURIComponent(project.type || '')}&id=${project.id}&w=1200&h=630`}
                                                         alt=""
@@ -222,7 +282,7 @@ export default function StudioDashboard() {
                                                         </div>
                                                     )}
                                                     <div className={cn(
-                                                        "absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent",
+                                                        "absolute inset-0 bottom-[-2px] bg-gradient-to-t from-white via-transparent to-transparent pointer-events-none z-[1] translate-y-[1px]",
                                                         project.cover_url ? "opacity-60" : "opacity-20"
                                                     )} />
 
@@ -327,7 +387,7 @@ export default function StudioDashboard() {
                                                 onClick={() => setSelectedContentId(item.id)}
                                                 className="bg-white border border-black/[0.05] rounded-2xl hover:border-blue-200 hover:shadow-lg transition-all group cursor-pointer overflow-hidden flex flex-col h-full"
                                             >
-                                                <div className="h-24 w-full relative shrink-0 bg-black/[0.02]">
+                                                <div className="h-24 w-full relative shrink-0 bg-black/[0.02] overflow-hidden">
                                                     <img
                                                         src={item.cover_url || `/api/studio/cover?title=${encodeURIComponent(item.title)}&tagline=${encodeURIComponent(item.category || 'Content')}&type=${encodeURIComponent(item.type || '')}&id=${item.id}&w=1200&h=630`}
                                                         alt=""
@@ -343,7 +403,7 @@ export default function StudioDashboard() {
                                                         </div>
                                                     )}
                                                     <div className={cn(
-                                                        "absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent",
+                                                        "absolute inset-0 bottom-[-2px] bg-gradient-to-t from-white via-transparent to-transparent pointer-events-none z-[1] translate-y-[1px]",
                                                         item.cover_url ? "opacity-60" : "opacity-20"
                                                     )} />
                                                     {/* Platform icons overlay */}

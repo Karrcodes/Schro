@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase'
 import PlatformIcon from './PlatformIcon'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import { Task } from '../../tasks/types/tasks.types'
+import { FramerSyncStatus } from './FramerSyncStatus'
 
 interface ProjectDetailModalProps {
     isOpen: boolean
@@ -35,7 +36,7 @@ const PRIORITY_CONFIG = {
 } as const
 
 export default function ProjectDetailModal({ isOpen, onClose, project }: ProjectDetailModalProps) {
-    const { milestones, addMilestone, updateMilestone, deleteMilestone, updateProject, deleteProject, regenerateProjectCover, generatingProjectIds } = useStudio()
+    const { refresh, milestones, addMilestone, updateMilestone, deleteMilestone, updateProject, deleteProject, regenerateProjectCover, generatingProjectIds, stageItem } = useStudio()
     const { settings } = useSystemSettings()
     
     const [isEditing, setIsEditing] = useState(false)
@@ -316,6 +317,23 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                         )}
                                     </div>
 
+                                    {/* Framer CMS Sync Status */}
+                                    <FramerSyncStatus
+                                        itemId={project.id}
+                                        itemType="project"
+                                        framerCmsId={project.framer_cms_id}
+                                        isStaged={project.is_staged}
+                                        collectionName={project.type || 'Other'}
+                                        onStage={async (staged) => {
+                                            await stageItem(project.id, 'project', staged)
+                                            await refresh()
+                                        }}
+                                        onStatusChange={() => {
+                                            refresh()
+                                        }}
+                                        className="p-6 bg-black/[0.02] rounded-3xl border border-black/5"
+                                    />
+
                                     {/* Project Progress */}
                                     <div className="p-6 bg-black/[0.02] rounded-3xl border border-black/5 space-y-6">
                                         <div className="space-y-4">
@@ -542,28 +560,46 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
 
                                             {/* GTV Portfolio Toggle (Edit Mode) */}
                                             {!settings.is_demo_mode && (
-                                                <div className="p-6 bg-blue-50/50 border border-blue-100/50 rounded-[24px] flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-[14px] bg-blue-100 text-blue-600 flex items-center justify-center">
-                                                            <Shield className="w-5 h-5" />
+                                                <div className="space-y-4">
+                                                    <div className="p-6 bg-blue-50/50 border border-blue-100/50 rounded-[24px] flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-[14px] bg-blue-100 text-blue-600 flex items-center justify-center">
+                                                                <Shield className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-[12px] font-black text-blue-900">GTV Portfolio Recognition</h4>
+                                                                <p className="text-[10px] font-medium text-blue-600/60 uppercase tracking-widest">Mark as verified evidence</p>
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <h4 className="text-[12px] font-black text-blue-900">GTV Portfolio Recognition</h4>
-                                                            <p className="text-[10px] font-medium text-blue-600/60 uppercase tracking-widest">Mark as verified evidence</p>
-                                                        </div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                setEditedData(prev => ({ ...prev, gtv_featured: prev.gtv_featured !== undefined ? !prev.gtv_featured : !project.gtv_featured }))
+                                                            }}
+                                                            className={cn(
+                                                                "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                                                (editedData.gtv_featured !== undefined ? editedData.gtv_featured : project.gtv_featured) ? "bg-blue-600 text-white shadow-lg" : "bg-white border border-blue-200 text-blue-600 hover:bg-blue-50"
+                                                            )}
+                                                        >
+                                                            {(editedData.gtv_featured !== undefined ? editedData.gtv_featured : project.gtv_featured) ? 'Featured' : 'Include'}
+                                                        </button>
                                                     </div>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            setEditedData(prev => ({ ...prev, gtv_featured: prev.gtv_featured !== undefined ? !prev.gtv_featured : !project.gtv_featured }))
-                                                        }}
-                                                        className={cn(
-                                                            "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                                            (editedData.gtv_featured !== undefined ? editedData.gtv_featured : project.gtv_featured) ? "bg-blue-600 text-white shadow-lg" : "bg-white border border-blue-200 text-blue-600 hover:bg-blue-50"
-                                                        )}
-                                                    >
-                                                        {(editedData.gtv_featured !== undefined ? editedData.gtv_featured : project.gtv_featured) ? 'Featured' : 'Include'}
-                                                    </button>
+
+                                                    {(editedData.gtv_featured !== undefined ? editedData.gtv_featured : project.gtv_featured) && (
+                                                        <div className="p-6 bg-blue-50/30 border border-blue-100/30 rounded-[24px] space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                            <div className="flex items-center gap-2">
+                                                                <AlignLeft className="w-3.5 h-3.5 text-blue-500" />
+                                                                <label className="text-[9px] font-black text-blue-900 uppercase tracking-widest">Evidence Narrative</label>
+                                                            </div>
+                                                            <textarea
+                                                                value={editedData.gtv_narrative || project.gtv_narrative || ''}
+                                                                onChange={e => setEditedData(prev => ({ ...prev, gtv_narrative: e.target.value }))}
+                                                                placeholder="Detail how this project serves as evidence for your Global Talent Visa application (Innovation, Impact, or Leadership)..."
+                                                                rows={4}
+                                                                className="w-full bg-white/50 border-none rounded-xl p-4 text-[13px] font-medium text-blue-900 placeholder:text-blue-200 focus:ring-1 focus:ring-blue-100 outline-none resize-none"
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
 
@@ -637,6 +673,18 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                             Featured in Portfolio
                                                         </div>
                                                     </div>
+                                                    
+                                                    {project.gtv_narrative && (
+                                                        <div className="p-6 bg-blue-50/30 border border-blue-100/30 rounded-[24px] space-y-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <Shield className="w-3.5 h-3.5 text-blue-500" />
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-900/40">Evidence Narrative</span>
+                                                            </div>
+                                                            <p className="text-[14px] font-medium text-blue-900/80 leading-relaxed italic">
+                                                                "{project.gtv_narrative}"
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                     

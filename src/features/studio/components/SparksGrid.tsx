@@ -237,9 +237,9 @@ function SparkListRow({ spark, projects, onClick, onPointerDragStart, onPointerD
     }[spark.type] || '✨'
 
     const handlePointerDown = (e: React.PointerEvent) => {
-        if (e.button !== 0) return
-        // Don't drag if clicking a button or an anchor
+        if (e.button !== 0 && e.pointerType !== 'touch') return
         if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('a')) return
+        document.body.style.userSelect = 'none'
 
         startPos.current = { x: e.clientX, y: e.clientY }
         isDragging.current = false
@@ -269,8 +269,9 @@ function SparkListRow({ spark, projects, onClick, onPointerDragStart, onPointerD
                     'box-shadow:0 24px 48px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
                     'padding:16px',
                     'transform:rotate(-2deg) scale(0.95)',
+                    'transition:transform 0.1s linear, opacity 0.1s linear',
                     'opacity:0.96',
-                    'transition:none',
+                    'user-select:none',
                     'font-family:inherit',
                 ].join(';')
 
@@ -286,10 +287,29 @@ function SparkListRow({ spark, projects, onClick, onPointerDragStart, onPointerD
             }
 
             if (isDragging.current) {
+                const targets = document.querySelectorAll('[data-column-status]')
+                let minDistance = 1000
+
+                targets.forEach(t => {
+                    const rect = t.getBoundingClientRect()
+                    const cx = rect.left + rect.width / 2
+                    const cy = rect.top + rect.height / 2
+                    const dist = Math.sqrt(Math.pow(ev.clientX - cx, 2) + Math.pow(ev.clientY - cy, 2))
+                    if (dist < minDistance) minDistance = dist
+                })
+
+                const startShrink = 300
+                const minScaleDist = 40
+                const factor = Math.max(0, Math.min(1, (minDistance - minScaleDist) / (startShrink - minScaleDist)))
+                const targetScale = 0.5 + (factor * 0.45)
+                const targetOpacity = 0.6 + (factor * 0.36)
+
                 onPointerDragOver(ev.clientX, ev.clientY)
                 if (ghost) {
-                    ghost.style.left = `${ev.clientX - 10}px`
-                    ghost.style.top = `${ev.clientY - 10}px`
+                    ghost.style.left = `${ev.clientX - 100}px`
+                    ghost.style.top = `${ev.clientY - 40}px`
+                    ghost.style.transform = `rotate(-2deg) scale(${targetScale})`
+                    ghost.style.opacity = `${targetOpacity}`
                 }
             }
         }
@@ -297,6 +317,7 @@ function SparkListRow({ spark, projects, onClick, onPointerDragStart, onPointerD
         const handleUp = (ev: PointerEvent) => {
             window.removeEventListener('pointermove', handleMove)
             window.removeEventListener('pointerup', handleUp)
+            document.body.style.userSelect = ''
             if (ghost) { ghost.remove(); ghost = null }
             setIsDraggingThis(false)
             onPointerDragEnd()
@@ -392,9 +413,9 @@ function SparkCard({ spark, projects, onClick, onPointerDragStart, onPointerDrag
 
     const handlePointerDown = (e: React.PointerEvent) => {
         // Only trigger on left click (button 0)
-        if (e.button !== 0) return
-        // Don't drag if clicking a button or an anchor
+        if (e.button !== 0 && e.pointerType !== 'touch') return
         if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('a')) return
+        document.body.style.userSelect = 'none'
 
         startPos.current = { x: e.clientX, y: e.clientY }
         isDragging.current = false
@@ -425,8 +446,9 @@ function SparkCard({ spark, projects, onClick, onPointerDragStart, onPointerDrag
                     'box-shadow:0 24px 48px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
                     'padding:16px',
                     'transform:rotate(-2deg) scale(0.95)',
+                    'transition:transform 0.1s linear, opacity 0.1s linear',
                     'opacity:0.96',
-                    'transition:none',
+                    'user-select:none',
                     'font-family:inherit',
                 ].join(';')
 
@@ -443,10 +465,29 @@ function SparkCard({ spark, projects, onClick, onPointerDragStart, onPointerDrag
             }
 
             if (isDragging.current) {
+                const targets = document.querySelectorAll('[data-column-status]')
+                let minDistance = 1000
+
+                targets.forEach(t => {
+                    const rect = t.getBoundingClientRect()
+                    const cx = rect.left + rect.width / 2
+                    const cy = rect.top + rect.height / 2
+                    const dist = Math.sqrt(Math.pow(ev.clientX - cx, 2) + Math.pow(ev.clientY - cy, 2))
+                    if (dist < minDistance) minDistance = dist
+                })
+
+                const startShrink = 300
+                const minScaleDist = 40
+                const factor = Math.max(0, Math.min(1, (minDistance - minScaleDist) / (startShrink - minScaleDist)))
+                const targetScale = 0.5 + (factor * 0.45)
+                const targetOpacity = 0.6 + (factor * 0.36)
+
                 onPointerDragOver(ev.clientX, ev.clientY)
                 if (ghost) {
-                    ghost.style.left = `${ev.clientX - 10}px`
-                    ghost.style.top = `${ev.clientY - 10}px`
+                    ghost.style.left = `${ev.clientX - 100}px`
+                    ghost.style.top = `${ev.clientY - 40}px`
+                    ghost.style.transform = `rotate(-2deg) scale(${targetScale})`
+                    ghost.style.opacity = `${targetOpacity}`
                 }
             }
         }
@@ -454,6 +495,7 @@ function SparkCard({ spark, projects, onClick, onPointerDragStart, onPointerDrag
         const handleUp = (ev: PointerEvent) => {
             window.removeEventListener('pointermove', handleMove)
             window.removeEventListener('pointerup', handleUp)
+            document.body.style.userSelect = ''
 
             if (ghost) {
                 ghost.remove()

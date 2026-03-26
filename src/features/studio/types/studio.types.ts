@@ -25,6 +25,20 @@ export interface StudioProject {
     ai_position_y?: number;
     is_promoted?: boolean;
     is_archived?: boolean;
+    framer_cms_id?: string;
+    framer_last_sync?: string;
+    framer_collection_id?: string;
+    gtv_narrative?: string;
+    // Framer CMS sync fields
+    client?: string;
+    location?: string;
+    images?: string[];
+    project_url?: string;
+    article_url?: string;
+    show_date?: boolean;
+    file_url?: string;
+    is_staged?: boolean;
+    stage_data?: Record<string, any>;
     created_at: string;
     updated_at: string;
 }
@@ -77,7 +91,11 @@ export interface StudioContent {
     read_time?: number;
     word_count?: number;
     is_archived?: boolean;
+    framer_cms_id?: string | null;
+    framer_collection_id?: string | null;
     scenes?: ContentScene[];
+    is_staged?: boolean;
+    stage_data?: Record<string, any>;
     created_at: string;
     updated_at: string;
 }
@@ -103,6 +121,14 @@ export interface StudioPress {
     is_pinned?: boolean;
     gtv_category?: 'innovation' | 'impact' | 'recognition' | null;
     project_id?: string | null;
+    framer_cms_id?: string;
+    framer_last_sync?: string;
+    framer_collection_id?: string;
+    // Framer CMS sync fields
+    cover_url?: string;
+    images?: string[];
+    is_staged?: boolean;
+    stage_data?: Record<string, any>;
     created_at: string;
     updated_at: string;
 }
@@ -162,6 +188,7 @@ export interface ProjectKanbanProps {
     filterType?: string | null;
     showArchived?: boolean;
     sortBy?: 'priority' | 'impact' | 'date';
+    onProjectClick: (project: StudioProject) => void;
 }
 
 // Canvas
@@ -236,6 +263,14 @@ export interface StudioDraft {
     is_archived: boolean;
     pinned?: boolean;
     last_snapshot_at: string;
+    // Framer CMS sync fields
+    cover_url?: string;
+    images?: string[];
+    article_url?: string;
+    framer_cms_id?: string;
+    framer_last_sync?: string;
+    is_staged?: boolean;
+    stage_data?: Record<string, any>;
     created_at: string;
     updated_at: string;
 }

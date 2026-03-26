@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Edit3, Save, Trash2, ExternalLink, Rocket, Target, Zap, CheckCircle2, Check, Edit2 } from 'lucide-react'
+import { X, Award, Globe, Shield, Calendar, Link as LinkIcon, Edit3, Save, Trash2, ExternalLink, Rocket, Target, Zap, CheckCircle2, Check, Edit2, Upload, ImageIcon, Sparkles, Loader2 } from 'lucide-react'
 import DatePickerInput from '@/components/DatePickerInput'
 import { useStudio } from '../hooks/useStudio'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import type { PressType, PressStatus, StudioPress } from '../types/studio.types'
 import { cn } from '@/lib/utils'
 import ConfirmationModal from '@/components/ConfirmationModal'
+import { FramerSyncStatus } from './FramerSyncStatus'
 
 interface PressDetailModalProps {
     isOpen: boolean
@@ -33,23 +34,29 @@ const STATUSES: { value: PressStatus; label: string }[] = [
 ]
 
 export default function PressDetailModal({ isOpen, onClose, item }: PressDetailModalProps) {
-    const { updatePress, deletePress, projects } = useStudio()
+    const { refresh, updatePress, deletePress, projects, stageItem, regeneratePressCover, generatingPressIds } = useStudio()
     const { settings } = useSystemSettings()
     const [isEditing, setIsEditing] = useState(false)
     const [editedData, setEditedData] = useState<Partial<StudioPress>>({})
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const fileInputRef = React.useRef<HTMLInputElement>(null)
+    const [coverFile, setCoverFile] = useState<File | null>(null)
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+    const isGenerating = item ? generatingPressIds.includes(item.id) : false
 
     useEffect(() => {
         if (item) {
             setEditedData({})
             setIsEditing(false)
+            setCoverFile(null)
+            setPreviewUrl(null)
         }
     }, [item])
 
     if (!isOpen || !item) return null
 
     const handleSave = async () => {
-        if (Object.keys(editedData).length === 0) {
+        if (Object.keys(editedData).length === 0 && !coverFile) {
             setIsEditing(false)
             return
         }
@@ -59,8 +66,10 @@ export default function PressDetailModal({ isOpen, onClose, item }: PressDetailM
             if ('project_id' in submissionData && !submissionData.project_id) {
                 submissionData.project_id = null
             }
-            await updatePress(item.id, submissionData)
+            await updatePress(item.id, submissionData, coverFile || undefined)
             setIsEditing(false)
+            setCoverFile(null)
+            setPreviewUrl(null)
         } catch (err: any) {
             alert(`Failed to save: ${err.message}`)
         }
@@ -130,6 +139,74 @@ export default function PressDetailModal({ isOpen, onClose, item }: PressDetailM
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                    {/* Cover Image Section */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between px-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30">Cover Asset</label>
+                            {!isEditing && !isGenerating && (
+                                <button
+                                    onClick={() => regeneratePressCover(item.id)}
+                                    className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 text-orange-600 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-orange-100 transition-all border border-orange-100 shadow-sm"
+                                >
+                                    <Sparkles className="w-3 h-3" />
+                                    Regenerate AI Cover
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="relative w-full h-[280px] rounded-[48px] overflow-hidden bg-black/[0.02] border border-black/[0.05] group">
+                            {(previewUrl || item.cover_url) ? (
+                                <img
+                                    src={previewUrl || item.cover_url || ''}
+                                    alt={item.title}
+                                    className={cn("w-full h-full object-cover transition-all duration-700", isGenerating && "opacity-40 grayscale blur-sm scale-110", isEditing && "hover:scale-[1.02]")}
+                                />
+                            ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-black/10">
+                                    <ImageIcon className="w-16 h-16" />
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.2em]">No cover assigned</p>
+                                </div>
+                            )}
+
+                            {isGenerating && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-orange-50/20 backdrop-blur-md">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-orange-500/20 blur-2xl rounded-full animate-pulse" />
+                                        <Loader2 className="w-10 h-10 text-orange-600 animate-spin relative" />
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[12px] font-black text-orange-900 uppercase tracking-widest">Generating Visual Asset</p>
+                                        <p className="text-[10px] text-orange-600 font-bold mt-1">Gemini Vision is dreaming...</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {isEditing && (
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="px-6 py-3 bg-white text-black rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl hover:scale-110 transition-transform flex items-center gap-2"
+                                    >
+                                        <Upload className="w-4 h-4" />
+                                        Replace Cover
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                    setCoverFile(file)
+                                    setPreviewUrl(URL.createObjectURL(file))
+                                }
+                            }}
+                        />
+                    </div>
                     {/* Status & Project Row */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-3">
@@ -304,6 +381,20 @@ export default function PressDetailModal({ isOpen, onClose, item }: PressDetailM
                         <Trash2 className="w-4 h-4" />
                         Delete Entry
                     </button>
+
+                    <FramerSyncStatus
+                        itemId={item.id}
+                        itemType="press"
+                        framerCmsId={item.framer_cms_id}
+                        isStaged={item.is_staged}
+                        collectionName="Press"
+                        onStage={async (staged) => {
+                            await stageItem(item.id, 'press', staged)
+                            await refresh()
+                        }}
+                        onStatusChange={() => refresh()}
+                        className="flex-1 max-w-[280px]"
+                    />
 
                     {(item.status === 'achieved' || item.status === 'published') ? (
                         <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-5 py-2.5 rounded-xl text-[13px] font-black uppercase tracking-widest shadow-sm border border-emerald-100">

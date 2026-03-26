@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Award, Globe, Shield, Target, Zap, Plus, Search, Filter, Calendar, Rocket, Pin, Archive, Trash2, ArrowDownUp, CheckCircle2, Clock, XCircle, Send } from 'lucide-react'
+import { Award, Globe, Shield, Target, Zap, Plus, Search, Filter, Calendar, Rocket, Pin, Archive, Trash2, ArrowDownUp, CheckCircle2, Clock, XCircle, Send, ExternalLink } from 'lucide-react'
 import { useStudio } from '@/features/studio/hooks/useStudio'
 import CreatePressModal from '@/features/studio/components/CreatePressModal'
 import PressDetailModal from '@/features/studio/components/PressDetailModal'
@@ -40,8 +40,9 @@ const FOCUS_TABS: { label: string; value: PressStatus | 'all'; icon: any; color:
 export default function PressPage() {
     const { press, loading, updatePress, deletePress, projects } = useStudio()
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-    const [selectedItem, setSelectedItem] = useState<StudioPress | null>(null)
+    const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
+    const [showArchived, setShowArchived] = useState(false)
     const [filterType, setFilterType] = useState<PressType | 'all'>('all')
     const [activeStatus, setActiveStatus] = useState<PressStatus | 'all'>('all')
     const [sortByDeadline, setSortByDeadline] = useState(false)
@@ -89,7 +90,8 @@ export default function PressPage() {
     }
 
     const filteredPress = press.filter(item => {
-        if (item.is_archived) return false // Hide archived items
+        const archiveMatch = showArchived ? item.is_archived : !item.is_archived
+        if (!archiveMatch) return false
 
         const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.organization.toLowerCase().includes(searchQuery.toLowerCase())
@@ -98,7 +100,7 @@ export default function PressPage() {
 
         return matchesSearch && matchesType && matchesStatus
     }).sort((a, b) => {
-        if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1
+        if (!showArchived && a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1
 
         if (sortByDeadline) {
             if (!a.deadline) return 1
@@ -110,13 +112,15 @@ export default function PressPage() {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
 
+    const selectedItem = press.find(p => p.id === selectedItemId) || null
+
     return (
         <main className="pb-24 pt-8 md:pt-10 px-6 md:px-10">
-            <div className="max-w-7xl mx-auto space-y-10">
+            <div className="max-w-7xl mx-auto space-y-8">
                 {/* Header Section */}
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-1">
-                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Studio Protocol</h2>
+                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Creative Protocol</h2>
                         <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Press &amp; Media</h1>
                     </div>
 
@@ -130,13 +134,18 @@ export default function PressPage() {
                                 className="pl-11 pr-4 py-2.5 bg-white border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-orange-200 w-full md:w-64 shadow-sm relative z-0"
                             />
                         </div>
-                        <a
-                            href="/create/press/archive"
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold transition-all border shadow-sm bg-white text-black/50 border-black/[0.06] hover:border-black/20 shrink-0"
+                        <button
+                            onClick={() => setShowArchived(!showArchived)}
+                            className={cn(
+                                "flex items-center gap-2 px-4 h-[42px] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shrink-0",
+                                showArchived
+                                    ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20"
+                                    : "bg-black/[0.03] text-black/30 border-transparent hover:border-black/10 hover:text-black/60"
+                            )}
                         >
-                            <Archive className="w-3.5 h-3.5" />
-                            View Archived
-                        </a>
+                            <Shield className={cn("w-3.5 h-3.5", showArchived ? "text-white" : "text-black/20")} />
+                            {showArchived ? 'Archives' : 'View Archives'}
+                        </button>
                         <button
                             onClick={() => setIsCreateModalOpen(true)}
                             className="flex items-center gap-2 px-6 py-2.5 bg-black text-white rounded-2xl text-[13px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-black/10 shrink-0"
@@ -147,74 +156,76 @@ export default function PressPage() {
                     </div>
                 </header>
 
-                {/* Sub Filters */}
-                <div className="flex items-center gap-2 border-b border-black/[0.05] overflow-x-auto pb-4 custom-scrollbar">
-                    <button
-                        onClick={() => setFilterType('all')}
-                        className={cn(
-                            "px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shrink-0",
-                            filterType === 'all' ? "bg-black text-white" : "bg-white border border-black/[0.05] text-black/40 hover:border-black/20"
-                        )}
-                    >
-                        All Types
-                    </button>
-                    {(Object.keys(TYPE_ICONS) as PressType[]).map(type => (
+                {/* Sub Filters & Sorting */}
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 border-b border-black/[0.05] overflow-x-auto pb-4 custom-scrollbar">
                         <button
-                            key={type}
-                            onClick={() => setFilterType(type)}
+                            onClick={() => setFilterType('all')}
                             className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border shrink-0",
-                                filterType === type
-                                    ? "bg-black text-white border-black"
-                                    : "bg-white border-black/[0.05] text-black/40 hover:border-black/20"
+                                "px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shrink-0",
+                                filterType === 'all' ? "bg-black text-white" : "bg-white border border-black/[0.05] text-black/40 hover:border-black/20"
                             )}
                         >
-                            <span className={cn(filterType === type ? "text-white" : TYPE_COLORS[type].split(' ')[0])}>
-                                {React.createElement(TYPE_ICONS[type], { className: "w-3 h-3" })}
-                            </span>
-                            {type} ({press.filter(p => p.type === type && !p.is_archived).length})
+                            All Types
                         </button>
-                    ))}
-                </div>
-
-                {/* Focus Tabs & Sorting */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
-                    <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-2xl w-fit max-w-full overflow-x-auto no-scrollbar shrink-0">
-                        {FOCUS_TABS.map(tab => {
-                            const isActive = activeStatus === tab.value
-                            const isOver = dragOverStatus === tab.value && tab.value !== 'all'
-                            const Icon = tab.icon
-
-                            return (
-                                <button
-                                    key={tab.value}
-                                    data-focus-status={tab.value}
-                                    onClick={() => setActiveStatus(tab.value)}
-                                    className={cn(
-                                        "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all relative whitespace-nowrap shrink-0",
-                                        isActive
-                                            ? "bg-white text-black shadow-sm"
-                                            : "text-black/30 hover:text-black/60",
-                                        isOver && "bg-orange-50 text-orange-600 shadow-md ring-1 ring-orange-200 z-10"
-                                    )}
-                                >
-                                    <Icon className={cn("w-3.5 h-3.5", isActive ? tab.color.split(' ')[0] : "text-current")} />
-                                    {tab.label}
-                                </button>
-                            )
-                        })}
+                        {(Object.keys(TYPE_ICONS) as PressType[]).map(type => (
+                            <button
+                                key={type}
+                                onClick={() => setFilterType(type)}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border shrink-0",
+                                    filterType === type
+                                        ? "bg-black text-white border-black"
+                                        : "bg-white border-black/[0.05] text-black/40 hover:border-black/20"
+                                )}
+                            >
+                                <span className={cn(filterType === type ? "text-white" : TYPE_COLORS[type].split(' ')[0])}>
+                                    {React.createElement(TYPE_ICONS[type], { className: "w-3 h-3" })}
+                                </span>
+                                {type} ({press.filter(p => p.type === type && !p.is_archived).length})
+                            </button>
+                        ))}
                     </div>
 
-                    <button
-                        onClick={() => setSortByDeadline(!sortByDeadline)}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all border shrink-0 md:ml-auto",
-                            sortByDeadline ? "bg-orange-50 text-orange-600 border-orange-200" : "bg-white text-black/40 border-black/[0.05] hover:border-black/20"
-                        )}
-                    >
-                        <ArrowDownUp className="w-3.5 h-3.5" />
-                        Sort by Deadline
-                    </button>
+                    {/* Focus Tabs & Sorting */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
+                        <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-2xl w-fit max-w-full overflow-x-auto no-scrollbar shrink-0">
+                            {FOCUS_TABS.map(tab => {
+                                const isActive = activeStatus === tab.value
+                                const isOver = dragOverStatus === tab.value && tab.value !== 'all'
+                                const Icon = tab.icon
+
+                                return (
+                                    <button
+                                        key={tab.value}
+                                        data-focus-status={tab.value}
+                                        onClick={() => setActiveStatus(tab.value)}
+                                        className={cn(
+                                            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all relative whitespace-nowrap shrink-0",
+                                            isActive
+                                                ? "bg-white text-black shadow-sm"
+                                                : "text-black/30 hover:text-black/60",
+                                            isOver && "bg-orange-50 text-orange-600 shadow-md ring-1 ring-orange-200 z-10"
+                                        )}
+                                    >
+                                        <Icon className={cn("w-3.5 h-3.5", isActive ? tab.color.split(' ')[0] : "text-current")} />
+                                        {tab.label}
+                                    </button>
+                                )
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => setSortByDeadline(!sortByDeadline)}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all border shrink-0 md:ml-auto",
+                                sortByDeadline ? "bg-orange-50 text-orange-600 border-orange-200" : "bg-white text-black/40 border-black/[0.05] hover:border-black/20"
+                            )}
+                        >
+                            <ArrowDownUp className="w-3.5 h-3.5" />
+                            Sort by Deadline
+                        </button>
+                    </div>
                 </div>
 
                 {/* Grid */}
@@ -223,7 +234,7 @@ export default function PressPage() {
                         <PressCard
                             key={item.id}
                             item={item}
-                            onClick={() => setSelectedItem(item)}
+                            onClick={() => setSelectedItemId(item.id)}
                             projects={projects}
                             onPointerDragStart={handlePointerDragStart}
                             onPointerDragOver={handlePointerDragOver}
@@ -257,8 +268,8 @@ export default function PressPage() {
                 onClose={() => setIsCreateModalOpen(false)}
             />
             <PressDetailModal
-                isOpen={!!selectedItem}
-                onClose={() => setSelectedItem(null)}
+                isOpen={!!selectedItemId}
+                onClose={() => setSelectedItemId(null)}
                 item={selectedItem}
             />
 
@@ -322,6 +333,7 @@ function PressCard({ item, onClick, projects, onPointerDragStart, onPointerDragO
 
     // Drag and Drop Logic
     const isDragging = useRef(false)
+    const wasDragging = useRef(false)
     const startPos = useRef({ x: 0, y: 0 })
     const [isDraggingThis, setIsDraggingThis] = useState(false)
 
@@ -332,6 +344,7 @@ function PressCard({ item, onClick, projects, onPointerDragStart, onPointerDragO
 
         startPos.current = { x: e.clientX, y: e.clientY }
         isDragging.current = false
+        wasDragging.current = false
 
         let ghost: HTMLDivElement | null = null
 
@@ -341,16 +354,19 @@ function PressCard({ item, onClick, projects, onPointerDragStart, onPointerDragO
 
             if (!isDragging.current && Math.sqrt(dx * dx + dy * dy) > 8) {
                 isDragging.current = true
+                wasDragging.current = true
                 setIsDraggingThis(true)
                 onPointerDragStart(item.id)
 
+                document.body.style.userSelect = 'none'
                 window.getSelection()?.removeAllRanges()
 
                 ghost = document.createElement('div')
                 ghost.style.cssText = [
                     'position:fixed', 'pointer-events:none', 'z-index:9999', 'width:200px', 'background:white',
                     'border-radius:24px', 'box-shadow:0 24px 48px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
-                    'padding:16px', 'transform:rotate(-2deg) scale(0.95)', 'opacity:0.96', 'transition:none', 'font-family:inherit'
+                    'padding:16px', 'transform:rotate(-2deg) scale(0.95)', 'opacity:0.96', 
+                    'transition:transform 0.1s linear, opacity 0.1s linear', 'font-family:inherit'
                 ].join(';')
 
                 ghost.innerHTML = `
@@ -365,10 +381,30 @@ function PressCard({ item, onClick, projects, onPointerDragStart, onPointerDragO
             }
 
             if (isDragging.current) {
+                // Calculate proximity to targets
+                const targets = document.querySelectorAll('[data-focus-status]')
+                let minDistance = 1000
+
+                targets.forEach(t => {
+                    const rect = t.getBoundingClientRect()
+                    const cx = rect.left + rect.width / 2
+                    const cy = rect.top + rect.height / 2
+                    const dist = Math.sqrt(Math.pow(ev.clientX - cx, 2) + Math.pow(ev.clientY - cy, 2))
+                    if (dist < minDistance) minDistance = dist
+                })
+
+                const startShrink = 300
+                const minScaleDist = 40
+                const factor = Math.max(0, Math.min(1, (minDistance - minScaleDist) / (startShrink - minScaleDist)))
+                const targetScale = 0.5 + (factor * 0.45)
+                const targetOpacity = 0.6 + (factor * 0.36)
+
                 onPointerDragOver(ev.clientX, ev.clientY)
                 if (ghost) {
-                    ghost.style.left = `${ev.clientX - 10}px`
-                    ghost.style.top = `${ev.clientY - 10}px`
+                    ghost.style.left = `${ev.clientX - 100}px`
+                    ghost.style.top = `${ev.clientY - 40}px`
+                    ghost.style.transform = `rotate(-2deg) scale(${targetScale})`
+                    ghost.style.opacity = `${targetOpacity}`
                 }
             }
         }
@@ -376,6 +412,7 @@ function PressCard({ item, onClick, projects, onPointerDragStart, onPointerDragO
         const handleUp = (ev: PointerEvent) => {
             window.removeEventListener('pointermove', handleMove)
             window.removeEventListener('pointerup', handleUp)
+            document.body.style.userSelect = ''
             if (ghost) { ghost.remove(); ghost = null }
             setIsDraggingThis(false)
             onPointerDragEnd()
@@ -383,8 +420,6 @@ function PressCard({ item, onClick, projects, onPointerDragStart, onPointerDragO
             if (isDragging.current) {
                 onPointerDrop(item.id, ev.clientX, ev.clientY)
                 isDragging.current = false
-            } else {
-                onClick()
             }
         }
 
@@ -395,7 +430,10 @@ function PressCard({ item, onClick, projects, onPointerDragStart, onPointerDragO
     return (
         <div
             onPointerDown={handlePointerDown}
-            onClick={() => { if (!isDraggingThis) onClick() }}
+            onClick={() => {
+                if (wasDragging.current) return
+                onClick()
+            }}
             style={{ touchAction: 'none' }}
             className={cn(
                 "p-4 bg-white border border-black/[0.05] rounded-[32px] hover:border-orange-200 hover:shadow-xl transition-all group flex flex-col select-none h-fit",
@@ -404,23 +442,39 @@ function PressCard({ item, onClick, projects, onPointerDragStart, onPointerDragO
                 item.is_pinned && "border-orange-200/50 bg-orange-50/10"
             )}
         >
-            <div className="flex justify-between items-start mb-3">
-                <div className={cn("px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5", TYPE_COLORS[item.type])}>
-                    <Icon className="w-3 h-3" />
-                    {item.type}
-                </div>
-                <div className="flex items-center gap-1.5 z-10">
-                    <button
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => { e.stopPropagation(); onTogglePin(e); }}
-                        className={cn(
-                            "p-1.5 rounded-lg transition-all",
-                            item.is_pinned ? "text-orange-500 bg-orange-50" : "text-black/20 hover:bg-black/5 hover:text-black"
-                        )}
-                        title={item.is_pinned ? "Unpin" : "Pin"}
-                    >
-                        <Pin className="w-3.5 h-3.5" />
-                    </button>
+            {/* Cover Image */}
+            <div className="relative h-32 -mx-4 -mt-4 mb-4 overflow-hidden rounded-t-[32px] group-hover:scale-[1.02] transition-transform duration-500">
+                {item.cover_url ? (
+                    <img 
+                        src={item.cover_url} 
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <div className={cn("w-full h-full flex items-center justify-center opacity-20", TYPE_COLORS[item.type].split(' ')[1])}>
+                        <Icon className="w-10 h-10" />
+                    </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-60" />
+                
+                <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
+                    <div className={cn("px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm border border-black/5 pointer-events-auto", TYPE_COLORS[item.type])}>
+                        <Icon className="w-3 h-3" />
+                        {item.type}
+                    </div>
+                    <div className="flex items-center gap-1.5 pointer-events-auto">
+                        <button
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.stopPropagation(); onTogglePin(e); }}
+                            className={cn(
+                                "p-1.5 rounded-lg transition-all shadow-sm border border-black/5 backdrop-blur-md bg-white/60",
+                                item.is_pinned ? "text-orange-500" : "text-black/20 hover:text-black"
+                            )}
+                            title={item.is_pinned ? "Unpin" : "Pin"}
+                        >
+                            <Pin className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -460,6 +514,19 @@ function PressCard({ item, onClick, projects, onPointerDragStart, onPointerDragO
                     </span>
 
                     <div className="flex items-center gap-1">
+                        {item.url && (
+                            <a
+                                href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1.5 rounded-lg text-black/20 hover:bg-orange-50 hover:text-orange-600 transition-all"
+                                title="View Link"
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                        )}
                         <button
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={(e) => { e.stopPropagation(); onArchiveRequest(e); }}

@@ -73,6 +73,37 @@ export function CommandCenter() {
     const searchParams = useSearchParams()
     const router = useRouter()
 
+    const defaultButtons = useMemo(() => [
+        { href: "/finances/projections", color: "purple", icon: TrendingUp, label: "Projections" },
+        { href: "/finances/transactions", color: "emerald", icon: Receipt, label: "Transactions" },
+        { href: "/finances/analytics", color: "blue", icon: BarChart3, label: "Analytics" },
+        { href: "/finances/liabilities", color: "red", icon: CreditCard, label: "Liabilities" },
+        { href: "/finances/savings", color: "amber", icon: PiggyBank, label: "Savings" },
+        { href: "/finances/pot-settings", color: "orange", icon: SlidersHorizontal, label: "Pot Settings" }
+    ], [])
+
+    const [quickAccessButtons, setQuickAccessButtons] = useState(defaultButtons)
+
+    useEffect(() => {
+        const savedSubOrderStr = localStorage.getItem('schro_sidebar_sub_order')
+        if (savedSubOrderStr) {
+            try {
+                const subOrderObj = JSON.parse(savedSubOrderStr)
+                if (subOrderObj['Finances']) {
+                    const orderedLabels = subOrderObj['Finances']
+                    setQuickAccessButtons([...defaultButtons].sort((a, b) => {
+                        const idxA = orderedLabels.indexOf(a.label)
+                        const idxB = orderedLabels.indexOf(b.label)
+                        if (idxA === -1 && idxB === -1) return 0
+                        if (idxA === -1) return 1
+                        if (idxB === -1) return -1
+                        return idxA - idxB
+                    }))
+                }
+            } catch (e) {}
+        }
+    }, [defaultButtons])
+
     useEffect(() => {
         if (searchParams.get('monzo') === 'connected') {
             syncMonzo().then(() => {
@@ -234,59 +265,27 @@ export function CommandCenter() {
                         Quick Access
                     </div>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                        {(() => {
-                            const defaultOrder = [
-                                { href: "/finances/projections", color: "purple", icon: TrendingUp, label: "Projections" },
-                                { href: "/finances/transactions", color: "emerald", icon: Receipt, label: "Transactions" },
-                                { href: "/finances/analytics", color: "blue", icon: BarChart3, label: "Analytics" },
-                                { href: "/finances/liabilities", color: "red", icon: CreditCard, label: "Liabilities" },
-                                { href: "/finances/savings", color: "amber", icon: PiggyBank, label: "Savings" },
-                                { href: "/finances/pot-settings", color: "orange", icon: SlidersHorizontal, label: "Pot Settings" }
-                            ]
-                            
-                            let currentOrder = [...defaultOrder]
-                            if (typeof window !== 'undefined') {
-                                const savedSubOrderStr = localStorage.getItem('schro_sidebar_sub_order')
-                                if (savedSubOrderStr) {
-                                    try {
-                                        const subOrderObj = JSON.parse(savedSubOrderStr)
-                                        if (subOrderObj['Finances']) {
-                                            const orderedLabels = subOrderObj['Finances']
-                                            currentOrder = currentOrder.sort((a, b) => {
-                                                const idxA = orderedLabels.indexOf(a.label)
-                                                const idxB = orderedLabels.indexOf(b.label)
-                                                if (idxA === -1 && idxB === -1) return 0
-                                                if (idxA === -1) return 1
-                                                if (idxB === -1) return -1
-                                                return idxA - idxB
-                                            })
-                                        }
-                                    } catch (e) {}
-                                }
-                            }
-                            
-                            return currentOrder.map((btn) => (
-                                <Link
-                                    key={btn.label}
-                                    href={btn.href}
-                                    className="flex items-center gap-2 px-3 py-2 bg-white border border-black/[0.06] rounded-xl hover:border-black/20 hover:bg-black/[0.02] transition-all group shadow-sm"
-                                >
-                                    <div className={cn(
-                                        "w-6 h-6 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm",
-                                        btn.color === 'emerald' ? "bg-emerald-500/10 text-emerald-600" :
-                                            btn.color === 'blue' ? "bg-blue-600/10 text-blue-600" :
-                                                btn.color === 'red' ? "bg-red-500/10 text-red-600" :
-                                                    btn.color === 'purple' ? "bg-purple-500/10 text-purple-600" :
-                                                        btn.color === 'amber' ? "bg-amber-500/10 text-amber-600" :
-                                                            btn.color === 'orange' ? "bg-orange-500/10 text-orange-600" :
-                                                                "bg-black/5 text-black"
-                                    )}>
-                                        <btn.icon className="w-3.5 h-3.5" />
-                                    </div>
-                                    <span className="text-[12px] font-bold text-black/70 group-hover:text-black">{btn.label}</span>
-                                </Link>
-                            ))
-                        })()}
+                        {quickAccessButtons.map((btn) => (
+                            <Link
+                                key={btn.label}
+                                href={btn.href}
+                                className="flex items-center gap-2 px-3 py-2 bg-white border border-black/[0.06] rounded-xl hover:border-black/20 hover:bg-black/[0.02] transition-all group shadow-sm"
+                            >
+                                <div className={cn(
+                                    "w-6 h-6 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm",
+                                    btn.color === 'emerald' ? "bg-emerald-500/10 text-emerald-600" :
+                                        btn.color === 'blue' ? "bg-blue-600/10 text-blue-600" :
+                                            btn.color === 'red' ? "bg-red-500/10 text-red-600" :
+                                                btn.color === 'purple' ? "bg-purple-500/10 text-purple-600" :
+                                                    btn.color === 'amber' ? "bg-amber-500/10 text-amber-600" :
+                                                        btn.color === 'orange' ? "bg-orange-500/10 text-orange-600" :
+                                                            "bg-black/5 text-black"
+                                )}>
+                                    <btn.icon className="w-3.5 h-3.5" />
+                                </div>
+                                <span className="text-[12px] font-bold text-black/70 group-hover:text-black">{btn.label}</span>
+                            </Link>
+                        ))}
                     </div>
                 </div>
 

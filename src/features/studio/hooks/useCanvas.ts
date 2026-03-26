@@ -117,7 +117,7 @@ export function useCanvas() {
         }
     }, [currentMapId, fetchMapNodes, fetchConnections])
 
-    const createEntry = useCallback(async (data: { title: string; body?: string; tags?: string[]; color?: CanvasColor; x?: number; y?: number }) => {
+    const createEntry = useCallback(async (data: { title: string; body?: string; tags?: string[]; color?: CanvasColor; x?: number; y?: number; images?: string[] }) => {
         if (settings.is_demo_mode) {
             const newEntry = {
                 id: `demo-ce-${Date.now()}`,
@@ -126,6 +126,7 @@ export function useCanvas() {
                 tags: data.tags || [],
                 color: data.color || 'default',
                 pinned: false,
+                images: data.images || [],
                 created_at: new Date().toISOString()
             } as StudioCanvasEntry
 
@@ -158,6 +159,7 @@ export function useCanvas() {
                 tags: data.tags || [],
                 color: data.color || 'default',
                 pinned: false,
+                images: data.images || [],
             }])
             .select()
 

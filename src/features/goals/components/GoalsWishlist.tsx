@@ -385,6 +385,7 @@ function WishlistCard({
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const isGenerating = generatingWishlistIds.includes(item.id)
     const isDragging = useRef(false)
+    const wasDragging = useRef(false)
     const startPos = useRef({ x: 0, y: 0 })
     const [isDraggingThis, setIsDraggingThis] = useState(false)
 
@@ -396,6 +397,7 @@ function WishlistCard({
         e.preventDefault()
         startPos.current = { x: e.clientX, y: e.clientY }
         isDragging.current = false
+        wasDragging.current = false
 
         let ghost: HTMLDivElement | null = null
 
@@ -404,6 +406,7 @@ function WishlistCard({
             const dy = ev.clientY - startPos.current.y
             if (!isDragging.current && Math.sqrt(dx * dx + dy * dy) > 8) {
                 isDragging.current = true
+                wasDragging.current = true
                 setIsDraggingThis(true)
                 onPointerDragStart(item.id)
 
@@ -445,8 +448,6 @@ function WishlistCard({
             if (isDragging.current) {
                 onPointerDrop(item.id, ev.clientX, ev.clientY)
                 isDragging.current = false
-            } else {
-                if (onClick) onClick()
             }
         }
 
@@ -459,7 +460,10 @@ function WishlistCard({
             layout
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            onClick={onClick}
+            onClick={() => {
+                if (wasDragging.current) return
+                if (onClick) onClick()
+            }}
             className={cn(
                 "group relative bg-white border border-black/[0.05] rounded-[32px] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-black/5 transition-all flex flex-col min-h-[160px] cursor-pointer",
                 isDraggingThis && "opacity-20 scale-95"

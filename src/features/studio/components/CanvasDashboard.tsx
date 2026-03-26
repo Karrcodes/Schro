@@ -59,6 +59,8 @@ export default function CanvasDashboard() {
         title: string
     } | null>(null)
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+    const [isDragging, setIsDragging] = useState(false)
+    const [dragOverTab, setDragOverTab] = useState<'notes' | 'articles' | null>(null)
 
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         setToast({ message, type })
@@ -145,6 +147,119 @@ export default function CanvasDashboard() {
     }
 
     const [isCreateMapModalOpen, setIsCreateMapModalOpen] = useState(false)
+
+    const convertNoteToArticle = async (noteId: string) => {
+        const note = entries.find(e => e.id === noteId)
+        if (!note) return
+
+        try {
+            // Prep images as HTML at the top
+            let bodyWithImages = note.body || ''
+            if (note.images && note.images.length > 0) {
+                const imageHtml = note.images.map(url => `<p><img src="${url}" alt="Imported Image" /></p>`).join('')
+                bodyWithImages = imageHtml + '<p><br></p>' + bodyWithImages
+            }
+
+            const draft = await createDraft({
+                title: note.title,
+                body: bodyWithImages,
+                project_id: (note as any).project_id || undefined,
+            })
+
+            if (draft) {
+                await deleteEntry(noteId)
+                showToast('Converted Note to Article', 'success')
+                refreshDrafts()
+                refreshCanvas()
+                setBoardTab('articles')
+            }
+        } catch (err) {
+            console.error('Conversion failed:', err)
+            showToast('Failed to convert', 'error')
+        }
+    }
+
+    const convertArticleToNote = async (articleId: string) => {
+        const draft = drafts.find(d => d.id === articleId)
+        if (!draft) return
+
+        try {
+            // Extract images from HTML
+            const imgRegex = /<img [^>]*src="([^"]*)"[^>]*>/g
+            const images: string[] = []
+            let match
+            while ((match = imgRegex.exec(draft.body || '')) !== null) {
+                if (match[1] && !images.includes(match[1])) images.push(match[1])
+            }
+
+            // Strip HTML for note body
+            const plainBody = (draft.body || '')
+                .replace(/<p><br><\/p>/g, '\n')
+                .replace(/<\/p><p>/g, '\n')
+                .replace(/<[^>]*>/g, '')
+                .trim()
+
+            const entry = await createEntry({
+                title: draft.title,
+                body: plainBody,
+                images: images.length > 0 ? images : undefined,
+                // Article to note conversion: notes don't have project_id currently
+            })
+
+            if (entry) {
+                await deleteDraftData(articleId)
+                showToast('Converted Article to Note', 'success')
+                refreshCanvas()
+                refreshDrafts()
+                setBoardTab('notes')
+            }
+        } catch (err) {
+            console.error('Conversion failed:', err)
+            showToast('Failed to convert', 'error')
+        }
+    }
+
+    useEffect(() => {
+        const handleCardDrop = (e: any) => {
+            const { id, type, clientX, clientY } = e.detail
+            const element = document.elementFromPoint(clientX, clientY)
+            const target = element?.closest('[data-conversion-target]')
+            
+            if (!target) return
+            
+            const targetTab = target.getAttribute('data-conversion-target')
+            
+            if (type === 'note' && targetTab === 'articles') {
+                convertNoteToArticle(id)
+            } else if (type === 'article' && targetTab === 'notes') {
+                convertArticleToNote(id)
+            }
+        }
+
+        window.addEventListener('studio-canvas-card-drop' as any, handleCardDrop)
+        return () => window.removeEventListener('studio-canvas-card-drop' as any, handleCardDrop)
+    }, [entries, drafts])
+
+    useEffect(() => {
+        const handleDrag = (e: any) => {
+            setIsDragging(true)
+            const { x, y } = e.detail
+            const element = document.elementFromPoint(x, y)
+            const target = element?.closest('[data-conversion-target]')
+            setDragOverTab(target?.getAttribute('data-conversion-target') as any || null)
+        }
+        const handleDragEnd = () => {
+            setIsDragging(false)
+            setDragOverTab(null)
+        }
+
+        window.addEventListener('studio-canvas-card-drag' as any, handleDrag)
+        window.addEventListener('studio-canvas-card-drag-end' as any, handleDragEnd)
+        return () => {
+            window.removeEventListener('studio-canvas-card-drag' as any, handleDrag)
+            window.removeEventListener('studio-canvas-card-drag-end' as any, handleDragEnd)
+        }
+    }, [])
 
     const loading = studioLoading || canvasLoading
 
@@ -343,7 +458,6 @@ export default function CanvasDashboard() {
             const mockDraft: StudioDraft = {
                 id: `error-${Date.now()}`,
                 title: finalTitle,
-                project_id: projectId,
                 body: '',
                 node_references: nodes.map(n => ({ node_id: n.id, node_type: n.node_type })),
                 status: 'draft',
@@ -855,13 +969,16 @@ export default function CanvasDashboard() {
                                         <button
                                             key={value}
                                             onClick={() => setBoardTab(value)}
+                                            data-conversion-target={value}
                                             className={cn(
-                                                "flex items-center gap-2 px-6 py-2 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all",
+                                                "flex items-center gap-2 px-6 py-2 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all relative group/tab",
                                                 boardTab === value
                                                     ? 'bg-white text-black shadow-lg shadow-black/5'
-                                                    : 'text-black/30 hover:text-black/60'
+                                                    : 'text-black/30 hover:text-black/60 hover:bg-black/[0.02]',
+                                                dragOverTab === value && "bg-indigo-50 text-indigo-600 z-20 shadow-xl shadow-indigo-500/20"
                                             )}
                                         >
+                                            <div className="absolute inset-0 rounded-xl border-2 border-dashed border-indigo-500/0 group-hover/tab:border-indigo-500/20 transition-all pointer-events-none" />
                                             <Icon className="w-3.5 h-3.5" />
                                             {label}
                                         </button>
@@ -872,7 +989,10 @@ export default function CanvasDashboard() {
 
                         {/* Quick Capture Bar */}
                         {activeTab === 'active' && (
-                            <div className="flex items-center gap-3 bg-white border border-black/[0.07] rounded-2xl px-4 py-3 shadow-sm hover:border-black/10 transition-all focus-within:border-orange-200 focus-within:shadow-orange-500/5">
+                            <div className={cn(
+                                "flex items-center gap-3 bg-white border border-black/[0.07] rounded-2xl px-4 h-[60px] shadow-sm hover:border-black/10 transition-all focus-within:border-orange-200 focus-within:shadow-orange-500/5 relative",
+                                isDragging && "select-none pointer-events-none opacity-50 grayscale"
+                            )}>
                                 <PenLine className="w-4 h-4 text-black/25 shrink-0" />
                                 <input
                                     ref={quickInputRef}
@@ -911,7 +1031,7 @@ export default function CanvasDashboard() {
                         )}
 
                         {/* Filter row */}
-                        <div className="flex items-center gap-3 flex-wrap">
+                        <div className={cn("flex items-center gap-4 flex-wrap", isDragging && "select-none pointer-events-none")}>
                             <div className="relative flex-1 min-w-[180px]">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/25" />
                                 <input

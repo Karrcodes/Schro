@@ -118,12 +118,12 @@ export default function NetworkPage() {
 
     return (
         <main className="pb-24 pt-8 md:pt-10 px-6 md:px-10">
-            <div className="max-w-7xl mx-auto space-y-10">
+            <div className="max-w-7xl mx-auto space-y-8">
                 {/* Header */}
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-1">
-                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Studio Protocol</h2>
-                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Creative Network</h1>
+                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Creative Protocol</h2>
+                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Network</h1>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 mb-1">
@@ -146,89 +146,92 @@ export default function NetworkPage() {
                     </div>
                 </header>
 
-                {/* Tabs */}
-                <div className="flex items-center gap-2 border-b border-black/[0.05] overflow-x-auto pb-4">
-                    {(Object.keys(TYPE_ICONS) as NetworkType[]).map(type => (
-                        <button
-                            key={type}
-                            onClick={() => setFilterType(type)}
-                            className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border",
-                                filterType === type
-                                    ? "bg-black text-white border-black"
-                                    : "bg-white border-black/[0.05] text-black/40 hover:border-black/20"
-                            )}
-                        >
-                            <span className={cn(filterType === type ? "text-white" : TYPE_COLORS[type].split(' ')[0])}>
-                                {React.createElement(TYPE_ICONS[type], { className: "w-3.5 h-3.5" })}
-                            </span>
-                            {type} ({networks.filter(n => n.type === type).length})
-                        </button>
-                    ))}
-                </div>
-
-                {/* Focus Tabs for Persons */}
-                {filterType === 'person' && (
-                    <div className="flex items-center gap-1 p-1 mt-3 bg-black/[0.03] rounded-2xl w-fit max-w-full overflow-x-auto no-scrollbar">
-                        {PERSON_COLUMNS.map(column => {
-                            const isActive = activePersonCategory === column.value
-                            const isOver = dragOverCategory === column.value
-                            const Icon = column.icon
-
-                            return (
-                                <button
-                                    key={column.value}
-                                    data-category-status={column.value}
-                                    onClick={() => setActivePersonCategory(column.value as any)}
-                                    className={cn(
-                                        "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all relative whitespace-nowrap",
-                                        isActive
-                                            ? "bg-white text-black shadow-sm"
-                                            : "text-black/30 hover:text-black/60",
-                                        isOver && "bg-purple-50 text-purple-600 z-10 shadow-md ring-1 ring-purple-200"
-                                    )}
-                                >
-                                    <Icon className={cn("w-3.5 h-3.5", isActive ? column.color.split(' ')[0] : "text-current")} />
-                                    {column.label}
-                                </button>
-                            )
-                        })}
-                    </div>
-                )}
-
-                {/* Tag Filters */}
-                {allUniqueTags.length > 0 && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-4 custom-scrollbar">
-                        <Hash className="w-4 h-4 text-black/20 shrink-0 mr-1" />
-                        {allUniqueTags.map(tag => {
-                            const isSelected = selectedTags.includes(tag)
-                            return (
-                                <button
-                                    key={tag}
-                                    onClick={() => setSelectedTags(prev =>
-                                        isSelected ? prev.filter(t => t !== tag) : [...prev, tag]
-                                    )}
-                                    className={cn(
-                                        "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border shrink-0",
-                                        isSelected
-                                            ? "bg-purple-50 text-purple-600 border-purple-200"
-                                            : "bg-white text-black/40 border-black/[0.05] hover:border-black/20"
-                                    )}
-                                >
-                                    #{tag}
-                                </button>
-                            )
-                        })}
-                        {selectedTags.length > 0 && (
+                {/* Filters Group */}
+                <div className="space-y-3">
+                    {/* Tabs */}
+                    <div className="flex items-center gap-2 border-b border-black/[0.05] overflow-x-auto pb-4 custom-scrollbar">
+                        {(Object.keys(TYPE_ICONS) as NetworkType[]).map(type => (
                             <button
-                                onClick={() => setSelectedTags([])}
-                                className="px-2 py-1 ml-1 text-[10px] font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                                key={type}
+                                onClick={() => setFilterType(type)}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border",
+                                    filterType === type
+                                        ? "bg-black text-white border-black"
+                                        : "bg-white border-black/[0.05] text-black/40 hover:border-black/20"
+                                )}
                             >
-                                Clear
+                                <span className={cn(filterType === type ? "text-white" : TYPE_COLORS[type].split(' ')[0])}>
+                                    {React.createElement(TYPE_ICONS[type], { className: "w-3.5 h-3.5" })}
+                                </span>
+                                {type} ({networks.filter(n => n.type === type).length})
                             </button>
-                        )}
+                        ))}
                     </div>
-                )}
+
+                    {/* Focus Tabs for Persons */}
+                    {filterType === 'person' && (
+                        <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-2xl w-fit max-w-full overflow-x-auto no-scrollbar">
+                            {PERSON_COLUMNS.map(column => {
+                                const isActive = activePersonCategory === column.value
+                                const isOver = dragOverCategory === column.value
+                                const Icon = column.icon
+
+                                return (
+                                    <button
+                                        key={column.value}
+                                        data-category-status={column.value}
+                                        onClick={() => setActivePersonCategory(column.value as any)}
+                                        className={cn(
+                                            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all relative whitespace-nowrap",
+                                            isActive
+                                                ? "bg-white text-black shadow-sm"
+                                                : "text-black/30 hover:text-black/60",
+                                            isOver && "bg-purple-50 text-purple-600 z-10 shadow-md ring-1 ring-purple-200"
+                                        )}
+                                    >
+                                        <Icon className={cn("w-3.5 h-3.5", isActive ? column.color.split(' ')[0] : "text-current")} />
+                                        {column.label}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    )}
+
+                    {/* Tag Filters */}
+                    {allUniqueTags.length > 0 && (
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 custom-scrollbar">
+                            <Hash className="w-4 h-4 text-black/20 shrink-0 mr-1" />
+                            {allUniqueTags.map(tag => {
+                                const isSelected = selectedTags.includes(tag)
+                                return (
+                                    <button
+                                        key={tag}
+                                        onClick={() => setSelectedTags(prev =>
+                                            isSelected ? prev.filter(t => t !== tag) : [...prev, tag]
+                                        )}
+                                        className={cn(
+                                            "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border shrink-0",
+                                            isSelected
+                                                ? "bg-purple-50 text-purple-600 border-purple-200"
+                                                : "bg-white text-black/40 border-black/[0.05] hover:border-black/20"
+                                        )}
+                                    >
+                                        #{tag}
+                                    </button>
+                                )
+                            })}
+                            {selectedTags.length > 0 && (
+                                <button
+                                    onClick={() => setSelectedTags([])}
+                                    className="px-2 py-1 ml-1 text-[10px] font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
 
                 {/* Network List Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 min-h-[400px]">
@@ -296,6 +299,7 @@ function NetworkCard({
 
     // Drag and Drop Logic
     const isDragging = React.useRef(false)
+    const wasDragging = React.useRef(false)
     const startPos = React.useRef({ x: 0, y: 0 })
     const [isDraggingThis, setIsDraggingThis] = useState(false)
     const [imgError, setImgError] = useState(false)
@@ -310,6 +314,7 @@ function NetworkCard({
 
         startPos.current = { x: e.clientX, y: e.clientY }
         isDragging.current = false
+        wasDragging.current = false
 
         let ghost: HTMLDivElement | null = null
 
@@ -319,17 +324,20 @@ function NetworkCard({
 
             if (!isDragging.current && Math.sqrt(dx * dx + dy * dy) > 8) {
                 isDragging.current = true
+                wasDragging.current = true
                 setIsDraggingThis(true)
                 onPointerDragStart(item.id)
 
-                // Clear text selection
+                // Prevent text highlights globally
+                document.body.style.userSelect = 'none'
                 window.getSelection()?.removeAllRanges()
 
                 ghost = document.createElement('div')
                 ghost.style.cssText = [
                     'position:fixed', 'pointer-events:none', 'z-index:9999', 'width:200px', 'background:white',
                     'border-radius:24px', 'box-shadow:0 24px 48px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
-                    'padding:16px', 'transform:rotate(-2deg) scale(0.95)', 'opacity:0.96', 'transition:none', 'font-family:inherit'
+                    'padding:16px', 'transform:rotate(-2deg) scale(0.95)', 'opacity:0.96', 
+                    'transition:transform 0.1s linear, opacity 0.1s linear', 'font-family:inherit'
                 ].join(';')
 
                 ghost.innerHTML = `
@@ -344,10 +352,30 @@ function NetworkCard({
             }
 
             if (isDragging.current) {
+                // Calculate proximity to targets
+                const targets = document.querySelectorAll('[data-category-status]')
+                let minDistance = 1000
+
+                targets.forEach(t => {
+                    const rect = t.getBoundingClientRect()
+                    const cx = rect.left + rect.width / 2
+                    const cy = rect.top + rect.height / 2
+                    const dist = Math.sqrt(Math.pow(ev.clientX - cx, 2) + Math.pow(ev.clientY - cy, 2))
+                    if (dist < minDistance) minDistance = dist
+                })
+
+                const startShrink = 300
+                const minScaleDist = 40
+                const factor = Math.max(0, Math.min(1, (minDistance - minScaleDist) / (startShrink - minScaleDist)))
+                const targetScale = 0.5 + (factor * 0.45)
+                const targetOpacity = 0.6 + (factor * 0.36)
+
                 onPointerDragOver(ev.clientX, ev.clientY)
                 if (ghost) {
-                    ghost.style.left = `${ev.clientX - 10}px`
-                    ghost.style.top = `${ev.clientY - 10}px`
+                    ghost.style.left = `${ev.clientX - 100}px`
+                    ghost.style.top = `${ev.clientY - 40}px`
+                    ghost.style.transform = `rotate(-2deg) scale(${targetScale})`
+                    ghost.style.opacity = `${targetOpacity}`
                 }
             }
         }
@@ -355,6 +383,7 @@ function NetworkCard({
         const handleUp = (ev: PointerEvent) => {
             window.removeEventListener('pointermove', handleMove)
             window.removeEventListener('pointerup', handleUp)
+            document.body.style.userSelect = ''
             if (ghost) { ghost.remove(); ghost = null }
             setIsDraggingThis(false)
             onPointerDragEnd()
@@ -362,8 +391,6 @@ function NetworkCard({
             if (isDragging.current) {
                 onPointerDrop(item.id, ev.clientX, ev.clientY)
                 isDragging.current = false
-            } else {
-                onClick()
             }
         }
 
@@ -382,7 +409,10 @@ function NetworkCard({
     return (
         <div
             onPointerDown={handlePointerDown}
-            onClick={() => { if (!isDraggingThis) onClick() }}
+            onClick={() => {
+                if (wasDragging.current) return
+                onClick()
+            }}
             style={{ touchAction: 'none' }}
             className={cn(
                 "p-4 bg-white border border-black/[0.05] rounded-[32px] hover:border-purple-200 hover:shadow-xl transition-all group flex flex-col cursor-pointer select-none h-fit",

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Pin, Trash2, Palette, ArrowUpRight, Link2, Archive, List, Rocket, Video } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { StudioCanvasEntry, CanvasColor } from '../types/studio.types'
@@ -31,17 +31,115 @@ interface Props {
 export default function CanvasCard({ entry, connections, onClick, onPin, onDelete, onArchive, onColorChange }: Props) {
     const [showPalette, setShowPalette] = useState(false)
     const [isExpanded, setIsExpanded] = useState(false)
+    const [isDraggingThis, setIsDraggingThis] = useState(false)
+    const isDraggingRef = useRef(false)
+    const startPosRef = useRef({ x: 0, y: 0 })
     const { card, dot } = COLOR_MAP[entry.color] || COLOR_MAP.default
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+        if (e.button !== 0 && e.pointerType !== 'touch') return
+        if ((e.target as HTMLElement).closest('button')) return
+        document.body.style.userSelect = 'none'
+        
+        startPosRef.current = { x: e.clientX, y: e.clientY }
+        isDraggingRef.current = false
+
+        let ghost: HTMLDivElement | null = null
+
+        const handleMove = (ev: PointerEvent) => {
+            const dx = ev.clientX - startPosRef.current.x
+            const dy = ev.clientY - startPosRef.current.y
+            
+            if (!isDraggingRef.current && Math.sqrt(dx * dx + dy * dy) > 10) {
+                isDraggingRef.current = true
+                setIsDraggingThis(true)
+                
+                ghost = document.createElement('div')
+                ghost.style.cssText = `
+                    position: fixed;
+                    pointer-events: none;
+                    z-index: 9999;
+                    width: 240px;
+                    background: white;
+                    border-radius: 20px;
+                    box-shadow: 0 24px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+                    padding: 16px;
+                    font-family: ui-sans-serif, system-ui, sans-serif;
+                    transform: rotate(-2deg) scale(0.95);
+                    transition: transform 0.1s linear, opacity 0.1s linear;
+                    opacity: 0.96;
+                    user-select: none;
+                `
+                ghost.innerHTML = `
+                    <div style="font-size: 13px; font-weight: 800; color: #000; margin-bottom: 2px;">${entry.title}</div>
+                    <div style="font-size: 10px; font-weight: 700; color: rgba(0,0,0,0.4); text-transform: uppercase; letter-spacing: 0.05em;">Note</div>
+                `
+                document.body.appendChild(ghost)
+            }
+
+            if (isDraggingRef.current && ghost) {
+                const targets = document.querySelectorAll('[data-conversion-target]')
+                let minDistance = 1000
+                
+                targets.forEach(t => {
+                    const rect = t.getBoundingClientRect()
+                    const cx = rect.left + rect.width / 2
+                    const cy = rect.top + rect.height / 2
+                    const dist = Math.sqrt(Math.pow(ev.clientX - cx, 2) + Math.pow(ev.clientY - cy, 2))
+                    if (dist < minDistance) minDistance = dist
+                })
+
+                // Scaling logic: Start shrinking at 300px, reach min scale at 40px
+                const startShrink = 300
+                const minScaleDist = 40
+                const factor = Math.max(0, Math.min(1, (minDistance - minScaleDist) / (startShrink - minScaleDist)))
+                const targetScale = 0.5 + (factor * 0.45) // range 0.5 to 0.95
+                const targetOpacity = 0.6 + (factor * 0.36) // range 0.6 to 0.96
+
+                ghost.style.left = `${ev.clientX - 120}px`
+                ghost.style.top = `${ev.clientY - 40}px`
+                ghost.style.transform = `rotate(-2deg) scale(${targetScale})`
+                ghost.style.opacity = `${targetOpacity}`
+                
+                window.dispatchEvent(new CustomEvent('studio-canvas-card-drag', {
+                    detail: { x: ev.clientX, y: ev.clientY }
+                }))
+            }
+        }
+
+        const handleUp = (ev: PointerEvent) => {
+            window.removeEventListener('pointermove', handleMove)
+            window.removeEventListener('pointerup', handleUp)
+            document.body.style.userSelect = ''
+            
+            if (ghost) { ghost.remove(); ghost = null }
+            setIsDraggingThis(false)
+            window.dispatchEvent(new CustomEvent('studio-canvas-card-drag-end'))
+
+            if (isDraggingRef.current) {
+                window.dispatchEvent(new CustomEvent('studio-canvas-card-drop', {
+                    detail: { id: entry.id, type: 'note', clientX: ev.clientX, clientY: ev.clientY }
+                }))
+                isDraggingRef.current = false
+            } else {
+                onClick()
+            }
+        }
+
+        window.addEventListener('pointermove', handleMove)
+        window.addEventListener('pointerup', handleUp)
+    }
 
     const hasConnections = connections && (connections.notes > 0 || connections.projects.length > 0 || connections.content.length > 0)
 
     return (
         <div
+            onPointerDown={handlePointerDown}
             className={cn(
-                "group relative rounded-2xl border border-black/[0.06] p-4 cursor-pointer transition-all hover:shadow-md hover:border-black/10 flex flex-col gap-2",
+                "group relative rounded-2xl border border-black/[0.06] p-4 cursor-pointer transition-all hover:shadow-md hover:border-black/10 flex flex-col gap-2 touch-none",
+                isDraggingThis ? "opacity-30 scale-95 shadow-none" : "hover:-translate-y-0.5",
                 card
             )}
-            onClick={onClick}
         >
             {/* Pin indicator */}
             {entry.pinned && (

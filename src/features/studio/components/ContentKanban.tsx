@@ -274,14 +274,19 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
     isGenerating?: boolean;
 }) {
     const isDragging = useRef(false)
+    const wasDragging = useRef(false)
     const startPos = useRef({ x: 0, y: 0 })
     const [isDraggingThis, setIsDraggingThis] = useState(false)
     const [imageLoading, setImageLoading] = useState(true)
 
     const handlePointerDown = (e: React.PointerEvent) => {
-        e.preventDefault()
+        if (e.button !== 0 && e.pointerType !== 'touch') return
+        if ((e.target as HTMLElement).closest('button')) return
+        document.body.style.userSelect = 'none'
+
         startPos.current = { x: e.clientX, y: e.clientY }
         isDragging.current = false
+        wasDragging.current = false
 
         let ghost: HTMLDivElement | null = null
 
@@ -290,6 +295,7 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
             const dy = ev.clientY - startPos.current.y
             if (!isDragging.current && Math.sqrt(dx * dx + dy * dy) > 8) {
                 isDragging.current = true
+                wasDragging.current = true
                 setIsDraggingThis(true)
                 onPointerDragStart(item.id)
 
@@ -304,8 +310,9 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                     'box-shadow:0 24px 48px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06)',
                     'padding:10px 12px',
                     'transform:rotate(-2deg) scale(0.95)',
+                    'transition:transform 0.1s linear, opacity 0.1s linear',
                     'opacity:0.96',
-                    'transition:none',
+                    'user-select:none',
                     'line-height:1.3',
                 ].join(';')
                 ghost.innerHTML = `
@@ -315,10 +322,29 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
                 document.body.appendChild(ghost)
             }
             if (isDragging.current) {
+                const targets = document.querySelectorAll('[data-column-status]')
+                let minDistance = 1000
+
+                targets.forEach(t => {
+                    const rect = t.getBoundingClientRect()
+                    const cx = rect.left + rect.width / 2
+                    const cy = rect.top + rect.height / 2
+                    const dist = Math.sqrt(Math.pow(ev.clientX - cx, 2) + Math.pow(ev.clientY - cy, 2))
+                    if (dist < minDistance) minDistance = dist
+                })
+
+                const startShrink = 300
+                const minScaleDist = 40
+                const factor = Math.max(0, Math.min(1, (minDistance - minScaleDist) / (startShrink - minScaleDist)))
+                const targetScale = 0.5 + (factor * 0.45)
+                const targetOpacity = 0.6 + (factor * 0.36)
+
                 onPointerDragOver(ev.clientX, ev.clientY)
                 if (ghost) {
                     ghost.style.left = `${ev.clientX - 100}px`
                     ghost.style.top = `${ev.clientY - 20}px`
+                    ghost.style.transform = `rotate(-2deg) scale(${targetScale})`
+                    ghost.style.opacity = `${targetOpacity}`
                 }
             }
         }
@@ -326,13 +352,12 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
         const handleUp = (ev: PointerEvent) => {
             window.removeEventListener('pointermove', handleMove)
             window.removeEventListener('pointerup', handleUp)
+            document.body.style.userSelect = ''
             if (ghost) { ghost.remove(); ghost = null }
             setIsDraggingThis(false)
             if (isDragging.current) {
                 onPointerDrop(item.id, ev.clientX, ev.clientY)
                 isDragging.current = false
-            } else {
-                onClick()
             }
         }
 
@@ -342,7 +367,10 @@ function ContentCard({ item, project, milestones, onPointerDragStart, onPointerD
 
     return (
         <div
-            onClick={onClick}
+            onClick={() => {
+                if (wasDragging.current) return
+                onClick()
+            }}
             className={cn(
                 "group relative bg-white border border-black/[0.05] rounded-2xl hover:border-blue-200 hover:shadow-xl transition-[box-shadow,border-color] duration-300 overflow-hidden flex flex-col h-full",
                 isDraggingThis && "opacity-30 scale-95 shadow-none"

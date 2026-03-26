@@ -1,0 +1,9 @@
+{
+  "name": "Studio Sync",
+  "id": "stdsyc",
+  "version": "1.0.0",
+  "main": "index.html",
+  "icon": "icon.svg",
+  "permissions": ["cms"],
+  "modes": ["canvas"]
+}

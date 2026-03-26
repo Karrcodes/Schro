@@ -18,11 +18,10 @@ const COLUMNS: { label: string; value: ProjectStatus }[] = [
 ]
 
 
-export default function ProjectKanban({ searchQuery = '', showArchived = false, sortBy = 'priority' }: ProjectKanbanProps) {
+export default function ProjectKanban({ searchQuery = '', showArchived = false, sortBy = 'priority', onProjectClick }: ProjectKanbanProps) {
     const { projects: allProjects, milestones, updateProject, deleteProject, loading, generatingProjectIds } = useStudio()
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [dragOverStatus, setDragOverStatus] = useState<ProjectStatus | null>(null)
-    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
     const [focusTab, setFocusTab] = useState<ProjectStatus>('active')
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
     const [projectToDelete, setProjectToDelete] = useState<StudioProject | null>(null)
@@ -177,7 +176,7 @@ export default function ProjectKanban({ searchQuery = '', showArchived = false, 
                                 onPointerDragOver={handlePointerDragOver}
                                 onPointerDrop={handlePointerDrop}
                                 onPointerDragEnd={() => { setDraggingId(null); setDragOverStatus(null) }}
-                                onClick={() => setSelectedProjectId(project.id)}
+                                onClick={() => onProjectClick(project)}
                                 onArchive={() => setProjectToArchive(project)}
                                 onDelete={() => setProjectToDelete(project)}
                                 isGenerating={generatingProjectIds.includes(project.id)}
@@ -186,11 +185,6 @@ export default function ProjectKanban({ searchQuery = '', showArchived = false, 
                     )}
                 </div>
             </div>
-                <ProjectDetailModal
-                    isOpen={!!selectedProjectId}
-                    onClose={() => setSelectedProjectId(null)}
-                    project={allProjects.find(p => p.id === selectedProjectId) || null}
-                />
 
                 <ConfirmationModal
                     isOpen={!!projectToDelete}
@@ -241,7 +235,9 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
     onDelete: () => void;
     isGenerating?: boolean;
 }) {
+    // Drag and Drop Logic
     const isDragging = useRef(false)
+    const wasDragging = useRef(false)
     const startPos = useRef({ x: 0, y: 0 })
     const [isDraggingThis, setIsDraggingThis] = useState(false)
     const [imageLoading, setImageLoading] = useState(true)
@@ -252,9 +248,13 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
     }
 
     const handleCoverPointerDown = (e: React.PointerEvent) => {
-        e.preventDefault()
+        if (e.button !== 0 && e.pointerType !== 'touch') return
+        if ((e.target as HTMLElement).closest('button')) return
+        document.body.style.userSelect = 'none'
+
         startPos.current = { x: e.clientX, y: e.clientY }
         isDragging.current = false
+        wasDragging.current = false
 
         let ghost: HTMLDivElement | null = null
 
@@ -263,6 +263,7 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
             const dy = ev.clientY - startPos.current.y
             if (!isDragging.current && Math.sqrt(dx * dx + dy * dy) > 8) {
                 isDragging.current = true
+                wasDragging.current = true
                 setIsDraggingThis(true)
                 onPointerDragStart(project.id)
 
@@ -278,10 +279,12 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                     'box-shadow:0 24px 48px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06)',
                     'padding:10px 12px',
                     'transform:rotate(-2deg) scale(0.95)',
+                    'transition:transform 0.1s linear, opacity 0.1s linear',
                     'opacity:0.96',
-                    'transition:none',
+                    'user-select:none',
                     'line-height:1.3',
                 ].join(';')
+
                 ghost.innerHTML = `
             <div style="width:100%;height:80px;border-radius:8px;margin-bottom:6px;background:#f5f5f5;overflow:hidden;">
                 <img src="${project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=${encodeURIComponent(project.type || '')}&id=${project.id}&w=1200&h=630`}" style="width:100%;height:100%;object-fit:cover;" />
@@ -292,10 +295,29 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                 document.body.appendChild(ghost)
             }
             if (isDragging.current) {
+                const targets = document.querySelectorAll('[data-column-status]')
+                let minDistance = 1000
+
+                targets.forEach(t => {
+                    const rect = t.getBoundingClientRect()
+                    const cx = rect.left + rect.width / 2
+                    const cy = rect.top + rect.height / 2
+                    const dist = Math.sqrt(Math.pow(ev.clientX - cx, 2) + Math.pow(ev.clientY - cy, 2))
+                    if (dist < minDistance) minDistance = dist
+                })
+
+                const startShrink = 300
+                const minScaleDist = 40
+                const factor = Math.max(0, Math.min(1, (minDistance - minScaleDist) / (startShrink - minScaleDist)))
+                const targetScale = 0.5 + (factor * 0.45)
+                const targetOpacity = 0.6 + (factor * 0.36)
+
                 onPointerDragOver(ev.clientX, ev.clientY)
                 if (ghost) {
                     ghost.style.left = `${ev.clientX - 90}px`
                     ghost.style.top = `${ev.clientY - 30}px`
+                    ghost.style.transform = `rotate(-2deg) scale(${targetScale})`
+                    ghost.style.opacity = `${targetOpacity}`
                 }
             }
         }
@@ -303,14 +325,15 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
         const handleUp = (ev: PointerEvent) => {
             window.removeEventListener('pointermove', handleMove)
             window.removeEventListener('pointerup', handleUp)
+            document.body.style.userSelect = ''
             if (ghost) { ghost.remove(); ghost = null }
+
             setIsDraggingThis(false)
             if (isDragging.current) {
                 onPointerDrop(project.id, ev.clientX, ev.clientY)
                 isDragging.current = false
-            } else {
-                onClick()
             }
+            onPointerDragEnd()
         }
 
         window.addEventListener('pointermove', handleMove)
@@ -318,9 +341,12 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
     }
     return (
         <div
-            onClick={onClick}
+            onClick={() => {
+                if (wasDragging.current) return
+                onClick()
+            }}
             className={cn(
-                "group relative bg-white border border-black/[0.05] rounded-2xl hover:border-orange-200 hover:shadow-xl transition-[box-shadow,border-color] duration-300 overflow-hidden",
+                "group relative bg-white border border-black/[0.05] rounded-2xl hover:border-orange-200 hover:shadow-xl transition-[box-shadow,border-color] duration-300 overflow-hidden flex flex-col h-full",
                 isDraggingThis && "opacity-30 scale-95 shadow-none"
             )}
         >
@@ -372,7 +398,7 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
             </div>
 
 
-            <div className="p-4">
+            <div className="p-4 flex flex-col flex-1">
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                         {/* Tags section */}
@@ -502,6 +528,6 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
 
             {/* Drag Handle Overlay Indicator */}
             <div className="absolute inset-x-0 bottom-0 h-1 bg-orange-500 scale-x-0 group-active:scale-x-50 transition-transform rounded-full mx-8" />
-        </div >
+        </div>
     )
 }

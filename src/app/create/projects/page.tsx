@@ -14,10 +14,12 @@ import type { StudioProject } from '@/features/studio/types/studio.types'
 export default function ProjectsPage() {
     const { projects, error } = useStudio()
     const [view, setView] = useState<'board' | 'matrix' | 'timeline'>('board')
-    const [selectedProject, setSelectedProject] = useState<StudioProject | null>(null)
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [showArchived, setShowArchived] = useState(false)
     const [sortBy, setSortBy] = useState<'priority' | 'impact' | 'date'>('priority')
+
+    const selectedProject = projects.find(p => p.id === selectedProjectId) || null
 
     return (
         <main className="pb-20 pt-8 md:pt-10 px-6 md:px-10 flex flex-col flex-1">
@@ -110,13 +112,13 @@ export default function ProjectsPage() {
 
                 </div>
 
-                {view === 'board' && <ProjectKanban searchQuery={searchQuery} showArchived={showArchived} sortBy={sortBy} />}
-                {view === 'timeline' && <ProjectRoadmap onProjectClick={setSelectedProject} searchQuery={searchQuery} showArchived={showArchived} sortBy={sortBy} />}
+                {view === 'board' && <ProjectKanban searchQuery={searchQuery} showArchived={showArchived} sortBy={sortBy} onProjectClick={(p) => setSelectedProjectId(p.id)} />}
+                {view === 'timeline' && <ProjectRoadmap onProjectClick={(p) => setSelectedProjectId(p.id)} searchQuery={searchQuery} showArchived={showArchived} sortBy={sortBy} />}
             </div>
 
             <ProjectDetailModal
-                isOpen={!!selectedProject}
-                onClose={() => setSelectedProject(null)}
+                isOpen={!!selectedProjectId}
+                onClose={() => setSelectedProjectId(null)}
                 project={selectedProject}
             />
         </main >

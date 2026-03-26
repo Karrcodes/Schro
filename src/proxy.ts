@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
     '/privacy',
     '/terms',
     '/api/auth',
+    '/api/studio',
 ]
 
 function isPublicRoute(pathname: string) {

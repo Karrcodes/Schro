@@ -154,102 +154,124 @@ export function LiabilitiesManager() {
         })
     }
 
-    const LiabilityForm = ({ isEdit }: { isEdit: boolean }) => (
-        <div className="bg-white p-8 space-y-6">
-            <h3 className="text-xl font-black text-black border-b border-black/[0.04] pb-4 mb-4">
-                {isEdit ? 'Edit Liability' : 'New Liability'}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-                <div className="sm:col-span-2">
-                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-3 block">Provider</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {LENDERS.map(l => (
-                            <button key={l.id}
-                                onClick={() => {
-                                    setSelectedLenderId(l.id)
-                                    setForm({ ...form, name: l.id === 'other' ? '' : l.name, emoji: l.emoji, category: l.id === 'other' ? 'other' : 'bills' });
-                                }}
-                                className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2 ${selectedLenderId === l.id ? 'bg-black text-white border-black scale-[1.02] shadow-xl' : 'bg-white border-black/[0.05] hover:border-black/20'}`}>
-                                {getLenderLogo(l.name) ? (
-                                    <img src={getLenderLogo(l.name)!} alt={l.name} className="w-6 h-6 object-contain" />
-                                ) : (
-                                    <span className="text-xl">{l.emoji}</span>
-                                )}
-                                <span className={`text-[10px] font-bold uppercase tracking-widest ${selectedLenderId === l.id ? 'text-white/60' : 'text-black/40'}`}>{l.name}</span>
-                            </button>
-                        ))}
-                    </div>
-                    {selectedLenderId === 'other' && (
-                        <input className="input-field w-full mt-4 bg-black/[0.03] border-none" placeholder="Service Name (e.g. Netflix)" value={form.name ?? ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                    )}
-                </div>
+interface LiabilityFormProps {
+    isEdit: boolean;
+    form: Partial<RecurringObligation>;
+    setForm: (form: any) => void;
+    saving: boolean;
+    handleSave: (isEdit: boolean) => void;
+    selectedLenderId: string | null;
+    setSelectedLenderId: (id: string | null) => void;
+    setAdding: (adding: boolean) => void;
+    setEditId: (id: string | null) => void;
+}
 
-                {/* Amount & Next Payment */}
-                <div>
-                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Amount</label>
-                    <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-black/40">£</span>
-                        <input className="input-field w-full pl-8 bg-black/[0.03] border-none text-[18px] font-black" type="number" step="0.01" value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) })} />
-                    </div>
+const LiabilityForm = ({
+    isEdit,
+    form,
+    setForm,
+    saving,
+    handleSave,
+    selectedLenderId,
+    setSelectedLenderId,
+    setAdding,
+    setEditId
+}: LiabilityFormProps) => (
+    <div className="bg-white p-8 space-y-6">
+        <h3 className="text-xl font-black text-black border-b border-black/[0.04] pb-4 mb-4">
+            {isEdit ? 'Edit Liability' : 'New Liability'}
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+            <div className="sm:col-span-2">
+                <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-3 block">Provider</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {LENDERS.map(l => (
+                        <button key={l.id}
+                            onClick={() => {
+                                setSelectedLenderId(l.id)
+                                setForm({ ...form, name: l.id === 'other' ? '' : l.name, emoji: l.emoji, category: l.id === 'other' ? 'other' : 'bills' });
+                            }}
+                            className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2 ${selectedLenderId === l.id ? 'bg-black text-white border-black scale-[1.02] shadow-xl' : 'bg-white border-black/[0.05] hover:border-black/20'}`}>
+                            {getLenderLogo(l.name) ? (
+                                <img src={getLenderLogo(l.name)!} alt={l.name} className="w-6 h-6 object-contain" />
+                            ) : (
+                                <span className="text-xl">{l.emoji}</span>
+                            )}
+                            <span className={`text-[10px] font-bold uppercase tracking-widest ${selectedLenderId === l.id ? 'text-white/60' : 'text-black/40'}`}>{l.name}</span>
+                        </button>
+                    ))}
                 </div>
+                {selectedLenderId === 'other' && (
+                    <input className="input-field w-full mt-4 bg-black/[0.03] border-none" placeholder="Service Name (e.g. Netflix)" value={form.name ?? ''} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus={!isEdit} />
+                )}
+            </div>
 
-                <div>
-                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Next Payment</label>
-                    <DatePickerInput value={form.next_due_date ?? ''} onChange={val => setForm({ ...form, next_due_date: val })} />
-                </div>
-
-                {/* Frequency & Payments Left / End Date */}
-                <div>
-                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Frequency</label>
-                    <select className="input-field w-full bg-black/[0.03] border-none font-bold" value={form.frequency ?? 'monthly'} onChange={(e) => setForm({ ...form, frequency: e.target.value as any })}>
-                        <option value="weekly">Weekly</option>
-                        <option value="bi-weekly">Bi-weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
-                    </select>
-                </div>
-
-                <div>
-                    {(selectedLenderId === 'klarna' || selectedLenderId === 'clearpay') ? (
-                        <>
-                            <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Payments Remaining</label>
-                            <input className="input-field w-full bg-black/[0.03] border-none font-bold" type="number" placeholder="e.g. 3" value={form.payments_left ?? ''} onChange={(e) => setForm({ ...form, payments_left: parseInt(e.target.value) })} />
-                        </>
-                    ) : (
-                        <>
-                            <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">End Date (optional)</label>
-                            <DatePickerInput value={form.end_date ?? ''} onChange={val => setForm({ ...form, end_date: val })} />
-                        </>
-                    )}
-                </div>
-
-                {/* Meta: Description & Grouping */}
-                <div>
-                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Description / Note</label>
-                    <input className="input-field w-full bg-black/[0.03] border-none font-bold" placeholder="e.g. Amazon purchase" value={form.description ?? ''} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                </div>
-
-                <div>
-                    <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Grouping Name</label>
-                    <input className="input-field w-full bg-black/[0.03] border-none font-bold" placeholder="e.g. Tech Purchases" value={form.group_name ?? ''} onChange={(e) => setForm({ ...form, group_name: e.target.value })} />
+            {/* Amount & Next Payment */}
+            <div>
+                <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Amount</label>
+                <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-black/40">£</span>
+                    <input className="input-field w-full pl-8 bg-black/[0.03] border-none text-[18px] font-black" type="number" step="0.01" value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) })} />
                 </div>
             </div>
 
-            <div className="flex gap-3 pt-6 border-t border-black/[0.04] mt-8">
-                <button onClick={() => handleSave(isEdit)} disabled={saving} className="flex-1 bg-black text-white h-14 rounded-2xl font-black text-[13px] uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 disabled:opacity-50">
-                    {saving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : isEdit ? 'Save Changes' : 'Create Liability'}
-                </button>
-                <button onClick={() => {
-                    setAdding(false);
-                    setEditId(null);
-                    setSelectedLenderId(null);
-                    setForm({ frequency: 'monthly', amount: 0, category: 'other', emoji: '💸', payments_left: null });
-                }} className="px-8 bg-black/[0.05] text-black h-14 rounded-2xl font-black text-[13px] uppercase tracking-widest hover:bg-black/[0.1] transition-all">
-                    Cancel
-                </button>
+            <div>
+                <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Next Payment</label>
+                <DatePickerInput value={form.next_due_date ?? ''} onChange={val => setForm({ ...form, next_due_date: val })} />
+            </div>
+
+            {/* Frequency & Payments Left / End Date */}
+            <div>
+                <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Frequency</label>
+                <select className="input-field w-full bg-black/[0.03] border-none font-bold" value={form.frequency ?? 'monthly'} onChange={(e) => setForm({ ...form, frequency: e.target.value as any })}>
+                    <option value="weekly">Weekly</option>
+                    <option value="bi-weekly">Bi-weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>
+
+            <div>
+                {(selectedLenderId === 'klarna' || selectedLenderId === 'clearpay') ? (
+                    <>
+                        <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Payments Remaining</label>
+                        <input className="input-field w-full bg-black/[0.03] border-none font-bold" type="number" placeholder="e.g. 3" value={form.payments_left ?? ''} onChange={(e) => setForm({ ...form, payments_left: parseInt(e.target.value) })} />
+                    </>
+                ) : (
+                    <>
+                        <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">End Date (optional)</label>
+                        <DatePickerInput value={form.end_date ?? ''} onChange={val => setForm({ ...form, end_date: val })} />
+                    </>
+                )}
+            </div>
+
+            {/* Meta: Description & Grouping */}
+            <div>
+                <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Description / Note</label>
+                <input className="input-field w-full bg-black/[0.03] border-none font-bold" placeholder="e.g. Amazon purchase" value={form.description ?? ''} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+
+            <div>
+                <label className="text-[11px] uppercase tracking-wider text-black/30 font-bold mb-2 block">Grouping Name</label>
+                <input className="input-field w-full bg-black/[0.03] border-none font-bold" placeholder="e.g. Tech Purchases" value={form.group_name ?? ''} onChange={(e) => setForm({ ...form, group_name: e.target.value })} />
             </div>
         </div>
-    )
+
+        <div className="flex gap-3 pt-6 border-t border-black/[0.04] mt-8">
+            <button onClick={() => handleSave(isEdit)} disabled={saving} className="flex-1 bg-black text-white h-14 rounded-2xl font-black text-[13px] uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 disabled:opacity-50">
+                {saving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : isEdit ? 'Save Changes' : 'Create Liability'}
+            </button>
+            <button onClick={() => {
+                setAdding(false);
+                setEditId(null);
+                setSelectedLenderId(null);
+                setForm({ frequency: 'monthly', amount: 0, category: 'other', emoji: '💸', payments_left: null });
+            }} className="px-8 bg-black/[0.05] text-black h-14 rounded-2xl font-black text-[13px] uppercase tracking-widest hover:bg-black/[0.1] transition-all">
+                Cancel
+            </button>
+        </div>
+    </div>
+)
 
     return (
         <Section title="Active Liabilities" desc="Track active subscriptions and debt schedules">
@@ -295,7 +317,17 @@ export function LiabilitiesManager() {
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-md animate-in fade-in duration-300" 
                         onClick={() => { setAdding(false); setEditId(null); }} />
                     <div className="relative w-full max-w-2xl bg-white rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-300 border border-black/5">
-                        <LiabilityForm isEdit={!!editId} />
+                        <LiabilityForm 
+                            isEdit={!!editId} 
+                            form={form}
+                            setForm={setForm}
+                            saving={saving}
+                            handleSave={handleSave}
+                            selectedLenderId={selectedLenderId}
+                            setSelectedLenderId={setSelectedLenderId}
+                            setAdding={setAdding}
+                            setEditId={setEditId}
+                        />
                     </div>
                 </div>
             )}

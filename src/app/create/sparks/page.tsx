@@ -17,7 +17,7 @@ export default function SparksPage() {
                 {/* Row 1: Header */}
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-1">
-                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Studio Protocol</h2>
+                        <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Creative Protocol</h2>
                         <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Sparks Inbox</h1>
                     </div>
 
