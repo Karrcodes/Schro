@@ -842,9 +842,15 @@ export default function FramerSyncModal({
             }
 
             setSyncStatus({ status: 'success', message: 'Imported successfully!' })
-            // Refresh CMS items in the background — do NOT clear pendingImportItem
-            // so the success screen persists until the user closes the modal
+            // Refresh CMS items in the background
             loadCmsItems(config!.siteId)
+            
+            // Auto-advance/close after success
+            setTimeout(() => {
+                setSyncStatus(null)
+                setPendingImportItem(null)
+                onClose()
+            }, 2000)
         } catch (err: any) {
             setError(err.message || 'Import failed. Check the console for details.')
             setSyncStatus({ status: 'error', message: err.message })
@@ -1113,14 +1119,26 @@ export default function FramerSyncModal({
                                             )}
                                         </div>
 
-                                        <button
-                                            onClick={confirmImport}
-                                            disabled={isSyncing}
-                                            className="w-full py-6 bg-emerald-600 text-white rounded-3xl text-[14px] font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-3"
-                                        >
-                                            {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
-                                            Process Import
-                                        </button>
+                                        {syncStatus?.status === 'success' ? (
+                                            <div className="py-8 flex flex-col items-center justify-center text-center gap-4 bg-emerald-500/10 rounded-3xl border border-emerald-100 animate-in zoom-in duration-300">
+                                                <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                                                    <Check className="w-8 h-8" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-[16px] font-black text-emerald-950 uppercase tracking-tight">Import Successful</h4>
+                                                    <p className="text-[11px] font-bold text-emerald-700/60 mt-1 uppercase tracking-widest">Added to Studio Pipeline</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={confirmImport}
+                                                disabled={isSyncing}
+                                                className="w-full py-6 bg-emerald-600 text-white rounded-3xl text-[14px] font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-3"
+                                            >
+                                                {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                                                Process Import
+                                            </button>
+                                        )}
                                     </div>
                                     <button 
                                         onClick={() => setPendingImportItem(null)} 
