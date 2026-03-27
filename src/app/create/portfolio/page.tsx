@@ -43,8 +43,8 @@ function ScanningLoader() {
 }
 
 export default function PortfolioPage() {
-    const { projects, press, content, updateProject, updatePress, updateContent, addProject, addPress, addContent, addMilestone, stageItem, refresh } = useStudio()
-    const { drafts, updateDraft, createDraft, refresh: refreshDrafts } = useDrafts()
+    const { projects, press, content, updateProject, updatePress, updateContent, addProject, addPress, addContent, addMilestone, stageItem, refresh, loading } = useStudio()
+    const { drafts, updateDraft, createDraft } = useDrafts()
     const { settings } = useSystemSettings()
     const [showSettings, setShowSettings] = useState(false)
     const [showSyncModal, setShowSyncModal] = useState(false)
@@ -141,6 +141,8 @@ export default function PortfolioPage() {
     // DISCOVERY LOGIC - Fetch unmatched items from Framer (with 5-min cooldown)
     React.useEffect(() => {
         const discover = async () => {
+            if (loading) return
+            
             const lastDiscovery = localStorage.getItem('last_cms_discovery_timestamp')
             const now = Date.now()
             
@@ -190,8 +192,7 @@ export default function PortfolioPage() {
         setIsLoadingDiscovery(true)
         try {
             // 1. Refresh local Studio data
-            await refresh()
-            await refreshDrafts()
+            const freshData = await refresh()
 
             // 2. Refresh CMS discovery (manual override ignores cooldown)
             let siteId: string | undefined
@@ -209,10 +210,22 @@ export default function PortfolioPage() {
                 }
             }
 
-            if (siteId) {
+            if (siteId && freshData) {
                 const [unmatched, ghosts] = await Promise.all([
-                    FramerSyncService.getUnmatchedItems(siteId, projects, press, content, drafts),
-                    FramerSyncService.getGhostItems(siteId, projects, press, content, drafts)
+                    FramerSyncService.getUnmatchedItems(
+                        siteId, 
+                        freshData.projects, 
+                        freshData.press, 
+                        freshData.content, 
+                        freshData.drafts
+                    ),
+                    FramerSyncService.getGhostItems(
+                        siteId, 
+                        freshData.projects, 
+                        freshData.press, 
+                        freshData.content, 
+                        freshData.drafts
+                    )
                 ])
                 setDiscoveredItems(unmatched)
                 setGhostIds(ghosts)
@@ -357,7 +370,6 @@ export default function PortfolioPage() {
             else if (item._type === 'draft') await updateDraft(item.id, data)
             
             await refresh()
-            await refreshDrafts()
             // Remove from ghostIds locally
             const nextGhosts = new Set(ghostIds)
             nextGhosts.delete(item.id)
@@ -443,7 +455,6 @@ export default function PortfolioPage() {
                         if (unstageConfirmItem) {
                             await stageItem(unstageConfirmItem.id, unstageConfirmItem.type, false)
                             await refresh()
-                            await refreshDrafts()
                         }
                     }}
                     title="Unstage Item?"
@@ -884,7 +895,6 @@ export default function PortfolioPage() {
                     if (unstageConfirmItem) {
                         await stageItem(unstageConfirmItem.id, unstageConfirmItem.type, false)
                         await refresh()
-                        await refreshDrafts()
                     }
                 }}
                 title="Unstage Item?"

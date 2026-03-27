@@ -14,7 +14,7 @@ interface StudioContextType {
     drafts: StudioDraft[]
     loading: boolean
     error: string | null
-    refresh: () => Promise<void>
+    refresh: () => Promise<{ projects: StudioProject[], sparks: StudioSpark[], milestones: StudioMilestone[], content: StudioContent[], press: StudioPress[], networks: StudioNetwork[], drafts: StudioDraft[] } | null | undefined>
     addProject: (project: Partial<StudioProject>, initialMilestones?: { title: string; impact_score?: number; category?: string; target_date?: string }[], coverFile?: File) => Promise<StudioProject>
     updateProject: (id: string, updates: Partial<StudioProject>, coverFile?: File) => Promise<StudioProject>
     deleteProject: (id: string) => Promise<void>
@@ -157,9 +157,19 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             setNetworks(networksRes.data || [])
             setDrafts(draftsRes.data || [])
             setError(null)
+            return {
+                projects: projectsRes.data || [],
+                sparks: sparksRes.data || [],
+                milestones: milestonesRes.data || [],
+                content: contentRes.data || [],
+                press: pressRes.data || [],
+                networks: networksRes.data || [],
+                drafts: draftsRes.data || []
+            }
         } catch (err: any) {
             console.error('Error fetching studio data:', err)
             setError(err.message)
+            return null
         } finally {
             setLoading(false)
         }
