@@ -484,7 +484,7 @@ export function SecretsManager() {
                                                                     </button>
                                                                 </div>
                                                             ) : (
-                                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <div className="flex items-center gap-1 transition-all">
                                                                     <button
                                                                         onClick={() => startEditing(secret)}
                                                                         className="p-1.5 rounded-lg text-black/20 hover:text-black hover:bg-black/[0.03] transition-all"

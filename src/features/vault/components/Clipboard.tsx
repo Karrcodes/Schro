@@ -270,7 +270,7 @@ export function Clipboard() {
                     onChange={(e) => setNewClip(e.target.value)}
                     placeholder="Paste a link or message to share..."
                     suppressHydrationWarning
-                    className="w-full h-32 p-4 pb-12 pr-14 bg-white border border-black/[0.08] rounded-2xl resize-none outline-none focus:border-black/20 focus:ring-4 focus:ring-black/[0.02] transition-all text-[14px] leading-relaxed placeholder:text-black/20"
+                    className="w-full h-36 p-4 pb-16 pr-14 bg-white border border-black/[0.08] rounded-2xl resize-none outline-none focus:border-black/20 focus:ring-4 focus:ring-black/[0.02] transition-all text-[14px] leading-relaxed placeholder:text-black/20"
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                             handleAdd()
@@ -302,86 +302,86 @@ export function Clipboard() {
                         }
                     }}
                 />
-                <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
-                    <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        ref={fileInputRef}
-                        onChange={handleImageSelect}
-                    />
-                    <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className={cn(
-                            "p-1.5 rounded-lg transition-all",
-                            imageFile ? "text-emerald-500 bg-emerald-50" : "text-black/40 hover:text-black hover:bg-black/5"
-                        )}
-                        title="Add photo"
-                    >
-                        <ImageIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            const textarea = document.querySelector('textarea')
-                            if (!textarea) return
-                            // ... rest existing ...
-                            const start = textarea.selectionStart
-                            const end = textarea.selectionEnd
-                            const text = textarea.value
-                            const before = text.substring(0, start)
-                            const after = text.substring(end)
-                            const selected = text.substring(start, end)
-
-                            // If multi-line selection, bullet each line
-                            if (selected.includes('\n')) {
-                                const bulleted = selected.split('\n').map(line => line.trim().startsWith('- ') ? line : `- ${line}`).join('\n')
-                                setNewClip(before + bulleted + after)
-                            } else {
-                                // Just insert bullet at cursor or before selection
-                                setNewClip(before + (selected.trim().startsWith('- ') ? selected : `- ${selected}`) + after)
-                            }
-                        }}
-                        className={cn(
-                            "p-1.5 rounded-lg transition-all",
-                            isBulletLine(newClip) ? "text-blue-500 bg-blue-50" : "text-black/40 hover:text-black hover:bg-black/5"
-                        )}
-                        title="Add bullet points"
-                    >
-                        <List className="w-4 h-4" />
-                    </button>
-                    {newClip.trim() && (
+                <div className="absolute bottom-[1px] left-[1px] right-[1px] h-14 bg-white border-t border-black/[0.04] rounded-b-[15px] flex items-center justify-between px-3 z-10">
+                    <div className="flex items-center gap-1.5">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            ref={fileInputRef}
+                            onChange={handleImageSelect}
+                        />
                         <button
                             type="button"
-                            onClick={handleCancel}
-                            className="text-[11px] font-bold text-black/40 hover:text-red-500 px-2 py-1 underline underline-offset-2 transition-colors uppercase tracking-tight"
+                            onClick={() => fileInputRef.current?.click()}
+                            className={cn(
+                                "p-2 rounded-xl transition-all",
+                                imageFile ? "text-emerald-500 bg-emerald-50" : "text-black/40 hover:text-black hover:bg-black/5"
+                            )}
+                            title="Add photo"
                         >
-                            Cancel
+                            <ImageIcon className="w-4.5 h-4.5" />
                         </button>
-                    )}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const textarea = document.querySelector('textarea')
+                                if (!textarea) return
+                                const start = textarea.selectionStart
+                                const end = textarea.selectionEnd
+                                const text = textarea.value
+                                const before = text.substring(0, start)
+                                const after = text.substring(end)
+                                const selected = text.substring(start, end)
+
+                                if (selected.includes('\n')) {
+                                    const bulleted = selected.split('\n').map(line => line.trim().startsWith('- ') ? line : `- ${line}`).join('\n')
+                                    setNewClip(before + bulleted + after)
+                                } else {
+                                    setNewClip(before + (selected.trim().startsWith('- ') ? selected : `- ${selected}`) + after)
+                                }
+                            }}
+                            className={cn(
+                                "p-2 rounded-xl transition-all",
+                                isBulletLine(newClip) ? "text-blue-500 bg-blue-50" : "text-black/40 hover:text-black hover:bg-black/5"
+                            )}
+                            title="Add bullet points"
+                        >
+                            <List className="w-4.5 h-4.5" />
+                        </button>
+                        {newClip.trim() && (
+                            <button
+                                type="button"
+                                onClick={handleCancel}
+                                className="text-[10px] font-black uppercase tracking-widest text-black/20 hover:text-red-500 px-3 transition-colors"
+                            >
+                                Clear
+                            </button>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={() => handleAdd()}
+                        type="button"
+                        disabled={adding || (!newClip.trim() && !imageFile)}
+                        className="w-9 h-9 bg-black text-white rounded-xl shadow-lg shadow-black/10 flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-10 transition-all"
+                    >
+                        <Plus className="w-5 h-5" />
+                    </button>
                 </div>
-                <button
-                    onClick={() => handleAdd()}
-                    type="button"
-                    disabled={adding || (!newClip.trim() && !imageFile)}
-                    className="absolute bottom-3 right-3 w-10 h-10 bg-black text-white rounded-xl shadow-lg shadow-black/10 flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-20 disabled:scale-100 transition-all z-10"
-                >
-                    <Plus className="w-5 h-5" />
-                </button>
+
                 {imagePreview && (
-                    <div className="absolute top-2 right-2 z-20 animate-in zoom-in-95 duration-200">
-                        <div className="group/preview relative w-14 h-14 rounded-xl overflow-hidden border-2 border-white shadow-xl ring-1 ring-black/5 bg-black/[0.02]">
+                    <div className="absolute top-3 right-3 z-20 animate-in zoom-in-95 duration-200">
+                        <div className="group/preview relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-2xl ring-1 ring-black/5 bg-black/[0.02]">
                             <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                             <button
                                 onClick={() => {
-                                    console.log('[Vault] Clearing image preview')
                                     setImageFile(null)
                                     setImagePreview(null)
                                 }}
                                 className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity"
                             >
-                                <X className="w-4 h-4 text-white" />
+                                <X className="w-5 h-5 text-white" />
                             </button>
                         </div>
                     </div>
@@ -493,14 +493,26 @@ function ClipItem({ clip, copiedId, handleCopy, setConfirmModal, extractFirstUrl
 }) {
     const [isExpanded, setIsExpanded] = useState(false)
     const [isTruncatable, setIsTruncatable] = useState(false)
-    const contentRef = React.useRef<HTMLParagraphElement>(null)
+    const contentRef = React.useRef<HTMLDivElement>(null)
 
     useEffect(() => {
-        if (contentRef.current) {
-            // Check if content overflows its container's 3-line limit (approx 3 * lineHeight)
-            // A more reliable way is comparing scrollHeight to offsetHeight
-            const element = contentRef.current
-            setIsTruncatable(element.scrollHeight > element.offsetHeight)
+        const check = () => {
+            if (contentRef.current) {
+                const element = contentRef.current
+                // scrollHeight is the full content height
+                // clientHeight/offsetHeight is the clamped height (since line-clamp is active)
+                const truncated = element.scrollHeight > element.clientHeight
+                setIsTruncatable(truncated)
+            }
+        }
+        
+        check()
+        // Layout can sometimes take a frame to settle
+        const timer = setTimeout(check, 100)
+        window.addEventListener('resize', check)
+        return () => {
+            clearTimeout(timer)
+            window.removeEventListener('resize', check)
         }
     }, [clip.content])
 
@@ -508,55 +520,62 @@ function ClipItem({ clip, copiedId, handleCopy, setConfirmModal, extractFirstUrl
         <div className="bg-white border border-black/[0.06] rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 transition-colors overflow-hidden">
             <div className="flex-1 min-w-0 w-full">
                 <div className="relative">
-                    <div className={cn(
-                        "text-[14px] leading-relaxed text-black/70 break-words",
-                        !isExpanded && "line-clamp-6"
-                    )}>
-                        <div className={cn(isVaultPrivate && "privacy-blur", "flex flex-col sm:flex-row gap-4")}>
-                            <div className="flex-1 min-w-0">
-                                {clip.content.split('\n').map((line, i) => {
-                                    if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
-                                        return (
-                                            <div key={i} className="flex gap-2 mb-1 pl-1">
-                                                <span className="text-black/30 mt-1.5 w-1 h-1 rounded-full bg-black/40 shrink-0" />
-                                                <span>{line.trim().substring(2)}</span>
-                                            </div>
-                                        )
-                                    }
-                                    const url = extractFirstUrl(line)
-                                    if (url) {
-                                        return (
-                                            <p key={i} className="mb-1 text-blue-600 font-medium underline underline-offset-4 decoration-blue-200 break-all">
-                                                {line}
-                                            </p>
-                                        )
-                                    }
+                    <div className={cn(isVaultPrivate && "privacy-blur", "flex flex-col sm:flex-row gap-4")}>
+                        <div 
+                            ref={contentRef}
+                            className={cn(
+                                "flex-1 min-w-0",
+                                !isExpanded && "line-clamp-3 overflow-hidden"
+                            )}
+                            style={!isExpanded ? { 
+                                display: '-webkit-box', 
+                                WebkitBoxOrient: 'vertical', 
+                                WebkitLineClamp: 3 
+                            } : {}}
+                        >
+                            {clip.content.split('\n').map((line, i) => {
+                                if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
                                     return (
-                                        <p key={i} className="mb-1">
+                                        <div key={i} className="flex gap-2 mb-1 pl-1">
+                                            <span className="text-black/30 mt-1.5 w-1 h-1 rounded-full bg-black/40 shrink-0" />
+                                            <span>{line.trim().substring(2)}</span>
+                                        </div>
+                                    )
+                                }
+                                const url = extractFirstUrl(line)
+                                if (url) {
+                                    return (
+                                        <p key={i} className="mb-1 text-blue-600 font-medium underline underline-offset-4 decoration-blue-200 break-all">
                                             {line}
                                         </p>
                                     )
-                                })}
-                            </div>
-
-                            {clip.image_url && (
-                                <div
-                                    onClick={() => setSelectedImage(clip.image_url!)}
-                                    className="shrink-0 w-24 sm:w-28 aspect-video rounded-xl overflow-hidden border border-black/[0.08] bg-black/[0.02] cursor-zoom-in group/media relative hover:shadow-lg transition-all active:scale-95 self-start sm:self-center"
-                                >
-                                    <img
-                                        src={clip.image_url}
-                                        alt="Vault Media"
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                                        loading="lazy"
-                                    />
-                                    <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/10 flex items-center justify-center transition-all">
-                                        <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover/media:opacity-100 drop-shadow-md" />
-                                    </div>
-                                </div>
-                            )}
+                                }
+                                return (
+                                    <p key={i} className="mb-1">
+                                        {line}
+                                    </p>
+                                )
+                            })}
                         </div>
+
+                        {clip.image_url && (
+                            <div
+                                onClick={() => setSelectedImage(clip.image_url!)}
+                                className="shrink-0 w-24 sm:w-28 accent-video rounded-xl overflow-hidden border border-black/[0.08] bg-black/[0.02] cursor-zoom-in group/media relative hover:shadow-lg transition-all active:scale-95 self-start sm:self-center"
+                            >
+                                <img
+                                    src={clip.image_url}
+                                    alt="Vault Media"
+                                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                                    loading="lazy"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/10 flex items-center justify-center transition-all">
+                                    <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover/media:opacity-100 drop-shadow-md" />
+                                </div>
+                            </div>
+                        )}
                     </div>
+
                     {isTruncatable && (
                         <button
                             onClick={() => setIsExpanded(!isExpanded)}
