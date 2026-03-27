@@ -150,9 +150,22 @@ export default function PortfolioPage() {
                 return
             }
 
+            let siteId: string | undefined
             const stored = localStorage.getItem('framer_sync_config')
-            if (!stored) return
-            const { siteId } = JSON.parse(stored)
+            if (stored) {
+                siteId = JSON.parse(stored).siteId
+            } else {
+                // Fallback: Fetch canonical config from server
+                const config = await FramerSyncService.getConfig()
+                if (config.connected && config.siteId) {
+                    siteId = config.siteId
+                    localStorage.setItem('framer_sync_config', JSON.stringify({ 
+                        siteId: config.siteId, 
+                        collectionId: config.collectionId 
+                    }))
+                }
+            }
+            
             if (!siteId) return
 
             setIsLoadingDiscovery(true)
@@ -181,18 +194,29 @@ export default function PortfolioPage() {
             await refreshDrafts()
 
             // 2. Refresh CMS discovery (manual override ignores cooldown)
+            let siteId: string | undefined
             const stored = localStorage.getItem('framer_sync_config')
             if (stored) {
-                const { siteId } = JSON.parse(stored)
-                if (siteId) {
-                    const [unmatched, ghosts] = await Promise.all([
-                        FramerSyncService.getUnmatchedItems(siteId, projects, press, content, drafts),
-                        FramerSyncService.getGhostItems(siteId, projects, press, content, drafts)
-                    ])
-                    setDiscoveredItems(unmatched)
-                    setGhostIds(ghosts)
-                    localStorage.setItem('last_cms_discovery_timestamp', Date.now().toString())
+                siteId = JSON.parse(stored).siteId
+            } else {
+                const config = await FramerSyncService.getConfig()
+                if (config.connected && config.siteId) {
+                    siteId = config.siteId
+                    localStorage.setItem('framer_sync_config', JSON.stringify({ 
+                        siteId: config.siteId, 
+                        collectionId: config.collectionId 
+                    }))
                 }
+            }
+
+            if (siteId) {
+                const [unmatched, ghosts] = await Promise.all([
+                    FramerSyncService.getUnmatchedItems(siteId, projects, press, content, drafts),
+                    FramerSyncService.getGhostItems(siteId, projects, press, content, drafts)
+                ])
+                setDiscoveredItems(unmatched)
+                setGhostIds(ghosts)
+                localStorage.setItem('last_cms_discovery_timestamp', Date.now().toString())
             }
         } catch (e) {
             console.error('Global refresh failed', e)

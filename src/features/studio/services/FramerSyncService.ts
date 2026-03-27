@@ -130,6 +130,12 @@ export class FramerSyncService {
         return res.json()
     }
 
+    static async getConfig(): Promise<{ connected: boolean; siteId?: string; projectName?: string; collectionId?: string; collectionName?: string }> {
+        const res = await fetch(`${this.API_BASE}?endpoint=config`)
+        if (!res.ok) throw new Error('Failed to fetch sync config')
+        return res.json()
+    }
+
     static async getUnmatchedItems(siteId: string, localProjects: any[], localPress: any[], localContent: any[], localDrafts: any[] = []) {
         const collections = await this.getCollections(siteId)
         const typeMapping: Record<string, string[]> = {
