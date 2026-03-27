@@ -170,6 +170,7 @@ export function GlobalQuickAction() {
 
     return (
         <div
+            id="global-quick-action"
             className="fixed bottom-6 right-6 md:right-8 z-[310] flex flex-col items-end pointer-events-none"
             style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
         >

@@ -121,7 +121,7 @@ export default function PressPage() {
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-1">
                         <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Creative Protocol</h2>
-                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Press &amp; Media</h1>
+                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Press &amp; Awards</h1>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 mb-1">

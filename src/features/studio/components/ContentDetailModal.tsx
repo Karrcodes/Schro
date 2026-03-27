@@ -414,8 +414,21 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
                                             />
                                         </div>
                                         <div className="flex-1 space-y-4 pt-2">
-                                            <div className="flex items-center gap-2">
-                                                <div className={cn("px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border", PRIORITY_CONFIG[item.priority || 'low'].color)}>
+                                            <div className="flex items-center gap-3 mb-1">
+                                                {item.category && (
+                                                    <div className={cn(
+                                                        "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                                                        item.category === 'Thoughts' && "bg-blue-50 text-blue-600",
+                                                        item.category === 'Concept' && "bg-emerald-50 text-emerald-600",
+                                                        item.category === 'Vlog' && "bg-purple-50 text-purple-600",
+                                                        item.category === 'Showcase' && "bg-rose-50 text-rose-600",
+                                                        item.category === 'Update' && "bg-amber-50 text-amber-600",
+                                                        !['Thoughts', 'Concept', 'Vlog', 'Showcase', 'Update'].includes(item.category as any) && "bg-black/5 text-black/50"
+                                                    )}>
+                                                        {item.category}
+                                                    </div>
+                                                )}
+                                                <div className={cn("px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border", PRIORITY_CONFIG[item.priority || 'low'].color)}>
                                                     {item.priority || 'Low'}
                                                 </div>
                                                 {item.impact_score && (
@@ -424,7 +437,6 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
                                                         <span className="text-[10px] font-black text-orange-600">{item.impact_score}</span>
                                                     </div>
                                                 )}
-                                                {item.category && <span className="text-[9px] font-black text-black/20 uppercase tracking-[0.2em] ml-2">{item.category}</span>}
                                             </div>
                                             <h1 className="text-[28px] font-black tracking-tight text-black leading-tight">{item.title}</h1>
                                         </div>
@@ -535,10 +547,10 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
                                         <FramerSyncStatus
                                             itemId={item.id}
                                             itemType="content"
-                                            framerCmsId={item.framer_cms_id}
+                                            framerCmsId={item.framer_cms_id || (item.status === 'published' ? 'published' : undefined)}
                                             isStaged={item.is_staged}
                                             collectionName="Media"
-                                            onStage={async (staged) => {
+                                            onStage={item.status === 'published' ? undefined : async (staged) => {
                                                 await stageItem(item.id, 'content', staged)
                                                 await refresh()
                                             }}
@@ -766,6 +778,19 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
                                             <div className="space-y-6">
                                                 <div className="space-y-2">
                                                     <div className="flex items-center gap-3 mb-1">
+                                                        {item.category && (
+                                                            <div className={cn(
+                                                                "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                                                                item.category === 'Thoughts' && "bg-blue-50 text-blue-600",
+                                                                item.category === 'Concept' && "bg-emerald-50 text-emerald-600",
+                                                                item.category === 'Vlog' && "bg-purple-50 text-purple-600",
+                                                                item.category === 'Showcase' && "bg-rose-50 text-rose-600",
+                                                                item.category === 'Update' && "bg-amber-50 text-amber-600",
+                                                                !['Thoughts', 'Concept', 'Vlog', 'Showcase', 'Update'].includes(item.category as any) && "bg-black/5 text-black/50"
+                                                            )}>
+                                                                {item.category}
+                                                            </div>
+                                                        )}
                                                         <div className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest", PRIORITY_CONFIG[item.priority || 'low'].color)}>
                                                             {item.priority || 'Priority Unset'}
                                                         </div>

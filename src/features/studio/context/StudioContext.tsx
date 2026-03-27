@@ -231,7 +231,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
                 impact_score: m.impact_score || 5,
                 category: m.category,
                 target_date: m.target_date,
-                status: 'pending' as const
+                status: (m as any).status || 'pending',
             }));
 
             const { data: msData, error: msError } = await supabase

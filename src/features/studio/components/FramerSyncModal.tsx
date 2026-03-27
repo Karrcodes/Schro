@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import type { StudioProject, StudioPress, StudioContent } from '../types/studio.types'
 import { FramerSyncService } from '../services/FramerSyncService'
-import { X, Globe, Check, AlertCircle, RefreshCw, Trash2, Rocket, Award, Loader2, ArrowRight, Layout, Image as ImageIcon, Type, AlignLeft, Video } from 'lucide-react'
+import { X, Globe, Check, AlertCircle, RefreshCw, Trash2, Rocket, Award, Loader2, ArrowRight, Layout, Image as ImageIcon, Type, AlignLeft, Video, FileText, Download, Cloud } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
+    isOpen: boolean
+    isFocused?: boolean
     projects: StudioProject[]
     press?: StudioPress[]
     content?: StudioContent[]
@@ -16,13 +18,17 @@ interface Props {
     onUpdatePress?: (id: string, updates: Partial<StudioPress>) => Promise<any>
     onUpdateContent?: (id: string, updates: Partial<StudioContent>) => Promise<any>
     onUpdateDraft?: (id: string, updates: any) => Promise<any>
-    onAddProject?: (project: Partial<StudioProject>) => Promise<any>
+    onAddProject?: (project: Partial<StudioProject>, initialMilestones?: any[]) => Promise<any>
     onAddPress?: (item: Partial<StudioPress>) => Promise<any>
     onAddContent?: (item: Partial<StudioContent>) => Promise<any>
-    onAddDraft?: (data: { title: string; body?: string; project_id?: string }) => Promise<any>
+    onAddMilestone?: (milestone: any) => Promise<any>
+    onAddDraft?: (data: Partial<any>) => Promise<any>
+    initialImportItem?: any
 }
 
 export default function FramerSyncModal({ 
+    isOpen,
+    isFocused = false,
     projects, 
     press = [], 
     content = [], 
@@ -35,7 +41,9 @@ export default function FramerSyncModal({
     onAddProject,
     onAddPress,
     onAddContent,
-    onAddDraft
+    onAddMilestone,
+    onAddDraft,
+    initialImportItem
 }: Props) {
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [selectedType, setSelectedType] = useState<'project' | 'press' | 'content' | 'draft'>('project')
@@ -52,8 +60,24 @@ export default function FramerSyncModal({
     const [isAutoRefreshing, setIsAutoRefreshing] = useState(false)
     const [unmatchedRemotes, setUnmatchedRemotes] = useState<any[]>([])
     const [showFieldDebug, setShowFieldDebug] = useState(false)
-    const [pendingImportItem, setPendingImportItem] = useState<any | null>(null)
+    const [pendingImportItem, setPendingImportItem] = useState<any | null>(initialImportItem || null)
     const [importConfig, setImportConfig] = useState<{ type: string; category: string }>({ type: '', category: '' })
+
+    // Body scroll lock
+    useEffect(() => {
+        if (isOpen) {
+            const originalStyle = window.getComputedStyle(document.body).overflow
+            document.body.style.overflow = 'hidden'
+            return () => { document.body.style.overflow = originalStyle }
+        }
+    }, [isOpen])
+
+    // Initial item handler
+    useEffect(() => {
+        if (initialImportItem) {
+            handleImport(initialImportItem)
+        }
+    }, [initialImportItem])
 
     // Configuration from localStorage
     const [config, setConfig] = useState<{ siteId: string, collectionId: string, collectionName?: string } | null>(null)
@@ -77,7 +101,10 @@ export default function FramerSyncModal({
             if (stored) {
                 const parsed = JSON.parse(stored)
                 setConfig(parsed)
-                loadCmsItems(parsed.siteId)
+                // Only auto-load all items if not in a focused import (to avoid delay)
+                if (!initialImportItem) {
+                    loadCmsItems(parsed.siteId)
+                }
             } else {
                 // AUTO-DISCOVERY: Fetch default config from backend
                 try {
@@ -94,7 +121,10 @@ export default function FramerSyncModal({
                         }
                         setConfig(newConfig)
                         localStorage.setItem('framer_sync_config', JSON.stringify(newConfig))
-                        loadCmsItems(newConfig.siteId)
+                        // Only auto-load if not in focused import
+                        if (!initialImportItem) {
+                            loadCmsItems(newConfig.siteId)
+                        }
                     }
                 } catch (e) {
                     console.error('Sync Manager: Auto-discovery failed', e)
@@ -104,6 +134,52 @@ export default function FramerSyncModal({
         }
         init()
     }, [])
+
+    // Hashnode state
+    const [hnToken, setHnToken] = useState('')
+    const [hnPubId, setHnPubId] = useState('')
+    const [hnSaving, setHnSaving] = useState(false)
+    const [hnSaved, setHnSaved] = useState(false)
+    const [hnError, setHnError] = useState<string | null>(null)
+    const [hnConnected, setHnConnected] = useState(false)
+    const [hnSource, setHnSource] = useState<'env'|'db'|null>(null)
+
+    useEffect(() => {
+        const loadHashnode = async () => {
+            try {
+                const res = await fetch('/api/studio/hashnode?endpoint=config')
+                if (res.ok) {
+                    const data = await res.json()
+                    setHnConnected(data.connected)
+                    setHnSource(data.source)
+                    if (data.publicationId) setHnPubId(data.publicationId)
+                }
+            } catch (err) {
+                console.error('Failed to load Hashnode config', err)
+            }
+        }
+        loadHashnode()
+    }, [])
+
+    const handleSaveHashnode = async () => {
+        setHnSaving(true)
+        setHnError(null)
+        try {
+            const res = await fetch('/api/studio/hashnode?endpoint=save-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: hnToken, publicationId: hnPubId })
+            })
+            if (!res.ok) throw new Error('Failed to save Hashnode settings')
+            setHnSaved(true)
+            setHnConnected(true)
+            setTimeout(() => setHnSaved(false), 2000)
+        } catch (err: any) {
+            setHnError(err.message)
+        } finally {
+            setHnSaving(false)
+        }
+    }
 
     useEffect(() => {
         if (cmsItems.length > 0 && config?.siteId && !isReconciling) {
@@ -244,7 +320,7 @@ export default function FramerSyncModal({
                     _collectionName: coll.name,
                     _collectionId: coll.id,
                     _fields: coll.fields || [],  // field schema: [{ id, name, slug, type }]
-                    _category: Object.keys(typeMapping).find(type => 
+                    _type: Object.keys(typeMapping).find(type => 
                         typeMapping[type].some(k => coll.name.toLowerCase().includes(k))
                     )
                 }))
@@ -285,7 +361,7 @@ export default function FramerSyncModal({
             .replace(/--+/g, '-');
 
         // Reconcile Projects
-        const remoteProjects = remoteItems.filter(it => it._category === 'project')
+        const remoteProjects = remoteItems.filter(it => it._type === 'project')
         for (const project of localProjects) {
             const targetSlug = slugify(project.title)
             const matchedRemote = remoteProjects.find(it => it.id === project.framer_cms_id) || remoteProjects.find(it => it.slug === targetSlug)
@@ -304,7 +380,7 @@ export default function FramerSyncModal({
         }
 
         // Reconcile Press
-        const remotePress = remoteItems.filter(it => it._category === 'press')
+        const remotePress = remoteItems.filter(it => it._type === 'press')
         if (onUpdatePress) {
             for (const item of localPress) {
                 const targetSlug = slugify(item.title)
@@ -325,7 +401,7 @@ export default function FramerSyncModal({
         }
 
         // Reconcile Content (Media)
-        const remoteContent = remoteItems.filter(it => it._category === 'content')
+        const remoteContent = remoteItems.filter(it => it._type === 'content')
         if (onUpdateContent) {
             for (const item of localContent) {
                 const targetSlug = slugify(item.title)
@@ -346,7 +422,7 @@ export default function FramerSyncModal({
         }
 
         // Reconcile Drafts (Articles)
-        const remoteDrafts = remoteItems.filter(it => it._category === 'draft')
+        const remoteDrafts = remoteItems.filter(it => it._type === 'draft')
         if (onUpdateDraft) {
             for (const item of localDrafts) {
                 const targetSlug = slugify(item.title)
@@ -515,17 +591,35 @@ export default function FramerSyncModal({
 
     const handleImport = async (item: any) => {
         setPendingImportItem(item)
-        if (item._category === 'content') {
-            setImportConfig({ type: 'video', category: 'Other' })
-        } else if (item._category === 'project') {
-            setImportConfig({ type: 'Technology', category: 'General' })
-        } else if (item._category === 'press') {
-            setImportConfig({ type: 'feature', category: 'Media' })
-        } else if (item._category === 'draft') {
-            setImportConfig({ type: 'article', category: 'Writing' })
+        setSelectedId(null) // Ensure we switch to Guided Import view
+        
+        let type = ''
+        let category = ''
+
+        if (item._type === 'project') {
+            const collectionName = (item._collectionName || '').toLowerCase()
+            type = 'Other'
+            if (collectionName.includes('technology')) type = 'Technology'
+            else if (collectionName.includes('architect')) type = 'Architectural Design'
+            else if (collectionName.includes('product')) type = 'Product Design'
+            else if (collectionName.includes('fashion')) type = 'Fashion'
+            else if (collectionName.includes('media')) type = 'Media'
+            category = 'General'
+        } else if (item._type === 'press') {
+            type = 'feature'
+            category = 'Media'
+        } else if (item._type === 'content') {
+            type = 'video'
+            category = 'Other'
+        } else if (item._type === 'draft') {
+            type = 'article'
+            category = 'Writing'
         } else {
-            setImportConfig({ type: 'Other', category: 'Imported' })
+            type = 'Other'
+            category = 'Imported'
         }
+
+        setImportConfig({ type, category })
     }
 
     const confirmImport = async () => {
@@ -534,38 +628,104 @@ export default function FramerSyncModal({
         setIsSyncing(true)
         setSyncStatus({ status: 'syncing', message: `Importing ${item.slug}...` })
         try {
-            const category = item._category
+            const category = item._type
             const fd = item.fieldData || {}
             const fields: { id: string, name: string, slug: string, type: string }[] = item._fields || []
 
             // Build name→value map resolving opaque Framer field IDs
             const nd: Record<string, any> = {}
             for (const f of fields) {
-                nd[f.name.toLowerCase()] = fd[f.id]
+                if (f.name) nd[f.name.toLowerCase()] = fd[f.id]
+                if (f.slug) {
+                    nd[f.slug.toLowerCase()] = fd[f.id]
+                    // Also handle common slug variations (spaces -> hyphens)
+                    const hyphenated = f.name?.toLowerCase().replace(/\s+/g, '-')
+                    if (hyphenated) nd[hyphenated] = fd[f.id]
+                }
             }
 
             // Exact key lookup (case-insensitive)
             const get = (key: string): any => nd[key.toLowerCase()]
 
-            // Plain text from string or formattedText fields
-            const getText = (key: string): string | undefined => {
-                const v = get(key)
+            // Recursively extract plain text from any Framer field structure
+            const stripHtml = (s: string) => s
+                .replace(/<[^>]+>/g, '')
+                .replace(/&nbsp;/g, ' ')
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .trim()
+
+            const extractText = (v: any): string | undefined => {
                 if (!v) return undefined
-                if (typeof v === 'string') return v.trim() || undefined
-                // Framer formattedText is usually { html: '...' } — strip tags for plain text
+                if (typeof v === 'string') {
+                    const clean = stripHtml(v)
+                    return clean || undefined
+                }
                 if (typeof v === 'object') {
-                    if (v.html) return v.html.replace(/<[^>]+>/g, '').trim() || undefined
-                    if (v.text) return v.text.trim() || undefined
+                    // Try the most common text keys first
+                    for (const key of ['text', 'html', 'value', 'label', 'name', 'title', 'content']) {
+                        if (v[key] && typeof v[key] === 'string') {
+                            const clean = stripHtml(v[key])
+                            if (clean) return clean
+                        }
+                    }
+                    // Recurse into nested objects (but not arrays to avoid noise)
+                    for (const val of Object.values(v)) {
+                        if (val && typeof val === 'object' && !Array.isArray(val)) {
+                            const found = extractText(val)
+                            if (found) return found
+                        }
+                    }
                 }
                 return undefined
             }
+            const getText = (key: string): string | undefined => extractText(get(key))
 
-            // Image URL from Framer image field { url }
-            const getImage = (key: string): string | undefined => {
-                const v = get(key) as any
+            // Extract image URL from Framer's image field — handles any nesting depth
+            const extractImageUrl = (v: any): string | undefined => {
                 if (!v) return undefined
-                if (typeof v === 'object' && v.url) return v.url
-                if (typeof v === 'string' && v.startsWith('http')) return v
+                if (typeof v === 'string' && v.match(/^https?:\/\//)) return v
+                if (typeof v === 'object') {
+                    // Check top-level url/src first
+                    if (v.url && typeof v.url === 'string') return v.url
+                    if (v.src && typeof v.src === 'string') return v.src
+                    // Recursively search all values for a URL string
+                    for (const val of Object.values(v)) {
+                        const found = extractImageUrl(val)
+                        if (found) return found
+                    }
+                }
+                return undefined
+            }
+            const getImage = (key: string): string | undefined => extractImageUrl(get(key))
+
+            // SMART IMAGE DISCOVERY
+            const discoverImage = (): string | undefined => {
+                // Debug: log what Framer sent so we can see the real field names/values
+                console.log('[FramerImport] fieldData:', fd)
+                console.log('[FramerImport] nd (name→value map):', nd)
+                console.log('[FramerImport] image-type fields:', fields.filter(f => f.type === 'image'))
+
+                const common = ['bg image', 'background image', 'cover image', 'cover', 'thumbnail', 'hero image', 'main image', 'image', 'photo', 'preview', 'featured image', 'project image']
+                for (const k of common) {
+                    const img = getImage(k)
+                    if (img) return img
+                }
+                // Try every image-type field directly from raw fieldData
+                const imageFields = fields.filter(f => f.type === 'image')
+                for (const imageField of imageFields) {
+                    const v = fd[imageField.id]
+                    if (v && typeof v === 'object' && (v.url || v.src)) return v.url || v.src
+                    if (v && typeof v === 'string' && v.startsWith('http')) return v
+                }
+                // Last resort: scan ALL field values for anything that looks like an image URL
+                for (const v of Object.values(fd)) {
+                    if (v && typeof v === 'object' && (v as any).url && (v as any).url.includes('framer')) {
+                        return (v as any).url
+                    }
+                }
                 return undefined
             }
 
@@ -578,67 +738,113 @@ export default function FramerSyncModal({
                 return undefined
             }
 
-            // Confirmed field names from CMS schema
-            const title = getText('title') || item.slug
+            // Framer items have item.name at top-level; fieldData 'title' may be a rich-text object
+            const title = item.name
+                || getText('title')
+                || getText('name')
+                || getText('project name')
+                || getText('project title')
+                || getText('inner title')
+                || item.slug
             const tagline = undefined  // 'Inner Title' is a website theme artifact ("Title /"), not content
             const description = getText('body text')
-            const cover_url = getImage('bg image')
+            const cover_url = discoverImage()
             const client = getText('client')
             const location = getText('location')
-
-            const baseData: any = {
-                title,
-                slug: item.slug,
-                tagline: tagline || undefined,
-                description: description || undefined,
-                cover_url: cover_url || undefined,
-                client: client || undefined,
-                location: location || undefined,
-                framer_cms_id: item.id,
-                framer_collection_id: item._collectionId
-            }
 
             if (category === 'project') {
                 const project_url = getLink('view project')
                 const article_url = getLink('view article')
+                
+                const initialMilestones = [{
+                    title: 'Project Completed (Imported)',
+                    status: 'completed',
+                    category: 'production',
+                    impact_score: 10
+                }]
+
                 await onAddProject({ 
-                    ...baseData, 
+                    title,
+                    cover_url: cover_url || undefined,
+                    framer_cms_id: item.id,
+                    framer_collection_id: item._collectionId,
+                    description: description || undefined,
+                    client: client || undefined,
+                    location: location || undefined,
+                    tagline: tagline || undefined,
                     project_url: project_url || undefined,
                     article_url: article_url || undefined,
                     status: 'shipped',
                     type: importConfig.type as any,
-                    gtv_category: undefined // Could expand this later if needed
-                })
+                    gtv_category: undefined,
+                    slug: item.slug,
+                    stage_data: { slug: item.slug }
+                }, initialMilestones)
             } else if (category === 'press') {
-                const organization = getText('featured on')
-                const url = getLink('view')
+                const organization = getText('featured on') 
+                    || getText('publication')
+                    || getText('source')
+                    || getText('press')
+                    || getText('organization')
+                    || getText('publisher')
+                    || getText('client')
+                    || 'Framer'
+                    
+                const url = getLink('view') || getLink('link') || getLink('url') || getLink('website') || getLink('article url') || getLink('press link') || getText('url') || getText('link') || getText('website')
+                
                 await onAddPress({ 
-                    ...baseData, 
-                    organization, 
-                    url, 
+                    title,
+                    description: description || undefined,
+                    cover_url: cover_url || undefined,
+                    notes: description || undefined,
+                    organization,
+                    url,
+                    framer_cms_id: item.id,
+                    framer_collection_id: item._collectionId,
                     status: 'published',
-                    type: importConfig.type as any
+                    type: importConfig.type as any,
+                    stage_data: { slug: item.slug }
                 })
             } else if (category === 'content') {
                 const url = getText('media link') || getLink('media link')
-                await onAddContent({ 
-                    ...baseData, 
-                    url, 
+                const contentItem = await onAddContent({ 
+                    title,
+                    cover_url: cover_url || undefined,
+                    notes: description || undefined,
+                    url,
                     status: 'published',
                     type: importConfig.type,
-                    category: importConfig.category as any
+                    category: importConfig.category as any,
+                    platforms: [],
+                    stage_data: { slug: item.slug }
                 })
+                
+                // Add 100% progress milestone
+                if (contentItem && contentItem.id && onAddMilestone) {
+                    await onAddMilestone({
+                        content_id: contentItem.id, // Or project_id if it's reused, but the table requires project_id typically... wait, studio_milestones belongs to project_id. Let me verify the milestone schema.
+                        title: 'Content Published (Imported)',
+                        status: 'completed',
+                        category: 'production',
+                        impact_score: 10
+                    })
+                }
             } else if (category === 'draft') {
                 const article_url = getLink('view article')
-                await onAddDraft({ title: baseData.title, project_id: undefined })
+                await onAddDraft({ 
+                    title, 
+                    body: description || '',
+                    project_id: undefined,
+                    framer_cms_id: item.id,
+                    cover_url: cover_url || undefined,
+                    stage_data: { slug: item.slug }
+                })
             }
 
             setSyncStatus({ status: 'success', message: 'Imported successfully!' })
-            setPendingImportItem(null)
-            setTimeout(() => {
-                setSyncStatus(null)
-                loadCmsItems(config!.siteId)
-            }, 2000)
+            // Refresh CMS items in the background — do NOT clear pendingImportItem
+            // so the success screen persists until the user closes the modal
+            loadCmsItems(config!.siteId)
         } catch (err: any) {
             setError(err.message || 'Import failed. Check the console for details.')
             setSyncStatus({ status: 'error', message: err.message })
@@ -654,518 +860,418 @@ export default function FramerSyncModal({
         return cmsItems.find(cmsItem => cmsItem.id === item.framer_cms_id)
     }
 
+    if (!isOpen) return null
+
+    const showSidebars = !isFocused && !pendingImportItem
+
     return (
-        <div className="flex flex-col h-[750px] w-full max-w-5xl bg-white rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-black/5">
-            {/* Header */}
-            <div className="p-8 border-b border-black/[0.05] flex items-center justify-between bg-black/[0.01]">
-                <div className="flex items-center gap-6">
-                    <div>
-                        <h2 className="text-xl font-black text-black">Sync Manager</h2>
-                        <p className="text-[12px] font-medium text-black/40">Portfolio-to-Framer integration</p>
-                    </div>
-                    <div className="h-8 w-px bg-black/5" />
-                    <div className="flex items-center gap-4">
-                        <button 
-                            onClick={testConnection}
-                            disabled={isTesting}
-                            className={cn(
-                                "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                testResult?.success ? "bg-green-500/10 text-green-600" : 
-                                testResult?.success === false ? "bg-red-500/10 text-red-600 border border-red-200" :
-                                "bg-black text-white hover:scale-105 active:scale-95 shadow-lg shadow-black/10"
-                            )}
-                        >
-                            {isTesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
-                            {testResult ? testResult.message : "Test Connection"}
-                        </button>
-
-                        <button 
-                            onClick={() => {
-                                if (config) {
-                                    loadCmsItems(config.siteId)
-                                } else {
-                                    testConnection() // This will also trigger load if successful
-                                }
-                            }}
-                            disabled={isReconciling || isLoading || isTesting}
-                            className={cn(
-                                "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border",
-                                isReconciling || isLoading ? "bg-blue-50 border-blue-100 text-blue-500" : "bg-white border-black/10 text-black/60 hover:bg-black/5"
-                            )}
-                        >
-                            <RefreshCw className={cn("w-3 h-3", (isReconciling || isLoading) && "animate-spin")} />
-                            {isReconciling ? "Reconciling..." : isLoading ? "Loading..." : "Refresh Status"}
-                        </button>
-
-                        <button 
-                            onClick={handleReconcileAll}
-                            disabled={isReconciling || isLoading || isTesting || !config}
-                            className={cn(
-                                "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border shadow-lg shadow-emerald-500/10",
-                                isReconciling ? "bg-emerald-500 text-white border-emerald-600" : "bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100"
-                            )}
-                        >
-                            {isReconciling ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                            Sync All
-                        </button>
-
-                        <button 
-                            onClick={() => setShowFieldDebug(v => !v)}
-                            title="Show raw CMS field names for each collection"
-                            className={cn(
-                                "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border",
-                                showFieldDebug ? "bg-amber-500 text-white border-amber-600" : "bg-white border-black/10 text-black/40 hover:bg-black/5"
-                            )}
-                        >
-                            {showFieldDebug ? '🔍 Hide Schema' : '🔍 Field Schema'}
-                        </button>
-
-                        <button 
-                            onClick={() => setIsAutoRefreshing(!isAutoRefreshing)}
-                            title="Auto-refresh every 60s (Auto-off after 10m)"
-                            className={cn(
-                                "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border",
-                                isAutoRefreshing ? "bg-green-500 text-white border-green-600 shadow-lg shadow-green-500/20" : "bg-white border-black/10 text-black/40 hover:bg-black/5"
-                            )}
-                        >
-                            <div className={cn("w-1.5 h-1.5 rounded-full", isAutoRefreshing ? "bg-white animate-pulse" : "bg-black/20")} />
-                            {isAutoRefreshing ? "Live ON" : "Live OFF"}
-                        </button>
-                    </div>
-                </div>
-                <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors">
-                    <X className="w-5 h-5 text-black/20" />
-                </button>
-            </div>
-
-            <div className="flex-1 flex overflow-hidden">
-                {/* Left Side: Items List */}
-                <div className="w-[340px] border-r border-black/[0.05] flex flex-col overflow-hidden bg-black/[0.01]">
-                    {showFieldDebug ? (
-                        // --- FIELD SCHEMA DEBUG PANEL ---
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 px-1">CMS Field Schema — copy &amp; share with AI to tune import mapping</p>
-                            {(() => {
-                                // Group cmsItems by collection, use _fields for human-readable names
-                                const byCollection: Record<string, { name: string, fields: { name: string, slug: string, type: string }[] }> = {}
-                                for (const item of cmsItems) {
-                                    const cName = item._collectionName || 'Unknown'
-                                    if (!byCollection[cName]) {
-                                        const schema = (item._fields || []) as { id: string, name: string, slug: string, type: string }[]
-                                        byCollection[cName] = { name: cName, fields: schema.map(f => ({ name: f.name, slug: f.slug, type: f.type })) }
-                                    }
-                                }
-                                return Object.values(byCollection).map(coll => (
-                                    <div key={coll.name} className="p-3 rounded-2xl bg-amber-50 border border-amber-100">
-                                        <p className="text-[10px] font-black text-amber-800 mb-2 uppercase tracking-tight">{coll.name}</p>
-                                        <div className="space-y-1">
-                                            {coll.fields.map(f => (
-                                                <div key={f.slug} className="flex justify-between items-center">
-                                                    <span className="text-[10px] font-mono text-amber-900 font-bold">{f.name}</span>
-                                                    <span className="text-[8px] font-medium text-amber-500 bg-amber-100 px-1.5 py-0.5 rounded">{f.type}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))
-                            })()}
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+            <div 
+                className={cn(
+                    "flex flex-col w-full max-h-[calc(100vh-3rem)] bg-white rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-black/5 transition-all duration-500",
+                    showSidebars ? "max-w-6xl" : "max-w-2xl"
+                )}
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header Section: Connection Status Bar */}
+                <div className="p-8 border-b border-black/[0.05] flex items-center justify-between bg-black/[0.01]">
+                    <div className="flex items-center gap-10">
+                        <div>
+                            <h2 className="text-xl font-black text-black">Website Sync</h2>
+                            <p className="text-[12px] font-medium text-black/40 uppercase tracking-widest">Studio Integration Hub</p>
                         </div>
-                    ) : (
-                    <>
-                    <div className="p-4 border-b border-black/[0.05] flex flex-wrap gap-2">
-                        <button 
-                            onClick={() => { setSelectedType('project'); setSelectedId(null); }}
-                            className={cn(
-                                "flex-1 min-w-[80px] py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all",
-                                selectedType === 'project' ? "bg-black text-white" : "bg-black/5 text-black/40 hover:bg-black/10"
-                            )}
-                        >
-                            Projects ({projects.length + unmatchedRemotes.filter(item => item._category === 'project').length})
-                        </button>
-                        <button 
-                            onClick={() => { setSelectedType('press'); setSelectedId(null); }}
-                            className={cn(
-                                "flex-1 min-w-[80px] py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all",
-                                selectedType === 'press' ? "bg-black text-white" : "bg-black/5 text-black/40 hover:bg-black/10"
-                            )}
-                        >
-                            Press ({press.length + unmatchedRemotes.filter(item => item._category === 'press').length})
-                        </button>
-                        <button 
-                            onClick={() => { setSelectedType('content'); setSelectedId(null); }}
-                            className={cn(
-                                "flex-1 min-w-[80px] py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all",
-                                selectedType === 'content' ? "bg-black text-white" : "bg-black/5 text-black/40 hover:bg-black/10"
-                            )}
-                        >
-                            Media ({(content?.length || 0) + unmatchedRemotes.filter(item => item._category === 'content').length})
-                        </button>
-                        <button 
-                            onClick={() => { setSelectedType('draft'); setSelectedId(null); }}
-                            className={cn(
-                                "flex-1 min-w-[80px] py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all",
-                                selectedType === 'draft' ? "bg-black text-white" : "bg-black/5 text-black/40 hover:bg-black/10"
-                            )}
-                        >
-                            Articles ({(drafts?.length || 0) + unmatchedRemotes.filter(item => item._category === 'draft').length})
-                        </button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                        {isLoading ? (
-                            <div className="flex items-center justify-center py-20">
-                                <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
-                            </div>
-                        ) : unmatchedRemotes.filter(item => item._category === selectedType).length === 0 && allItems[selectedType as keyof typeof allItems].length === 0 ? (
-                            <div className="text-center py-20 text-black/20 text-[12px] font-medium uppercase tracking-[0.2em]">No Items</div>
-                        ) : (
-                            <>
-                                {unmatchedRemotes.filter(item => item._category === selectedType).map((item: any) => (
-                                    <div
-                                        key={item.id}
-                                        className="w-full p-4 rounded-3xl border border-emerald-100 bg-emerald-50/30 text-left transition-all group relative overflow-hidden flex items-start gap-4"
-                                    >
-                                        <div className="w-10 h-10 rounded-2xl bg-white border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                                            <Globe className="w-5 h-5" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1 text-[9px] font-black uppercase tracking-[0.1em]">
-                                                <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white shadow-sm">Live on Web</span>
-                                                <span className="px-2 py-0.5 rounded-md bg-emerald-600/10 text-emerald-700">From: {item._collectionName}</span>
-                                            </div>
-                                            <h4 className="text-[14px] font-black text-emerald-950 leading-tight mb-1 truncate">{item.slug}</h4>
-                                            <p className="text-[11px] font-medium text-emerald-700/60 truncate italic">Ready for import</p>
-                                        </div>
-                                        <button 
-                                            onClick={() => handleImport(item)}
-                                            disabled={isSyncing}
-                                            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors shrink-0 shadow-lg shadow-emerald-600/20"
-                                        >
-                                            Import
-                                        </button>
-                                    </div>
-                                ))}
-                                {allItems[selectedType as keyof typeof allItems].map((item: any) => {
-                                    const isLive = !!item.framer_cms_id
-                                    return (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => setSelectedId(item.id)}
-                                            className={cn(
-                                                "w-full p-4 rounded-3xl border text-left transition-all group relative overflow-hidden",
-                                                selectedId === item.id
-                                                    ? "bg-black text-white border-black"
-                                                    : "bg-white border-black/[0.05] hover:border-black/20"
-                                            )}
-                                        >
-                                            <div className="flex justify-between items-start mb-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={cn(
-                                                        "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider",
-                                                        isLive ? "bg-emerald-500 text-white" : "bg-black/5 text-black/40"
-                                                    )}>
-                                                        {isLive ? "🌐 Live" : "Local"}
-                                                    </span>
-                                                    {isLive && (
-                                                        <span className="text-[9px] font-bold text-emerald-600/60 uppercase">
-                                                            Synced
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {isLive && (
-                                                    <div className="text-[8px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full tracking-tighter">LIVE</div>
-                                                )}
-                                            </div>
 
-                                            <div className="flex items-center gap-2 mb-1">
-                                                {selectedType === 'project' ? <Rocket className="w-3 h-3 opacity-40 shrink-0" /> : <Award className="w-3 h-3 opacity-40 shrink-0" />}
-                                                <h4 className="text-[13px] font-black leading-tight line-clamp-1">{item.title}</h4>
-                                            </div>
-                                            
-                                            <p className={cn("text-[10px] line-clamp-1 opacity-60 font-medium", selectedId === item.id ? "text-white/60" : "text-black/60")}>
-                                                {(item as any).tagline || (item as any).organization || "No details"}
-                                            </p>
-                                        </button>
-                                    )
-                                })}
-                            </>
-                        )}
+                        {/* Connection Badges */}
+                        <div className="flex items-center gap-4 border-l border-black/[0.05] pl-10">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.2em]">Framer CMS</label>
+                                <div className="flex items-center gap-2">
+                                    <div className={cn("w-2 h-2 rounded-full", config ? "bg-emerald-500 animate-pulse" : "bg-red-500")} />
+                                    <span className="text-[11px] font-bold text-black/80">{config ? 'Connected' : 'Offline'}</span>
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-1 border-l border-black/[0.05] pl-6">
+                                <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.2em]">Hashnode</label>
+                                <div className="flex items-center gap-2">
+                                    <div className={cn("w-2 h-2 rounded-full", hnConnected ? "bg-emerald-500" : "bg-black/10")} />
+                                    <span className="text-[11px] font-bold text-black/80">{hnConnected ? 'Linked' : 'Not Linked'}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    </>
-                    )}
+
+                    <div className="flex items-center gap-3">
+                        <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-black/5 hover:bg-black/10 rounded-full transition-colors group">
+                            <X className="w-5 h-5 text-black/30 group-hover:text-black transition-colors" />
+                        </button>
+                    </div>
                 </div>
 
-                {/* Center: Sync Workspace */}
-                <div className="flex-1 flex flex-col overflow-hidden bg-white">
-                    {selectedItem ? (
-                        <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar space-y-8 animate-in slide-in-from-right-4 duration-300">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-[16px] font-black">Sync Preview</h3>
-                                <button onClick={() => setSelectedId(null)} className="text-[11px] font-black uppercase tracking-widest text-black/30 hover:text-black">Cancel</button>
+                <div className="flex-1 flex overflow-hidden min-h-0 bg-white">
+                    {/* Left Panel: Item Navigation */}
+                    {showSidebars && (
+                        <div className="w-[380px] border-r border-black/[0.05] flex flex-col overflow-hidden bg-black/[0.01]">
+                            {/* Category Filter Pills */}
+                            <div className="p-6 border-b border-black/[0.05] flex gap-2 overflow-x-auto no-scrollbar">
+                                {[
+                                    { id: 'project', icon: Rocket, label: 'Projects' },
+                                    { id: 'press', icon: Award, label: 'Press' },
+                                    { id: 'content', icon: Video, label: 'Media' },
+                                    { id: 'draft', icon: FileText, label: 'Articles' }
+                                ].map((cat) => (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => { setSelectedType(cat.id as any); setSelectedId(null); }}
+                                        className={cn(
+                                            "px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0 border",
+                                            selectedType === cat.id 
+                                                ? "bg-black text-white border-black shadow-lg shadow-black/10" 
+                                                : "bg-white border-black/[0.05] text-black/40 hover:border-black/20"
+                                        )}
+                                    >
+                                        <cat.icon className="w-3.5 h-3.5" />
+                                        {cat.label}
+                                    </button>
+                                ))}
                             </div>
 
-                            <div className="p-6 rounded-[32px] bg-blue-50/50 border border-blue-100 space-y-6">
-                                <div className="grid grid-cols-1 gap-3">
-                                    <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-blue-200/50 group/row">
-                                        <div className="flex items-center gap-2">
-                                            <Type className="w-3.5 h-3.5 text-black/20" />
-                                            <span className="text-[11px] font-bold text-black/40 uppercase tracking-widest">Title</span>
-                                        </div>
-                                        <span className="text-[12px] font-black">{selectedItem.title}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-blue-200/50 group/row">
-                                        <div className="flex items-center gap-2">
-                                            <Globe className="w-3.5 h-3.5 text-black/20" />
-                                            <span className="text-[11px] font-bold text-black/40 uppercase tracking-widest">Slug (Auto)</span>
-                                        </div>
-                                        <span className="text-[12px] font-black lowercase opacity-40 italic">
-                                            {selectedItem.title.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '')}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-blue-200/50 group/row">
-                                        <div className="flex items-center gap-2">
-                                            <ImageIcon className="w-3.5 h-3.5 text-black/20" />
-                                            <span className="text-[11px] font-bold text-black/40 uppercase tracking-widest">Cover Image</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {selectedItem.cover_url ? (
-                                                <div className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-full text-[10px] font-black">
-                                                    <Check className="w-2.5 h-2.5" />
-                                                    READY
-                                                </div>
-                                            ) : (
-                                                <div className="text-[10px] font-black text-black/20 italic">No image found</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {syncStatus?.status === 'success' ? (
-                                    <div className="py-6 flex flex-col items-center justify-center text-center gap-2 animate-in zoom-in duration-300">
-                                        <div className="w-12 h-12 rounded-full bg-green-500 text-white flex items-center justify-center mb-2 shadow-lg shadow-green-500/20">
-                                            <Check className="w-6 h-6" />
-                                        </div>
-                                        <h4 className="text-[14px] font-black text-green-900">{syncStatus.message}</h4>
-                                        <p className="text-[12px] font-medium text-green-700/60">The cloud worker has received the request.</p>
+                            {/* Item List */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                                {isLoading ? (
+                                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                        <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black/20">Syncing Pipeline...</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4 pt-4 border-t border-blue-200/30">
-                                        <div className="space-y-3">
-                                            <button
-                                                onClick={handleSync}
-                                                disabled={isSyncing}
-                                                className="w-full py-6 bg-black text-white rounded-[32px] text-[13px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-xl shadow-black/10"
+                                    <>
+                                        {/* Remote Items (Importable) */}
+                                        {unmatchedRemotes.filter(item => item._type === selectedType).map((item: any) => (
+                                            <div
+                                                key={item.id}
+                                                className="p-4 rounded-[24px] border border-emerald-100 bg-emerald-50/20 hover:bg-emerald-50/40 transition-all group relative overflow-hidden"
                                             >
-                                                {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                                                {selectedItem.framer_cms_id ? "Sync Changes to Framer" : "Push to Website"}
-                                            </button>
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-8 h-8 rounded-xl bg-white border border-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm">
+                                                            <Globe className="w-4 h-4" />
+                                                        </div>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-100/50 px-2 py-1 rounded-lg">Web Source</span>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => handleImport(item)}
+                                                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md shadow-emerald-600/20"
+                                                    >
+                                                        Import
+                                                    </button>
+                                                </div>
+                                                <h4 className="text-[14px] font-black text-emerald-950 leading-tight mb-1 truncate">{item.slug}</h4>
+                                                <p className="text-[10px] font-bold text-emerald-600/40 uppercase tracking-tighter italic">From {item._collectionName}</p>
+                                            </div>
+                                        ))}
 
-                                            {selectedItem.framer_cms_id && (
+                                        {/* Local Items (Pushes) */}
+                                        {allItems[selectedType as keyof typeof allItems].map((item: any) => {
+                                            const isLive = !!item.framer_cms_id
+                                            return (
                                                 <button
-                                                    onClick={handleRemove}
-                                                    disabled={isSyncing}
-                                                    className="w-full py-4 bg-red-50 text-red-600 rounded-[24px] text-[11px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50 border border-red-100"
+                                                    key={item.id}
+                                                    onClick={() => setSelectedId(item.id)}
+                                                    className={cn(
+                                                        "w-full p-5 rounded-[24px] border text-left transition-all active:scale-[0.98]",
+                                                        selectedId === item.id
+                                                            ? "bg-black text-white border-black shadow-xl shadow-black/10 translate-x-1"
+                                                            : "bg-white border-black/[0.05] hover:border-black/20"
+                                                    )}
                                                 >
-                                                    {isSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                                    Remove from Website
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <span className={cn(
+                                                            "px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest",
+                                                            isLive ? "bg-emerald-500 text-white" : "bg-black/[0.05] text-black/40"
+                                                        )}>
+                                                            {isLive ? "Live" : "STAGED"}
+                                                        </span>
+                                                        {isLive && <Check className="w-3 h-3 text-emerald-500" />}
+                                                    </div>
+                                                    <h4 className="text-[14px] font-black leading-tight line-clamp-1 mb-1">{item.title}</h4>
+                                                    <p className="text-[10px] font-medium opacity-40 uppercase tracking-tighter">
+                                                        {(item as any).tagline || (item as any).organization || "No Tags"}
+                                                    </p>
                                                 </button>
-                                            )}
-                                        </div>
-                                        {syncStatus?.status === 'syncing' && (
-                                            <p className="text-center text-[10px] font-black uppercase tracking-widest text-blue-500/60 animate-pulse">{syncStatus.message}</p>
-                                        )}
-                                    </div>
+                                            )
+                                        })}
+                                    </>
                                 )}
                             </div>
                         </div>
-                    ) : pendingImportItem ? (
-                        <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar space-y-8 animate-in slide-in-from-right-4 duration-300">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-[16px] font-black">Guided Import</h3>
-                                <button onClick={() => setPendingImportItem(null)} className="text-[11px] font-black uppercase tracking-widest text-black/30 hover:text-black">Cancel</button>
+                    )}
+
+                    {/* Middle: Workspace & Detail View */}
+                    <div className="flex-1 flex flex-col overflow-hidden bg-white min-h-0">
+                        {selectedItem ? (
+                            <div className="flex-1 flex flex-col p-12 overflow-y-auto custom-scrollbar animate-in slide-in-from-right-4 duration-500">
+                                <div className="max-w-xl mx-auto w-full space-y-10">
+                                    <div className="flex items-start justify-between">
+                                        <div className="space-y-4">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-black text-white rounded-full text-[9px] font-black uppercase tracking-[0.2em]">
+                                                {selectedType} Artifact
+                                            </div>
+                                            <h1 className="text-4xl font-black text-black tracking-tight leading-tight">{selectedItem.title}</h1>
+                                            <p className="text-[14px] font-medium text-black/40 leading-relaxed italic border-l-2 border-black/5 pl-4">
+                                                {(selectedItem as any).description || "No description provided for this studio item."}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Action Center */}
+                                    <div className="p-8 rounded-[40px] bg-black/[0.02] border border-black/5 space-y-8 shadow-inner">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="p-4 bg-white rounded-2xl border border-black/5 flex flex-col gap-2">
+                                                <label className="text-[9px] font-black text-black/20 uppercase tracking-widest">Target Slug</label>
+                                                <span className="text-[12px] font-bold lowercase opacity-70 italic">{selectedItem.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}</span>
+                                            </div>
+                                            <div className="p-4 bg-white rounded-2xl border border-black/5 flex flex-col gap-2">
+                                                <label className="text-[9px] font-black text-black/20 uppercase tracking-widest">Cover Source</label>
+                                                <div className="flex items-center gap-2">
+                                                    <div className={cn("w-2 h-2 rounded-full", selectedItem.cover_url ? "bg-emerald-500" : "bg-orange-500")} />
+                                                    <span className="text-[12px] font-black">{selectedItem.cover_url ? 'Active Asset' : 'Placeholder'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {syncStatus?.status === 'success' ? (
+                                            <div className="py-6 flex flex-col items-center justify-center text-center gap-4 bg-emerald-500/10 rounded-3xl border border-emerald-100 animate-in zoom-in duration-300">
+                                                <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                                                    <Check className="w-8 h-8" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-[16px] font-black text-emerald-950 uppercase tracking-tight">Sync Initiated</h4>
+                                                    <p className="text-[11px] font-bold text-emerald-700/60 mt-1 uppercase tracking-widest">Pipeline Worker: ONLINE</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <button
+                                                    onClick={handleSync}
+                                                    disabled={isSyncing}
+                                                    className="w-full py-8 bg-black text-white rounded-[32px] text-[15px] font-black uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4 disabled:opacity-50 shadow-2xl shadow-black/20"
+                                                >
+                                                    {isSyncing ? <Loader2 className="w-6 h-6 animate-spin" /> : <Rocket className="w-6 h-6" />}
+                                                    {selectedItem.framer_cms_id ? "Push Synchronization" : "Publish to Website"}
+                                                </button>
+
+                                                {selectedItem.framer_cms_id && (
+                                                    <button
+                                                        onClick={handleRemove}
+                                                        disabled={isSyncing}
+                                                        className="w-full py-4 bg-red-50 text-red-600 rounded-[24px] text-[11px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 border border-red-100 active:scale-95"
+                                                    >
+                                                        {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                        Unlink from Framer CMS
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-
-                            <div className="p-8 rounded-[40px] bg-emerald-50/50 border border-emerald-100 space-y-8">
-                                <div className="flex items-start gap-5">
-                                    <div className="w-16 h-16 rounded-[24px] bg-white border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0 shadow-sm">
-                                        <Globe className="w-8 h-8" />
+                        ) : pendingImportItem ? (
+                            <div className="flex-1 flex flex-col p-12 overflow-y-auto items-center justify-center animate-in slide-in-from-bottom-4 duration-500">
+                                <div className="max-w-md w-full space-y-8">
+                                    <div className="flex flex-col items-center text-center gap-4">
+                                        <div className="w-20 h-20 rounded-[30px] bg-emerald-500 text-white flex items-center justify-center shadow-2xl shadow-emerald-500/30">
+                                            <Globe className="w-10 h-10" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-3xl font-black text-black tracking-tight">{pendingImportItem.slug}</h2>
+                                            <p className="text-[12px] font-bold text-black/30 uppercase tracking-[0.2em] mt-2">Remote Framer Resource</p>
+                                        </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <h4 className="text-xl font-black text-emerald-950 uppercase tracking-tight">{pendingImportItem.slug}</h4>
-                                        <p className="text-[11px] font-bold text-emerald-600/60 uppercase tracking-widest">Framer CMS Source: {pendingImportItem._collectionName}</p>
+
+                                    <div className="p-8 rounded-[40px] border-2 border-dashed border-emerald-100 bg-emerald-50/20 space-y-6">
+                                        <div className="flex flex-col gap-4">
+                                            <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-widest text-emerald-700/60">
+                                                <span>Import Category</span>
+                                                <span className="px-3 py-1 bg-emerald-600 text-white rounded-full text-[9px]">{pendingImportItem._type}</span>
+                                            </div>
+                                            
+                                            {/* Simplified Import Options based on auto-detected type */}
+                                            {pendingImportItem._type === 'project' && (
+                                                <div className="grid grid-cols-2 gap-2 pt-2">
+                                                    {['Product', 'Technology', 'Design', 'Media'].map(tag => (
+                                                        <button 
+                                                            key={tag}
+                                                            onClick={() => setImportConfig(prev => ({ ...prev, type: tag }))}
+                                                            className={cn(
+                                                                "p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all truncate",
+                                                                importConfig.type === tag ? "bg-emerald-600 text-white border-emerald-600" : "bg-white border-emerald-100 text-emerald-800/40"
+                                                            )}
+                                                        >
+                                                            {tag}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <button
+                                            onClick={confirmImport}
+                                            disabled={isSyncing}
+                                            className="w-full py-6 bg-emerald-600 text-white rounded-3xl text-[14px] font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-3"
+                                        >
+                                            {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                                            Process Import
+                                        </button>
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-6">
-                                    {pendingImportItem._category === 'project' && (
-                                        <div className="space-y-4">
-                                            <div className="flex items-center justify-between px-1">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/40">Target Category / Type</label>
-                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full uppercase">Project</span>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {['Technology', 'Architectural Design', 'Fashion', 'Product Design', 'Media', 'Other'].map(type => (
-                                                    <button
-                                                        key={type}
-                                                        onClick={() => setImportConfig(prev => ({ ...prev, type }))}
-                                                        className={cn(
-                                                            "px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider border transition-all text-left",
-                                                            importConfig.type === type 
-                                                                ? "bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-500/20" 
-                                                                : "bg-white border-emerald-100 text-emerald-900/40 hover:border-emerald-200"
-                                                        )}
-                                                    >
-                                                        {type}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {pendingImportItem._category === 'press' && (
-                                        <div className="space-y-4">
-                                            <div className="flex items-center justify-between px-1">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/40">Target Category / Type</label>
-                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full uppercase">Press & Media</span>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {['competition', 'grant', 'award', 'feature', 'accelerator', 'other'].map(type => (
-                                                    <button
-                                                        key={type}
-                                                        onClick={() => setImportConfig(prev => ({ ...prev, type }))}
-                                                        className={cn(
-                                                            "px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider border transition-all text-left capitalize",
-                                                            importConfig.type === type 
-                                                                ? "bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-500/20" 
-                                                                : "bg-white border-emerald-100 text-emerald-900/40 hover:border-emerald-200"
-                                                        )}
-                                                    >
-                                                        {type.replace('_', ' ')}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {pendingImportItem._category === 'content' && (
-                                        <div className="space-y-6">
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-3">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/40 ml-1">Format Type</label>
-                                                    <div className="px-5 py-4 bg-emerald-100/50 border border-emerald-200 rounded-2xl flex items-center gap-3">
-                                                        <Video className="w-4 h-4 text-emerald-600" />
-                                                        <span className="text-[12px] font-black text-emerald-800 uppercase tracking-widest">{importConfig.type}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-3">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/40 ml-1">Category</label>
-                                                    <div className="px-5 py-4 bg-emerald-100/50 border border-emerald-200 rounded-2xl flex items-center gap-3">
-                                                        <Layout className="w-4 h-4 text-emerald-600" />
-                                                        <span className="text-[12px] font-black text-emerald-800 uppercase tracking-widest">{importConfig.category}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <p className="text-[10px] font-bold text-emerald-900/40 italic px-2 uppercase tracking-tight">Auto-configured for bulk Content migration</p>
-                                        </div>
-                                    )}
-
-                                    {pendingImportItem._category === 'draft' && (
-                                        <div className="space-y-4">
-                                            <div className="flex items-center justify-between px-1">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/40">Import Status</label>
-                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full uppercase">Article</span>
-                                            </div>
-                                            <div className="p-6 rounded-3xl border border-emerald-100 bg-white/50 space-y-2">
-                                                <p className="text-[13px] font-black text-emerald-950 uppercase tracking-tight">Standard Article Import</p>
-                                                <p className="text-[11px] font-medium text-emerald-700/60 leading-relaxed italic">Articles will be imported as editable drafts. You can add project links and rich content after import.</p>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {!['project', 'press', 'content', 'draft'].includes(pendingImportItem._category) && (
-                                        <div className="space-y-4">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/40 ml-1">Unknown Collection Structure</label>
-                                            <div className="p-6 rounded-3xl border border-orange-100 bg-orange-50/30 text-orange-700">
-                                                <p className="text-[11px] font-bold mb-1">Found in: {pendingImportItem._collectionName}</p>
-                                                <p className="text-[10px] font-medium leading-relaxed opacity-80">This collection doesn't match standard Studio categories. It will be imported with generic settings.</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="pt-6 border-t border-emerald-200/30">
-                                    <button
-                                        onClick={confirmImport}
-                                        disabled={isSyncing || (pendingImportItem._category === 'project' && !importConfig.type)}
-                                        className="w-full py-6 bg-emerald-600 text-white rounded-[32px] text-[13px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-xl shadow-emerald-600/20"
+                                    <button 
+                                        onClick={() => setPendingImportItem(null)} 
+                                        className="w-full text-[11px] font-black uppercase tracking-widest text-black/20 hover:text-black transition-colors"
                                     >
-                                        {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Rocket className="w-5 h-5" />}
-                                        Confirm & Import to Studio
+                                        Cancel & Go Back
                                     </button>
                                 </div>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-6">
-                            <div className="w-24 h-24 bg-black/[0.02] border border-black/[0.05] rounded-full flex items-center justify-center">
-                                <ArrowRight className="w-8 h-8 text-black/10" />
+                        ) : (
+                            /* IDLE STATE with Hashnode Management */
+                            <div className="flex-1 flex flex-col p-12 items-center justify-center text-center space-y-12">
+                                <div className="space-y-4">
+                                    <div className="w-24 h-24 bg-black/[0.02] border border-black/5 rounded-full flex items-center justify-center mx-auto relative">
+                                        <div className="absolute inset-0 rounded-full border border-black/5 animate-ping opacity-10" />
+                                        <Cloud className="w-10 h-10 text-black/10" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-black tracking-tight uppercase">Workspace Idle</h3>
+                                        <p className="text-[13px] font-medium text-black/30 mt-2 max-w-[320px] mx-auto leading-relaxed">
+                                            Select an artifact from the pipeline to start synchronization, or bridge a remote Framer item into Studio.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Hashnode Integration Mini-Terminal */}
+                                <div className="max-w-md w-full p-8 bg-indigo-50/50 border border-indigo-100 rounded-[40px] space-y-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                                            <FileText className="w-6 h-6" />
+                                        </div>
+                                        <div className="text-left">
+                                            <h4 className="text-[14px] font-black text-indigo-950 uppercase tracking-tight">Hashnode Bridge</h4>
+                                            <p className="text-[11px] font-bold text-indigo-600/40 uppercase tracking-widest">Article Auto-Publishing</p>
+                                        </div>
+                                    </div>
+
+                                    {!hnConnected ? (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 gap-3">
+                                                <input 
+                                                    type="password"
+                                                    value={hnToken}
+                                                    onChange={(e) => setHnToken(e.target.value)}
+                                                    placeholder="Personal Access Token"
+                                                    className="w-full p-4 bg-white border border-indigo-100 rounded-2xl text-[12px] font-bold focus:ring-2 ring-indigo-500/20 outline-none"
+                                                />
+                                                <input 
+                                                    type="text"
+                                                    value={hnPubId}
+                                                    onChange={(e) => setHnPubId(e.target.value)}
+                                                    placeholder="Publication ID"
+                                                    className="w-full p-4 bg-white border border-indigo-100 rounded-2xl text-[12px] font-bold focus:ring-2 ring-indigo-500/20 outline-none"
+                                                />
+                                            </div>
+                                            <button 
+                                                onClick={handleSaveHashnode}
+                                                disabled={hnSaving || !hnToken || !hnPubId}
+                                                className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
+                                            >
+                                                {hnSaving ? 'Connecting...' : 'Link Hashnode Account'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-indigo-100">
+                                            <div className="flex items-center gap-3">
+                                                <Check className="w-4 h-4 text-emerald-500" />
+                                                <span className="text-[12px] font-black text-indigo-950 uppercase">Linked: {hnPubId.slice(0, 8)}...</span>
+                                            </div>
+                                            <button 
+                                                onClick={() => { setHnToken(''); setHnConnected(false); }}
+                                                className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:underline"
+                                            >
+                                                Disconnect
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-[15px] font-black text-black">Workspace Idle</h3>
-                                <p className="text-[12px] font-medium text-black/30 mt-1 max-w-[200px]">Select local items to sync, or click Import on web items to pull them in.</p>
+                        )}
+                    </div>
+
+                    {/* Right Panel: Pipeline Feed */}
+                    {showSidebars && (
+                        <div className="w-[340px] border-l border-black/[0.05] flex flex-col overflow-hidden bg-black/[0.01]">
+                            <div className="p-8 border-b border-black/[0.05] flex items-center justify-between">
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-black">Live Pipeline</h3>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="text-[9px] font-black uppercase text-emerald-600 tracking-tighter">Monitoring</span>
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                                {recentJobs.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center opacity-10 gap-4">
+                                        <AlignLeft className="w-10 h-10" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest">Queue Empty</p>
+                                    </div>
+                                ) : (
+                                    recentJobs.map(job => (
+                                        <div key={job.id} className="p-5 bg-white rounded-3xl border border-black/[0.03] space-y-3 shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[9px] font-black uppercase bg-black/5 px-2 py-1 rounded-lg text-black/40 tracking-tighter">{job.item_type}</span>
+                                                <div className={cn(
+                                                    "w-2 h-2 rounded-full",
+                                                    job.status === 'done' ? "bg-emerald-500" :
+                                                    job.status === 'error' ? "bg-red-500" : "bg-blue-500 animate-pulse"
+                                                )} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-[12px] font-black text-black leading-tight truncate">{job.collection_name}</p>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[9px] font-black text-black/20 uppercase tracking-tighter">{new Date(job.updated_at || job.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                    <span className={cn(
+                                                        "text-[9px] font-black uppercase",
+                                                        job.status === 'done' ? "text-emerald-600" :
+                                                        job.status === 'error' ? "text-red-600" : "text-blue-600"
+                                                    )}>
+                                                        {job.status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {job.error_msg && (
+                                                <div className="pt-2 border-t border-red-50 text-[10px] font-bold text-red-500 italic leading-tight">
+                                                    {job.error_msg}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <div className="p-6 border-t border-black/[0.05] bg-white">
+                                <button onClick={loadRecentJobs} className="w-full py-4 bg-black/[0.03] hover:bg-black/[0.06] rounded-2xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                                    <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+                                    Purge Sync Cache
+                                </button>
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Right Side: Activity Log */}
-                <div className="w-[300px] border-l border-black/[0.05] flex flex-col overflow-hidden bg-black/[0.01]">
-                    <div className="p-4 border-b border-black/[0.05] flex items-center justify-between">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest text-black/30 px-2">Pipeline Feed</h3>
-                        <button onClick={loadRecentJobs} className="p-1 hover:bg-black/5 rounded-full transition-colors">
-                            <RefreshCw className={cn("w-3 h-3 text-black/20", isLoading && "animate-spin")} />
-                        </button>
+                {error && (
+                    <div className="p-4 bg-red-500 text-white flex items-center justify-between px-10 animate-in slide-in-from-bottom-full duration-300">
+                        <div className="flex items-center gap-4 text-[13px] font-black">
+                            <AlertCircle className="w-5 h-5 shrink-0" />
+                            <p className="uppercase tracking-tight">{error}</p>
+                        </div>
+                        <button onClick={() => setError(null)} className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors">Dismiss</button>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                        {recentJobs.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-6">
-                                <AlignLeft className="w-8 h-8 text-black/5" />
-                                <p className="text-[10px] font-bold text-black/10 uppercase tracking-widest">Queue Empty</p>
-                            </div>
-                        ) : (
-                            recentJobs.map(job => (
-                                <div key={job.id} className="p-3 bg-white rounded-2xl border border-black/[0.03] space-y-1">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-black uppercase tracking-tighter opacity-40">{job.item_type}</span>
-                                        <span className={cn(
-                                            "text-[8px] font-black uppercase px-2 py-0.5 rounded-full",
-                                            job.status === 'done' ? "bg-green-500/10 text-green-600" :
-                                            job.status === 'error' ? "bg-red-500/10 text-red-600" :
-                                            "bg-blue-500/10 text-blue-600 animate-pulse"
-                                        )}>
-                                            {job.status}
-                                        </span>
-                                    </div>
-                                    <p className="text-[11px] font-bold text-black/80 line-clamp-1">Syncing to {job.collection_name}</p>
-                                    {job.error_msg && (
-                                        <p className="text-[9px] font-medium text-red-500 leading-tight border-t border-red-100 pt-1 mt-1">{job.error_msg}</p>
-                                    )}
-                                    <p className="text-[8px] font-medium text-black/20">{new Date(job.updated_at || job.created_at).toLocaleTimeString()}</p>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
+                )}
             </div>
-
-            {error && (
-                <div className="p-4 bg-red-50 border-t border-red-100 flex items-center justify-between px-8">
-                    <div className="flex items-center gap-3 text-red-600">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
-                        <p className="text-[12px] font-bold">{error}</p>
-                    </div>
-                    <button onClick={() => setError(null)} className="text-[10px] font-black uppercase tracking-widest text-red-400 hover:text-red-600">Dismiss</button>
-                </div>
-            )}
         </div>
     )
 }

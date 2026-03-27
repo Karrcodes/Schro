@@ -77,6 +77,15 @@ export default function CanvasDashboard() {
     const quickInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
+        const el = document.getElementById('global-quick-action')
+        if (el) {
+            if (viewMode === 'web') el.style.visibility = 'hidden'
+            else el.style.visibility = 'visible'
+        }
+        return () => { if (el) el.style.visibility = 'visible' }
+    }, [viewMode])
+
+    useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search)
         const code = urlParams.get('code')
         const state = urlParams.get('state')
@@ -284,7 +293,7 @@ export default function CanvasDashboard() {
     }, [entries])
 
     const filtered = useMemo(() => {
-        let list = entries.filter(e => e.is_archived === (activeTab === 'archived'))
+        let list = entries.filter(e => e.is_archived === (activeTab === 'archived') && !e.is_independent)
         if (search) {
             const q = search.toLowerCase()
             list = list.filter(e => e.title.toLowerCase().includes(q) || e.body?.toLowerCase().includes(q))
@@ -390,7 +399,7 @@ export default function CanvasDashboard() {
 
     const unmappedEntries = useMemo(() => {
         const mappedIds = new Set(mapNodes.map(m => m.entry_id))
-        return entries.filter(e => !mappedIds.has(e.id) && !e.is_archived)
+        return entries.filter(e => !mappedIds.has(e.id) && !e.is_archived && !e.is_independent)
     }, [entries, mapNodes])
 
     const priorityWeight: Record<string, number> = { urgent: 4, high: 3, mid: 2, low: 1 }
@@ -420,6 +429,11 @@ export default function CanvasDashboard() {
         if (nodes.length === 0) return
         setSynthesisModalNodes(nodes)
         setSynthesisTitle(nodes[0].title || `Synthesis: ${nodes.length} Items`)
+    }
+
+    const handleCreateIdea = async () => {
+        const entry = await createEntry({ title: 'New Idea', x: 400, y: 300, is_independent: true })
+        if (entry) setSelectedEntry(entry)
     }
 
     const startComposition = async (nodes: PolymorphicNode[], title: string) => {
@@ -902,11 +916,20 @@ export default function CanvasDashboard() {
                                                 <LayoutGrid className={cn("w-5 h-5 transition-transform group-hover:scale-110", isImporting && "rotate-90")} />
                                             </button>
                                         </div>
+
                                         <CanvasWebView
                                             entries={entriesInMap}
                                             connections={connections}
                                             isLibraryOpen={isImporting}
                                             onOverLibraryChange={setIsNodeOverLibrary}
+                                            onComposeSelection={() => {
+                                                const id = selectedIds[0]
+                                                if (id) {
+                                                    const inMap = entriesInMap.find(e => e.id === id)
+                                                    const node = inMap || entries.find(e => e.id === id) || projects.find(p => p.id === id) || content.find(c => c.id === id)
+                                                    if (node) handleCompose([node as PolymorphicNode])
+                                                }
+                                            }}
                                             onNodeClick={(node) => {
                                                 if (node.node_type === 'entry') {
                                                     setSelectedEntry(node as StudioCanvasEntry)
@@ -924,9 +947,10 @@ export default function CanvasDashboard() {
                                             onDropNode={addNodeToMap}
                                             onArchiveNode={(id) => setConfirmAction({ type: 'archive_note', id, title: 'Note' })}
                                             onCreateNode={async (data) => {
-                                                const entry = await createEntry({ ...data })
+                                                const entry = await createEntry({ ...data, is_independent: true })
                                                 if (entry) setSelectedEntry(entry)
                                             }}
+                                            onToggleIndependent={(id) => updateEntry(id, { is_independent: false })}
                                             onCompose={handleCompose}
                                             selectedIds={selectedIds}
                                             onSelectionChange={setSelectedIds}
@@ -1472,7 +1496,7 @@ export default function CanvasDashboard() {
             />
 
             {/* Global Compose Button */}
-            {selectedIds.length > 0 && !(activeDraft || composingNodes) && (
+            {selectedIds.length > 1 && !(activeDraft || composingNodes) && (
                 <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-8 duration-500">
                     <button
                         onClick={() => {

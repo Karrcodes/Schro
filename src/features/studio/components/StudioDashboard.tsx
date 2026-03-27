@@ -1,61 +1,38 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Sparkles, Briefcase, Target, LayoutDashboard, Shield, Plus, Clock, ExternalLink, ArrowRight, Activity, Award, Zap, Video, Rocket, Users, Globe, PenLine, Settings as SettingsIcon } from 'lucide-react'
+import { Sparkles, Target, LayoutDashboard, Shield, Plus, Clock, ExternalLink, ArrowRight, Activity, Award, Zap, Video, Rocket, Users, Globe, PenLine, Images } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { KarrFooter } from '@/components/KarrFooter'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
-import CreateProjectModal from './CreateProjectModal'
+
 import CreateSparkModal from './CreateSparkModal'
 import ProjectDetailModal from './ProjectDetailModal'
 import SparkDetailModal from './SparkDetailModal'
 import ContentDetailModal from './ContentDetailModal'
 import PlatformIcon from './PlatformIcon'
 import type { StudioProject, StudioSpark, StudioContent } from '../types/studio.types'
-import FramerSyncSettings from './FramerSyncSettings'
-import { FramerSyncService } from '../services/FramerSyncService'
+
 
 export default function StudioDashboard() {
     const { projects, sparks, content, press, loading, error, generatingProjectIds, generatingContentIds, drafts } = useStudio()
     const { settings } = useSystemSettings()
-    const [daysUntilGTV, setDaysUntilGTV] = useState(0)
-    const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
+
+
     const [isSparkModalOpen, setIsSparkModalOpen] = useState(false)
-    const [showSettings, setShowSettings] = useState(false)
+
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
     const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
     const [selectedSparkId, setSelectedSparkId] = useState<string | null>(null)
-    const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active')
-    const [pulseCount, setPulseCount] = useState(0)
 
-    useEffect(() => {
-        const checkPulse = async () => {
-            const stored = localStorage.getItem('framer_sync_config')
-            if (!stored) return
-            const { siteId } = JSON.parse(stored)
-            if (!siteId) return
 
-            try {
-                const unmatched = await FramerSyncService.getUnmatchedItems(siteId, projects, press, content, drafts)
-                setPulseCount(unmatched.length)
-            } catch (e) {
-                console.error('Pulse check failed', e)
-            }
-        }
-        checkPulse()
-    }, [projects, press, content, drafts])
 
-    useEffect(() => {
-        const target = new Date('2026-09-01')
-        const now = new Date()
-        const diff = target.getTime() - now.getTime()
-        setDaysUntilGTV(Math.ceil(diff / (1000 * 60 * 60 * 24)))
-    }, [])
+
 
     const activeProjects = projects.filter(p => (p.status === 'active' || p.status === 'research') && !p.is_archived)
-    const archivedProjects = projects.filter(p => p.is_archived)
+
     const activeContent = content.filter(c => ['scripted', 'filmed', 'edited', 'scheduled'].includes(c.status) && !c.is_archived)
     const recentSparks = sparks.slice(0, 4)
 
@@ -72,58 +49,13 @@ export default function StudioDashboard() {
                         <h2 className="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em]">Creative Protocol</h2>
                         <div className="flex items-center gap-4">
                             <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Studio Dashboard</h1>
-                            {pulseCount > 0 && (
-                                <Link 
-                                    href="/create/portfolio?tab=live"
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full animate-in fade-in slide-in-from-left-4 duration-500 hover:bg-emerald-500/20 transition-all group"
-                                >
-                                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">
-                                        Website Pulse: {pulseCount} new items
-                                    </span>
-                                    <ArrowRight className="w-3 h-3 text-emerald-50 group-hover:translate-x-0.5 transition-transform" />
-                                </Link>
-                            )}
+
                         </div>
                     </div>
-                    {!settings.is_demo_mode && (
-                        <div className="flex items-center gap-3">
-                            <button 
-                                onClick={() => setShowSettings(true)}
-                                className="px-3 py-1.5 rounded-full bg-black/5 hover:bg-black/10 border border-black/5 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all"
-                            >
-                                <SettingsIcon className="w-3 h-3" />
-                                Framer
-                            </button>
-                            <div className="bg-black/[0.03] border border-black/5 rounded-2xl px-5 py-3 flex items-center gap-4">
-                                <div className="space-y-0.5 text-center px-2">
-                                    <p className="text-[9px] font-black text-black/30 uppercase tracking-wider">Optimization</p>
-                                    <p className="text-[13px] font-black text-black uppercase">
-                                        {Math.min(100, Math.round(((
-                                            projects.filter(p => p.gtv_featured || p.framer_cms_id).length + 
-                                            press.filter(p => (p.is_portfolio_item || p.framer_cms_id) && (p.status === 'achieved' || p.status === 'published')).length
-                                        ) / 10) * 100))}%
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setIsProjectModalOpen(true)}
-                                className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center hover:scale-105 transition-transform shadow-lg shadow-black/10"
-                            >
-                                <Plus className="w-5 h-5" />
-                            </button>
-                        </div>
-                    )}
+
                 </header>
 
-                {showSettings && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
-                        <div className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200">
-                            <FramerSyncSettings onClose={() => setShowSettings(false)} />
-                        </div>
-                    </div>
-                )}
+
 
                 <div className="space-y-12">
                     {error && error.includes('relation') && (
@@ -132,48 +64,7 @@ export default function StudioDashboard() {
                             <p className="text-[11px] text-red-800/60">It looks like the Studio module tables haven't been created yet. Please execute the SQL migration script in your Supabase dashboard.</p>
                         </div>
                     )}
-                    {/* GTV Header Banner */}
-                    {!settings.is_demo_mode && (
-                        <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#0A2647] to-[#144272] p-6 md:p-10 text-white shadow-2xl">
-                            <div className="absolute top-0 right-0 p-8 opacity-10 hidden sm:block">
-                                <Shield className="w-48 h-48" />
-                            </div>
-                            <div className="relative z-10 flex flex-col gap-2">
-                                <div className="flex flex-col gap-1">
-                                    <p className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.25em] text-blue-300/80 mb-2">Global Talent Visa Pipeline</p>
-                                    <div className="flex items-baseline gap-3 mb-4 md:mb-6">
-                                        <h1 className="text-4xl md:text-6xl font-black font-outfit">{daysUntilGTV}</h1>
-                                        <p className="text-base md:text-xl font-bold text-blue-200/60 lowercase">days until 2026 cutoff</p>
-                                    </div>
-                                </div>
 
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mt-2 pt-6 border-t border-white/5">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex -space-x-3">
-                                            {projects.filter(p => p.gtv_featured).slice(0, 4).map((p, i) => (
-                                                <div key={p.id} className="w-8 md:w-10 h-8 md:h-10 rounded-full border-2 border-blue-900 bg-blue-100 flex items-center justify-center text-blue-900 font-black text-[10px] md:text-xs ring-4 ring-[#0A2647] overflow-hidden">
-                                                    {p.title[0]}
-                                                </div>
-                                            ))}
-                                            {projects.filter(p => p.gtv_featured).length > 4 && (
-                                                <div className="w-8 md:w-10 h-8 md:h-10 rounded-full border-2 border-blue-900 bg-blue-800 flex items-center justify-center text-blue-200 font-black text-[10px] md:text-xs ring-4 ring-[#0A2647]">
-                                                    +{projects.filter(p => p.gtv_featured).length - 4}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <p className="text-[12px] md:text-[13px] font-bold text-blue-100/70">
-                                            Portfolio is <span className="text-white font-black">
-                                                {Math.min(100, Math.round(((
-                                                    projects.filter(p => p.gtv_featured || p.framer_cms_id).length + 
-                                                    press.filter(p => (p.is_portfolio_item || p.framer_cms_id) && (p.status === 'achieved' || p.status === 'published')).length
-                                                ) / 10) * 100))}%
-                                            </span> optimized
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Subpage Quick Actions */}
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3 px-2">
@@ -184,7 +75,7 @@ export default function StudioDashboard() {
                             { label: 'Sparks', href: '/create/sparks', icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
                             { label: 'Network', href: '/create/network', icon: Users, color: 'text-purple-600', bg: 'bg-purple-500/10' },
                             { label: 'Press', href: '/create/press', icon: Award, color: 'text-amber-600', bg: 'bg-amber-500/10' },
-                            ...(!settings.is_demo_mode ? [{ label: 'Portfolio', href: '/create/portfolio', icon: Shield, color: 'text-indigo-600', bg: 'bg-indigo-500/10' }] : [])
+                            ...(!settings.is_demo_mode ? [{ label: 'Portfolio', href: '/create/portfolio', icon: Images, color: 'text-indigo-600', bg: 'bg-indigo-500/10' }] : [])
                         ].map((item) => (
                             <Link
                                 key={item.label}
@@ -207,60 +98,27 @@ export default function StudioDashboard() {
                         {/* Active Projects Summary */}
                         <div className="lg:col-span-2 space-y-8">
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between px-2">
-                                    <div className="flex items-center gap-4">
-                                        <button
-                                            onClick={() => setActiveTab('active')}
-                                            className={cn(
-                                                "text-[13px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all",
-                                                activeTab === 'active' ? "text-black opacity-100 scale-105" : "text-black/30 hover:text-black/60 opacity-50"
-                                            )}
-                                        >
-                                            <Rocket className={cn("w-4 h-4", activeTab === 'active' ? "text-orange-500" : "text-black/20")} />
-                                            Active Pipeline
-                                        </button>
-                                        <button
-                                            onClick={() => setActiveTab('archived')}
-                                            className={cn(
-                                                "text-[13px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all",
-                                                activeTab === 'archived' ? "text-black opacity-100 scale-105" : "text-black/30 hover:text-black/60 opacity-50"
-                                            )}
-                                        >
-                                            Archives
-                                        </button>
+                                    <div className="flex items-center gap-2">
+                                        <Rocket className="w-4 h-4 text-orange-500" />
+                                        <h3 className="text-[13px] font-bold uppercase tracking-wider text-black">Active Pipeline</h3>
                                     </div>
-                                    <Link href="/create/projects" className="text-[11px] font-bold text-black/40 hover:text-black transition-colors">See Kanban</Link>
-                                </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {loading ? (
                                         [1, 2, 3, 4].map(i => (
                                             <div key={i} className="h-32 bg-black/[0.02] border border-black/[0.05] rounded-2xl animate-pulse" />
                                         ))
-                                    ) : activeTab === 'active' && activeProjects.length === 0 ? (
+                                    ) : activeProjects.length === 0 ? (
                                         <div className="col-span-2 py-12 bg-white border border-black/[0.05] rounded-3xl flex flex-col items-center justify-center text-center px-6">
                                             <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center mb-4">
                                                 <Sparkles className="w-6 h-6 text-orange-500" />
                                             </div>
                                             <h3 className="text-sm font-bold text-black">No active projects</h3>
                                             <p className="text-[12px] text-black/40 mt-1 max-w-[240px]">Start a new project to track your goals and milestones.</p>
-                                            <button
-                                                onClick={() => setIsProjectModalOpen(true)}
-                                                className="mt-4 px-4 py-2 bg-black text-white text-[11px] font-bold rounded-xl hover:scale-105 transition-transform"
-                                            >
-                                                Start New Project
-                                            </button>
-                                        </div>
-                                    ) : activeTab === 'archived' && archivedProjects.length === 0 ? (
-                                        <div className="col-span-2 py-12 bg-white border border-black/[0.05] rounded-3xl flex flex-col items-center justify-center text-center px-6">
-                                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
-                                                <Shield className="w-6 h-6 text-blue-500" />
-                                            </div>
-                                            <h3 className="text-sm font-bold text-black">No archived projects</h3>
-                                            <p className="text-[12px] text-black/40 mt-1 max-w-[240px]">Your archived projects will show up here for future reference.</p>
+
                                         </div>
                                     ) : (
-                                        (activeTab === 'active' ? activeProjects : archivedProjects).map(project => (
+                                        activeProjects.map(project => (
                                             <div
                                                 key={project.id}
                                                 onClick={() => setSelectedProjectId(project.id)}
@@ -562,10 +420,7 @@ export default function StudioDashboard() {
                     </div>
                 </div>
 
-                <CreateProjectModal
-                    isOpen={isProjectModalOpen}
-                    onClose={() => setIsProjectModalOpen(false)}
-                />
+
                 <CreateSparkModal
                     isOpen={isSparkModalOpen}
                     onClose={() => setIsSparkModalOpen(false)}

@@ -40,6 +40,7 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
     const [formData, setFormData] = useState({
         title: '',
         organization: '',
+        description: '',
         type: 'competition' as PressType,
         status: 'not_started' as PressStatus,
         url: '',
@@ -66,6 +67,7 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
             setFormData({
                 title: '',
                 organization: '',
+                description: '',
                 type: 'competition',
                 status: 'not_started',
                 url: '',
@@ -97,7 +99,7 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
                                 <Award className="w-6 h-6 text-orange-600" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-black text-black leading-none">New Press / Media Entry</h2>
+                                <h2 className="text-xl font-black text-black leading-none">New Press & Awards Entry</h2>
                                 <p className="text-[12px] text-black/40 mt-1 font-bold italic">Tracking achievements and opportunities.</p>
                             </div>
                         </div>
@@ -153,6 +155,17 @@ export default function CreatePressModal({ isOpen, onClose }: CreatePressModalPr
                                     className="w-full px-5 py-3.5 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[14px] font-bold focus:outline-none focus:border-orange-200"
                                 />
                             </div>
+                        </div>
+
+                        {/* Description */}
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black uppercase tracking-widest text-black/30 ml-2">Entry Description</label>
+                            <textarea
+                                placeholder="Detailed description of the achievement or feature..."
+                                value={formData.description}
+                                onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                                className="w-full px-5 py-3.5 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[14px] font-medium min-h-[100px] focus:outline-none focus:border-orange-200 resize-none"
+                            />
                         </div>
 
                         {/* Status & Project */}

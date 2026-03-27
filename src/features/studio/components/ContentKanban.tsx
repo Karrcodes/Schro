@@ -19,6 +19,16 @@ const CONTENT_COLUMNS: { label: string; value: ContentStatus; dot: string }[] = 
     { label: 'Published', value: 'published', dot: 'bg-emerald-400' },
 ]
 
+const CONTENT_CATEGORIES: { label: string; value: string }[] = [
+    { label: 'All Categories', value: 'all' },
+    { label: 'Vlog', value: 'Vlog' },
+    { label: 'Thoughts', value: 'Thoughts' },
+    { label: 'Showcase', value: 'Showcase' },
+    { label: 'Concept', value: 'Concept' },
+    { label: 'Update', value: 'Update' },
+    { label: 'Other', value: 'Other' }
+]
+
 interface ContentKanbanProps {
     searchQuery: string
     showArchived: boolean
@@ -42,6 +52,7 @@ export default function ContentKanban({
     
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [dragOverStatus, setDragOverStatus] = useState<ContentStatus | null>(null)
+    const [selectedCategory, setSelectedCategory] = useState<string>('all')
     const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
     const [modalInitialTab, setModalInitialTab] = useState<'details' | 'script'>('details')
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -56,7 +67,8 @@ export default function ContentKanban({
             item.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.type?.toLowerCase().includes(searchQuery.toLowerCase())
         const matchesArchived = isArchived ? !!item.is_archived : !item.is_archived
-        return matchesSearch && matchesArchived
+        const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory
+        return matchesSearch && matchesArchived && matchesCategory
     }).sort((a, b) => {
         if (sortBy === 'impact') {
             const diff = (b.impact_score || 0) - (a.impact_score || 0)
@@ -179,6 +191,44 @@ export default function ContentKanban({
                     <Plus className="w-4 h-4" />
                     New Content
                 </button>
+            </div>
+
+            {/* Category Sub-menu */}
+            <div className="flex items-center gap-2 p-1 bg-black/[0.015] rounded-xl w-fit max-w-full overflow-x-auto no-scrollbar border border-black/[0.03]">
+                {CONTENT_CATEGORIES.map(cat => {
+                    const isActive = selectedCategory === cat.value
+                    const count = content.filter(item => {
+                        const statusMatch = item.status === focusTab 
+                        const archiveMatch = isArchived ? item.is_archived : !item.is_archived
+                        const categoryMatch = cat.value === 'all' || item.category === cat.value
+                        return statusMatch && archiveMatch && categoryMatch
+                    }).length
+
+                    if (cat.value !== 'all' && count === 0 && !isActive) return null
+
+                    return (
+                        <button
+                            key={cat.value}
+                            onClick={() => setSelectedCategory(cat.value)}
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                                isActive
+                                    ? "bg-white text-black shadow-sm ring-1 ring-black/5"
+                                    : "text-black/30 hover:text-black/60"
+                            )}
+                        >
+                            {cat.label}
+                            {count > 0 && (
+                                <span className={cn(
+                                    "px-1 rounded-md text-[8px]",
+                                    isActive ? "text-blue-600 bg-blue-50" : "text-black/20"
+                                )}>
+                                    {count}
+                                </span>
+                            )}
+                        </button>
+                    )
+                })}
             </div>
 
             {/* Content Display (Focused) */}

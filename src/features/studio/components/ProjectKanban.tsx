@@ -17,12 +17,23 @@ const COLUMNS: { label: string; value: ProjectStatus }[] = [
     { label: 'Shipped', value: 'shipped' }
 ]
 
+const CATEGORIES: { label: string; value: string }[] = [
+    { label: 'All Categories', value: 'all' },
+    { label: 'Architectural Design', value: 'Architectural Design' },
+    { label: 'Technology', value: 'Technology' },
+    { label: 'Product Design', value: 'Product Design' },
+    { label: 'Media', value: 'Media' },
+    { label: 'Fashion', value: 'Fashion' },
+    { label: 'Other', value: 'Other' }
+]
+
 
 export default function ProjectKanban({ searchQuery = '', showArchived = false, sortBy = 'priority', onProjectClick }: ProjectKanbanProps) {
     const { projects: allProjects, milestones, updateProject, deleteProject, loading, generatingProjectIds } = useStudio()
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [dragOverStatus, setDragOverStatus] = useState<ProjectStatus | null>(null)
     const [focusTab, setFocusTab] = useState<ProjectStatus>('active')
+    const [selectedCategory, setSelectedCategory] = useState<string>('all')
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
     const [projectToDelete, setProjectToDelete] = useState<StudioProject | null>(null)
     const [projectToArchive, setProjectToArchive] = useState<StudioProject | null>(null)
@@ -33,7 +44,8 @@ export default function ProjectKanban({ searchQuery = '', showArchived = false, 
         const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.tagline?.toLowerCase().includes(searchQuery.toLowerCase())
         const archiveMatch = showArchived ? p.is_archived : !p.is_archived
-        return matchesSearch && archiveMatch
+        const categoryMatch = selectedCategory === 'all' || p.type === selectedCategory
+        return matchesSearch && archiveMatch && categoryMatch
     }).sort((a, b) => {
         if (sortBy === 'impact') {
             const diff = (b.impact_score || 0) - (a.impact_score || 0)
@@ -145,6 +157,45 @@ export default function ProjectKanban({ searchQuery = '', showArchived = false, 
                     <Plus className="w-4 h-4" />
                     New Project
                 </button>
+            </div>
+
+            {/* Category Sub-menu */}
+            <div className="flex items-center gap-2 p-1 bg-black/[0.015] rounded-xl w-fit max-w-full overflow-x-auto no-scrollbar border border-black/[0.03]">
+                {CATEGORIES.map(cat => {
+                    const isActive = selectedCategory === cat.value
+                    const count = allProjects.filter(p => {
+                        const statusMatch = p.status === focusTab
+                        const archiveMatch = showArchived ? p.is_archived : !p.is_archived
+                        const typeMatch = cat.value === 'all' || p.type === cat.value
+                        return statusMatch && archiveMatch && typeMatch
+                    }).length
+
+                    // Only show category if it has items OR it's the 'All' category
+                    if (cat.value !== 'all' && count === 0 && !isActive) return null
+
+                    return (
+                        <button
+                            key={cat.value}
+                            onClick={() => setSelectedCategory(cat.value)}
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                                isActive
+                                    ? "bg-white text-black shadow-sm ring-1 ring-black/5"
+                                    : "text-black/30 hover:text-black/60"
+                            )}
+                        >
+                            {cat.label}
+                            {count > 0 && (
+                                <span className={cn(
+                                    "px-1 rounded-md text-[8px]",
+                                    isActive ? "text-orange-600 bg-orange-50" : "text-black/20"
+                                )}>
+                                    {count}
+                                </span>
+                            )}
+                        </button>
+                    )
+                })}
             </div>
 
             {/* Focused Column View */}

@@ -29,6 +29,7 @@ export interface StudioProject {
     framer_last_sync?: string;
     framer_collection_id?: string;
     gtv_narrative?: string;
+    slug?: string;
     // Framer CMS sync fields
     client?: string;
     location?: string;
@@ -85,6 +86,7 @@ export interface StudioContent {
     publish_date?: string | null;
     deadline?: string | null;
     url?: string;
+    slug?: string;
     notes?: string;
     script?: string;
     cover_url?: string;
@@ -124,7 +126,7 @@ export interface StudioPress {
     framer_cms_id?: string;
     framer_last_sync?: string;
     framer_collection_id?: string;
-    // Framer CMS sync fields
+    description?: string;
     cover_url?: string;
     images?: string[];
     is_staged?: boolean;
@@ -204,6 +206,7 @@ export interface StudioCanvasEntry {
     is_archived?: boolean;
     images?: string[];
     promoted_to_spark_id?: string | null;
+    is_independent?: boolean;
     web_x?: number | null;
     web_y?: number | null;
     created_at: string;
@@ -257,7 +260,9 @@ export interface StudioDraft {
     project_id?: string;
     content_id?: string | null;
     title: string;
+    slug?: string;
     body: string;
+    description?: string;
     node_references: NodeReference[];
     status: 'draft' | 'revision' | 'completed';
     is_archived: boolean;
@@ -268,6 +273,7 @@ export interface StudioDraft {
     images?: string[];
     article_url?: string;
     framer_cms_id?: string;
+    framer_collection_id?: string;
     framer_last_sync?: string;
     is_staged?: boolean;
     stage_data?: Record<string, any>;

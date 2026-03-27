@@ -8,7 +8,7 @@ import {
     BarChart3, Activity, Shield, Brain, Target, Heart,
     LayoutDashboard, SlidersHorizontal, Calendar, CreditCard,
     PiggyBank, Receipt, Sparkles, Rocket, Video, PenLine, Bell, ShoppingCart,
-    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Briefcase, ListTodo, Search
+    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Images, ListTodo, Search
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -80,7 +80,7 @@ export const navItems: NavItem[] = [
             { label: 'Sparks', href: '/create/sparks', icon: Target },
             { label: 'Network', href: '/create/network', icon: Users },
             { label: 'Press', href: '/create/press', icon: Award },
-            { label: 'Portfolio', href: '/create/portfolio', icon: Shield }
+            { label: 'Portfolio', href: '/create/portfolio', icon: Images }
         ]
     },
     { 

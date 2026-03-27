@@ -622,6 +622,19 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                         <div className="space-y-6">
                                             <div className="space-y-2">
                                                     <div className="flex items-center gap-3 mb-1">
+                                                        {project.type && (
+                                                            <div className={cn(
+                                                                "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                                                                project.type === 'Media' && "bg-red-50 text-red-600",
+                                                                project.type === 'Architectural Design' && "bg-blue-50 text-blue-600",
+                                                                project.type === 'Product Design' && "bg-emerald-50 text-emerald-600",
+                                                                project.type === 'Technology' && "bg-cyan-50 text-cyan-600",
+                                                                project.type === 'Fashion' && "bg-purple-50 text-purple-600",
+                                                                !['Media', 'Architectural Design', 'Product Design', 'Technology', 'Fashion'].includes(project.type as any) && "bg-black/5 text-black/50"
+                                                            )}>
+                                                                {project.type}
+                                                            </div>
+                                                        )}
                                                         <div className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border", PRIORITY_CONFIG[project.priority || 'low'].color)}>
                                                             {project.priority || 'Priority Unset'}
                                                         </div>

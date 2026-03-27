@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { X, Pin, Trash2, ArrowUpRight, Tag, Archive, Image as ImageIcon, List, Loader2, Plus, Rocket, Video, Link2 } from 'lucide-react'
+import { X, Pin, Trash2, ArrowUpRight, Tag, Archive, Image as ImageIcon, List, Loader2, Plus, Rocket, Video, Link2, Zap } from 'lucide-react'
 import { useStudioContext } from '../context/StudioContext'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -225,6 +225,17 @@ export default function CanvasEntryModal({
                             >
                                 <Pin className={cn("w-4 h-4", pinned && "fill-current")} />
                             </button>
+                            {/* Independent / Promote */}
+                            {entry.is_independent && (
+                                <button
+                                    onClick={() => onUpdate(entry.id, { is_independent: false })}
+                                    className="px-3 h-8 bg-indigo-500 text-white rounded-xl flex items-center gap-1.5 transition-all hover:bg-indigo-600 hover:-translate-y-0.5 shadow-lg shadow-indigo-100 font-black text-[9px] uppercase tracking-wider"
+                                    title="Make this a permanent note"
+                                >
+                                    <Zap className="w-3.5 h-3.5 fill-current" />
+                                    Promote to Note
+                                </button>
+                            )}
                             {/* Tweet */}
                             {onTweet && (
                                 <button

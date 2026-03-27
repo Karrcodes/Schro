@@ -2,8 +2,10 @@
 
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Rocket, Globe, Video, Type, CheckCircle2, ExternalLink } from 'lucide-react'
+import { X, Rocket, Globe, Video, Type, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useStudioContext } from '@/features/studio/context/StudioContext'
+import ConfirmationModal from '@/components/ConfirmationModal'
 
 interface PortfolioDetailModalProps {
     isOpen: boolean
@@ -14,33 +16,66 @@ interface PortfolioDetailModalProps {
 }
 
 export default function PortfolioDetailModal({ isOpen, onClose, item, coverUrl, displayTitle }: PortfolioDetailModalProps) {
+    const { deleteProject, deleteContent, deletePress, deleteDraft } = useStudioContext()
+    const [showConfirm, setShowConfirm] = React.useState(false)
+    const [removing, setRemoving] = React.useState(false)
+    
     if (!item) return null
+
+    const handleRemoveFromStudio = async () => {
+        setRemoving(true)
+        try {
+            if (item._type === 'project') await deleteProject(item.id)
+            else if (item._type === 'content' || item._type === 'media') await deleteContent(item.id)
+            else if (item._type === 'press') await deletePress(item.id)
+            else if (item._type === 'draft' || item._type === 'article') await deleteDraft(item.id)
+            
+            setShowConfirm(false)
+            onClose()
+        } catch (e) {
+            console.error('Failed to remove item', e)
+            alert('Failed to remove item from Studio')
+        } finally {
+            setRemoving(false)
+        }
+    }
 
     const typeLabel = item._type === 'project' ? 'Project' : 
                       item._type === 'press' ? 'Press' : 
-                      item._type === 'media' ? 'Media' : 'Article'
+                      item._type === 'content' ? 'Media' : 'Article'
                       
     const Icon = item._type === 'project' ? Rocket :
                  item._type === 'press' ? Globe :
-                 item._type === 'media' ? Video : Type
+                 item._type === 'content' ? Video : Type
 
     const isDiscovered = !item.id && !!item.framer_cms_id
 
     const colorClass = item._type === 'project' ? "text-orange-600 bg-orange-50" :
                        item._type === 'press' ? "text-emerald-600 bg-emerald-50" :
-                       item._type === 'media' ? "text-blue-600 bg-blue-50" : "text-indigo-600 bg-indigo-50"
+                       item._type === 'content' ? "text-blue-600 bg-blue-50" : "text-indigo-600 bg-indigo-50"
 
     const stripHtml = (text: string | undefined | null) => {
         if (!text) return text;
-        // Convert structural HTML elements to newlines
-        let formatted = text.replace(/<\/?(p|br|div|h[1-6])[^>]*>/gi, '\n');
-        // Strip remaining HTML tags
+        let formatted = text.replace(/<\/?(?:p|br|div|h[1-6])[^>]*>/gi, '\n');
         formatted = formatted.replace(/<[^>]+>/g, '');
-        // Decode common HTML entities
         formatted = formatted.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-        // Collapse multiple empty newlines
         return formatted.replace(/\n\s*\n/g, '\n\n').trim();
     }
+
+    // Resolve a Framer field value to a plain string (handles nested objects/enums)
+    const extractFieldText = (v: any): string | undefined => {
+        if (!v) return undefined
+        if (typeof v === 'string') return v.trim() || undefined
+        if (typeof v === 'object') {
+            for (const key of ['text', 'html', 'value', 'label', 'name', 'title', 'content']) {
+                if (v[key] && typeof v[key] === 'string') return stripHtml(v[key]) || undefined
+            }
+        }
+        return undefined
+    }
+
+    const resolveCategory = () =>
+        extractFieldText(item.category) || extractFieldText(item.type) || item._collectionName || undefined
 
     const getCMSBodyText = () => {
         // 1. Check local DB mapped fields first
@@ -127,7 +162,7 @@ export default function PortfolioDetailModal({ isOpen, onClose, item, coverUrl, 
                                             <div className="flex items-center justify-between">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{typeLabel}</span>
-                                                    <span className="text-[12px] font-bold text-white uppercase tracking-widest">{item.category || item._collectionName || 'General'}</span>
+                                                    <span className="text-[12px] font-bold text-white uppercase tracking-widest">{resolveCategory() || 'General'}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -160,6 +195,17 @@ export default function PortfolioDetailModal({ isOpen, onClose, item, coverUrl, 
                                                     </span>
                                                 )}
                                             </div>
+                                            {!!item.framer_cms_id && !!item.id && (
+                                                <button
+                                                    onClick={() => setShowConfirm(true)}
+                                                    disabled={removing}
+                                                    className="mt-2 inline-flex items-center justify-center w-full py-2.5 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all font-inter disabled:opacity-50"
+                                                    title="Permanently remove from local Studio database"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                                    {removing ? 'Removing...' : 'Remove from Studio'}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -200,10 +246,43 @@ export default function PortfolioDetailModal({ isOpen, onClose, item, coverUrl, 
                                         </div>
                                     )}
 
-                                    {item.framer_cms_id && (
+                                    {(item.framer_cms_id || item.status === 'published') && !isDiscovered && (
                                         <div className="pt-8 border-t border-black/5">
                                             <a
-                                                href={`https://karr.tech/${item._type === 'content' ? 'media' : item._type === 'draft' ? 'writing' : item._type}s/${item.slug}`}
+                                                href={(() => {
+                                                    const base = 'https://karrtesian.com';
+                                                    const slug = item.slug || item.stage_data?.slug || (item.title ? item.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '') : '');
+                                                    
+                                                    if (item._type === 'project') {
+                                                        const cat = (resolveCategory() || 'General')
+                                                            .toLowerCase()
+                                                            .trim()
+                                                            .replace(/\s+/g, '-')
+                                                            .replace(/[^\w-]/g, '');
+                                                        return `${base}/projects/${cat}/${slug}`;
+                                                    }
+                                                    
+                                                    const typeMap: Record<string, string> = {
+                                                        press: 'press',
+                                                        content: 'projects/media',
+                                                        media: 'projects/media',
+                                                        draft: 'projects/articles',
+                                                        article: 'projects/articles'
+                                                    };
+                                                    
+                                                    const path = typeMap[item._type] || item._type;
+                                                    
+                                                    // 1. Priority: Nested karrtesian.com structure if known
+                                                    if (typeMap[item._type]) {
+                                                        return `${base}/${path}/${slug}`;
+                                                    }
+                                                    
+                                                    // 2. Fallback: Existing specific links
+                                                    const specificLink = item.project_url || item.url || item.article_url;
+                                                    if (specificLink) return specificLink;
+                                                    
+                                                    return base;
+                                                })()}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-center justify-center w-full py-4 bg-black text-white rounded-2xl text-[12px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/20"
@@ -219,6 +298,17 @@ export default function PortfolioDetailModal({ isOpen, onClose, item, coverUrl, 
                     </motion.div>
                 </>
             )}
+
+            <ConfirmationModal
+                isOpen={showConfirm}
+                onClose={() => setShowConfirm(false)}
+                onConfirm={handleRemoveFromStudio}
+                title="Remove from Studio?"
+                message={`This will delete the local project tracking but will NOT affect the live item in Framer CMS. It will simply appear as "Unsynced" in your dashboard.`}
+                confirmText="Yes, Remove"
+                cancelText="Keep in Studio"
+                loading={removing}
+            />
         </AnimatePresence>
     )
 }

@@ -162,7 +162,70 @@ export class FramerSyncService {
             ...localDrafts.map(d => d.framer_cms_id)
         ].filter(Boolean))
 
-        return allRemoteItems.filter(it => !localCmsIds.has(it.id))
+        // Fallback for content items that don't have framer_cms_id in the DB schema
+        const localContentTitles = new Set(
+            localContent.map(c => c.title?.toLowerCase().trim()).filter(Boolean)
+        )
+
+        return allRemoteItems.filter(it => {
+            if (localCmsIds.has(it.id)) return false;
+            
+            // For content (media) items, since framer_cms_id cannot be saved in the db,
+            // we prevent duplicates by checking if an item with the same title already exists.
+            if (it._type === 'content') {
+                const mappedTitle = this.mapRemoteToLocal(it).title?.toLowerCase().trim();
+                if (mappedTitle && localContentTitles.has(mappedTitle)) return false;
+            }
+            
+            return true;
+        })
+    }
+
+    static async getGhostItems(siteId: string, localProjects: any[], localPress: any[], localContent: any[], localDrafts: any[]) {
+        const collections = await this.getCollections(siteId)
+        
+        // We only care about items that THINK they are synced (have a framer_cms_id)
+        const itemsWithCmsId = [
+            ...localProjects.filter(p => p.framer_cms_id).map(p => ({ id: p.id, cmsId: p.framer_cms_id })),
+            ...localPress.filter(p => p.framer_cms_id).map(p => ({ id: p.id, cmsId: p.framer_cms_id })),
+            ...localDrafts.filter(d => d.framer_cms_id).map(d => ({ id: d.id, cmsId: d.framer_cms_id }))
+            // Content items don't have framer_cms_id column in DB, so they can't be ghosts in this way
+        ]
+
+        if (itemsWithCmsId.length === 0) return new Set<string>()
+
+        // Fetch all items from all relevant collections to compare
+        const typeMapping: Record<string, string[]> = {
+            project: ['technology', 'projects', 'work', 'design', 'fashion', 'architecture', 'product', 'creative'],
+            press: ['press', 'awards', 'recognition'],
+            draft: ['articles', 'blog', 'journal', 'drafts', 'writing', 'post', 'stories', 'news', 'publications']
+        }
+
+        const relevantCollections = collections.filter(coll => {
+            const name = coll.name.toLowerCase()
+            return Object.values(typeMapping).some(keywords => 
+                keywords.some(k => name.includes(k))
+            )
+        })
+
+        const allRemoteIds = new Set<string>()
+        for (const coll of relevantCollections) {
+            try {
+                const items = await this.getCollectionItems(siteId, coll.id)
+                items.forEach(it => allRemoteIds.add(it.id))
+            } catch (e) {
+                console.warn(`Failed to fetch items for collection ${coll.name}`, e)
+            }
+        }
+
+        const ghostIds = new Set<string>()
+        for (const local of itemsWithCmsId) {
+            if (!allRemoteIds.has(local.cmsId)) {
+                ghostIds.add(local.id)
+            }
+        }
+
+        return ghostIds
     }
 
     static mapRemoteToLocal(item: any): any {
@@ -173,25 +236,49 @@ export class FramerSyncService {
         const nd: Record<string, any> = {}
         for (const f of fields) {
             if (f.name) nd[f.name.toLowerCase()] = fd[f.id]
-            if (f.slug) nd[f.slug.toLowerCase()] = fd[f.id]
+            if (f.slug) {
+                nd[f.slug.toLowerCase()] = fd[f.id]
+                // Also handle common slug variations (spaces -> hyphens)
+                const hyphenated = f.name?.toLowerCase().replace(/\s+/g, '-')
+                if (hyphenated) nd[hyphenated] = fd[f.id]
+            }
             if (f.id) nd[f.id.toLowerCase()] = fd[f.id]
         }
 
         const get = (key: string): any => nd[key.toLowerCase()]
         
-        const getText = (key: string): string | undefined => {
-            const v = get(key)
+        const stripHtml = (s: string) => s
+            .replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .trim()
+
+        const extractText = (v: any): string | undefined => {
             if (!v) return undefined
-            if (typeof v === 'string') return v.trim() || undefined
+            if (typeof v === 'string') {
+                const clean = stripHtml(v)
+                return clean || undefined
+            }
             if (typeof v === 'object') {
-                if (typeof v.value === 'string') return v.value.trim() || undefined
-                if (v.html) return v.html.replace(/<[^>]+>/g, '').trim() || undefined
-                if (v.text) return v.text.trim() || undefined
-                if (v.value?.html) return v.value.html.replace(/<[^>]+>/g, '').trim() || undefined
-                if (v.value?.text) return v.value.text.trim() || undefined
+                for (const key of ['text', 'html', 'value', 'label', 'name', 'title', 'content']) {
+                    if (v[key] && typeof v[key] === 'string') {
+                        const clean = stripHtml(v[key])
+                        if (clean) return clean
+                    }
+                }
+                for (const val of Object.values(v)) {
+                    if (val && typeof val === 'object' && !Array.isArray(val)) {
+                        const found = extractText(val)
+                        if (found) return found
+                    }
+                }
             }
             return undefined
         }
+        const getText = (key: string): string | undefined => extractText(get(key))
 
         const getImage = (key: string): string | undefined => {
             const v = get(key) as any
@@ -201,6 +288,22 @@ export class FramerSyncService {
                 if (v.url) return v.url
                 if (v.value?.url) return v.value.url
                 if (typeof v.value === 'string' && v.value.startsWith('http')) return v.value
+            }
+            return undefined
+        }
+
+        // SMART IMAGE DISCOVERY: Try common names, fallback to any image field
+        const discoverImage = (): string | undefined => {
+            const common = ['bg image', 'background image', 'cover image', 'thumbnail', 'hero image', 'main image']
+            for (const k of common) {
+                const img = getImage(k)
+                if (img) return img
+            }
+            const imageField = fields.find(f => f.type === 'image')
+            if (imageField) {
+                const v = fd[imageField.id]
+                if (v && typeof v === 'object' && v.url) return v.url
+                if (v && typeof v === 'string' && v.startsWith('http')) return v
             }
             return undefined
         }
@@ -217,9 +320,16 @@ export class FramerSyncService {
             return undefined
         }
 
-        const title = getText('title') || item.slug
-        const description = getText('body text')
-        const cover_url = getImage('bg image')
+        const title = item.name
+            || getText('title')
+            || getText('name')
+            || getText('project name')
+            || getText('project title')
+            || getText('inner title')
+            || item.slug
+        const tagline = getText('tagline')
+        const description = getText('body') || getText('description')
+        const cover_url = discoverImage()
 
         if (item._type === 'project') {
             return {
@@ -232,16 +342,30 @@ export class FramerSyncService {
                 project_url: getLink('view project'),
                 article_url: getLink('view article'),
                 status: 'shipped',
+                type: (getText('type') || getText('category') || item._collectionName || 'Technology') as any,
                 framer_cms_id: item.id,
                 framer_collection_id: item._collectionId
             }
         } 
         
         if (item._type === 'press') {
+            const organization = getText('featured on') 
+                || getText('publication') 
+                || getText('source') 
+                || getText('press')
+                || getText('organization')
+                || getText('publisher')
+                || getText('client') 
+                || 'Framer'
+
+            const url = getLink('view') || getLink('link') || getLink('url') || getLink('website') || getLink('article url') || getLink('press link') || getText('url') || getText('link') || getText('website')
+
             return {
                 title,
-                organization: getText('featured on') || getText('client') || 'Unknown',
-                url: getLink('view'),
+                slug: item.slug,
+                organization,
+                url,
+                description,
                 notes: description,
                 cover_url,
                 status: 'published',
@@ -256,6 +380,7 @@ export class FramerSyncService {
         if (item._type === 'content') {
             return {
                 title,
+                slug: item.slug,
                 url: getText('media link') || getLink('media link'),
                 status: 'published',
                 category: 'Other',
@@ -269,6 +394,7 @@ export class FramerSyncService {
         if (item._type === 'draft') {
             return {
                 title,
+                slug: item.slug,
                 body: getText('body') || getText('text') || getText('content') || description || '',
                 description,
                 cover_url,
@@ -312,9 +438,10 @@ export class FramerSyncService {
             metadata.push({ label: 'Website', framerField: getFieldName('view-project'), value: mapped.project_url, targetField: 'project_url' })
             metadata.push({ label: 'Cover Image', framerField: getFieldName('bg-image'), value: mapped.cover_url, targetField: 'cover_url' })
         } else if (type === 'press') {
-            metadata.push({ label: 'Source', framerField: getFieldName('featured-on') || getFieldName('client'), value: mapped.organization, targetField: 'organization' })
-            metadata.push({ label: 'Link', framerField: getFieldName('view'), value: mapped.url, targetField: 'url' })
-            metadata.push({ label: 'Cover Image', framerField: getFieldName('bg-image'), value: mapped.cover_url, targetField: 'cover_url' })
+            metadata.push({ label: 'Source', framerField: getFieldName('featured-on') || getFieldName('publication') || getFieldName('source') || getFieldName('press') || getFieldName('organization') || getFieldName('publisher') || getFieldName('client'), value: mapped.organization, targetField: 'organization' })
+            metadata.push({ label: 'Link', framerField: getFieldName('view') || getFieldName('link') || getFieldName('url') || getFieldName('website') || getFieldName('article-url') || getFieldName('press-link'), value: mapped.url, targetField: 'url' })
+            metadata.push({ label: 'Brief', framerField: getFieldName('body') || getFieldName('description'), value: mapped.description, targetField: 'description' })
+            metadata.push({ label: 'Cover Image', framerField: getFieldName('bg-image') || getFieldName('thumbnail'), value: mapped.cover_url, targetField: 'cover_url' })
         } else if (type === 'content') {
             metadata.push({ label: 'Media Link', framerField: getFieldName('media-link'), value: mapped.url, targetField: 'url' })
             metadata.push({ label: 'Thumbnail', framerField: getFieldName('bg-image'), value: mapped.cover_url, targetField: 'cover_url' })

@@ -1,7 +1,11 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ZoomIn, ZoomOut, Maximize2, Shuffle, ArrowUpRight, Archive, Trash2, Plus, Rocket, Video, X, BookOpen } from 'lucide-react'
+import { 
+    Network, Plus, LayoutGrid, X, ArrowUpRight, Maximize2, Minimize2, 
+    Trash2, Archive, List, BookOpen, PenLine, MousePointer2, Settings2,
+    Share2, Download, Eraser, Magnet, Zap, ZoomIn, ZoomOut, Shuffle, Rocket, Video
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CanvasConnection, CanvasColor, StudioCanvasEntry, StudioProject, StudioContent, PolymorphicNode } from '../types/studio.types'
 
@@ -49,17 +53,25 @@ interface Props {
     onRemoveNode: (id: string) => void
     onCreateNode: (data: { title: string; x: number; y: number }) => void
     onDropNode: (id: string, type: 'entry' | 'project' | 'content', x: number, y: number) => void
+    onToggleIndependent?: (id: string, current: boolean) => void
     isLibraryOpen?: boolean
     onOverLibraryChange?: (isOver: boolean) => void
     onCompose?: (nodes: PolymorphicNode[]) => void
+    onComposeSelection?: () => void
     selectedIds?: string[]
     onSelectionChange?: (ids: string[]) => void
 }
 
+type CanvasWebViewProps = Props // Assuming CanvasWebViewProps is an alias for Props
+
 export default function CanvasWebView({
     entries, connections, onNodeClick, onCreateConnection, onDeleteConnection, onUpdatePosition,
     onDeleteNode, onArchiveNode, onRemoveNode, onCreateNode, onDropNode, isLibraryOpen, onOverLibraryChange,
-    onCompose, selectedIds = [], onSelectionChange
+    onCompose,
+    onComposeSelection,
+    selectedIds = [],
+    onSelectionChange,
+    onToggleIndependent
 }: Props) {
     const containerRef = useRef<HTMLDivElement>(null)
     const [pan, setPan] = useState({ x: 60, y: 60 })
@@ -119,8 +131,6 @@ export default function CanvasWebView({
 
     // ---- Global Drag/Pan Tracking ----
     useEffect(() => {
-        if (!draggingId && !isPanning.current && !connectingFrom && !marqueeBox) return
-
         const handleGlobalPointerMove = (e: PointerEvent) => {
             activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
@@ -165,8 +175,8 @@ export default function CanvasWebView({
                     }
                 }
                 setGhostCoords({ x: e.clientX, y: e.clientY })
-            } else if (isPanning.current && panStart.current && activePointers.current.size === 1 && e.pointerType === 'mouse') {
-                // One-finger pan only for mouse
+            } else if (isPanning.current && panStart.current && activePointers.current.size === 1) {
+                // One-finger pan (Mouse, Touch, or Pen)
                 setPan({
                     x: panStart.current.px + (e.clientX - panStart.current.mx),
                     y: panStart.current.py + (e.clientY - panStart.current.my),
@@ -310,7 +320,7 @@ export default function CanvasWebView({
         if (e.shiftKey) {
             marqueeStart.current = { x: e.clientX, y: e.clientY }
             onSelectionChange?.([])
-        } else if (e.pointerType === 'mouse') {
+        } else {
             isPanning.current = true
             panStart.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y }
             onSelectionChange?.([])
@@ -487,7 +497,10 @@ export default function CanvasWebView({
             onClick={connectingFrom ? cancelConnect : undefined}
         >
             {/* Controls */}
-            <div className="absolute top-4 right-4 z-50 flex flex-col gap-2">
+            <div 
+                className="absolute top-6 right-6 z-50 flex flex-col gap-2"
+                onPointerDown={(e) => e.stopPropagation()}
+            >
                 <div className="flex flex-col bg-white border border-black/[0.08] rounded-xl shadow-lg overflow-hidden">
                     <div className="relative flex items-center">
                         <ControlTooltip label="Zoom In" id="zoom-in" />
@@ -546,16 +559,34 @@ export default function CanvasWebView({
                         onClick={() => {
                             const rect = containerRef.current?.getBoundingClientRect()
                             if (rect) {
-                                onCreateNode({ title: 'New Idea', x: (40 - pan.x) / zoom, y: (40 - pan.y) / zoom })
+                                // Center in viewport
+                                const x = (rect.width / 2 - pan.x) / zoom - (NODE_W / 2)
+                                const y = (rect.height / 2 - pan.y) / zoom - (NODE_H / 2)
+                                onCreateNode({ title: 'New Idea', x, y })
+                                onSelectionChange?.([])
                             }
                         }}
                         onMouseEnter={() => setHoveredControl('new')}
                         onMouseLeave={() => setHoveredControl(null)}
-                        className="w-8 h-8 bg-indigo-500 text-white rounded-xl flex items-center justify-center hover:bg-indigo-600 shadow-lg transition-all active:scale-95"
+                        className="w-8 h-8 bg-white border border-black/[0.08] text-black/40 rounded-xl flex items-center justify-center hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all active:scale-95 group"
                     >
-                        <Plus className="w-5 h-5" />
+                        <Plus className="w-4 h-4 transition-transform group-hover:scale-110" />
                     </button>
                 </div>
+
+                {selectedIds.length === 1 && onComposeSelection && (
+                    <div className="relative flex items-center">
+                        <ControlTooltip label="Compose Synthesis" id="compose" />
+                        <button
+                            onClick={onComposeSelection}
+                            onMouseEnter={() => setHoveredControl('compose')}
+                            onMouseLeave={() => setHoveredControl(null)}
+                            className="w-8 h-8 bg-indigo-500 text-white rounded-xl flex items-center justify-center hover:bg-indigo-600 shadow-lg transition-all active:scale-95 group animate-in slide-in-from-right duration-300"
+                        >
+                            <BookOpen className="w-4 h-4 transition-transform group-hover:scale-110" />
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Status hint */}
@@ -668,7 +699,13 @@ export default function CanvasWebView({
                                         )}
                                     </div>
 
-                                    {node.node_type !== 'entry' && (
+                                    {(node as any).is_independent ? (
+                                        <div className="mt-auto mb-1">
+                                            <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-black/[0.04] text-black/30">
+                                                Independent IDEA
+                                            </span>
+                                        </div>
+                                    ) : (node.node_type !== 'entry' && (
                                         <div className="mt-auto mb-1">
                                             <span className={cn(
                                                 "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md",
@@ -677,7 +714,7 @@ export default function CanvasWebView({
                                                 {(node as any).status || node.node_type}
                                             </span>
                                         </div>
-                                    )}
+                                    ))}
 
                                     {connCount > 0 && (
                                         <div className="flex items-center gap-1 mt-auto overflow-hidden">
@@ -718,6 +755,17 @@ export default function CanvasWebView({
                                         <ArrowUpRight className="w-3 h-3" />
                                         OPEN
                                     </button>
+                                    {(node as any).is_independent && (
+                                        <button
+                                            onClick={e => { e.stopPropagation(); onToggleIndependent?.(node.id, true) }}
+                                            className="h-7 px-2.5 bg-indigo-600 text-white text-[9px] font-black rounded-lg shadow-md hover:scale-110 active:scale-95 transition-all flex items-center gap-1 group/p shadow-indigo-500/20"
+                                            onMouseDown={e => e.stopPropagation()}
+                                            title="Promote to Note (Visible in Library)"
+                                        >
+                                            <Zap className="w-3 h-3 fill-current" />
+                                            PROMOTE
+                                        </button>
+                                    )}
                                     <button onClick={e => { e.stopPropagation(); onRemoveNode(node.id) }} className="w-7 h-7 bg-white text-black/40 rounded-lg flex items-center justify-center hover:bg-neutral-800 hover:text-white hover:scale-110 active:scale-95 transition-all border border-black/5 shadow-sm hover:shadow-black/20" title="Remove from Map" onMouseDown={e => e.stopPropagation()}>
                                         <X className="w-3 h-3" />
                                     </button>

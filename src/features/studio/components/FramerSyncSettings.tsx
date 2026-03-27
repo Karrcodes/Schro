@@ -289,69 +289,28 @@ export default function FramerSyncSettings({ onClose }: FramerSyncSettingsProps)
                         </div>
                     )}
                     
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between px-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30">Select Site</label>
-                            <span className="text-[10px] font-black uppercase text-green-500 flex items-center gap-1">
-                                <Check className="w-3 h-3" /> Connected
-                            </span>
+                    <div className="p-8 rounded-[32px] bg-emerald-50 border border-emerald-100 flex flex-col items-center justify-center text-center space-y-4">
+                        <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center shadow-sm border border-emerald-100">
+                            <Globe className="w-8 h-8 text-emerald-500" />
                         </div>
-                        <div className="grid grid-cols-1 gap-2">
-                            {sites.map(site => (
-                                <button
-                                    key={site.id}
-                                    onClick={() => setSelectedSite(site.id)}
-                                    className={cn(
-                                        "flex items-center justify-between p-4 rounded-2xl border transition-all text-left",
-                                        selectedSite === site.id 
-                                            ? "bg-blue-50 border-blue-200 text-blue-900 shadow-sm"
-                                            : "bg-black/[0.02] border-black/[0.05] text-black/60 hover:border-black/20"
-                                    )}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Globe className={cn("w-4 h-4", selectedSite === site.id ? "text-blue-500" : "text-black/20")} />
-                                        <span className="text-[13px] font-bold">{site.name}</span>
-                                    </div>
-                                    {selectedSite === site.id && <Check className="w-4 h-4" />}
-                                </button>
-                            ))}
+                        <div className="space-y-1">
+                            <h3 className="text-[16px] font-black text-emerald-950 uppercase tracking-tight">Framer Website Connected</h3>
+                            <p className="text-[12px] font-medium text-emerald-700/60">
+                                Your Studio is actively linked to the Framer CMS.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">
+                            <Check className="w-3 h-3" />
+                            Live Sync Active
                         </div>
                     </div>
 
-                    {selectedSite && collections.length > 0 && (
-                        <div className="space-y-3">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-black/30 ml-2">Select Collection</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {collections.map(coll => (
-                                    <button
-                                        key={coll.id}
-                                        onClick={() => setSelectedCollection(coll.id)}
-                                        className={cn(
-                                            "flex flex-col p-4 rounded-2xl border transition-all text-left gap-1",
-                                            selectedCollection === coll.id 
-                                                ? "bg-indigo-50 border-indigo-200 text-indigo-900 shadow-sm"
-                                                : "bg-black/[0.02] border-black/[0.05] text-black/60 hover:border-black/20"
-                                        )}
-                                    >
-                                        <div className="flex justify-between items-center w-full">
-                                            <span className="text-[12px] font-black uppercase tracking-tight">{coll.name}</span>
-                                            {selectedCollection === coll.id && <Check className="w-3.5 h-3.5" />}
-                                        </div>
-                                        <span className="text-[10px] font-medium opacity-40">/{coll.slug}</span>
-                                    </button>
-                                ))}
-                            </div>
+                    <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/[0.05] flex items-center justify-between px-6">
+                        <div className="flex items-center gap-3">
+                            <Settings className="w-4 h-4 text-black/20" />
+                            <span className="text-[11px] font-bold text-black/40 uppercase tracking-widest">Auto-Mapping</span>
                         </div>
-                    )}
-
-                    <div className="pt-4">
-                        <button
-                            disabled={!selectedSite || !selectedCollection}
-                            onClick={handleSaveMapping}
-                            className="w-full py-4 bg-black text-white rounded-[24px] text-[13px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-20 disabled:grayscale"
-                        >
-                            Save Settings & Map Fields
-                        </button>
+                        <span className="text-[11px] font-black text-black">Enabled</span>
                     </div>
                 </div>
             )}
