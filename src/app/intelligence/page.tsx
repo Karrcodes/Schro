@@ -68,6 +68,7 @@ export default function IntelligencePage() {
     const [isAutoSendEnabled, setIsAutoSendEnabled] = useState(true)
     const [autoSendProgress, setAutoSendProgress] = useState(0)
     const [micHeartbeat, setMicHeartbeat] = useState(0)
+    const [lastVocalizedIndex, setLastVocalizedIndex] = useState(-1)
     const autoSendTimerRef = useRef<NodeJS.Timeout | null>(null)
     const autoSendIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const inputRef = useRef<string>(input)
@@ -264,6 +265,20 @@ export default function IntelligencePage() {
             setPersonaCompletion(filledCount)
         }
     }
+
+    // Neural Vocalization Reactor: Auto-Talkback for Assistant responses
+    useEffect(() => {
+        if (!isVoiceMode || !isHDVoice || messages.length === 0) return
+        
+        const lastIndex = messages.length - 1
+        const lastMsg = messages[lastIndex]
+        
+        // Only vocalize new assistant messages that haven't been read and aren't staged actions
+        if (lastMsg.role === 'assistant' && lastIndex > lastVocalizedIndex && !lastMsg.pendingActions) {
+            setLastVocalizedIndex(lastIndex)
+            handleVocalize(lastMsg.content, lastIndex)
+        }
+    }, [messages, isVoiceMode, isHDVoice, lastVocalizedIndex])
 
     // Neural Heartbeat: Watchdog to force mic recovery on iPad/Safari
     useEffect(() => {
@@ -739,11 +754,6 @@ export default function IntelligencePage() {
                 
                 // Update session title in side list locally if it was new
                 if (activeSessionId === null) fetchSessions()
-
-                // Voice Protocol Output: Auto-Talkback (Using backend-forced identity voice)
-                if (isVoiceMode && isHDVoice) {
-                    handleVocalize(finalReply, newMessages.length, data.voice) 
-                }
             } else {
                 throw new Error(data.error || 'Failed to fetch response')
             }
@@ -786,9 +796,6 @@ export default function IntelligencePage() {
                     posture: data.posture as EmotivePosture
                 }
                 setMessages(prev => [...prev, assistantMsg])
-                if (isVoiceMode && isHDVoice) {
-                    handleVocalize(data.reply, messages.length + 1, data.voice)
-                }
             }
         } catch (err) {
             console.error('Action execution failed', err)
