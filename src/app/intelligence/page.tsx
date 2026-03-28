@@ -68,10 +68,11 @@ export default function IntelligencePage() {
     const [autoSendProgress, setAutoSendProgress] = useState(0)
     const autoSendTimerRef = useRef<NodeJS.Timeout | null>(null)
     const autoSendIntervalRef = useRef<NodeJS.Timeout | null>(null)
-    const activeSpeechIndexRef = useRef<number | null>(null)
-    const pinnedTextRef = useRef<string>('')
     const inputRef = useRef<string>(input)
     const handleSendRef = useRef<any>(null)
+    const activeSpeechIndexRef = useRef<number | null>(null)
+    const isVoiceModeRef = useRef<boolean>(isVoiceMode)
+    const pinnedTextRef = useRef<string>('')
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const recognitionRef = useRef<any>(null)
@@ -110,6 +111,7 @@ export default function IntelligencePage() {
         inputRef.current = input
         handleSendRef.current = handleSend
         activeSpeechIndexRef.current = activeSpeechIndex
+        isVoiceModeRef.current = isVoiceMode
         if (typeof window !== 'undefined' && !audioRef.current) {
             audioRef.current = new Audio()
             audioRef.current.onended = () => {
@@ -117,7 +119,7 @@ export default function IntelligencePage() {
                 setIsSpeechPaused(false)
             }
         }
-    }, [input, handleSend, activeSpeechIndex])
+    }, [input, handleSend, activeSpeechIndex, isVoiceMode])
 
 
 
@@ -309,6 +311,15 @@ export default function IntelligencePage() {
                 recognition.onend = () => {
                     setIsListening(false)
                     setAutoSendProgress(0)
+
+                    // Robust Auto-Restart for Mobile/iPad (Safari interrupts are common)
+                    if (isVoiceModeRef.current && !isTyping && activeSpeechIndexRef.current === null) {
+                        setTimeout(() => {
+                            if (isVoiceModeRef.current && recognitionRef.current === recognition) {
+                                try { recognition.start() } catch (e) { console.error('Recognition restart failed', e) }
+                            }
+                        }, 400) // Small delay to allow audio context to clear
+                    }
                 }
                 recognition.onerror = () => {
                     setIsListening(false)
