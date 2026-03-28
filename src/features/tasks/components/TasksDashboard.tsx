@@ -96,7 +96,7 @@ function TasksDashboardContent() {
                                     })}
                                 </div>
 
-                                <TasksProfileToggle />
+                                {activeTab !== 'grocery' && <TasksProfileToggle />}
                             </div>
 
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">

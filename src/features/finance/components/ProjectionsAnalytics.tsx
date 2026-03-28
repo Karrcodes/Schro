@@ -175,28 +175,28 @@ export function ProjectionsAnalytics() {
 
             dailyEarnings[dateStr] = gross * (1 - DEDUCTION_RATE)
 
-            // Paid in arrears: work from Sunday to Saturday is paid on the following Friday (6 days later).
+            // Paid in arrears: work from Sunday to Saturday is paid on the following Thursday (5 days later).
             const dayOfWeek = curr.getDay()
             const daysSinceSunday = dayOfWeek
 
             const currentSunday = new Date(curr)
             currentSunday.setDate(curr.getDate() - daysSinceSunday)
 
-            const paydayFri = new Date(currentSunday)
-            paydayFri.setDate(currentSunday.getDate() + 12)
+            const paydayThu = new Date(currentSunday)
+            paydayThu.setDate(currentSunday.getDate() + 11)
 
-            const paydayStr = paydayFri.toISOString().split('T')[0]
+            const paydayStr = paydayThu.toISOString().split('T')[0]
 
             if (settings.is_demo_mode) {
-                // In Demo Mode, accumulate everything into a single payday (last Friday of the month)
-                // We'll find the last Friday of whatever month curr is in
+                // In Demo Mode, accumulate everything into a single payday (last Thursday of the month)
+                // We'll find the last Thursday of whatever month curr is in
                 const lastDay = new Date(curr.getFullYear(), curr.getMonth() + 1, 0)
-                const lastFriday = new Date(lastDay)
-                while (lastFriday.getDay() !== 5) {
-                    lastFriday.setDate(lastFriday.getDate() - 1)
+                const lastThursday = new Date(lastDay)
+                while (lastThursday.getDay() !== 4) {
+                    lastThursday.setDate(lastThursday.getDate() - 1)
                 }
-                const lastFriStr = lastFriday.toISOString().split('T')[0]
-                weeklyPayMap[lastFriStr] = (weeklyPayMap[lastFriStr] || 0) + dailyEarnings[dateStr]
+                const lastThuStr = lastThursday.toISOString().split('T')[0]
+                weeklyPayMap[lastThuStr] = (weeklyPayMap[lastThuStr] || 0) + dailyEarnings[dateStr]
             } else {
                 weeklyPayMap[paydayStr] = (weeklyPayMap[paydayStr] || 0) + dailyEarnings[dateStr]
             }
@@ -232,15 +232,15 @@ export function ProjectionsAnalytics() {
                 isShift = cycleDay < 3
             }
 
-            let isPayday = date.getDay() === 5
+            let isPayday = date.getDay() === 4
             if (settings.is_demo_mode) {
-                // Ensure only the LAST Friday of the month is a payday in Demo Mode
+                // Ensure only the LAST Thursday of the month is a payday in Demo Mode
                 const lastDay = new Date(year, monthIndex + 1, 0)
-                const lastFriday = new Date(lastDay)
-                while (lastFriday.getDay() !== 5) {
-                    lastFriday.setDate(lastFriday.getDate() - 1)
+                const lastThursday = new Date(lastDay)
+                while (lastThursday.getDay() !== 4) {
+                    lastThursday.setDate(lastThursday.getDate() - 1)
                 }
-                isPayday = date.getDate() === lastFriday.getDate()
+                isPayday = date.getDate() === lastThursday.getDate()
             }
             const overrideRecord = bookedOverrides.find(o => o.date === dateStr)
             const override = overrideRecord?.type || dayOverrides[dateStr]
@@ -261,7 +261,11 @@ export function ProjectionsAnalytics() {
                 todayMidnight.setHours(0, 0, 0, 0)
                 const isPastOrToday = date <= todayMidnight
 
-                const confirmedPay = payslipByDate[dateStr]
+                const confirmedPay = payslipByDate[dateStr] || (() => {
+                    const nextDay = new Date(date)
+                    nextDay.setDate(nextDay.getDate() + 1)
+                    return payslipByDate[nextDay.toISOString().split('T')[0]]
+                })()
 
                 if (isPastOrToday && confirmedPay !== undefined) {
                     totalMonthNet += confirmedPay
@@ -378,7 +382,7 @@ export function ProjectionsAnalytics() {
                             <PoundSterling className="w-4 h-4 text-emerald-500" /> Pay Cycle
                         </div>
                         <div className="text-[24px] sm:text-[28px] font-black text-black">
-                            {paydaysThisMonth} <span className="text-[12px] sm:text-[14px] text-black/40 font-semibold ml-1">Fridays</span>
+                            {paydaysThisMonth} <span className="text-[12px] sm:text-[14px] text-black/40 font-semibold ml-1">Thursdays</span>
                         </div>
                         <p className="text-[11px] text-black/40 mt-1">You will be paid {paydaysThisMonth} times in {monthName}.</p>
                     </div>
@@ -537,7 +541,11 @@ export function ProjectionsAnalytics() {
                                         {isPayday && (() => {
                                             const today = new Date(); today.setHours(0, 0, 0, 0)
                                             const isPastOrToday = d.date <= today
-                                            const confirmedPay = payslipByDate[dateStr]
+                                            const confirmedPay = payslipByDate[dateStr] || (() => {
+                                                const nextDay = new Date(d.date)
+                                                nextDay.setDate(nextDay.getDate() + 1)
+                                                return payslipByDate[nextDay.toISOString().split('T')[0]]
+                                            })()
                                             const displayAmt = (isPastOrToday && confirmedPay != null) ? confirmedPay : (weeklyPayMap[dateStr] || 0)
                                             return (
                                                 <div className="hidden sm:flex flex-col items-end gap-0.5">

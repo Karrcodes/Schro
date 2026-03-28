@@ -72,6 +72,7 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
     const [view, setView] = useState<'calendar' | 'list'>('calendar')
     const [filter, setFilter] = useState<FilterMode>('all')
     const [selectedPayment, setSelectedPayment] = useState<ProjectedPayment | null>(null)
+    const [selectedDayPayments, setSelectedDayPayments] = useState<ProjectedPayment[] | null>(null)
     const [calMonth, setCalMonth] = useState(() => {
         const d = new Date()
         d.setDate(1)
@@ -137,16 +138,20 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
             const currentSunday = new Date(curr)
             currentSunday.setDate(curr.getDate() - daysSinceSunday)
 
-            const paydayFri = new Date(currentSunday)
-            paydayFri.setDate(currentSunday.getDate() + 12)
-            const paydayStr = paydayFri.toISOString().split('T')[0]
+            const paydayThu = new Date(currentSunday)
+            paydayThu.setDate(currentSunday.getDate() + 11)
 
-            if (settings.is_demo_mode) {
+            const paydayStr = paydayThu.toISOString().split('T')[0]
+
+            if (settings.is_demo_mode) {                // In Demo Mode, accumulate everything into a single payday (last Thursday of the month)
+                // We'll find the last Thursday of whatever month curr is in
                 const lastDay = new Date(curr.getFullYear(), curr.getMonth() + 1, 0)
-                const lastFriday = new Date(lastDay)
-                while (lastFriday.getDay() !== 5) lastFriday.setDate(lastFriday.getDate() - 1)
-                const lastFriStr = lastFriday.toISOString().split('T')[0]
-                map[lastFriStr] = (map[lastFriStr] || 0) + dailyEarnings[dateStr]
+                const lastThursday = new Date(lastDay)
+                while (lastThursday.getDay() !== 4) {
+                    lastThursday.setDate(lastThursday.getDate() - 1)
+                }
+                const lastThuStr = lastThursday.toISOString().split('T')[0]
+                map[lastThuStr] = (map[lastThuStr] || 0) + dailyEarnings[dateStr]
             } else {
                 map[paydayStr] = (map[paydayStr] || 0) + dailyEarnings[dateStr]
             }
@@ -402,17 +407,24 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
                                             {(() => {
                                                 const date = new Date(calMonth.getFullYear(), calMonth.getMonth(), day)
                                                 const dateStr = date.toISOString().split('T')[0]
-                                                let isPayday = date.getDay() === 5
+                                                let isPayday = date.getDay() === 4
                                                 if (settings.is_demo_mode) {
+                                                    // Ensure only the LAST Thursday of the month is a payday in Demo Mode
                                                     const lastDay = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0)
-                                                    const lastFriday = new Date(lastDay)
-                                                    while (lastFriday.getDay() !== 5) lastFriday.setDate(lastFriday.getDate() - 1)
-                                                    isPayday = date.getDate() === lastFriday.getDate()
+                                                    const lastThursday = new Date(lastDay)
+                                                    while (lastThursday.getDay() !== 4) {
+                                                        lastThursday.setDate(lastThursday.getDate() - 1)
+                                                    }
+                                                    isPayday = date.getDate() === lastThursday.getDate()
                                                 }
 
                                                 if (!isPayday) return null
 
-                                                const confirmedPay = payslipByDate[dateStr]
+                                                const confirmedPay = payslipByDate[dateStr] || (() => {
+                                                    const nextDay = new Date(date)
+                                                    nextDay.setDate(nextDay.getDate() + 1)
+                                                    return payslipByDate[nextDay.toISOString().split('T')[0]]
+                                                })()
                                                 const displayAmt = confirmedPay != null ? confirmedPay : (weeklyPayMap[dateStr] || 0)
 
                                                 return (
@@ -432,7 +444,15 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
                                                     </button>
                                                 ))}
                                                 {payments.length > 2 && (
-                                                    <span className="text-[8px] text-black/30 font-bold">+{payments.length - 2} more</span>
+                                                    <button 
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            setSelectedDayPayments(payments); 
+                                                        }} 
+                                                        className="text-[8px] text-black/30 font-bold hover:text-black/60 transition-colors w-fit text-left"
+                                                    >
+                                                        +{payments.length - 2} more
+                                                    </button>
                                                 )}
                                                 <span className="text-[8px] font-bold text-red-500 mt-auto privacy-blur">-£{dayTotal.toFixed(0)}</span>
                                             </>
@@ -493,12 +513,20 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
             {/* Payment Details Modal */}
             {
                 selectedPayment && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
                         onClick={() => setSelectedPayment(null)}>
                         <div className="bg-white rounded-3xl shadow-xl w-full max-w-[320px] overflow-hidden border border-black/[0.08]" onClick={e => e.stopPropagation()}>
                             <div className="p-5 border-b border-black/[0.04] bg-black/[0.01]">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-3">
+                                        {selectedDayPayments && (
+                                            <button 
+                                                onClick={() => setSelectedPayment(null)} 
+                                                className="p-1.5 rounded-full hover:bg-black/5 text-black/40 mr-1"
+                                            >
+                                                <ChevronLeft className="w-4 h-4" />
+                                            </button>
+                                        )}
                                         <LenderBadge name={selectedPayment.obligation.name} />
                                         <div>
                                             <h3 className="text-[16px] font-bold text-black">{selectedPayment.obligation.name}</h3>
@@ -562,6 +590,50 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
                     </div>
                 )
             }
+            {/* Day Payments List Modal */}
+            {selectedDayPayments && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
+                    onClick={() => setSelectedDayPayments(null)}>
+                    <div className="bg-white rounded-3xl shadow-xl w-full max-w-[320px] overflow-hidden border border-black/[0.08] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-black/[0.04] bg-black/[0.01]">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-[15px] font-bold text-black flex items-center gap-2">
+                                    <List className="w-4 h-4 text-black/30" />
+                                    {selectedDayPayments[0]?.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} Payments
+                                </h3>
+                                <button onClick={() => setSelectedDayPayments(null)} className="p-1.5 rounded-full hover:bg-black/5 text-black/40"><X className="w-4 h-4" /></button>
+                            </div>
+                            <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                                {selectedDayPayments.map(p => (
+                                    <button 
+                                        key={p.id}
+                                        onClick={() => {
+                                            setSelectedPayment(p)
+                                            // Don't set DayPayments to null so we can "go back"
+                                        }}
+                                        className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white border border-black/[0.04] hover:border-black/[0.1] hover:bg-black/[0.01] transition-all group"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <LenderBadge name={p.name} />
+                                            <div className="text-left">
+                                                <p className="text-[13px] font-bold text-black truncate max-w-[120px]">{p.name}</p>
+                                                <p className="text-[9px] text-black/30 uppercase font-black tracking-tight">{p.group_name || 'Liability'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[14px] font-black text-red-500 privacy-blur tracking-tighter">£{p.amount.toFixed(2)}</p>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="p-5 bg-black/[0.01] flex items-center justify-between border-t border-black/[0.02]">
+                             <span className="text-[10px] font-black text-black/30 uppercase tracking-widest">Day Total</span>
+                             <span className="text-[16px] font-black text-black privacy-blur">£{selectedDayPayments.reduce((s, p) => s + p.amount, 0).toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     )
 }

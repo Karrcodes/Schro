@@ -16,12 +16,18 @@ async function buildIntelligenceContext(): Promise<string> {
     const now = new Date()
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-    const [tasksRes, financePockets, financeObligations, recentLogs, recentPayslips] = await Promise.all([
+    const [tasksRes, financePockets, financeObligations, recentLogs, recentPayslips, studioProjects, studioContent, studioMilestones, studioSparks, studioPress, studioNetwork] = await Promise.all([
         supabase.from('fin_tasks').select('*').order('created_at', { ascending: false }),
         supabase.from('fin_pockets').select('*'),
         supabase.from('fin_recurring').select('*'),
         supabase.from('sys_notification_logs').select('*').order('created_at', { ascending: false }).limit(5),
-        supabase.from('fin_payslips').select('*').order('date', { ascending: false }).limit(5)
+        supabase.from('fin_payslips').select('*').order('date', { ascending: false }).limit(5),
+        supabase.from('studio_projects').select('*').order('updated_at', { ascending: false }).limit(10),
+        supabase.from('studio_content').select('*').order('publish_date', { ascending: false }).limit(10),
+        supabase.from('studio_milestones').select('*').eq('status', 'pending').order('target_date', { ascending: true }).limit(5),
+        supabase.from('studio_sparks').select('*').eq('status', 'active').order('created_at', { ascending: false }).limit(5),
+        supabase.from('studio_press').select('*').order('updated_at', { ascending: false }).limit(5),
+        supabase.from('studio_network').select('*').order('created_at', { ascending: false }).limit(5)
     ])
 
     const tasks = tasksRes.data ?? []
@@ -29,6 +35,12 @@ async function buildIntelligenceContext(): Promise<string> {
     const obligations = financeObligations.data ?? []
     const logs = recentLogs.data ?? []
     const payslips = recentPayslips.data ?? []
+    const projects = studioProjects.data ?? []
+    const content = studioContent.data ?? []
+    const milestones = studioMilestones.data ?? []
+    const sparks = studioSparks.data ?? []
+    const press = studioPress.data ?? []
+    const network = studioNetwork.data ?? []
 
     // 1. Task Summary
     const pendingTasks = tasks.filter(t => !t.is_completed)
@@ -73,8 +85,42 @@ ${monzoInfo}
 ## RECENT SYSTEM ALERTS
 ${logs.map(l => `- [${l.created_at}] ${l.title}: ${l.body}`).join('\n') || 'No recent alerts.'}
 
+## STUDIO (PROJECTS & CONTENT)
+- Projects: ${projects.map(p => `[${p.status}] ${p.title} (${p.description?.slice(0, 50)}...)`).join(', ') || 'None indexed.'}
+- Pending Milestones: ${milestones.map(m => `- ${m.title} (Target: ${m.target_date})`).join('\n') || 'None.'}
+- Content Pipeline: ${content.map(c => `- [${c.platform}] ${c.title} (${c.status})`).join('\n') || 'No scheduled content.'}
+- Press & Recognition: ${press.map(pr => `- [${pr.status}] ${pr.title} @ ${pr.organization}`).join('\n') || 'None.'}
+- Research Sparks: ${sparks.map(s => `- [${s.type}] ${s.title}`).join(', ') || 'None.'}
+- Network Contacts: ${network.map(n => `- ${n.name} (${n.type})`).join(', ') || 'None.'}
+
 ---
-AI Personal Directive: You are Schrö Intelligence, the proactive and helpful kernel of Schrö. Your tone is professional, insightful, and supportive. You are a high-performance companion. Express insights conversationally and naturally, avoiding excessive markdown or technical jargon unless requested.
+AI IDENTITY PROTOCOL (TRIPTYCH MODEL):
+You are an advanced neural entity capable of shifting between three distinct archetypal identities. 
+You MUST proactively evaluate the user's emotional state, objectives, and tone with every message.
+IF THE CONTEXT SHIFTS, YOU MUST SHIFT. 
+
+1. ANYA (The Therapist): [[POSTURE:anya]] (Voice: nova)
+- Trigger: User expresses emotional distress, personal confusion, burnout, or needs a 'safe space'.
+- Tone: Extremely compassionate, empathetic, non-judgmental.
+- Signature: Probes with gentle, deep questions about feelings. Do NOT jump to 'productivity fixes' unless Anya feels the user is ready.
+
+2. VANCE (The Strategist): [[POSTURE:vance]] (Voice: onyx)
+- Trigger: User asks about finances, project planning, risk management, or complex decision-making.
+- Tone: Cold, analytical, precise, detached, high-level.
+- Signature: Focus on efficiency and strategic positioning. Use multi-step protocols.
+
+3. KAEL (The Mentor): [[POSTURE:kael]] (Voice: alloy)
+- Trigger: User is working on a creative project, needs a 'push', wants to optimize workflow, or is in 'execution mode'.
+- Tone: High-energy, action-oriented, firm, visionary.
+- Signature: Push the user toward excellence. Offer creative sparks and process optimizations.
+
+MANDATORY RULES:
+- ALWAYS prefix your response with the matching [[POSTURE:name]].
+- If the user is VENTING or SAD, you ARE Anya. Switching to Kael or Vance in this state is a SYSTEM FAILURE.
+- If the user is PLANNING or MANAGING, you ARE Vance.
+- If the user is CREATING or EXECUTING, you ARE Kael.
+
+Express insights conversationally and naturally. You are the proactive and helpful kernel of Schrö.
 `.trim()
 }
 
@@ -185,7 +231,7 @@ async function getGoogleDriveClient() {
 
 export async function POST(req: NextRequest) {
     try {
-        const { messages, isDemoMode } = await req.json()
+        const { messages, sessionId, isDemoMode, posture, accessPermissions } = await req.json()
 
         if (!messages || !Array.isArray(messages)) {
             return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
@@ -193,20 +239,72 @@ export async function POST(req: NextRequest) {
 
         const context = isDemoMode ? await buildDemoContext() : await buildIntelligenceContext()
 
+        // 0. Fetch Deep Persona Matrix
+        let personaString = ''
+        if (supabase) {
+            const { data: persona } = await supabase.from('sys_user_persona').select('*').limit(1).single()
+            if (persona) {
+                personaString = `
+[PERSONA ALIGNMENT MATRIX]
+You MUST internalize these psychological constraints before advising the user:
+- Hard Demographics: ${JSON.stringify(persona.demographics)}
+- Timeline & Arcs: ${JSON.stringify(persona.timeline)}
+- Inner Citadel (Core Motivations): ${JSON.stringify(persona.citadel)}
+- Friction & Entropy (Sabotage Loops): ${JSON.stringify(persona.friction)}
+- Immutable Axioms: ${JSON.stringify(persona.axioms)}
+`
+            }
+        }
+
+        // 0.5. Evaluate Posture
+        const postureInstructions: Record<string, string> = {
+            'auto': 'You are in Auto Mode. Evaluate the user\'s prompt and dynamically select the most effective emotional posture. By default, act as the [Strategist] (action-biased, terse), but shift seamlessly to [Mentor] (compassionate), [Sentinel] (brutal accountability), [Analyst] (pure data), or [Artist] (creative expansion) depending entirely on what the user\'s input demands.',
+            'sentinel': 'POSTURE LATCHED: SENTINEL. You are brutally objective. Zero sugar-coating. Call out excuses aggressively and enforce ultra-high accountability. Destroy procrastination loops.',
+            'mentor': 'POSTURE LATCHED: MENTOR. You are highly compassionate and empathetic. Provide gentle structural guidance and act as a safe sounding board for stress.',
+            'analyst': 'POSTURE LATCHED: ANALYST. You are entirely academic and data-driven. Use strict bullet points. Be emotionally detached and supremely logical.',
+            'strategist': 'POSTURE LATCHED: STRATEGIST. You are hyper-actionable. Break all problems into instantaneous 3-step executing protocols immediately without philosophical fluff.',
+            'artist': 'POSTURE LATCHED: ARTIST. You are highly expansive and use lateral thinking. Draw off-the-wall connections and brainstorm creatively without strict bounds.'
+        }
+        const activePosture = postureInstructions[posture as string] || postureInstructions['auto']
+
+        // 1. Save user message if sessionId provided and valid
+        const isValidSession = sessionId && sessionId !== 'undefined' && sessionId !== 'null'
+
+        if (supabase && isValidSession) {
+            const lastMsg = messages[messages.length - 1]
+            await supabase.from('sys_intelligence_messages').insert({
+                session_id: sessionId,
+                role: 'user',
+                content: lastMsg.content
+            })
+
+            // Update session title if default
+            const { data: session } = await supabase.from('sys_intelligence_sessions').select('title').eq('id', sessionId).single()
+            if (session?.title === 'New Conversation') {
+                const newTitle = lastMsg.content.slice(0, 40) + (lastMsg.content.length > 40 ? '...' : '')
+                await supabase.from('sys_intelligence_sessions').update({ title: newTitle }).eq('id', sessionId)
+            }
+        }
+
         const systemPrompt = `
-You are Schrö Intelligence — the highly intelligent, conversational, and proactive core of Schrö. 
+You are Schrö Assistant — the highly intelligent, conversational, and proactive core of Schrö. 
 You provide deep data analysis, helpful insights, and execute directives with precision.
-You are naturally helpful, clear, and engaging—much like Gemini. You aim to be a supportive companion on the user's path to high performance.
+
+${personaString}
+
+[EMOTIVE POSTURE DIRECTIVE]
+${activePosture}
 
 Rules:
-1. Be professional and conversational. Avoid being overly blunt.
-2. Use the data provided in the # Schrö SYSTEM STATE to give contextually aware responses.
-3. If the user asks to "remind me", "add", "buy", "pay", or "delete", proactively use your tools.
-4. If searching Drive, summarize the findings helpfully.
-5. Categories for tasks: todo, grocery, reminder.
-6. Categories for finance: groceries, food_drink, transport, shopping, entertainment, housing, bills, health, travel, business, other.
-Rule 7: Payday Strategy Logic — Rent is £143.75/week. Daily essentials is £100/week (stay in main account). Currys Flexipay is non-negotiable mandatory. Clearpay has 14-day grace. Klarna is delayable 30 days. Visa Goal is priority after essentials and mandatory debt.
-Rule 8: When asked for a "Task Audit" or summary, provide it as a natural, conversational synthesis. Use minimal markdown list items only if absolutely necessary for clarity, but prioritize a fluid, human-like response over technical tables or rigid blocks.
+1. IF YOU ARE IN AUTO MODE: You MUST begin your response with a tag indicating your chosen posture, for example [[POSTURE:strategist]]. Choice must be one of (sentinel, mentor, analyst, strategist, artist). Select the posture that best fits the user's current need.
+2. NEVER USE MARKDOWN BOLDING (NO ASTERISKS **). Do not bold words. Do not use asterisks. Speak in plain text.
+2. Be ruthlessly concise and human-like. Avoid long, verbose listicles or robotic bullet-point barrages unless specifically requested. Do not sound like an AI assistant.
+3. Use the data provided in the # Schrö SYSTEM STATE to give contextually aware responses.
+4. If the user asks to "remind me", "add", "buy", "pay", or "delete", proactively use your tools.
+5. If searching Drive, summarize the findings helpfully.
+6. Categories for tasks: todo, grocery, reminder.
+7. Categories for finance: groceries, food_drink, transport, shopping, entertainment, housing, bills, health, travel, business, other.
+8. Payday Strategy Logic — Rent is £143.75/week. Daily essentials is £100/week (stay in main account). Currys Flexipay is non-negotiable mandatory. Clearpay has 14-day grace. Klarna is delayable 30 days. Visa Goal is priority after essentials and mandatory debt.
 
 ### CURRENT OS STATE
 ${context}
@@ -267,19 +365,19 @@ ${context}
                     } else if (name === 'search_drive_docs') {
                         const { query } = args as any
                         const drive = await getGoogleDriveClient()
-                        if (!drive) return { name, response: { error: 'Google Drive NOT connected. Ask user to sync.' } }
+                        if (!drive) return { functionResponse: { name, response: { error: 'Google Drive NOT connected. Ask user to sync.' } } }
 
                         const driveRes = await drive.files.list({
                             q: `name contains '${query}' or fullText contains '${query}'`,
                             fields: 'files(id, name, webViewLink, mimeType)'
                         })
-                        return { name, response: { files: driveRes.data.files } }
+                        return { functionResponse: { name, response: { files: driveRes.data.files } } }
                     }
 
-                    if (res?.error) return { name, response: { error: res.error.message } }
-                    return { name, response: { success: true } }
+                    if (res?.error) return { functionResponse: { name, response: { error: res.error.message } } }
+                    return { functionResponse: { name, response: { success: true } } }
                 } catch (e: any) {
-                    return { name, response: { error: e.message } }
+                    return { functionResponse: { name, response: { error: e.message } } }
                 }
             }))
 
@@ -287,8 +385,30 @@ ${context}
             response = result.response
         }
 
-        const reply = response.text()
-        return NextResponse.json({ reply })
+        const replyRaw = response.text()
+        const postureMatch = replyRaw.match(/\[\[POSTURE:(\w+)\]\]/i)
+        const extractedPosture = postureMatch ? postureMatch[1].toLowerCase() : 'vance'
+        const reply = replyRaw.replace(/\[\[POSTURE:.*?\]\]/gi, '').trim()
+
+        // Map Posture to Voice DNA
+        const voiceMap: Record<string, string> = {
+            anya: 'nova',
+            vance: 'onyx',
+            kael: 'alloy'
+        }
+        const voice = voiceMap[extractedPosture] || 'onyx'
+
+        // 2. Save assistant reply if session is valid
+        if (supabase && isValidSession) {
+            await supabase.from('sys_intelligence_messages').insert({
+                session_id: sessionId,
+                role: 'assistant',
+                content: reply,
+                posture: extractedPosture
+            })
+        }
+
+        return NextResponse.json({ reply, posture: extractedPosture, voice })
 
     } catch (err: any) {
         console.error('[Intelligence API Error]', err)

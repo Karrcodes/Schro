@@ -63,7 +63,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [editValue, setEditValue] = useState("")
     const [editPriority, setEditPriority] = useState<Priority>("super")
     const [showCompleted, setShowCompleted] = useState(false)
-    const [sortBy, setSortBy] = useState<'manual' | 'priority' | 'impact' | 'duration' | 'deadline' | 'date'>('priority')
+    const [sortBy, setSortBy] = useState<'manual' | 'priority' | 'impact' | 'duration' | 'deadline' | 'date' | 'price'>(category === 'grocery' ? 'price' : 'priority')
     const [draggedItem, setDraggedItem] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
     const [activeFilter, setActiveFilter] = useState<string>('all')
@@ -533,11 +533,16 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             return aCompleted ? 1 : -1
         }
 
-        if (sortBy === 'priority') {
+        if (sortBy === 'priority' && category !== 'grocery') {
             const priorityOrder = { super: 0, high: 1, mid: 2, low: 3 }
             const aPri = a.type === 'task' ? (a.data.priority || 'low') : 'mid'
             const bPri = b.type === 'task' ? (b.data.priority || 'low') : 'mid'
             const diff = (priorityOrder[aPri as keyof typeof priorityOrder] ?? 3) - (priorityOrder[bPri as keyof typeof priorityOrder] ?? 3)
+            if (diff !== 0) return diff
+        } else if (sortBy === 'price') {
+            const aPrice = a.type === 'task' ? (a.data.price || 0) : 0
+            const bPrice = b.type === 'task' ? (b.data.price || 0) : 0
+            const diff = bPrice - aPrice // Expensive first
             if (diff !== 0) return diff
         } else if (sortBy === 'impact') {
             const aImp = a.type === 'task' ? (a.data.impact_score || 0) : (a.data.impact_score || 0)
@@ -776,8 +781,12 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 sortBy !== 'manual' && "bg-black/[0.06] text-black"
                             )}
                         >
-                            <option value="manual">Manual</option>
-                            <option value="priority">Priority</option>
+                             <option value="manual">Manual</option>
+                            {category === 'grocery' ? (
+                                <option value="price">Price</option>
+                            ) : (
+                                <option value="priority">Priority</option>
+                            )}
                             {category !== 'grocery' && (
                                 <>
                                     <option value="impact">Impact</option>
@@ -791,38 +800,59 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                     </div>
                     {category === 'grocery' && (
                         <div className="flex items-center gap-3 ml-auto animate-in fade-in slide-in-from-right-2">
+                            <input
+                                type="file"
+                                id="receipt-upload"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) {
+                                        setIsUploadingReceipt(true)
+                                        try {
+                                            await processReceipt(file)
+                                            setShowUploadSuccess(true)
+                                            setTimeout(() => setShowUploadSuccess(false), 3000)
+                                        } finally {
+                                            setIsUploadingReceipt(false)
+                                        }
+                                    }
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => document.getElementById('receipt-upload')?.click()}
+                                disabled={isUploadingReceipt || libraryLoading}
+                                className={cn(
+                                    "h-8 px-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border flex items-center gap-2",
+                                    showUploadSuccess 
+                                        ? "bg-emerald-500 text-white border-emerald-500 shadow-sm" 
+                                        : (isUploadingReceipt || libraryLoading)
+                                            ? "bg-black/[0.03] text-black/20 border-black/5 animate-pulse"
+                                            : "bg-black/[0.03] hover:bg-black/[0.08] text-black/60 hover:text-black border-black/5"
+                                )}
+                            >
+                                {isUploadingReceipt || libraryLoading ? (
+                                    <RefreshCw className="w-3 h-3" />
+                                ) : showUploadSuccess ? (
+                                    <Check className="w-3 h-3" />
+                                ) : (
+                                    <Receipt className="w-3.5 h-3.5" />
+                                )}
+                                {isUploadingReceipt ? 'Scanning...' : showUploadSuccess ? 'Success' : 'Receipt'}
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => setShowLibraryModal(true)}
                                 className="h-8 px-3 rounded-lg bg-black/[0.03] hover:bg-black/[0.08] text-black/60 hover:text-black text-[10px] font-bold uppercase tracking-widest transition-all border border-black/5 flex items-center gap-2"
                             >
-                                <Library className="w-3 h-3" />
+                                <Library className="w-3.5 h-3.5" />
                                 Library
                             </button>
                             <div className="flex flex-col items-end">
                                 <span className="text-[9px] font-bold text-black/20 uppercase tracking-widest">Cart Total</span>
                                 <span className="text-[13px] font-black text-emerald-600">£{groceryTotal.toFixed(2)}</span>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setConfirmModal({
-                                        open: true,
-                                        title: 'Finish Shopping?',
-                                        message: 'This will clear all completed items from your grocery list. Are you sure?',
-                                        confirmText: 'Yes, Shop Completed',
-                                        type: 'info',
-                                        action: async () => {
-                                            await clearCompletedTasks()
-                                            setConfirmModal(prev => ({ ...prev, open: false }))
-                                        }
-                                    })
-                                }}
-                                className="h-8 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-widest transition-all shadow-sm hover:shadow-md flex items-center gap-2"
-                            >
-                                <Check className="w-3 h-3" />
-                                Shop Completed
-                            </button>
                         </div>
                     )}
                 </div>
@@ -920,47 +950,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             </div>
                         )}
                     </div>
-                    {category === 'grocery' && (
-                        <>
-                            <input
-                                type="file"
-                                id="receipt-upload"
-                                className="hidden"
-                                accept="image/*"
-                                onChange={async (e) => {
-                                    const file = e.target.files?.[0]
-                                    if (file) {
-                                        setIsUploadingReceipt(true)
-                                        try {
-                                            await processReceipt(file)
-                                            setShowUploadSuccess(true)
-                                            setTimeout(() => setShowUploadSuccess(false), 3000)
-                                        } finally {
-                                            setIsUploadingReceipt(false)
-                                        }
-                                    }
-                                }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => document.getElementById('receipt-upload')?.click()}
-                                disabled={isUploadingReceipt || libraryLoading}
-                                className={cn(
-                                    "w-11 h-11 rounded-xl flex items-center justify-center transition-all bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100",
-                                    (isUploadingReceipt || libraryLoading) && "animate-pulse opacity-50",
-                                    showUploadSuccess && "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20"
-                                )}
-                            >
-                                {isUploadingReceipt || libraryLoading ? (
-                                    <RefreshCw className="w-5 h-5 animate-spin" />
-                                ) : showUploadSuccess ? (
-                                    <Check className="w-5 h-5" />
-                                ) : (
-                                    <Receipt className="w-5 h-5" />
-                                )}
-                            </button>
-                        </>
-                    )}
+
                     <button
                         type="button"
                         onClick={() => setShowQuickImport(true)}
@@ -1137,23 +1127,25 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
                         {/* Combined Priority & Tactical Tag row */}
                         <div className="flex flex-wrap items-center gap-3 p-1">
-                            <div className="flex gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit h-[36px] items-center">
-                                {(['super', 'high', 'mid', 'low'] as const).map(p => (
-                                    <button
-                                        key={p}
-                                        type="button"
-                                        onClick={() => setPriority(p)}
-                                        className={cn(
-                                            "px-2.5 h-full flex items-center text-[10px] font-bold rounded-lg border transition-all uppercase tracking-tight",
-                                            priority === p
-                                                ? PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].color + " shadow-sm scale-105"
-                                                : "bg-transparent text-black/30 border-transparent hover:text-black/50 hover:bg-black/5"
-                                        )}
-                                    >
-                                        {PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].label}
-                                    </button>
-                                ))}
-                            </div>
+                            {category !== 'grocery' && (
+                                <div className="flex gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit h-[36px] items-center">
+                                    {(['super', 'high', 'mid', 'low'] as const).map(p => (
+                                        <button
+                                            key={p}
+                                            type="button"
+                                            onClick={() => setPriority(p)}
+                                            className={cn(
+                                                "px-2.5 h-full flex items-center text-[10px] font-bold rounded-lg border transition-all uppercase tracking-tight",
+                                                priority === p
+                                                    ? PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].color + " shadow-sm scale-105"
+                                                    : "bg-transparent text-black/30 border-transparent hover:text-black/50 hover:bg-black/5"
+                                            )}
+                                        >
+                                            {PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
 
                             {category !== 'grocery' && (
                                 <>
@@ -1627,6 +1619,31 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                     ))
                 )}
             </Reorder.Group>
+
+            {category === 'grocery' && tasks.some(t => t.is_completed) && (
+                <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setConfirmModal({
+                                open: true,
+                                title: 'Finish Shopping?',
+                                message: 'This will clear all completed items from your grocery list. Are you sure?',
+                                confirmText: 'Yes, Shop Completed',
+                                type: 'info',
+                                action: async () => {
+                                    await clearCompletedTasks()
+                                    setConfirmModal(prev => ({ ...prev, open: false }))
+                                }
+                            })
+                        }}
+                        className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-[13px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/40 flex items-center justify-center gap-3 active:scale-[0.98]"
+                    >
+                        <Check className="w-5 h-5" />
+                        Finish Shopping & Clear List
+                    </button>
+                </div>
+            )}
 
             <TaskDetailModal
                 task={selectedTaskForModal}
@@ -2143,23 +2160,25 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                 </div>
                             )}
 
-                            <div className="flex gap-1 p-1 bg-black/[0.03] rounded-lg border border-black/5">
-                                {(['super', 'high', 'mid', 'low'] as const).map(p => (
-                                    <button
-                                        key={p}
-                                        type="button"
-                                        onClick={() => setEditPriority(p)}
-                                        className={cn(
-                                            "px-2 py-1 text-[9px] font-bold rounded-md border transition-all uppercase tracking-tight whitespace-nowrap",
-                                            editPriority === p
-                                                ? PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].color + " shadow-sm"
-                                                : "bg-transparent text-black/30 border-transparent hover:text-black/50"
-                                        )}
-                                    >
-                                        {PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].label}
-                                    </button>
-                                ))}
-                            </div>
+                            {category !== 'grocery' && (
+                                <div className="flex gap-1 p-1 bg-black/[0.03] rounded-lg border border-black/5">
+                                    {(['super', 'high', 'mid', 'low'] as const).map(p => (
+                                        <button
+                                            key={p}
+                                            type="button"
+                                            onClick={() => setEditPriority(p)}
+                                            className={cn(
+                                                "px-2 py-1 text-[9px] font-bold rounded-md border transition-all uppercase tracking-tight whitespace-nowrap",
+                                                editPriority === p
+                                                    ? PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].color + " shadow-sm"
+                                                    : "bg-transparent text-black/30 border-transparent hover:text-black/50"
+                                            )}
+                                        >
+                                            {PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -2279,7 +2298,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                     <div className="flex flex-col min-w-0 flex-1">
                         {/* Metadata First Hierarchy */}
                         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                            {task.priority && !task.is_completed && (
+                            {category !== 'grocery' && task.priority && !task.is_completed && (
                                 <span className={cn(
                                     "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-[0.1em] shrink-0",
                                     (PRIORITIES.find(p => p.id === task.priority) || PRIORITIES[3]).color

@@ -5,4 +5,12 @@ if (!apiKey) console.warn('GEMINI_API_KEY is not defined')
 
 const genAI = new GoogleGenerativeAI(apiKey)
 
-export const geminiModel = genAI.getGenerativeModel({ model: 'gemini-flash-latest' })
+export const geminiModel = genAI.getGenerativeModel({ 
+    model: 'gemini-2.5-flash',
+    generationConfig: {
+        temperature: 1.0,
+        topP: 0.95,
+        topK: 40,
+        maxOutputTokens: 2048,
+    }
+})

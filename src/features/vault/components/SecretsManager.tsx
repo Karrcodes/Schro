@@ -28,6 +28,7 @@ export function SecretsManager() {
     const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
     const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({})
     const [copiedId, setCopiedId] = useState<string | null>(null)
+    const [searchQuery, setSearchQuery] = useState('')
     const { settings } = useSystemSettings()
 
     // Form states
@@ -215,24 +216,47 @@ export function SecretsManager() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-black flex items-center gap-2">
                         <span>🔐</span> Secrets
                     </h2>
                     <p className="text-[12px] text-black/40">Manage your passwords and sensitive access details</p>
                 </div>
-                <button
-                    onClick={() => setAdding(!adding)}
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-[13px] font-bold hover:bg-black/80 transition-all shadow-sm active:scale-95"
-                >
-                    {adding ? 'Cancel' : (
-                        <>
-                            <Plus className="w-4 h-4" />
-                            <span>Add Secret</span>
-                        </>
-                    )}
-                </button>
+                
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <input 
+                            type="text" 
+                            placeholder="Search secrets..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full sm:w-64 bg-black/[0.03] border border-black/[0.06] rounded-xl py-2 px-4 pl-9 text-[13px] font-medium outline-none focus:ring-2 focus:ring-black/5 transition-all"
+                        />
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        {searchQuery && (
+                            <button 
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-black/20 hover:text-black transition-colors"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                    <button
+                        onClick={() => setAdding(!adding)}
+                        className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-[13px] font-bold hover:bg-black/80 transition-all shadow-sm active:scale-95 shrink-0"
+                    >
+                        {adding ? 'Cancel' : (
+                            <>
+                                <Plus className="w-4 h-4" />
+                                <span className="hidden xs:inline">Add Secret</span>
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             {adding && (
@@ -315,18 +339,28 @@ export function SecretsManager() {
                             <p className="text-[13px] font-medium text-black/30">Loading your secrets...</p>
                         </div>
                     </div>
-                ) : secrets.length === 0 ? (
+                ) : secrets.filter(s => 
+                    s.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    s.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    s.notes?.toLowerCase().includes(searchQuery.toLowerCase())
+                ).length === 0 ? (
                     <div className="bg-white border border-black/[0.08] rounded-2xl p-12 text-center shadow-sm">
                         <div className="flex flex-col items-center gap-3">
                             <div className="w-12 h-12 rounded-full bg-black/[0.03] flex items-center justify-center">
                                 <Key className="w-6 h-6 text-black/10" />
                             </div>
-                            <p className="text-[13px] font-medium text-black/30">No secrets stored yet.</p>
+                            <p className="text-[13px] font-medium text-black/30">
+                                {searchQuery ? 'No secrets match your search.' : 'No secrets stored yet.'}
+                            </p>
                         </div>
                     </div>
                 ) : (
                     Object.entries(
-                        secrets.reduce((acc, secret) => {
+                        secrets.filter(s => 
+                            s.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            s.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            s.notes?.toLowerCase().includes(searchQuery.toLowerCase())
+                        ).reduce((acc, secret) => {
                             const key = secret.service.toLowerCase().trim();
                             if (!acc[key]) acc[key] = [];
                             acc[key].push(secret);

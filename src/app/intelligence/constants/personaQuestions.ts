@@ -1,0 +1,122 @@
+// 100-Question Deep Psychographic Profiling Grid
+
+export interface PersonaQuestion {
+    id: string
+    question: string
+    type: 'input' | 'textarea' | 'select'
+    options?: string[]
+    placeholder?: string
+}
+
+export const PERSONA_QUESTIONS: Record<string, PersonaQuestion[]> = {
+    demographics: [
+        { id: 'd_name', question: 'Full Name / Preferred Alias', type: 'input', placeholder: 'What do you want to be called?' },
+        { id: 'd_age', question: 'Age & Exact Stage of Life', type: 'input', placeholder: 'e.g. 28, Scaling Career Phase' },
+        { id: 'd_loc', question: 'Current Physical Location & Mobility', type: 'input', placeholder: 'City, Country, Nomad?' },
+        { id: 'd_env', question: 'Primary Living Environment', type: 'input', placeholder: 'Urban dense, rural, suburb?' },
+        { id: 'd_house', question: 'Housing & Solitude Baseline', type: 'input', placeholder: 'Solo, Roommates, Partner, Family?' },
+        { id: 'd_sib', question: 'Siblings & Birth Order Position', type: 'input', placeholder: 'e.g. Oldest of 3' },
+        { id: 'd_rel', question: 'Current Relationship Status', type: 'input' },
+        { id: 'd_occ', question: 'Current Occupation / Title', type: 'input' },
+        { id: 'd_ind', question: 'Primary Industry & Trajectory', type: 'input' },
+        { id: 'd_edu', question: 'Highest Formal Education Attained', type: 'input' },
+        { id: 'd_diet', question: 'Dietary Restrictions & Philosophy', type: 'input', placeholder: 'e.g. High Protein, Fasting' },
+        { id: 'd_chrono', question: 'Chronotype (Peak Energy Window)', type: 'select', options: ['Morning Bird (6AM-10AM peak)', 'Midday Motor (12PM-4PM peak)', 'Night Owl (9PM-2AM peak)', 'Erratic/Unstable'] },
+        { id: 'd_sleep', question: 'Required Daily Sleep Baseline', type: 'input', placeholder: 'e.g. Exactly 7.5 hours' },
+        { id: 'd_phys', question: 'Weekly Physical Activity Baseline', type: 'input', placeholder: 'e.g. Heavy lifting 4x week' },
+        { id: 'd_inc', question: 'Base Income Bracket & Stability', type: 'input' },
+        { id: 'd_dep', question: 'Primary Dependents (Children/Pets)', type: 'input' },
+        { id: 'd_lang', question: 'Spoken / Native Languages', type: 'input' },
+        { id: 'd_phil', question: 'Religious or Philosophical Baseline', type: 'input' },
+        { id: 'd_neuro', question: 'Neurological / Biological Quirks', type: 'input', placeholder: 'e.g. ADHD, Anxiety triggers, High focus limits' },
+        { id: 'd_comm', question: 'Typical Daily Transition/Commute Times', type: 'input' }
+    ],
+    timeline: [
+        { id: 't_mem_1', question: 'Your Most Defining Childhood Memory', type: 'textarea' },
+        { id: 't_mem_2', question: 'Your Greatest Adolescent Triumph', type: 'textarea' },
+        { id: 't_mem_3', question: 'Your Deepest Foundational Failure', type: 'textarea' },
+        { id: 't_shift_1', question: 'Your Primary Worldview Shift (When/Why?)', type: 'textarea', placeholder: 'When did your perspective of the world fundamentally break and rebuild?' },
+        { id: 't_loss', question: 'The Hardest Goodbye You Have Experienced', type: 'textarea' },
+        { id: 't_pivot', question: 'Your Most Significant Career / Path Pivot', type: 'textarea' },
+        { id: 't_alive', question: 'The Exact Moment You Felt Most Alive', type: 'textarea' },
+        { id: 't_reject', question: 'A Past Core Belief You Now Actively Reject', type: 'textarea' },
+        { id: 't_mentor', question: 'Who Was Your Most Influential Mentor?', type: 'textarea' },
+        { id: 't_antag', question: 'Who Was Your Greatest Antagonist/Adversary?', type: 'textarea' },
+        { id: 't_g_1', question: '1 Year Goal: Where mathematically must you be?', type: 'textarea', placeholder: 'Exact metrics.' },
+        { id: 't_g_3', question: '3 Year Goal: What must physically exist that doesn\'t now?', type: 'textarea' },
+        { id: 't_g_5', question: '5 Year Goal: Who is surrounding you?', type: 'textarea' },
+        { id: 't_g_10', question: '10 Year Goal: What is your absolute legacy outcome?', type: 'textarea' },
+        { id: 't_giveup', question: 'What project or ideal are you currently letting die?', type: 'textarea' },
+        { id: 't_fail_pat', question: 'What is the recurring historical theme of your failures?', type: 'textarea' },
+        { id: 't_suc_pat', question: 'What exact behavioral pattern consistently dictates your successes?', type: 'textarea' },
+        { id: 't_hist', question: 'A historical era or figure you overly empathize with', type: 'textarea' },
+        { id: 't_fun', question: 'How do you want to be remembered at your funeral?', type: 'textarea' },
+        { id: 't_exit', question: 'What is your ultimate "Exit Strategy" from the system?', type: 'textarea' }
+    ],
+    citadel: [
+        { id: 'c_amb', question: 'What is your absolute highest, unfiltered ambition?', type: 'textarea', placeholder: 'Do not be humble.' },
+        { id: 'c_fear', question: 'What is your greatest, darkest fear of absolute failure?', type: 'textarea', placeholder: 'What happens if you fail? What are you running from?' },
+        { id: 'c_val', question: 'Who do you SECRETLY crave validation from?', type: 'textarea', placeholder: 'Who must see you succeed?' },
+        { id: 'c_bel', question: 'What is a core belief you hold but never share publicly?', type: 'textarea' },
+        { id: 'c_free', question: 'How do you physically and mentally define "Freedom"?', type: 'textarea' },
+        { id: 'c_inf', question: 'What makes you feel instantly inferior or unqualified?', type: 'textarea' },
+        { id: 'c_sup', question: 'What makes you feel instantly superior or dominant?', type: 'textarea' },
+        { id: 'c_anon', question: 'If fully anonymous and unpunished, what would you do?', type: 'textarea' },
+        { id: 'c_hum', question: 'Do you believe humans are fundamentally good or fundamentally selfish?', type: 'select', options: ['Fundamentally Good', 'Fundamentally Selfish', 'Blank Slates'] },
+        { id: 'c_peace', question: 'What brings you the closest thing to spiritual peace?', type: 'textarea' },
+        { id: 'c_love', question: 'How do you define "Love" practically in your immediate life?', type: 'textarea' },
+        { id: 'c_sac', question: 'What is the absolute maximum sacrifice you would make for your ambition?', type: 'textarea' },
+        { id: 'c_line', question: 'What is the line you will absolutely NEVER cross for money?', type: 'textarea' },
+        { id: 'c_stat', question: 'Do you value Status/Legacy or Material Wealth more?', type: 'select', options: ['Status & Legacy', 'Material Wealth & Resource', 'They are identical to me'] },
+        { id: 'c_pow', question: 'Do you value Power/Influence or Peace/Isolation more?', type: 'select', options: ['Power & Influence', 'Peace & Isolation'] },
+        { id: 'c_judg_o', question: 'What is the single trait you judge others most harshly on?', type: 'textarea' },
+        { id: 'c_judg_s', question: 'What is the single trait you judge YOURSELF most harshly on?', type: 'textarea' },
+        { id: 'c_death', question: 'What do you believe happens after death?', type: 'textarea' },
+        { id: 'c_purp', question: 'Do you believe your individual life has a predetermined purpose?', type: 'textarea' },
+        { id: 'c_def', question: 'What specific part of your outward personality is entirely a defense mechanism?', type: 'textarea' }
+    ],
+    friction: [
+        { id: 'f_proc', question: 'When you avoid hard tasks, what EXACTLY do you do instead?', type: 'textarea', placeholder: 'e.g. "I redesign UI perfectly instead of writing logic code"' },
+        { id: 'f_tox', question: 'What is your absolute most toxic, recurring habit?', type: 'textarea' },
+        { id: 'f_stress', question: 'What is the literal physical feeling you associate with stress?', type: 'textarea' },
+        { id: 'f_for', question: 'How quickly do you forgive yourself after slipping up?', type: 'textarea' },
+        { id: 'f_drain', question: 'What highly specific type of work consistently drains your energy fastest?', type: 'textarea' },
+        { id: 'f_sym', question: 'When complaining about burnout, do you want solutions or sympathy?', type: 'select', options: ['Give me solutions and push me', 'Give me sympathy and validation'] },
+        { id: 'f_just', question: 'How do you cognitively justify bad dietary or health choices?', type: 'textarea' },
+        { id: 'f_dist', question: 'What is your absolute biggest modern distraction vulnerability?', type: 'textarea', placeholder: 'Social media, gaming, Wikipedia rabbit holes?' },
+        { id: 'f_rec', question: 'When you are truly burned out, what is the fastest way you recover?', type: 'textarea' },
+        { id: 'f_sab', question: 'Do you self-sabotage when things go too well? Exactly how?', type: 'textarea' },
+        { id: 'f_fin', question: 'What is the most irrational financial habit you maintain?', type: 'textarea' },
+        { id: 'f_vamp', question: 'Who or what consistently drains your energy, and why do you allow it?', type: 'textarea' },
+        { id: 'f_putoff', question: 'What major existential task have you been putting off the longest?', type: 'textarea' },
+        { id: 'f_plan', question: 'Do you lean towards over-planning (paralysis) or under-planning (recklessness)?', type: 'select', options: ['Over-planning (Paralysis)', 'Under-planning (Recklessness)'] },
+        { id: 'f_admin', question: 'How do you handle administrative or tedious "busy work"?', type: 'textarea' },
+        { id: 'f_finish', question: 'Are you worse at starting projects or finishing them?', type: 'select', options: ['Worse at Starting', 'Worse at Finishing'] },
+        { id: 'f_lie', question: 'What lie do you most frequently tell yourself?', type: 'textarea' },
+        { id: 'f_env', question: 'What specific environmental factor instantly ruins your focus?', type: 'textarea' },
+        { id: 'f_emo', question: 'What specific emotional state always precedes your worst decisions?', type: 'textarea' },
+        { id: 'f_rein', question: 'Do you prefer negative reinforcement (fear of loss) or positive reinforcement (chasing reward)?', type: 'select', options: ['Negative Reinforcement (Fear)', 'Positive Reinforcement (Reward)'] }
+    ],
+    axioms: [
+        { id: 'a_n_off', question: 'Never advise me to do X without offering Y.', type: 'textarea', placeholder: 'e.g. Never advise me to sleep without mathematically showing me how it increases output.' },
+        { id: 'a_tone', question: 'What specific tone of voice instantly makes you defensive and hostile?', type: 'textarea' },
+        { id: 'a_n_health', question: 'What is a non-negotiable rule regarding your health?', type: 'textarea' },
+        { id: 'a_n_fin', question: 'What is a non-negotiable rule regarding your finances?', type: 'textarea' },
+        { id: 'a_bad_n', question: 'How EXACTLY should brutal or bad news be delivered to you?', type: 'textarea' },
+        { id: 'a_data', question: 'How should complex data or strategy be formatted for your brain?', type: 'textarea', placeholder: 'e.g. Only bullet points, strict logical deductions' },
+        { id: 'a_phil', question: 'What specific philosophical framework must all AI advice pass through?', type: 'textarea', placeholder: 'e.g. Stoicism, Extreme Ownership, Utilitarianism' },
+        { id: 'a_plat', question: 'Never use these specific words, phrases, or platitudes:', type: 'textarea' },
+        { id: 'a_prio', question: 'Always prioritize X over Y when they logically conflict:', type: 'textarea', placeholder: 'e.g. Prioritize momentum over perfect code.' },
+        { id: 'a_irr', question: 'If I am acting extremely irrationally, the AI must explicitly:', type: 'textarea' },
+        { id: 'a_quit', question: 'If I want to abruptly quit a major goal, the AI must explicitly:', type: 'textarea' },
+        { id: 'a_cel', question: 'If I am celebrating a massive win, the AI must explicitly:', type: 'textarea' },
+        { id: 'a_crit', question: 'When analyzing my work or strategy, prioritize critiquing:', type: 'textarea' },
+        { id: 'a_loy', question: 'The AI\'s ultimate loyalty is irreversibly tethered to my:', type: 'select', options: ['Future Ideal Self', 'Present Comfort Self'] },
+        { id: 'a_socr', question: 'Do you want the AI to utilize the Socratic method (ask questions back) or just provide rigid instructions?', type: 'select', options: ['Ask Questions (Socratic)', 'Give Rigid Instructions'] },
+        { id: 'a_emo', question: 'Should the AI explicitly express simulated "emotion/empathy" or remain chillingly mechanical?', type: 'select', options: ['Express Simulated Empathy', 'Remain Chillingly Mechanical'] },
+        { id: 'a_len', question: 'What is the absolute maximum acceptable length for an AI strategic response?', type: 'textarea' },
+        { id: 'a_cite', question: 'Do you require rigorous citations and mathematical proofs for claims?', type: 'select', options: ['Yes, Rigorous Proofs', 'No, Just the conclusion'] },
+        { id: 'a_dk', question: 'If the AI DOES NOT logically know the answer to a life problem, it must say:', type: 'textarea' },
+        { id: 'a_prime', question: 'State the ultimate Prime Directive for Schrö Intelligence in one sentence:', type: 'textarea' }
+    ]
+}

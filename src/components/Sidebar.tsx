@@ -21,7 +21,7 @@ import { useFinanceProfile } from '@/features/finance/contexts/FinanceProfileCon
 import { useSettings } from '@/features/finance/hooks/useSettings'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 
-import { navItems, NavItem, COLOR_MAP } from '@/lib/navConfig'
+import { navItems, NavItem, COLOR_MAP, assistantItem } from '@/lib/navConfig'
 import { useAuth } from '@/contexts/AuthContext'
 
 function CapBadge({ cap }: { cap: 'P' | 'B' }) {
@@ -772,6 +772,20 @@ export function Sidebar() {
                 {/* Footer + Profile – hide in collapsed state */}
                 {!isCollapsed && (
                     <div className="px-5 py-3 border-t border-black/[0.03] space-y-1">
+                        <Link
+                            href={assistantItem.href}
+                            onClick={(e) => handleNavClick(assistantItem.href, e)}
+                            className={cn(
+                                "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all text-[13px] font-medium outline-none select-none",
+                                pathname.startsWith(assistantItem.href)
+                                    ? 'bg-black/10 text-black'
+                                    : 'text-black/50 hover:bg-black/[0.04] hover:text-black/80'
+                            )}
+                        >
+                            <assistantItem.icon className={cn("w-4 h-4", pathname.startsWith(assistantItem.href) ? (COLOR_MAP[assistantItem.color || 'black'] || 'text-black') : 'text-black/35')} />
+                            {assistantItem.label}
+                            {pathname.startsWith(assistantItem.href) && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-black animate-pulse" />}
+                        </Link>
                         <button
                             onClick={() => toggleMultitasking(pathname)}
                             className={cn(
@@ -811,6 +825,37 @@ export function Sidebar() {
                 {/* Expand / Profile row */}
                 {isCollapsed ? (
                     <div className="pb-4 flex flex-col items-center gap-1 shrink-0 px-2">
+                        <Link
+                            href={assistantItem.href}
+                            onClick={(e) => handleNavClick(assistantItem.href, e)}
+                            onMouseEnter={(e) => {
+                                setHoveredItem('assistant_manual')
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setFlyoutY(rect.top + rect.height / 2)
+                            }}
+                            onMouseLeave={() => setHoveredItem(null)}
+                            className={cn(
+                                "relative w-10 h-10 flex items-center justify-center rounded-xl transition-all outline-none select-none mb-1",
+                                pathname.startsWith(assistantItem.href)
+                                    ? 'bg-black/10 text-black shadow-sm'
+                                    : hoveredItem === 'assistant_manual'
+                                        ? 'bg-black/[0.04] text-black/80'
+                                        : 'text-black/35 active:bg-black/[0.04] active:text-black/80'
+                            )}
+                        >
+                            <assistantItem.icon className={cn("w-4.5 h-4.5", pathname.startsWith(assistantItem.href) && (COLOR_MAP[assistantItem.color || 'black'] || 'text-black'))} />
+                            {isMounted && hoveredItem === 'assistant_manual' && createPortal(
+                                <div
+                                    ref={flyoutRef}
+                                    className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[300] shadow-xl"
+                                    style={{ left: 56 + 12, top: flyoutY + flyoutOffset, transform: 'translateY(-50%)' }}
+                                >
+                                    {assistantItem.label}
+                                </div>,
+                                document.body
+                            )}
+                        </Link>
+
                         <button
                             onClick={() => toggleMultitasking(pathname)}
                             onMouseEnter={(e) => {

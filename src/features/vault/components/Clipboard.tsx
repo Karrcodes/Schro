@@ -30,6 +30,7 @@ export function Clipboard() {
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const [isMounted, setIsMounted] = useState(false)
     const [selectedImage, setSelectedImage] = useState<string | null>(null)
+    const [searchQuery, setSearchQuery] = useState('')
     const fileInputRef = useRef<HTMLInputElement>(null)
     const { settings } = useSystemSettings()
 
@@ -259,6 +260,10 @@ export function Clipboard() {
         return lastLine.trim().startsWith('- ') || lastLine.trim().startsWith('* ')
     }
 
+    const filteredClips = clips.filter(clip => 
+        clip.content.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+
     if (!isMounted) return null
 
     return (
@@ -415,6 +420,33 @@ export function Clipboard() {
                 </div>
             )}
 
+            {/* Search and List Header */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-1">
+                <div className="relative w-full sm:max-w-xs">
+                    <input 
+                        type="text" 
+                        placeholder="Search clips..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-black/[0.03] border border-black/[0.06] rounded-xl py-2 px-4 pl-9 text-[13px] font-medium outline-none focus:ring-2 focus:ring-black/5 transition-all"
+                    />
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {searchQuery && (
+                        <button 
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-black/20 hover:text-black transition-colors"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
+                <p className="text-[10px] font-black uppercase text-black/20 tracking-widest shrink-0">
+                    {filteredClips.length} {filteredClips.length === 1 ? 'Clip' : 'Clips'}
+                </p>
+            </div>
+
             {/* List Area */}
             <div className="space-y-3">
                 {loading ? (
@@ -422,13 +454,13 @@ export function Clipboard() {
                         <div className="w-6 h-6 border-2 border-black/10 border-t-black/40 rounded-full animate-spin" />
                         <p className="text-[11px] font-medium text-black/40 uppercase tracking-widest">Accessing Vault...</p>
                     </div>
-                ) : clips.length === 0 ? (
+                ) : filteredClips.length === 0 ? (
                     <div className="bg-black/[0.02] border border-dashed border-black/[0.06] rounded-2xl py-12 text-center text-black/30">
-                        <p className="text-[13px] font-medium">Vault is currently empty</p>
-                        <p className="text-[11px]">Start sharing links across your devices</p>
+                        <p className="text-[13px] font-medium">{searchQuery ? 'No matching clips found' : 'Vault is currently empty'}</p>
+                        <p className="text-[11px]">{searchQuery ? 'Try a different search term' : 'Start sharing links across your devices'}</p>
                     </div>
                 ) : (
-                    clips.map((clip) => (
+                    filteredClips.map((clip) => (
                         <ClipItem
                             key={clip.id}
                             clip={clip}

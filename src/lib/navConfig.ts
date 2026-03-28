@@ -8,7 +8,7 @@ import {
     BarChart3, Activity, Shield, Brain, Target, Heart,
     LayoutDashboard, SlidersHorizontal, Calendar, CreditCard,
     PiggyBank, Receipt, Sparkles, Rocket, Video, PenLine, Bell, ShoppingCart,
-    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Images, ListTodo, Search
+    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Images, ListTodo, Search, Wand2
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -29,9 +29,10 @@ export interface NavItem {
     color?: string
 }
 
+export const assistantItem: NavItem = { label: 'Assistant', href: '/intelligence', icon: Sparkles, color: 'black' }
+
 export const navItems: NavItem[] = [
     { label: 'Control Centre', href: '/system/control-centre', icon: LayoutDashboard },
-    { label: 'Intelligence', href: '/intelligence', icon: Brain, color: 'black' },
     {
         label: 'Operations',
         href: '/tasks',
@@ -71,7 +72,7 @@ export const navItems: NavItem[] = [
     {
         label: 'Studio',
         href: '/create',
-        icon: Sparkles,
+        icon: Wand2,
         color: 'orange',
         sub: [
             { label: 'Projects', href: '/create/projects', icon: Rocket },
@@ -123,4 +124,7 @@ export const COLOR_MAP: Record<string, string> = {
  * Top-level modules suitable for display in the Control Centre quick actions.
  * Excludes Control Centre itself from the list.
  */
-export const moduleNav = navItems.filter(n => n.href !== '/system/control-centre')
+export const moduleNav = [
+    assistantItem,
+    ...navItems.filter(n => n.href !== '/system/control-centre')
+]

@@ -37,9 +37,11 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
         next_date: new Date().toISOString().split('T')[0]
     })
 
-    // State for History
     const [viewMode, setViewMode] = useState<'upcoming' | 'last'>('upcoming')
     const [isCollapsed, setIsCollapsed] = useState(true)
+    const [overrides, setOverrides] = useState<Record<string, { disregarded?: boolean, manualAmount?: number }>>({})
+    const [explanationRequested, setExplanationRequested] = useState<string | null>(null)
+    const [editingItem, setEditingItem] = useState<{ id: string, name: string, currentAmount: number } | null>(null)
 
     // Strategy Constants from User
     const RENT_WEEKLY = 143.75
@@ -60,10 +62,10 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
         const nextThursday = new Date(now)
         const dayOfWeek = now.getDay()
         
-        // Rollover logic: If Thursday night (>= 6pm), move to next week's payday
-        const isThursdayNight = dayOfWeek === 4 && now.getHours() >= 18
+        // Rollover logic: If late Thursday night (11:59pm), move to next week's payday
+        const isThursdayLate = dayOfWeek === 4 && now.getHours() === 23 && now.getMinutes() === 59
         const daysToThursday = (4 - dayOfWeek + 7) % 7
-        const targetThursdayOffset = (daysToThursday === 0 && isThursdayNight) ? 7 : daysToThursday
+        const targetThursdayOffset = (daysToThursday === 0 && isThursdayLate) ? 7 : daysToThursday
         
         nextThursday.setDate(now.getDate() + targetThursdayOffset)
         nextThursday.setHours(0, 0, 0, 0)
@@ -110,6 +112,16 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
             return dueDate >= cycleStart && dueDate < cycleEnd
         })
 
+        // Separate grooming-specific obligations from standard liabilities
+        const groomingObligations = cycleObligations.filter(o => 
+            o.name.toLowerCase().includes('haircut') || 
+            o.name.toLowerCase().includes('hair braiding')
+        )
+        const nonGroomingObligations = cycleObligations.filter(o => 
+            !o.name.toLowerCase().includes('haircut') && 
+            !o.name.toLowerCase().includes('hair braiding')
+        )
+
         // --- NEW: Grooming Logic ---
         const lastDayOfMonth = new Date(activeDate.getFullYear(), activeDate.getMonth() + 1, 0).getDate()
         const isEndOfMonthCycle = Array.from({length: 7}, (_, i) => {
@@ -140,7 +152,8 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
             const fPay = getProjectedPayForDate(fStart)
             const fObligations = obligations.filter(o => {
                 const d = new Date(o.next_due_date)
-                return d >= fStart && d < fEnd
+                // Filter grooming here too since it's handled separately
+                return d >= fStart && d < fEnd && !o.name.toLowerCase().includes('haircut') && !o.name.toLowerCase().includes('hair braiding')
             }).reduce((s, o) => s + o.amount, 0)
 
             const fMandatory = RENT_WEEKLY + DAILY_EXPENSES_WEEKLY
@@ -152,10 +165,10 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
             }
         }
 
-        const currysPayments = cycleObligations.filter(o => o.name.toLowerCase().includes('currys'))
-        const clearpayPayments = cycleObligations.filter(o => o.name.toLowerCase().includes('clearpay'))
-        const klarnaPayments = cycleObligations.filter(o => o.name.toLowerCase().includes('klarna'))
-        const otherObligations = cycleObligations.filter(o => 
+        const currysPayments = nonGroomingObligations.filter(o => o.name.toLowerCase().includes('currys'))
+        const clearpayPayments = nonGroomingObligations.filter(o => o.name.toLowerCase().includes('clearpay'))
+        const klarnaPayments = nonGroomingObligations.filter(o => o.name.toLowerCase().includes('klarna'))
+        const otherObligations = nonGroomingObligations.filter(o => 
             !o.name.toLowerCase().includes('currys') && 
             !o.name.toLowerCase().includes('clearpay') && 
             !o.name.toLowerCase().includes('klarna')
@@ -163,18 +176,19 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
 
         // Matcher helper
         const isFulfilled = (amount: number, keywords: string[], potId?: string, isMainAccount: boolean = false) => {
+            // Rule: Transfer confirmation (potId or isMainAccount) only happens on payday itself
+            if (potId || isMainAccount) {
+                const isPayday = now.getDate() === activeDate.getDate() && now.getMonth() === activeDate.getMonth()
+                if (!isPayday) return false
+            }
+
             return transactions.some(t => {
                 const tDate = new Date(t.date)
                 const isInWindow = tDate >= cycleStart && tDate < cycleEnd
                 
-                // Pot match is primary for pot splits
                 const potMatch = potId ? t.pocket_id === potId : (isMainAccount ? !t.pocket_id : false)
-                
-                // For mandatory/debts, we check for "[Liability]" tag or keyword match
                 const isLiability = t.description.includes('[Liability]')
                 const nameMatch = keywords.some(k => t.description.toLowerCase().includes(k.toLowerCase()))
-                
-                // Amount match (within 2% tolerance or greater)
                 const amountMatch = (t.amount >= amount * 0.98)
 
                 if (potId || isMainAccount) {
@@ -205,6 +219,7 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                 color: 'text-blue-500', 
                 bg: 'bg-blue-50', 
                 desc: 'Target: Monthly Rent 🏡',
+                explanation: `Calculated at your fixed weekly rate of £${RENT_WEEKLY}. This ensures your rent pot is always ready for your monthly payment.`,
                 fulfilled: isFulfilled(RENT_WEEKLY, ['rent'], rentPot?.id)
             },
             { 
@@ -214,6 +229,7 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                 color: 'text-orange-500', 
                 bg: 'bg-orange-50', 
                 desc: 'Main account buffer',
+                explanation: `Your fixed weekly buffer of £${DAILY_EXPENSES_WEEKLY} for day-to-day spending and groceries.`,
                 fulfilled: isFulfilled(DAILY_EXPENSES_WEEKLY, ['daily', 'expenses', 'living'], undefined, true)
             },
             { 
@@ -224,6 +240,7 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                 bg: 'bg-purple-50', 
                 desc: 'Mandatory / On-time', 
                 isMandatory: true,
+                explanation: `Total of your Currys payment plans due this cycle. Keeping these on time protects your credit health.`,
                 fulfilled: currysPayments.length === 0 || currysPayments.every(cp => cp.amount <= 0 || isFulfilled(cp.amount, ['currys']))
             },
             ...otherObligations.map(o => ({
@@ -233,22 +250,10 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                 color: 'text-slate-500',
                 bg: 'bg-slate-50',
                 desc: o.description || 'Standard Obligation',
+                explanation: `Fixed recurring expense scheduled for this pay period.`,
                 fulfilled: isFulfilled(o.amount, [o.name])
             }))
         ]
-
-        if (groomingAmount > 0 && groomingPriority === 'high') {
-            mandatoryAllocations.push({ 
-                name: 'Grooming (End of Month)', 
-                amount: groomingAmount, 
-                icon: Sparkles, 
-                color: 'text-rose-500', 
-                bg: 'bg-rose-50', 
-                desc: 'Braiding & Cut',
-                fulfilled: isFulfilled(groomingAmount, ['grooming', 'hair'])
-            } as any)
-        }
-
         if (futureLiabilityShield > 0) {
             mandatoryAllocations.push({ 
                 name: 'Future Liability Shield', 
@@ -257,16 +262,23 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                 color: 'text-cyan-600', 
                 bg: 'bg-cyan-50', 
                 desc: 'Anticipating heavy weeks',
+                explanation: `Saving 5% of net pay (£${(detectedNetPay * 0.05).toFixed(2)}) for each of the next ${lookaheadWeeks} weeks where projected expenses exceed safety margins.`,
                 fulfilled: isFulfilled(futureLiabilityShield, ['shield', 'liability buffer', 'buffer'])
             } as any)
         }
 
-        const totalMandatory = mandatoryAllocations.reduce((s, a) => s + a.amount, 0)
+        const totalMandatory = mandatoryAllocations
+            .filter(a => !overrides[a.name]?.disregarded)
+            .reduce((s, a) => s + (overrides[a.name]?.manualAmount ?? a.amount), 0)
         let remaining = detectedNetPay - totalMandatory
 
         // 3. Dynamic Visa Allocation (Priority after mandatory)
         const visaBaseTarget = VISA_MONTHLY_TARGET / 4 // 125
-        const visaAllocation = Math.min(Math.max(80, remaining * 0.4), visaBaseTarget, remaining > 80 ? remaining : 0)
+        let visaAllocation = 0
+        const visaExplanation = `Calculated as 40% of your current £${remaining.toFixed(2)} surplus (min £80) to stay on track for your £${VISA_MONTHLY_TARGET} monthly goal.`
+        if (!overrides['GTV Application']?.disregarded) {
+            visaAllocation = overrides['GTV Application']?.manualAmount ?? Math.min(Math.max(80, remaining * 0.4), visaBaseTarget, remaining > 80 ? remaining : 0)
+        }
         remaining -= visaAllocation
 
         // 4. Flexible liabilities (Clearpay then Klarna)
@@ -279,40 +291,39 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
         const canAffordKlarna = remaining >= klarnaTotal
         if (canAffordKlarna) remaining -= klarnaTotal
 
+        const groomingRequirement = groomingObligations.reduce((s, o) => s + o.amount, 0)
+        
         const potSplits = [
             { 
                 name: 'Liabilities Buffer', 
-                amount: Math.max(0, remaining * 0.25), 
+                amount: !overrides['Liabilities Buffer']?.disregarded ? (overrides['Liabilities Buffer']?.manualAmount ?? Math.max(0, remaining * 0.25)) : 0, 
                 pot: liabilitiesPot, 
                 desc: 'Target: Liabilities 💸',
+                disregardable: true,
+                explanation: `Allocating 25% of your remaining weekly surplus (£${remaining.toFixed(2)}) to shield against future debt cycles.`,
                 fulfilled: isFulfilled(Math.max(0, remaining * 0.25), ['liabilities', 'debt'], liabilitiesPot?.id)
             },
             { 
                 name: 'Recurring Reserve', 
-                amount: Math.max(0, remaining * 0.15), 
+                amount: !overrides['Recurring Reserve']?.disregarded ? (overrides['Recurring Reserve']?.manualAmount ?? Math.max(0, remaining * 0.15)) : 0, 
                 pot: recurringPot, 
                 desc: 'Target: Recurring 🔄',
+                disregardable: true,
+                explanation: `Allocating 15% of your remaining weekly surplus (£${remaining.toFixed(2)}) to cover predictable subscription renewals.`,
                 fulfilled: isFulfilled(Math.max(0, remaining * 0.15), ['recurring', 'subscriptions'], recurringPot?.id)
             },
-        ]
-
-        if (groomingAmount > 0 && groomingPriority === 'low') {
-            potSplits.push({ 
-                name: 'Mid-Month Haircut', 
-                amount: groomingAmount, 
-                pot: groomingPot, 
-                desc: 'Target: Grooming 💈',
-                fulfilled: isFulfilled(groomingAmount, ['hair', 'grooming'], groomingPot?.id)
-            } as any)
-        } else {
-            potSplits.push({ 
+            { 
                 name: 'Grooming Fund', 
-                amount: Math.max(0, remaining * 0.1), 
+                amount: !overrides['Grooming Fund']?.disregarded ? (overrides['Grooming Fund']?.manualAmount ?? (groomingRequirement > 0 ? groomingRequirement : Math.max(0, remaining * 0.1))) : 0, 
                 pot: groomingPot, 
-                desc: 'Target: Grooming 💈',
-                fulfilled: isFulfilled(Math.max(0, remaining * 0.1), ['grooming', 'hair'], groomingPot?.id)
-            } as any)
-        }
+                desc: groomingRequirement > 0 ? `${groomingObligations.map(o => o.name).join(' & ')} pending` : 'Target: Grooming 💈',
+                disregardable: true,
+                explanation: groomingRequirement > 0 
+                    ? `Priority funding to cover £${groomingRequirement.toFixed(2)} for upcoming appointments: ${groomingObligations.map(o => o.name).join(', ')}.`
+                    : `Allocating 10% of your remaining weekly surplus (£${remaining.toFixed(2)}) toward your standard grooming schedule.`,
+                fulfilled: isFulfilled(groomingRequirement > 0 ? groomingRequirement : Math.max(0, remaining * 0.1), ['grooming', 'hair'], groomingPot?.id)
+            }
+        ]
 
         // 7. SURPLUS LOGIC (Business & Fun)
         let businessAllocation = 0
@@ -322,11 +333,11 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
         let disposable = remaining - currentTotalPlanned
 
         if (disposable > 100) {
-            businessAllocation = disposable * 0.4
-            funAllocation = disposable * 0.6 // Swipe all residue to Fun
+            businessAllocation = !overrides['Business Opportunity']?.disregarded ? (overrides['Business Opportunity']?.manualAmount ?? disposable * 0.4) : 0
+            funAllocation = !overrides['Fun Pot Surplus']?.disregarded ? (overrides['Fun Pot Surplus']?.manualAmount ?? disposable * 0.6) : 0
             disposable = 0
         } else if (disposable > 0) {
-            funAllocation = disposable
+            funAllocation = !overrides['Fun Pot Surplus']?.disregarded ? (overrides['Fun Pot Surplus']?.manualAmount ?? disposable) : 0
             disposable = 0
         }
 
@@ -367,6 +378,7 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
             isViewingUpcoming,
             activeDate,
             affordableWishlistItems,
+            visaExplanation,
             rawLatest: latestPayslip?.net_pay || 0,
             isProjected,
             progress: (() => {
@@ -516,25 +528,73 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                                                 <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", item.bg)}>
                                                     <item.icon className={cn("w-4 h-4", item.color)} />
                                                 </div>
-                                                <div>
-                                                    <span className="text-[13px] font-bold text-black group-hover:text-emerald-600 transition-colors">{item.name}</span>
-                                                    <p className="text-[10px] text-black/30 font-medium">{item.desc}</p>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className={cn("text-[13px] font-bold text-black transition-colors truncate", (item as any).disregarded && "line-through opacity-20")}>{item.name}</span>
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); setEditingItem({ id: item.name, name: item.name, currentAmount: overrides[item.name]?.manualAmount ?? item.amount }) }}
+                                                                className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                            >
+                                                                <TrendingUp className="w-3 h-3" />
+                                                            </button>
+                                                            {(item as any).disregardable && (
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); setOverrides(prev => ({ ...prev, [item.name]: { ...prev[item.name], disregarded: !prev[item.name]?.disregarded } })) }}
+                                                                    className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                                >
+                                                                    <X className="w-3 h-3" />
+                                                                </button>
+                                                            )}
+                                                            {((item as any).explanation || item.name === 'GTV Application') && (
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); setExplanationRequested(item.name) }}
+                                                                    className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                                >
+                                                                    <Info className="w-3 h-3" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[10px] text-black/30 font-medium truncate">{item.desc}</p>
                                                 </div>
                                             </div>
-                                            <span className="text-[14px] font-black text-black">£{item.amount.toFixed(2)}</span>
+                                            <span className={cn("text-[14px] font-black text-black shrink-0 ml-2", (item as any).disregarded && "opacity-10")}>£{(overrides[item.name]?.manualAmount ?? item.amount).toFixed(2)}</span>
                                         </div>
                                     ))}
-                                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-50/30 group">
+                                    <div className={cn("flex items-center justify-between p-3.5 rounded-xl border transition-all group", !overrides['GTV Application']?.disregarded ? "border-emerald-500/20 bg-emerald-50/30" : "border-black/5 bg-black/5 opacity-40 grayscale")}>
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
                                                 <Target className="w-4 h-4 text-white" />
                                             </div>
-                                            <div>
-                                                <span className="text-[13px] font-bold text-black group-hover:text-emerald-600 transition-colors">GTV Application 🇬🇧</span>
-                                                <p className="text-[10px] text-emerald-600/60 font-medium">Target: GTV Application 🇬🇧 Pot</p>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className={cn("text-[13px] font-bold text-black group-hover:text-emerald-600 transition-colors truncate", overrides['GTV Application']?.disregarded && "line-through")}>GTV Application 🇬🇧</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); setEditingItem({ id: 'GTV Application', name: 'GTV Application', currentAmount: overrides['GTV Application']?.manualAmount ?? analysis?.visaAllocation }) }}
+                                                            className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                        >
+                                                            <TrendingUp className="w-3 h-3" />
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); setOverrides(prev => ({ ...prev, ['GTV Application']: { ...prev['GTV Application'], disregarded: !prev['GTV Application']?.disregarded } })) }}
+                                                            className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); setExplanationRequested('GTV Application') }}
+                                                            className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                        >
+                                                            <Info className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <p className="text-[10px] text-emerald-600/60 font-medium truncate">Target: GTV Application 🇬🇧 Pot</p>
                                             </div>
                                         </div>
-                                        <span className="text-[14px] font-black text-black">£{analysis?.visaAllocation.toFixed(2)}</span>
+                                        <span className={cn("text-[14px] font-black text-black shrink-0 ml-2", overrides['GTV Application']?.disregarded && "opacity-10")}>£{analysis?.visaAllocation.toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -611,8 +671,8 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                                             </div>
                                         </div>
                                     )}
-                                    {analysis?.potSplits.map((item, i) => (
-                                        <div key={i} className={cn("group flex items-center justify-between p-3.5 rounded-xl border transition-all relative overflow-hidden", (item as any).fulfilled ? "bg-emerald-50/20 border-emerald-500/10" : "border-black/[0.04] hover:bg-black/[0.02]")}>
+                                    {analysis?.potSplits.filter(item => !overrides[item.name]?.disregarded || viewMode === 'last').map((item, i) => (
+                                        <div key={i} className={cn("group flex items-center justify-between p-3.5 rounded-xl border transition-all relative overflow-hidden", (item as any).fulfilled ? "bg-emerald-50/20 border-emerald-500/10" : "border-black/[0.04] hover:bg-black/[0.02]", (overrides[item.name]?.disregarded) && "opacity-40 grayscale")}>
                                             {(item as any).fulfilled && (
                                                 <div className="absolute top-0 right-0 p-1.5">
                                                     <div className="flex items-center gap-1 bg-emerald-500 text-white px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter"><Check className="w-2 h-2" />Success</div>
@@ -620,30 +680,98 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                                             )}
                                             <div className="flex items-center gap-3">
                                                 <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[11px] transition-all", (item as any).fulfilled ? "bg-emerald-500 text-white" : "bg-black/[0.03] text-black/40 group-hover:bg-black group-hover:text-white")}>{item.name[0]}</div>
-                                                <div>
-                                                    <p className="text-[13px] font-bold text-black">{item.name}</p>
-                                                    <p className="text-[10px] text-black/30 font-medium">Target: {item.pot?.name || 'Manual'}</p>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className={cn("text-[13px] font-bold text-black truncate", (overrides[item.name]?.disregarded) && "line-through")}>{item.name}</p>
+                                                        <div className="flex items-center gap-1">
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); setEditingItem({ id: item.name, name: item.name, currentAmount: overrides[item.name]?.manualAmount ?? item.amount }) }}
+                                                                className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                            >
+                                                                <TrendingUp className="w-3 h-3" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); setOverrides(prev => ({ ...prev, [item.name]: { ...prev[item.name], disregarded: !prev[item.name]?.disregarded } })) }}
+                                                                className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                            {item.explanation && (
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); setExplanationRequested(item.name) }}
+                                                                    className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                                >
+                                                                    <Info className="w-3 h-3" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[10px] text-black/30 font-medium truncate">Target: {item.pot?.name || 'Manual'}</p>
                                                 </div>
                                             </div>
-                                            <span className="text-[14px] font-black text-black">£{item.amount.toFixed(2)}</span>
+                                            <span className="text-[14px] font-black text-black shrink-0 ml-2">£{(overrides[item.name]?.manualAmount ?? item.amount).toFixed(2)}</span>
                                         </div>
                                     ))}
                                     {analysis?.businessAllocation != null && analysis.businessAllocation > 0 && (
-                                        <div className="flex items-center justify-between p-3.5 rounded-xl border border-blue-500/10 bg-blue-50/20 group">
+                                        <div className={cn("flex items-center justify-between p-3.5 rounded-xl border transition-all group", !overrides['Business Opportunity']?.disregarded ? "border-blue-500/10 bg-blue-50/20" : "border-black/5 bg-black/5 opacity-40 grayscale")}>
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center"><Briefcase className="w-4 h-4 text-white" /></div>
-                                                <div><span className="text-[13px] font-bold text-black">Business Opportunity</span><p className="text-[10px] text-blue-600/60 font-medium">Surplus growth allocation</p></div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className={cn("text-[13px] font-bold text-black truncate", overrides['Business Opportunity']?.disregarded && "line-through")}>Business Opportunity</span>
+                                                        <div className="flex items-center gap-1">
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); setEditingItem({ id: 'Business Opportunity', name: 'Business Opportunity', currentAmount: overrides['Business Opportunity']?.manualAmount ?? analysis.businessAllocation }) }}
+                                                                className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                            >
+                                                                <TrendingUp className="w-3 h-3" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); setOverrides(prev => ({ ...prev, ['Business Opportunity']: { ...prev['Business Opportunity'], disregarded: !prev['Business Opportunity']?.disregarded } })) }}
+                                                                className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[10px] text-blue-600/60 font-medium truncate">Surplus growth allocation</p>
+                                                </div>
                                             </div>
-                                            <span className="text-[14px] font-black text-black">£{analysis.businessAllocation.toFixed(2)}</span>
+                                            <span className={cn("text-[14px] font-black text-black shrink-0 ml-2", overrides['Business Opportunity']?.disregarded && "opacity-10")}>£{analysis.businessAllocation.toFixed(2)}</span>
                                         </div>
                                     )}
                                     {analysis?.funAllocation != null && analysis.funAllocation > 0 && (
-                                        <div className="flex items-center justify-between p-3.5 rounded-xl border border-pink-500/10 bg-pink-50/20 group">
+                                        <div className={cn("flex items-center justify-between p-3.5 rounded-xl border transition-all group", !overrides['Fun Pot Surplus']?.disregarded ? "border-pink-500/10 bg-pink-50/20" : "border-black/5 bg-black/5 opacity-40 grayscale")}>
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-pink-500 flex items-center justify-center"><ShoppingBag className="w-4 h-4 text-white" /></div>
-                                                <div><span className="text-[13px] font-bold text-black">Fun Pot Surplus</span><p className="text-[10px] text-pink-600/60 font-medium">Guilt-free disposable</p></div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className={cn("text-[13px] font-bold text-black truncate", overrides['Fun Pot Surplus']?.disregarded && "line-through")}>Fun Pot Surplus</span>
+                                                        <div className="flex items-center gap-1">
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); setEditingItem({ id: 'Fun Pot Surplus', name: 'Fun Pot Surplus', currentAmount: overrides['Fun Pot Surplus']?.manualAmount ?? analysis.funAllocation }) }}
+                                                                className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                            >
+                                                                <TrendingUp className="w-3 h-3" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); setOverrides(prev => ({ ...prev, ['Fun Pot Surplus']: { ...prev['Fun Pot Surplus'], disregarded: !prev['Fun Pot Surplus']?.disregarded } })) }}
+                                                                className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); setExplanationRequested('Fun Pot Surplus') }}
+                                                                className="p-1 hover:bg-black/5 rounded text-black/20 hover:text-black transition-colors"
+                                                            >
+                                                                <Info className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[10px] text-pink-600/60 font-medium truncate">Guilt-free disposable</p>
+                                                </div>
                                             </div>
-                                            <span className="text-[14px] font-black text-black">£{analysis.funAllocation.toFixed(2)}</span>
+                                            <span className={cn("text-[14px] font-black text-black shrink-0 ml-2", overrides['Fun Pot Surplus']?.disregarded && "opacity-10")}>£{analysis.funAllocation.toFixed(2)}</span>
                                         </div>
                                     )}
                                 </div>
@@ -985,6 +1113,70 @@ export function PaydayAdvisor({ className }: PaydayAdvisorProps) {
                                     Yes, Hide
                                 </button>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+            {/* Edit Amount Modal */}
+            <AnimatePresence>
+                {editingItem && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingItem(null)} />
+                        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white rounded-3xl p-6 w-full max-w-xs shadow-2xl">
+                            <h3 className="text-[14px] font-black uppercase tracking-widest text-black/40 mb-4">Modify Allocation</h3>
+                            <p className="text-[16px] font-bold text-black mb-4">{editingItem.name}</p>
+                            <input 
+                                type="number"
+                                autoFocus
+                                defaultValue={editingItem.currentAmount.toFixed(2)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        const val = parseFloat((e.target as HTMLInputElement).value)
+                                        setOverrides(prev => ({ ...prev, [editingItem.id]: { ...prev[editingItem.id], manualAmount: val } }))
+                                        setEditingItem(null)
+                                    }
+                                }}
+                                className="w-full bg-black/5 border-none rounded-xl p-4 text-[24px] font-black focus:ring-2 focus:ring-emerald-500 mb-6"
+                            />
+                            <div className="flex gap-2">
+                                <button onClick={() => setEditingItem(null)} className="flex-1 py-3 px-4 bg-black/5 rounded-xl text-[11px] font-black uppercase tracking-widest">Cancel</button>
+                                <button 
+                                    onClick={() => {
+                                        const input = document.querySelector('input[type="number"]') as HTMLInputElement
+                                        const val = parseFloat(input.value)
+                                        setOverrides(prev => ({ ...prev, [editingItem.id]: { ...prev[editingItem.id], manualAmount: val } }))
+                                        setEditingItem(null)
+                                    }}
+                                    className="flex-1 py-3 px-4 bg-emerald-500 text-black rounded-xl text-[11px] font-black uppercase tracking-widest"
+                                >
+                                    Confirm
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Explanation Modal */}
+            <AnimatePresence>
+                {explanationRequested && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setExplanationRequested(null)} />
+                        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} className="relative bg-white rounded-3xl p-6 w-full max-w-xs shadow-2xl">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Info className="w-4 h-4 text-emerald-500" />
+                                <h3 className="text-[14px] font-black uppercase tracking-widest text-black/40">Strategy Query</h3>
+                            </div>
+                            <p className="text-[15px] font-bold text-black mb-2">{explanationRequested}</p>
+                            <p className="text-[13px] text-black/60 leading-relaxed italic mb-6">
+                                {explanationRequested === 'GTV Application' ? analysis.visaExplanation : (
+                                 analysis.potSplits.find((p: any) => p.name === explanationRequested)?.explanation || 
+                                 analysis.mandatoryAllocations.find((p: any) => p.name === explanationRequested)?.explanation || 
+                                 analysis.mandatoryAllocations.find((p: any) => p.name === explanationRequested)?.desc || 
+                                 "Standard strategic allocation based on your weekly net income surplus.")
+                                }
+                            </p>
+                            <button onClick={() => setExplanationRequested(null)} className="w-full py-3 bg-black text-white rounded-xl text-[11px] font-black uppercase tracking-widest">Understood</button>
                         </motion.div>
                     </div>
                 )}

@@ -61,6 +61,7 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Schrö" />
+        <script type="text/javascript" src="https://www.bugherd.com/sidebarv2.js?apikey=x8pltr1clmsbpoauxgbj1a" async></script>
       </head>
       <body className={`${inter.className} bg-white text-[#0a0a0a] antialiased`}>
         <AuthProvider>
