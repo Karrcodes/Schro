@@ -141,6 +141,9 @@ export default function IntelligencePage() {
                 const voice = availableVoices.find(v => v.name === selectedVoiceName)
                 if (voice) utterance.voice = voice
             }
+            activeSpeechIndexRef.current = index
+            setActiveSpeechIndex(index)
+            setIsSpeechPaused(false)
             utterance.onend = () => {
                 setActiveSpeechIndex(null)
                 setIsSpeechPaused(false)
@@ -154,6 +157,7 @@ export default function IntelligencePage() {
         window.speechSynthesis?.cancel()
 
         try {
+            activeSpeechIndexRef.current = index
             setActiveSpeechIndex(index)
             setIsSpeechPaused(false)
             
