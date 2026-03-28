@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { KarrFooter } from '@/components/KarrFooter'
 
-type EmotivePosture = 'auto' | 'ruby' | 'vance' | 'kael' | 'sentinel' | 'mentor' | 'analyst' | 'strategist' | 'artist' | 'creative'
+type EmotivePosture = 'auto' | 'ruby' | 'vance' | 'kael' | 'sentinel' | 'artist' | 'creative'
 
 interface Message {
     role: 'user' | 'assistant'
@@ -77,7 +77,7 @@ export default function IntelligencePage() {
         vance: { voice: 'onyx', directives: '', name: 'Vance', role: 'Strategist' },
         kael: { voice: 'alloy', directives: '', name: 'Kael', role: 'Mentor' }
     })
-    const [activeDnaTab, setActiveDnaTab] = useState<'ruby' | 'vance' | 'kael'>('ruby')
+    const [activeIdentityTab, setActiveIdentityTab] = useState<'ruby' | 'vance' | 'kael'>('ruby')
     const [isSavingDna, setIsSavingDna] = useState(false)
     const autoSendTimerRef = useRef<NodeJS.Timeout | null>(null)
     const autoSendIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -241,7 +241,7 @@ export default function IntelligencePage() {
             setActiveSpeechIndex(index)
             setIsSpeechPaused(false)
             
-            const targetVoice = voiceOverride || identityDna[msg?.posture || posture || 'vance']?.voice || hdVoiceId
+            const targetVoice = voiceOverride || identityDna[msg?.posture || posture || lockedIdentity || 'ruby']?.voice || hdVoiceId
 
             const res = await fetch('/api/ai/speech', {
                 method: 'POST',
@@ -832,7 +832,7 @@ export default function IntelligencePage() {
                     role: 'assistant',
                     content: data.reply || "Protocol Execution Staged: Awaiting Neural Confirmation.",
                     timestamp: new Date(),
-                    posture: data.posture as EmotivePosture || 'vance',
+                    posture: data.posture as EmotivePosture || lockedIdentity || 'ruby',
                     pendingActions: data.pendingActions
                 }
                 setMessages(prev => [...prev, stagingMsg])
@@ -1241,23 +1241,22 @@ export default function IntelligencePage() {
 
                             <div className="p-6">
                                 {/* Tab Switcher */}
-                                <div className="flex bg-[#FAFAFA] p-1 rounded-2xl border border-black/5 mb-8">
+                                <div className="flex bg-black/[0.03] p-1 rounded-2xl mb-8">
                                     {[
-                                        { id: 'ruby', name: identityDna.ruby?.name || 'Ruby', icon: Heart, color: 'text-rose-600', active: 'bg-white shadow-sm border-black/5' },
-                                        { id: 'vance', name: identityDna.vance?.name || 'Vance', icon: Shield, color: 'text-amber-600', active: 'bg-white shadow-sm border-black/5' },
-                                        { id: 'kael', name: identityDna.kael?.name || 'Kael', icon: Zap, color: 'text-sky-600', active: 'bg-white shadow-sm border-black/5' }
-                                    ].map(tab => (
+                                        { id: 'ruby', name: identityDna.ruby?.name || 'Ruby' },
+                                        { id: 'vance', name: identityDna.vance?.name || 'Vance' },
+                                        { id: 'kael', name: identityDna.kael?.name || 'Kael' }
+                                    ].map((tab) => (
                                         <button
                                             key={tab.id}
-                                            onClick={() => setActiveDnaTab(tab.id as any)}
+                                            onClick={() => setActiveIdentityTab(tab.id as any)}
                                             className={cn(
-                                                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                                activeDnaTab === tab.id 
-                                                    ? cn(tab.active, tab.color) 
-                                                    : "text-black/30 hover:text-black/60"
+                                                "flex-1 py-2 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                                activeIdentityTab === tab.id 
+                                                    ? "bg-white text-black shadow-sm" 
+                                                    : "text-black/30 hover:text-black/50"
                                             )}
                                         >
-                                            <tab.icon className="w-3.5 h-3.5" />
                                             {tab.name}
                                         </button>
                                     ))}
@@ -1269,7 +1268,7 @@ export default function IntelligencePage() {
                                         { id: 'ruby', name: 'Ruby', icon: Heart, color: 'text-rose-600', bg: 'bg-rose-500/5', border: 'border-rose-500/10' },
                                         { id: 'vance', name: 'Vance', icon: Shield, color: 'text-amber-600', bg: 'bg-amber-500/5', border: 'border-amber-500/10' },
                                         { id: 'kael', name: 'Kael', icon: Zap, color: 'text-sky-600', bg: 'bg-sky-500/5', border: 'border-sky-500/10' }
-                                    ].filter(idnt => idnt.id === activeDnaTab).map(idnt => (
+                                    ].filter(idnt => idnt.id === activeIdentityTab).map(idnt => (
                                         <motion.div 
                                             key={idnt.id}
                                             initial={{ opacity: 0, x: 10 }}
