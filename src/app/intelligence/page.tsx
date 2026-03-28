@@ -67,6 +67,7 @@ export default function IntelligencePage() {
     const [hdVoiceId, setHdVoiceId] = useState('shimmer')
     const [isAutoSendEnabled, setIsAutoSendEnabled] = useState(true)
     const [autoSendProgress, setAutoSendProgress] = useState(0)
+    const [micHeartbeat, setMicHeartbeat] = useState(0)
     const autoSendTimerRef = useRef<NodeJS.Timeout | null>(null)
     const autoSendIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const inputRef = useRef<string>(input)
@@ -260,6 +261,20 @@ export default function IntelligencePage() {
         }
     }
 
+    // Neural Heartbeat: Watchdog to force mic recovery on iPad/Safari
+    useEffect(() => {
+        if (!isVoiceMode || isTyping || activeSpeechIndex !== null) return
+        
+        const interval = setInterval(() => {
+            if (!isListening) {
+                console.log('[Neural Heartbeat] Mic stuck. Forcing re-sync...')
+                setMicHeartbeat(prev => prev + 1)
+            }
+        }, 2500)
+
+        return () => clearInterval(interval)
+    }, [isVoiceMode, isTyping, activeSpeechIndex, isListening])
+
     useEffect(() => {
         // Only start the microphone if we are in voice mode, not typing, and NOT speaking
         const isActuallySpeaking = activeSpeechIndex !== null
@@ -334,12 +349,15 @@ export default function IntelligencePage() {
 
         return () => {
             if (recognitionRef.current) {
-                try { recognitionRef.current.stop() } catch(e) {}
+                try { 
+                    // Use abort() on mobile for faster release
+                    recognitionRef.current.abort() 
+                } catch(e) {}
             }
             if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current)
             if (autoSendIntervalRef.current) clearInterval(autoSendIntervalRef.current)
         }
-    }, [isVoiceMode, isAutoSendEnabled, isTyping, activeSpeechIndex])
+    }, [isVoiceMode, isAutoSendEnabled, isTyping, activeSpeechIndex, micHeartbeat])
 
     const toggleVoiceMode = () => {
         const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
