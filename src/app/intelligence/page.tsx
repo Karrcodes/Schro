@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Brain, Terminal, Send, RefreshCw, Sparkles, Database, Shield, Zap, Heart, History, Plus, Trash2, X as CloseIcon, MessageSquare, Pin, Edit2, Check, Cloud, CheckSquare, Calendar, Activity, Image as ImageIcon, Mail, Lock, Wallet, User, ShieldAlert, HeartHandshake, FileSearch, Flag, Paintbrush, Wand2, AudioLines, Volume2, Pause, Play, Square, ArrowUp } from 'lucide-react'
+import { Brain, Terminal, Send, RefreshCw, Sparkles, Database, Shield, Zap, Heart, History, Plus, Trash2, X as CloseIcon, MessageSquare, Pin, Edit2, Check, Cloud, CheckSquare, Calendar, Activity, Image as ImageIcon, Mail, Lock, Wallet, User, ShieldAlert, HeartHandshake, FileSearch, Flag, Paintbrush, Wand2, AudioLines, Volume2, Pause, Play, Square, ArrowUp, Clock, Briefcase, Beaker, Factory, Tv, TrendingUp, Hash, Calculator } from 'lucide-react'
 import { PersonaModal } from './components/PersonaModal'
 import { PERSONA_QUESTIONS } from './constants/personaQuestions'
 import { supabase } from '@/lib/supabase'
@@ -358,29 +358,6 @@ export default function IntelligencePage() {
             setLastVocalizedIndex(lastIndex)
             handleVocalize(lastMsg.content, lastIndex)
         } 
-        // 2. Automatic Pre-fetching (Text Mode - Proactive Cache)
-        else if (!isVoiceMode && !lastMsg.audioUrl && lastIndex > lastVocalizedIndex) {
-            // Background fetch
-            const prefetch = async () => {
-                try {
-                    const res = await fetch('/api/ai/speech', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: lastMsg.content, voice: hdVoiceId })
-                    })
-                    if (res.ok) {
-                        const blob = await res.blob()
-                        const url = URL.createObjectURL(blob)
-                        audioCacheRef.current.add(url)
-                        setLastVocalizedIndex(lastIndex)
-                        setMessages(prev => prev.map((m, i) => i === lastIndex ? { ...m, audioUrl: url } : m))
-                    }
-                } catch (e) {
-                    console.error('Pre-fetch failed', e)
-                }
-            }
-            prefetch()
-        }
     }, [messages, isVoiceMode, isHDVoice, lastVocalizedIndex, hdVoiceId])
 
     // Neural Heartbeat: Watchdog to force mic recovery on iPad/Safari
@@ -827,6 +804,7 @@ export default function IntelligencePage() {
             })
 
             const data = await res.json()
+            console.log('Neural Response Data:', data)
             if (data.requiresConsent) {
                 const stagingMsg: Message = {
                     role: 'assistant',
@@ -990,7 +968,6 @@ export default function IntelligencePage() {
                             title="Identity DNA (Remapping)"
                         >
                             <AudioLines className="w-4 h-4 text-black/40 group-hover:text-black" />
-                            <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full border border-white" />
                         </button>
 
                         <button
@@ -1416,7 +1393,7 @@ export default function IntelligencePage() {
                                         {msg.posture === 'kael' && <Zap className="w-2.5 h-2.5 fill-current" />}
                                         <span>
                                             {
-                                                `${identityDna[msg.posture]?.name || (msg.posture === 'ruby' ? 'Ruby' : msg.posture)} (${identityDna[msg.posture]?.role || (msg.posture === 'ruby' ? 'Therapist' : msg.posture)})`
+                                                `${identityDna[msg.posture]?.name || (msg.posture === 'ruby' ? 'Ruby' : msg.posture.charAt(0).toUpperCase() + msg.posture.slice(1))} (${identityDna[msg.posture]?.role || (msg.posture === 'ruby' ? 'Therapist' : msg.posture === 'vance' ? 'Strategist' : msg.posture === 'kael' ? 'Mentor' : 'Assistant')})`
                                             }
                                         </span>
                                     </div>
@@ -1437,11 +1414,97 @@ export default function IntelligencePage() {
                                             </div>
                                             <div className="space-y-2">
                                                 {msg.pendingActions.map((action, i) => (
-                                                    <div key={i} className="flex items-start gap-2 text-xs font-bold text-black/80 bg-white/50 p-2 rounded-lg border border-black/5">
-                                                        <span className="text-emerald-500">▶</span>
-                                                        {action.name === 'manage_task' ? `Create Task: ${action.args.title}` : 
-                                                         action.name === 'manage_finance' ? `Fin Op: ${action.args.description || action.args.action}` : 
-                                                         `Execute: ${action.name}`}
+                                                    <div key={i} className="flex flex-col gap-2 bg-white/50 p-3 rounded-xl border border-black/5 animate-in fade-in slide-in-from-left-2 duration-300">
+                                                        <div className="flex items-start gap-2 text-[13px] font-black text-black/90">
+                                                            <span className="text-emerald-500 shrink-0 mt-0.5">▶</span>
+                                                            {action.name === 'manage_task' ? (
+                                                                <div className="flex flex-col gap-1.5 w-full">
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <span>{action.args.title}</span>
+                                                                        {action.args.category !== 'grocery' && (
+                                                                            <span className={cn(
+                                                                                "text-[8px] px-1.5 py-0.5 rounded-md border tracking-tighter font-black uppercase",
+                                                                                (action.args.priority || 'mid') === 'super' ? "bg-purple-50 text-purple-600 border-purple-200" :
+                                                                                (action.args.priority || 'mid') === 'high' ? "bg-red-50 text-red-600 border-red-200" :
+                                                                                (action.args.priority || 'mid') === 'mid' ? "bg-yellow-50 text-yellow-600 border-yellow-200" :
+                                                                                "bg-black/5 text-black/60 border-black/10"
+                                                                            )}>
+                                                                                {action.args.priority || 'mid'}
+                                                                            </span>
+                                                                        )}
+                                                                        {action.args.category === 'grocery' && (
+                                                                            <span className="text-[8px] px-1.5 py-0.5 rounded-md border tracking-tighter font-black uppercase bg-emerald-50 text-emerald-600 border-emerald-200">
+                                                                                Grocery
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] font-bold uppercase tracking-widest">
+                                                                        {action.args.impact_score !== undefined && (
+                                                                            <span className="flex items-center gap-1 text-black/40"><Sparkles className="w-2.5 h-2.5" /> Impact: {action.args.impact_score}</span>
+                                                                        )}
+                                                                        {action.args.category === 'grocery' ? (
+                                                                            <>
+                                                                                <span className="flex items-center gap-1 text-black/60"><Calculator className="w-2.5 h-2.5" /> £{action.args.price !== undefined ? action.args.price : 0}</span>
+                                                                                <span className="flex items-center gap-1 text-black/60"><Hash className="w-2.5 h-2.5" /> {action.args.amount || 'x1'}</span>
+                                                                            </>
+                                                                        ) : (
+                                                                            (() => {
+                                                                                const cat = action.args.strategic_category || 'personal'
+                                                                                const styles: Record<string, { icon: any, color: string }> = {
+                                                                                    personal: { icon: User, color: 'text-amber-600 bg-amber-50 border-amber-200' },
+                                                                                    career: { icon: Briefcase, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+                                                                                    health: { icon: Heart, color: 'text-rose-600 bg-rose-50 border-rose-100' },
+                                                                                    finance: { icon: Wallet, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                                                                                    rnd: { icon: Beaker, color: 'text-purple-600 bg-purple-50 border-purple-100' },
+                                                                                    production: { icon: Factory, color: 'text-orange-600 bg-orange-50 border-orange-100' },
+                                                                                    media: { icon: Tv, color: 'text-rose-600 bg-rose-50 border-rose-100' },
+                                                                                    growth: { icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                                                                                    general: { icon: Zap, color: 'text-neutral-600 bg-neutral-50 border-neutral-200' }
+                                                                                }
+                                                                                const style = styles[cat] || styles.personal
+                                                                                const Icon = style.icon
+                                                                                return (
+                                                                                    <span className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md border", style.color)}>
+                                                                                        <Icon className="w-2.5 h-2.5" /> {cat}
+                                                                                    </span>
+                                                                                )
+                                                                            })()
+                                                                        )}
+                                                                        {action.args.due_date && (
+                                                                            <span className="flex items-center gap-1 text-black/40"><Clock className="w-2.5 h-2.5" /> {action.args.due_date}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    {action.args.notes && (
+                                                                        <p className="text-[10px] font-medium text-black/60 pt-1 border-t border-black/5 mt-1 leading-relaxed italic line-clamp-2">
+                                                                            "{action.args.notes}"
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            ) : action.name === 'manage_finance' ? (
+                                                                <div className="flex flex-col gap-1.5 w-full">
+                                                                    <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-emerald-600/60">
+                                                                        <span className="flex items-center gap-1"><Wallet className="w-3 h-3" /> {action.args.action === 'log_transaction' ? 'Transaction' : 'New Pocket'}</span>
+                                                                        <span className="italic">finance protocol</span>
+                                                                    </div>
+                                                                    <div className="flex items-center justify-between gap-4">
+                                                                        <span className="text-[13px] font-black tracking-tight">{action.args.description || action.args.name || 'Neural Mutation'}</span>
+                                                                        {action.args.amount && <span className="text-emerald-600 font-black text-sm tracking-tighter shrink-0">£{action.args.amount}</span>}
+                                                                    </div>
+                                                                </div>
+                                                            ) : action.name === 'search_drive_docs' ? (
+                                                                <div className="flex flex-col gap-1 w-full">
+                                                                    <div className="text-[9px] font-bold uppercase tracking-widest text-blue-500/60 flex items-center gap-1">
+                                                                        <FileSearch className="w-3 h-3" /> Drive Search
+                                                                    </div>
+                                                                    <div className="text-[13px] font-black tracking-tight italic">"{action.args.query}"</div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex flex-col gap-1 w-full overflow-hidden">
+                                                                    <div className="text-[9px] font-bold uppercase tracking-widest text-purple-500/60 italic">Intelligence Sequence: {action.name}</div>
+                                                                    <div className="text-[8px] font-mono opacity-40 truncate">{JSON.stringify(action.args)}</div>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>

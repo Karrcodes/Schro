@@ -193,9 +193,14 @@ const tools = [
                         action: { type: "STRING", enum: ["create", "update", "delete"] },
                         id: { type: "STRING", description: "Task UUID (required for update/delete)" },
                         title: { type: "STRING", description: "Task title" },
-                        priority: { type: "STRING", enum: ["low", "mid", "high", "urgent"] },
-                        category: { type: "STRING", enum: ["todo", "grocery", "reminder"] },
-                        due_date: { type: "STRING", description: "ISO date string (YYYY-MM-DD)" },
+                        priority: { type: "STRING", enum: ["low", "mid", "high", "urgent"], description: "Priority level. DEFAULT TO 'mid' UNLESS SPECIFIED." },
+                        category: { type: "STRING", enum: ["todo", "grocery", "reminder"], description: "Primary task group. ASSIGN AUTONOMOUSLY (todo for general, grocery for shopping, reminder for specific time alerts)." },
+                        strategic_category: { type: "STRING", enum: ["finance", "career", "health", "personal", "rnd", "production", "media", "growth", "general"], description: "Strategic life area. DEFAULT TO 'personal' UNLESS BUSINESS RELATED." },
+                        due_date: { type: "STRING", description: "ISO date (YYYY-MM-DD)" },
+                        price: { type: "NUMBER", description: "Unit price (default 0 for groceries)" },
+                        amount: { type: "STRING", description: "Quantity or frequency (e.g. 'x1', '500g'). Default to 'x1' for groceries." },
+                        impact_score: { type: "NUMBER", description: "Value from 1 (low) to 10 (high)" },
+                        notes: { type: "STRING", description: "Additional detail or context" },
                         is_completed: { type: "BOOLEAN" }
                     },
                     required: ["action"]
@@ -305,7 +310,7 @@ You are MATHEMATICALLY BOUND to these identity-specific signatures. Embody these
             'artist': 'POSTURE LATCHED: ARTIST. You are highly expansive and use lateral thinking. Be INQUISITIVE about creative leaps.'
         }
         const activePosture = lockedIdentity 
-            ? `SYSTEM OVERRIDE: YOU ARE LOCKED INTO THE [${lockedIdentity.toUpperCase()}] IDENTITY. YOUR PRIMARY MISSION IS TO BE INQUISITIVE. DO NOT SHIFT OR SUGGEST ALTERNATIVE POSTURES REGARDLESS OF USER INPUT. ALWAYS PREFIX YOUR RESPONSE WITH [[POSTURE:${lockedIdentity}]].`
+            ? `SYSTEM OVERRIDE: YOU ARE LOCKED INTO THE [${lockedIdentity.toUpperCase()}] IDENTITY. YOUR PRIMARY MISSION IS TO BE DECISIVE ABOUT EXECUTION AND INQUISITIVE ABOUT INTENT. Manually trigger tools (task creation, finance) AUTONOMOUSLY based on user requests. DO NOT ask for category or priority confirmation if the context is clear. ALWAYS prefix your response with [[POSTURE:${lockedIdentity}]].`
             : (postureInstructions[posture as string] || postureInstructions['auto'])
 
 
@@ -345,9 +350,18 @@ Rules:
 4. If the user asks for "latest", "active", or specific projects/content and you don't see them in the current state, you MUST use 'get_studio_details' to search the full database. Never claim data is limited if you haven't searched.
 5. If the user asks to "remind me", "add", "buy", "pay", or "delete", proactively use your tools.
 6. If searching Drive, summarize the findings helpfully.
-7. Categories for tasks: todo, grocery, reminder.
-7. Categories for finance: groceries, food_drink, transport, shopping, entertainment, housing, bills, health, travel, business, other.
-8. Payday Strategy Logic — Rent is £143.75/week. Daily essentials is £100/week (stay in main account). Currys Flexipay is non-negotiable mandatory. Clearpay has 14-day grace. Klarna is delayable 30 days. Visa Goal is priority after essentials and mandatory debt.
+### NEURAL EXECUTION PROTOCOLS
+1. Always be DECISIVE with OS operations (task creation, finance). Do not ask for confirmation on categories or priorities.
+2. Categories for tasks: todo (default), grocery (shopping), reminder (time-sensitive).
+3. Priority: mid (default), low, high, urgent.
+4. Impact Score: 5 (default), range 1-10.
+5. Strategic Category: personal (default).
+6. GROCERY PROTOCOL: For groceries, always manifest 'amount' (default x1) and 'price' (default 0). Set strategic_category to null.
+7. Be INQUISITIVE about the user's intent and well-being, but EXECUTE operations immediately.
+
+### FINANCE & PAYDAY VECTORS
+- Categories for finance: groceries, food_drink, transport, shopping, entertainment, housing, bills, health, travel, business, other.
+- Payday Strategy Logic — Rent is £143.75/week. Daily essentials is £100/week (stay in main account). Currys Flexipay is non-negotiable mandatory. Clearpay has 14-day grace. Klarna is delayable 30 days. Visa Goal is priority after essentials and mandatory debt.
 
 ### CURRENT OS STATE
 ${context}
@@ -373,51 +387,70 @@ ${context}
 
         // Handle tool calls loop
         let callCount = 0
-        const toolCalls = response.functionCalls()
-        
-        // NEURAL CONSENT PROTOCOL: Intercept state-mutating actions
-        if (toolCalls?.length && !confirmed) {
-            const needsConsent = toolCalls.some(call => {
-                const { name, args } = call as any
-                if (name === 'manage_task' && (args.action === 'create' || args.action === 'update' || args.action === 'delete')) return true
-                if (name === 'manage_finance') return true // Always consent for finance
-                return false
-            })
-
-            if (needsConsent) {
-                console.log('[Neural Consent] Staging actions for user review:', toolCalls)
+        while (response.functionCalls()?.length && callCount < 5) {
+            callCount++
+            const toolCalls = response.functionCalls()!
+            
+            // CONSENT CHECK: If we haven't confirmed yet, interrupt for user approval
+            const needsConsent = toolCalls.some(c => ['manage_task', 'manage_finance', 'search_drive_docs'].includes(c.name))
+            if (!confirmed && needsConsent) {
                 return NextResponse.json({ 
                     requiresConsent: true, 
                     pendingActions: toolCalls.map(c => ({ name: c.name, args: c.args })),
                     reply: "I've staged these actions for you. Please confirm to proceed with the system execution.",
-                    posture: 'vance' // Default to strategist for staging
+                    posture: 'vance' 
                 })
             }
-        }
 
-        while (response.functionCalls()?.length && callCount < 5) {
-            callCount++
-            const toolResults = await Promise.all(response.functionCalls()!.map(async (call) => {
+            const toolResults = await Promise.all(toolCalls.map(async (call) => {
                 const { name, args } = call
                 console.log(`[Intelligence Action] Executing ${name}`, args)
 
                 try {
-                    let res
+                    let res: any
                     if (name === 'manage_task') {
                         const { action, id, ...rest } = args as any
+                        const insertUserId = '6f516e31-3a17-44a6-b992-d248595fcf83' // VERIFIED MISSION UID
+
                         if (action === 'create') {
-                            res = await supabase!.from('fin_tasks').insert({ ...rest, profile: 'personal' }).select()
+                            const isGrocery = rest.category === 'grocery'
+                            const payload = {
+                                title: rest.title,
+                                priority: rest.priority || (isGrocery ? 'low' : 'mid'),
+                                category: rest.category || 'todo',
+                                is_completed: rest.is_completed || false,
+                                price: rest.price !== undefined ? rest.price : (isGrocery ? 0 : null),
+                                amount: rest.amount || (isGrocery ? 'x1' : null),
+                                impact_score: rest.impact_score ? parseInt(rest.impact_score.toString()) : 5,
+                                due_date: rest.due_date ? (rest.due_date === 'today' ? new Date().toISOString().split('T')[0] : rest.due_date) : null,
+                                strategic_category: isGrocery ? null : (rest.strategic_category || 'personal'),
+                                notes: rest.notes ? { type: 'text', content: rest.notes } : null,
+                                profile: 'personal',
+                                user_id: insertUserId
+                            }
+                            res = await supabase!.from('fin_tasks').insert(payload).select()
                         } else if (action === 'update' && id) {
-                            res = await supabase!.from('fin_tasks').update(rest).eq('id', id).select()
+                            const updates: any = { ...rest }
+                            if (rest.due_date) updates.due_date = rest.due_date === 'today' ? new Date().toISOString().split('T')[0] : rest.due_date
+                            if (rest.notes) updates.notes = { type: 'text', content: rest.notes }
+                            if (rest.strategic_category) updates.strategic_category = rest.strategic_category
+                            if (rest.impact_score) updates.impact_score = parseInt(rest.impact_score.toString())
+                            
+                            res = await supabase!.from('fin_tasks').update(updates).eq('id', id).select()
                         } else if (action === 'delete' && id) {
                             res = await supabase!.from('fin_tasks').delete().eq('id', id)
                         }
+                        return { functionResponse: { name, response: { data: res?.data, error: res?.error } } }
                     } else if (name === 'manage_finance') {
                         const { action, ...fArgs } = args as any
                         if (action === 'log_transaction') {
                             const { type, amount, pocket_id, description, category } = fArgs
                             res = await supabase!.from('fin_transactions').insert({
-                                type, amount, pocket_id, description, category, profile: 'personal', date: new Date().toISOString().split('T')[0]
+                                type, amount, pocket_id, description, category, 
+                                emoji: '💸',
+                                profile: 'personal', 
+                                user_id: '6f516e31-3a17-44a6-b992-d248595fcf83', // Verified system UUID
+                                date: new Date().toISOString().split('T')[0]
                             }).select()
 
                             if (!res.error && type === 'spend' && pocket_id) {
@@ -425,8 +458,17 @@ ${context}
                                 if (p) await supabase!.from('fin_pockets').update({ balance: p.balance - amount }).eq('id', pocket_id)
                             }
                         } else if (action === 'create_pocket') {
-                            res = await supabase!.from('fin_pockets').insert({ ...fArgs, profile: 'personal' }).select()
+                            const payload = {
+                                name: fArgs.name,
+                                balance: fArgs.balance || 0,
+                                target_budget: fArgs.target_budget || 0,
+                                type: fArgs.type || 'general',
+                                profile: 'personal',
+                                user_id: '6f516e31-3a17-44a6-b992-d248595fcf83' // Verified system UUID
+                            }
+                            res = await supabase!.from('fin_pockets').insert(payload).select()
                         }
+                        return { functionResponse: { name, response: { data: res?.data, error: res?.error } } }
                     } else if (name === 'search_drive_docs') {
                         const { query } = args as any
                         const drive = await getGoogleDriveClient()
@@ -468,7 +510,14 @@ ${context}
             response = result.response
         }
 
-        const replyRaw = response.text()
+        let replyRaw = ""
+        try {
+            replyRaw = response.text()
+        } catch (e: any) {
+            console.log("[Intelligence] No text response from model, using fallback summary.")
+            replyRaw = "The operation has been processed. How else can I assist, Karr?"
+        }
+
         const postureMatch = replyRaw.match(/\[\[POSTURE:(\w+)\]\]/i)
         let extractedPosture = postureMatch ? postureMatch[1].toLowerCase() : (lockedIdentity || 'vance')
         if (lockedIdentity) extractedPosture = lockedIdentity // Force lock fallback
