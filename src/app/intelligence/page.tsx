@@ -18,6 +18,7 @@ interface Message {
     timestamp: Date
     posture?: EmotivePosture
     pendingActions?: any[]
+    audioUrl?: string
 }
 
 interface ChatSession {
@@ -102,12 +103,19 @@ export default function IntelligencePage() {
         }
     }, [])
 
+    const audioCacheRef = useRef<Set<string>>(new Set())
+
     useEffect(() => {
         const savedHD = localStorage.getItem('schro_assistant_hd_voice') === 'true'
         const savedHDId = localStorage.getItem('schro_assistant_hd_voice_id')
         const validOpenAI = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
         setIsHDVoice(savedHD)
         if (savedHDId && validOpenAI.includes(savedHDId)) setHdVoiceId(savedHDId)
+        
+        return () => {
+            // Neural Garbage Collection: Purge all blob URLs to prevent memory pressure
+            audioCacheRef.current.forEach(url => URL.revokeObjectURL(url))
+        }
     }, [])
 
     useEffect(() => {
@@ -129,6 +137,7 @@ export default function IntelligencePage() {
     const handleVocalize = async (content: string, index: number, voiceOverride?: string) => {
         if (typeof window === 'undefined') return
 
+        // 1. Text-to-Speech (Standard)
         if (!isHDVoice) {
             if (!('speechSynthesis' in window)) return
             if (activeSpeechIndex === index) {
@@ -149,20 +158,35 @@ export default function IntelligencePage() {
                 setActiveSpeechIndex(null)
                 setIsSpeechPaused(false)
             }
-            setActiveSpeechIndex(index)
-            setIsSpeechPaused(false)
             window.speechSynthesis.speak(utterance)
             return
         }
 
+        // 2. Neural HD Voice (Cloud)
         window.speechSynthesis?.cancel()
+
+        // Check if we already have the audio cached
+        const msg = messages[index]
+        if (msg?.audioUrl) {
+            if (activeSpeechIndex === index) {
+                togglePlayback()
+                return
+            }
+            activeSpeechIndexRef.current = index
+            setActiveSpeechIndex(index)
+            setIsSpeechPaused(false)
+            if (audioRef.current) {
+                audioRef.current.src = msg.audioUrl
+                audioRef.current.play().catch(e => console.error('Cached playback failed', e))
+            }
+            return
+        }
 
         try {
             activeSpeechIndexRef.current = index
             setActiveSpeechIndex(index)
             setIsSpeechPaused(false)
             
-            // Use specific voice for the Identity if provided, else fallback to current selection
             const targetVoice = voiceOverride || hdVoiceId
 
             const res = await fetch('/api/ai/speech', {
@@ -171,35 +195,26 @@ export default function IntelligencePage() {
                 body: JSON.stringify({ text: content, voice: targetVoice })
             })
 
-            // Async Guard: Has user stopped or changed message while we were fetching?
             if (activeSpeechIndexRef.current !== index) return
 
-            if (!res.ok) {
-                const errData = await res.json()
-                throw new Error(errData.error || 'Failed to generate cloud speech')
-            }
+            if (!res.ok) throw new Error('Failed to generate cloud speech')
 
             const blob = await res.blob()
             const url = URL.createObjectURL(blob)
+            audioCacheRef.current.add(url)
             
-            // Async Guard check again before playback
+            // Store the URL back into the message for future instant playback
+            setMessages(prev => prev.map((m, i) => i === index ? { ...m, audioUrl: url } : m))
+
             if (activeSpeechIndexRef.current !== index) {
-                URL.revokeObjectURL(url)
+                // Keep the URL since we stored it in the message, don't revoke yet
                 return
             }
 
             if (audioRef.current) {
-                // Stop any existing playback and clear URL to prevent AbortError
                 audioRef.current.pause()
                 audioRef.current.src = url
-                
-                try {
-                    await audioRef.current.play()
-                } catch (e: any) {
-                    if (e.name !== 'AbortError') {
-                        console.error('Playback error:', e)
-                    }
-                }
+                await audioRef.current.play()
             }
         } catch (e) {
             console.error('Vocalization failed:', e)
@@ -266,19 +281,43 @@ export default function IntelligencePage() {
         }
     }
 
-    // Neural Vocalization Reactor: Auto-Talkback for Assistant responses
+    // Neural Vocalization Reactor: Auto-Talkback & Background Pre-fetching
     useEffect(() => {
-        if (!isVoiceMode || !isHDVoice || messages.length === 0) return
+        if (!isHDVoice || messages.length === 0) return
         
         const lastIndex = messages.length - 1
         const lastMsg = messages[lastIndex]
-        
-        // Only vocalize new assistant messages that haven't been read and aren't staged actions
-        if (lastMsg.role === 'assistant' && lastIndex > lastVocalizedIndex && !lastMsg.pendingActions) {
+        if (lastMsg.role !== 'assistant' || lastMsg.pendingActions) return
+
+        // 1. Automatic Talkback (Voice Mode Only)
+        if (isVoiceMode && lastIndex > lastVocalizedIndex) {
             setLastVocalizedIndex(lastIndex)
             handleVocalize(lastMsg.content, lastIndex)
+        } 
+        // 2. Automatic Pre-fetching (Text Mode - Proactive Cache)
+        else if (!isVoiceMode && !lastMsg.audioUrl && lastIndex > lastVocalizedIndex) {
+            // Background fetch
+            const prefetch = async () => {
+                try {
+                    const res = await fetch('/api/ai/speech', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: lastMsg.content, voice: hdVoiceId })
+                    })
+                    if (res.ok) {
+                        const blob = await res.blob()
+                        const url = URL.createObjectURL(blob)
+                        audioCacheRef.current.add(url)
+                        setLastVocalizedIndex(lastIndex)
+                        setMessages(prev => prev.map((m, i) => i === lastIndex ? { ...m, audioUrl: url } : m))
+                    }
+                } catch (e) {
+                    console.error('Pre-fetch failed', e)
+                }
+            }
+            prefetch()
         }
-    }, [messages, isVoiceMode, isHDVoice, lastVocalizedIndex])
+    }, [messages, isVoiceMode, isHDVoice, lastVocalizedIndex, hdVoiceId])
 
     // Neural Heartbeat: Watchdog to force mic recovery on iPad/Safari
     useEffect(() => {
