@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { KarrFooter } from '@/components/KarrFooter'
 
-type EmotivePosture = 'auto' | 'anya' | 'vance' | 'kael' | 'sentinel' | 'mentor' | 'analyst' | 'strategist' | 'artist' | 'creative'
+type EmotivePosture = 'auto' | 'ruby' | 'vance' | 'kael' | 'sentinel' | 'mentor' | 'analyst' | 'strategist' | 'artist' | 'creative'
 
 interface Message {
     role: 'user' | 'assistant'
@@ -31,7 +31,7 @@ interface ChatSession {
 export default function IntelligencePage() {
     const defaultWelcome: Message = {
         role: 'assistant',
-        content: "Hello! I'm Schrö Assistant. I've indexed your OS data and I'm ready to help you optimize your performance. What's on your mind today?",
+        content: "Schrö Assistant: Neural Protocol Online. 🎙️🧬\n\nSpeak to Ruby for therapy and wellbeing.\nSpeak to Vance for strategy and operations.\nSpeak to Kael for technical and data optimization.\n\nHow shall we proceed?",
         timestamp: new Date()
     }
 
@@ -58,6 +58,7 @@ export default function IntelligencePage() {
     const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
     const [editingTitle, setEditingTitle] = useState('')
     const [isVoiceMode, setIsVoiceMode] = useState(false)
+    const [lockedIdentity, setLockedIdentity] = useState<string | null>(null)
     const [isListening, setIsListening] = useState(false)
     const [personaCompletion, setPersonaCompletion] = useState(0)
     const [activeSpeechIndex, setActiveSpeechIndex] = useState<number | null>(null)
@@ -70,6 +71,14 @@ export default function IntelligencePage() {
     const [autoSendProgress, setAutoSendProgress] = useState(0)
     const [micHeartbeat, setMicHeartbeat] = useState(0)
     const [lastVocalizedIndex, setLastVocalizedIndex] = useState(-1)
+    const [isIdentityDnaModalOpen, setIsIdentityDnaModalOpen] = useState(false)
+    const [identityDna, setIdentityDna] = useState<Record<string, { voice: string, directives: string, name?: string, role?: string }>>({
+        ruby: { voice: 'nova', directives: '', name: 'Ruby', role: 'Therapist' },
+        vance: { voice: 'onyx', directives: '', name: 'Vance', role: 'Strategist' },
+        kael: { voice: 'alloy', directives: '', name: 'Kael', role: 'Mentor' }
+    })
+    const [activeDnaTab, setActiveDnaTab] = useState<'ruby' | 'vance' | 'kael'>('ruby')
+    const [isSavingDna, setIsSavingDna] = useState(false)
     const autoSendTimerRef = useRef<NodeJS.Timeout | null>(null)
     const autoSendIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const inputRef = useRef<string>(input)
@@ -106,6 +115,43 @@ export default function IntelligencePage() {
     const audioCacheRef = useRef<Set<string>>(new Set())
 
     useEffect(() => {
+        const savedPermissions = localStorage.getItem('schro_assistant_permissions')
+        if (savedPermissions) {
+            try {
+                setAccessPermissions(JSON.parse(savedPermissions))
+            } catch (e) {
+                console.error('Failed to load permissions', e)
+            }
+        }
+        
+        const savedLock = localStorage.getItem('schro_assistant_locked_identity')
+        if (savedLock === 'ruby' || savedLock === 'vance' || savedLock === 'kael') {
+            setLockedIdentity(savedLock)
+        }
+    }, [])
+
+    useEffect(() => {
+        // Load DNA with Rebranding Migration
+        const savedDna = localStorage.getItem('schro_assistant_identity_dna')
+        if (savedDna) {
+            try {
+                const dna = JSON.parse(savedDna)
+                // Emergency Migration: anya -> ruby
+                if (dna.anya && !dna.ruby) {
+                    dna.ruby = dna.anya
+                    delete dna.anya
+                }
+                // Backfill roles/names if missing
+                if (dna.ruby && !dna.ruby.name) dna.ruby = { ...dna.ruby, name: 'Ruby', role: 'Therapist' }
+                if (dna.vance && !dna.vance.name) dna.vance = { ...dna.vance, name: 'Vance', role: 'Strategist' }
+                if (dna.kael && !dna.kael.name) dna.kael = { ...dna.kael, name: 'Kael', role: 'Mentor' }
+                
+                setIdentityDna(dna)
+            } catch (e) {
+                console.error('Failed to parse DNA', e)
+            }
+        }
+
         const savedHD = localStorage.getItem('schro_assistant_hd_voice') === 'true'
         const savedHDId = localStorage.getItem('schro_assistant_hd_voice_id')
         const validOpenAI = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
@@ -131,6 +177,14 @@ export default function IntelligencePage() {
             }
         }
     }, [input, handleSend, activeSpeechIndex, isVoiceMode])
+
+    // Neural Input Expansion: Synchronize textarea height with scrollHeight
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto'
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+        }
+    }, [input])
 
 
 
@@ -187,7 +241,7 @@ export default function IntelligencePage() {
             setActiveSpeechIndex(index)
             setIsSpeechPaused(false)
             
-            const targetVoice = voiceOverride || hdVoiceId
+            const targetVoice = voiceOverride || identityDna[msg?.posture || posture || 'vance']?.voice || hdVoiceId
 
             const res = await fetch('/api/ai/speech', {
                 method: 'POST',
@@ -278,6 +332,16 @@ export default function IntelligencePage() {
                 })
             })
             setPersonaCompletion(filledCount)
+            if (data.identity_dna) {
+                const dna = { ...data.identity_dna }
+                // Neural Rebranding Migration: Map anya to ruby if needed
+                if (dna.anya && !dna.ruby) {
+                    dna.ruby = dna.anya
+                    delete dna.anya
+                }
+                setIdentityDna(dna)
+                localStorage.setItem('schro_assistant_identity_dna', JSON.stringify(dna))
+            }
         }
     }
 
@@ -469,13 +533,18 @@ export default function IntelligencePage() {
         if (savedPosture) {
             setPosture(savedPosture)
         }
+        const savedDna = localStorage.getItem('schro_assistant_identity_dna')
+        if (savedDna) {
+            try { setIdentityDna(JSON.parse(savedDna)) } catch (e) {}
+        }
+
         fetchPersonaCompletion()
     }, [])
 
-    const togglePermission = (key: keyof typeof accessPermissions) => {
+    const togglePermission = (mod: keyof typeof accessPermissions) => {
         setAccessPermissions(prev => {
-            const next = { ...prev, [key]: !prev[key] }
-            localStorage.setItem('schro_intelligence_permissions', JSON.stringify(next))
+            const next = { ...prev, [mod]: !prev[mod] }
+            localStorage.setItem('schro_assistant_permissions', JSON.stringify(next))
             return next
         })
     }
@@ -751,6 +820,8 @@ export default function IntelligencePage() {
                     sessionId: currentSessionId,
                     isDemoMode: settings.is_demo_mode,
                     posture,
+                    lockedIdentity,
+                    identityDna,
                     accessPermissions
                 })
             })
@@ -823,6 +894,8 @@ export default function IntelligencePage() {
                     confirmed: true, // TRIGGER EXECUTION
                     isDemoMode: settings.is_demo_mode,
                     posture,
+                    lockedIdentity,
+                    identityDna,
                     accessPermissions
                 })
             })
@@ -848,7 +921,7 @@ export default function IntelligencePage() {
             {/* Standard Module Header */}
             <header className="flex flex-col md:flex-row md:items-end justify-between z-20 shrink-0 gap-6 pb-2">
                 <div className="space-y-1">
-                    <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">Assistant Protocol</h2>
+                    <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">Intelligence Protocol</h2>
                     <h1 className="text-4xl font-black text-black tracking-tighter uppercase flex items-center gap-3 grayscale">
                         Schrö Assistant
                     </h1>
@@ -895,7 +968,6 @@ export default function IntelligencePage() {
                             <span className="text-[9px] font-black uppercase tracking-widest hidden lg:block">Neural HD</span>
                         </button>
 
-                        {/* Neural HD Toggle Only (Selectors removed as they are now autonomous) */}
                         <button
                             onClick={() => setIsPersonaModalOpen(true)}
                             className="relative w-9 h-9 flex items-center justify-center bg-white border border-black/[0.08] shadow-sm rounded-xl hover:bg-black/[0.02] hover:shadow hover:border-black/20 transition-all group"
@@ -911,6 +983,16 @@ export default function IntelligencePage() {
                                 </div>
                             )}
                         </button>
+                        
+                        <button
+                            onClick={() => setIsIdentityDnaModalOpen(true)}
+                            className="relative w-9 h-9 flex items-center justify-center bg-white border border-black/[0.08] shadow-sm rounded-xl hover:bg-black/[0.02] hover:shadow hover:border-black/20 transition-all group"
+                            title="Identity DNA (Remapping)"
+                        >
+                            <AudioLines className="w-4 h-4 text-black/40 group-hover:text-black" />
+                            <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full border border-white" />
+                        </button>
+
                         <button
                             onClick={() => setIsSyncModalOpen(true)}
                             className={cn(
@@ -1125,6 +1207,183 @@ export default function IntelligencePage() {
                 }} 
             />
 
+            {/* Identity DNA Modal */}
+            <AnimatePresence>
+                {isIdentityDnaModalOpen && (
+                    <div className="fixed inset-0 flex items-center justify-center z-[60]">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsIdentityDnaModalOpen(false)}
+                            className="absolute inset-0 bg-black/10 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden border border-black/5"
+                        >
+                            <div className="p-6 border-b border-black/5 flex items-center justify-between bg-[#FAFAFA]">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-600 border border-indigo-500/20">
+                                        <AudioLines className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-black uppercase tracking-widest text-black">Identity DNA</h3>
+                                        <p className="text-[9px] font-bold text-black/40 uppercase tracking-widest mt-0.5">Remap Voice & Neural Context</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsIdentityDnaModalOpen(false)} className="p-2 hover:bg-black/5 rounded-full transition-colors text-black/30 hover:text-black">
+                                    <CloseIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <div className="p-6">
+                                {/* Tab Switcher */}
+                                <div className="flex bg-[#FAFAFA] p-1 rounded-2xl border border-black/5 mb-8">
+                                    {[
+                                        { id: 'ruby', name: identityDna.ruby?.name || 'Ruby', icon: Heart, color: 'text-rose-600', active: 'bg-white shadow-sm border-black/5' },
+                                        { id: 'vance', name: identityDna.vance?.name || 'Vance', icon: Shield, color: 'text-amber-600', active: 'bg-white shadow-sm border-black/5' },
+                                        { id: 'kael', name: identityDna.kael?.name || 'Kael', icon: Zap, color: 'text-sky-600', active: 'bg-white shadow-sm border-black/5' }
+                                    ].map(tab => (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setActiveDnaTab(tab.id as any)}
+                                            className={cn(
+                                                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                                activeDnaTab === tab.id 
+                                                    ? cn(tab.active, tab.color) 
+                                                    : "text-black/30 hover:text-black/60"
+                                            )}
+                                        >
+                                            <tab.icon className="w-3.5 h-3.5" />
+                                            {tab.name}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="h-auto">
+                                    {/* Active Archetype Form */}
+                                    {[
+                                        { id: 'ruby', name: 'Ruby', icon: Heart, color: 'text-rose-600', bg: 'bg-rose-500/5', border: 'border-rose-500/10' },
+                                        { id: 'vance', name: 'Vance', icon: Shield, color: 'text-amber-600', bg: 'bg-amber-500/5', border: 'border-amber-500/10' },
+                                        { id: 'kael', name: 'Kael', icon: Zap, color: 'text-sky-600', bg: 'bg-sky-500/5', border: 'border-sky-500/10' }
+                                    ].filter(idnt => idnt.id === activeDnaTab).map(idnt => (
+                                        <motion.div 
+                                            key={idnt.id}
+                                            initial={{ opacity: 0, x: 10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            className="space-y-6 pb-2"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn("p-2 rounded-lg", idnt.bg, idnt.color)}>
+                                                    <idnt.icon className="w-4 h-4" />
+                                                </div>
+                                                <h4 className="text-xs font-black uppercase tracking-widest">{identityDna[idnt.id]?.name || idnt.name} Archetype DNA</h4>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-black/30 ml-1">Identity Name</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={identityDna[idnt.id]?.name || ''}
+                                                        onChange={(e) => {
+                                                            const next = { ...identityDna, [idnt.id]: { ...identityDna[idnt.id], name: e.target.value } }
+                                                            setIdentityDna(next)
+                                                        }}
+                                                        className="w-full bg-[#FAFAFA] border border-black/5 rounded-xl px-4 py-3 text-xs font-bold outline-none hover:border-black/20 focus:border-black transition-all"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-black/30 ml-1">Behavioral Role</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={identityDna[idnt.id]?.role || ''}
+                                                        onChange={(e) => {
+                                                            const next = { ...identityDna, [idnt.id]: { ...identityDna[idnt.id], role: e.target.value } }
+                                                            setIdentityDna(next)
+                                                        }}
+                                                        className="w-full bg-[#FAFAFA] border border-black/5 rounded-xl px-4 py-3 text-xs font-bold outline-none hover:border-black/20 focus:border-black transition-all"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-black/30 ml-1">Voice Signature</label>
+                                                <div className="relative">
+                                                    <select 
+                                                        value={identityDna[idnt.id]?.voice || 'nova'}
+                                                        onChange={(e) => {
+                                                            const next = { ...identityDna, [idnt.id]: { ...identityDna[idnt.id], voice: e.target.value } }
+                                                            setIdentityDna(next)
+                                                        }}
+                                                        className="w-full bg-[#FAFAFA] border border-black/5 rounded-xl px-4 py-3 text-xs font-bold outline-none hover:border-black/20 focus:border-black transition-all appearance-none cursor-pointer"
+                                                    >
+                                                        {['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'].map(v => (
+                                                            <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-black/20">
+                                                        <Volume2 className="w-4 h-4" />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-black/30 ml-1">Neural Context / Roleplay Directives</label>
+                                                <textarea 
+                                                    placeholder={`Add specific characteristics or personality traits for ${identityDna[idnt.id]?.name || idnt.name}...`}
+                                                    value={identityDna[idnt.id]?.directives || ''}
+                                                    onChange={(e) => {
+                                                        const next = { ...identityDna, [idnt.id]: { ...identityDna[idnt.id], directives: e.target.value } }
+                                                        setIdentityDna(next)
+                                                    }}
+                                                    className="w-full h-32 bg-[#FAFAFA] border border-black/5 rounded-2xl px-4 py-3 text-xs font-medium outline-none hover:border-black/20 focus:border-black transition-all resize-none placeholder:text-black/10 custom-scrollbar"
+                                                />
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-[#FAFAFA] border-t border-black/5 flex items-center justify-between">
+                                <p className="text-[9px] font-bold text-black/30 uppercase tracking-widest">
+                                    Changes take effect immediately <br/> after synchronization.
+                                </p>
+                                <button 
+                                    disabled={isSavingDna}
+                                    onClick={async () => {
+                                        setIsSavingDna(true)
+                                        try {
+                                            const { data: persona } = await supabase?.from('sys_user_persona').select('id').limit(1).maybeSingle() || { data: null }
+                                            if (persona) {
+                                                await supabase?.from('sys_user_persona').update({ identity_dna: identityDna }).eq('id', persona.id)
+                                                localStorage.setItem('schro_assistant_identity_dna', JSON.stringify(identityDna))
+                                                console.log('DNA Protocol Synchronized.')
+                                                // Optional: Show temporary success state
+                                            }
+                                        } finally {
+                                            setIsSavingDna(false)
+                                        }
+                                    }}
+                                    className={cn(
+                                        "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2",
+                                        isSavingDna 
+                                            ? "bg-black/5 text-black/20" 
+                                            : "bg-black text-white hover:scale-105 active:scale-95"
+                                    )}
+                                >
+                                    {isSavingDna ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Cloud className="w-3 h-3" />}
+                                    {isSavingDna ? 'Synchronizing...' : 'Save & Sync DNA'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* Chat Viewport */}
             <div className="flex-1 overflow-hidden flex flex-col relative w-full">
                 {/* Top Fade Overlay */}
@@ -1148,20 +1407,17 @@ export default function IntelligencePage() {
                                 {msg.role === 'assistant' && msg.posture && (
                                     <div className={cn(
                                         "flex items-center gap-1.5 px-1 pb-0.5 text-[8px] font-black uppercase tracking-[0.2em] opacity-60",
-                                        msg.posture === 'anya' ? "text-rose-600" :
+                                        msg.posture === 'ruby' ? "text-rose-600" :
                                         msg.posture === 'vance' ? "text-amber-600" :
                                         msg.posture === 'kael' ? "text-sky-600" :
                                         "text-black/40"
                                     )}>
-                                        {msg.posture === 'anya' && <Heart className="w-2.5 h-2.5 fill-current" />}
+                                        {msg.posture === 'ruby' && <Heart className="w-2.5 h-2.5 fill-current" />}
                                         {msg.posture === 'vance' && <Shield className="w-2.5 h-2.5 fill-current" />}
                                         {msg.posture === 'kael' && <Zap className="w-2.5 h-2.5 fill-current" />}
                                         <span>
                                             {
-                                                msg.posture === 'anya' ? 'Anya (Therapist)' :
-                                                msg.posture === 'vance' ? 'Vance (Strategist)' :
-                                                msg.posture === 'kael' ? 'Kael (Mentor)' :
-                                                'Schrö Assistant'
+                                                `${identityDna[msg.posture]?.name || (msg.posture === 'ruby' ? 'Ruby' : msg.posture)} (${identityDna[msg.posture]?.role || (msg.posture === 'ruby' ? 'Therapist' : msg.posture)})`
                                             }
                                         </span>
                                     </div>
@@ -1254,7 +1510,46 @@ export default function IntelligencePage() {
                 </div>
 
                 {/* Input Area */}
-                <div className="shrink-0 w-full mb-[30px] space-y-3 relative pt-4 bg-[#FAFAFA] z-20">
+                <div className="shrink-0 w-full mb-[30px] space-y-4 relative pt-4 bg-[#FAFAFA] z-20">
+                    {/* Identity Pill Tags */}
+                    <div className="flex items-center justify-start gap-2 mb-2 px-1">
+                        {[
+                            { id: 'ruby', icon: Heart, name: identityDna.ruby?.name || 'Ruby', color: 'text-rose-600 border-rose-500/40 bg-rose-500/5' },
+                            { id: 'vance', icon: Shield, name: identityDna.vance?.name || 'Vance', color: 'text-amber-600 border-amber-500/40 bg-amber-500/5' },
+                            { id: 'kael', icon: Zap, name: identityDna.kael?.name || 'Kael', color: 'text-sky-600 border-sky-500/40 bg-sky-500/5' }
+                        ].map((identity) => (
+                            <button
+                                key={identity.id}
+                                type="button"
+                                onClick={() => {
+                                    const next = lockedIdentity === identity.id ? null : identity.id as any
+                                    setLockedIdentity(next)
+                                    if (next) localStorage.setItem('schro_assistant_locked_identity', next)
+                                    else localStorage.removeItem('schro_assistant_locked_identity')
+                                }}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all duration-300",
+                                    lockedIdentity === identity.id 
+                                        ? `${identity.color} shadow-sm scale-105` 
+                                        : "bg-white border-black/[0.05] text-black/30 hover:bg-black/5 hover:text-black/60 grayscale"
+                                )}
+                            >
+                                <identity.icon className={cn("w-3 h-3", lockedIdentity === identity.id ? "fill-current" : "")} />
+                                <span className="text-[10px] font-black tracking-tight uppercase">{identity.name}</span>
+                                {lockedIdentity === identity.id && (
+                                    <div className="w-1 h-1 bg-current rounded-full animate-pulse" />
+                                )}
+                            </button>
+                        ))}
+                        
+                        {!lockedIdentity && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/[0.02] border border-black/[0.05] text-black/30 italic text-[10px]">
+                                <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
+                                <span>Neural Auto-Sync</span>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Seamless text fade masking */}
                     <div className="absolute top-0 inset-x-0 h-10 -translate-y-full bg-gradient-to-t from-[#FAFAFA] to-transparent pointer-events-none" />
                     
@@ -1291,7 +1586,7 @@ export default function IntelligencePage() {
                                         }
                                     }}
                                     placeholder={isListening ? "Listening..." : "Message Assistant..."}
-                                    className="w-full bg-transparent text-sm font-medium text-black placeholder-black/30 resize-none outline-none py-3 pl-3 pr-24 min-h-[48px] max-h-[200px] z-10"
+                                    className="w-full bg-transparent text-sm font-medium text-black placeholder-black/30 resize-none outline-none py-3 pl-3 pr-24 min-h-[48px] max-h-[400px] z-10 custom-scrollbar overflow-y-auto"
                                     rows={1}
                                 />
                                 {isListening && autoSendProgress > 0 && (

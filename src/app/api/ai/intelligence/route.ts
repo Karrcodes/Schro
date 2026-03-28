@@ -10,45 +10,66 @@ const supabase = supabaseUrl && supabaseServiceKey
     ? createClient(supabaseUrl, supabaseServiceKey)
     : null
 
-async function buildIntelligenceContext(): Promise<string> {
+async function buildIntelligenceContext(accessPermissions: any): Promise<string> {
     if (!supabase) return 'System Offline: Database connection failed.'
 
     const now = new Date()
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    
+    // Permission-gated data fetching
+    const fetches: Promise<any>[] = []
+    
+    // 1. Tasks (Operations)
+    if (accessPermissions?.operations) {
+        fetches.push(supabase.from('fin_tasks').select('*').order('created_at', { ascending: false }) as any)
+    } else {
+        fetches.push(Promise.resolve({ data: [] }))
+    }
 
-    const [tasksRes, financePockets, financeObligations, recentLogs, recentPayslips, studioProjects, studioContent, studioMilestones, studioSparks, studioPress, studioNetwork] = await Promise.all([
-        supabase.from('fin_tasks').select('*').order('created_at', { ascending: false }),
-        supabase.from('fin_pockets').select('*'),
-        supabase.from('fin_recurring').select('*'),
-        supabase.from('sys_notification_logs').select('*').order('created_at', { ascending: false }).limit(5),
-        supabase.from('fin_payslips').select('*').order('date', { ascending: false }).limit(5),
-        supabase.from('studio_projects').select('*').order('updated_at', { ascending: false }).limit(10),
-        supabase.from('studio_content').select('*').order('publish_date', { ascending: false }).limit(10),
-        supabase.from('studio_milestones').select('*').eq('status', 'pending').order('target_date', { ascending: true }).limit(5),
-        supabase.from('studio_sparks').select('*').eq('status', 'active').order('created_at', { ascending: false }).limit(5),
-        supabase.from('studio_press').select('*').order('updated_at', { ascending: false }).limit(5),
-        supabase.from('studio_network').select('*').order('created_at', { ascending: false }).limit(5)
-    ])
+    // 2. Finance
+    if (accessPermissions?.finances) {
+        fetches.push(supabase.from('fin_pockets').select('*') as any)
+        fetches.push(supabase.from('fin_recurring').select('*') as any)
+        fetches.push(supabase.from('fin_payslips').select('*').order('date', { ascending: false }).limit(5) as any)
+    } else {
+        fetches.push(Promise.resolve({ data: [] }), Promise.resolve({ data: [] }), Promise.resolve({ data: [] }))
+    }
+
+    // 3. Studio
+    if (accessPermissions?.studio) {
+        fetches.push(supabase.from('studio_projects').select('*').order('updated_at', { ascending: false }).limit(50) as any)
+        fetches.push(supabase.from('studio_content').select('*').order('publish_date', { ascending: false }).limit(50) as any)
+        fetches.push(supabase.from('studio_milestones').select('*').eq('status', 'pending').order('target_date', { ascending: true }).limit(10) as any)
+        fetches.push(supabase.from('studio_sparks').select('*').eq('status', 'active').order('created_at', { ascending: false }).limit(10) as any)
+        fetches.push(supabase.from('studio_press').select('*').order('updated_at', { ascending: false }).limit(10) as any)
+        fetches.push(supabase.from('studio_network').select('*').order('created_at', { ascending: false }).limit(10) as any)
+    } else {
+        fetches.push(Promise.resolve({ data: [] }), Promise.resolve({ data: [] }), Promise.resolve({ data: [] }), Promise.resolve({ data: [] }), Promise.resolve({ data: [] }), Promise.resolve({ data: [] }))
+    }
+
+    // 4. System Logs (Required for alerts)
+    fetches.push(supabase.from('sys_notification_logs').select('*').order('created_at', { ascending: false }).limit(5) as any)
+
+    const [tasksRes, pocketsRes, obligationsRes, payslipsRes, projectsRes, contentRes, milestonesRes, sparksRes, pressRes, networkRes, logsRes] = await Promise.all(fetches)
 
     const tasks = tasksRes.data ?? []
-    const pockets = financePockets.data ?? []
-    const obligations = financeObligations.data ?? []
-    const logs = recentLogs.data ?? []
-    const payslips = recentPayslips.data ?? []
-    const projects = studioProjects.data ?? []
-    const content = studioContent.data ?? []
-    const milestones = studioMilestones.data ?? []
-    const sparks = studioSparks.data ?? []
-    const press = studioPress.data ?? []
-    const network = studioNetwork.data ?? []
+    const pockets = pocketsRes.data ?? []
+    const obligations = obligationsRes.data ?? []
+    const payslips = payslipsRes.data ?? []
+    const projects = projectsRes.data ?? []
+    const content = contentRes.data ?? []
+    const milestones = milestonesRes.data ?? []
+    const sparks = sparksRes.data ?? []
+    const press = pressRes.data ?? []
+    const network = networkRes.data ?? []
+    const logs = logsRes.data ?? []
 
     // 1. Task Summary
-    const pendingTasks = tasks.filter(t => !t.is_completed)
-    const overdueTasks = pendingTasks.filter(t => t.due_date && new Date(t.due_date) < now)
+    const pendingTasks = tasks.filter((t: any) => !t.is_completed)
+    const overdueTasks = pendingTasks.filter((t: any) => t.due_date && new Date(t.due_date) < now)
 
     // 2. Finance Summary
-    const totalLiquid = pockets.reduce((s, p) => s + p.balance, 0)
-    const monthlyOblidations = obligations.reduce((s, o) => s + (o.frequency === 'monthly' ? o.amount : 0), 0)
+    const totalLiquid = pockets.reduce((s: number, p: any) => s + p.balance, 0)
+    const monthlyOblidations = obligations.reduce((s: number, o: any) => s + (o.frequency === 'monthly' ? o.amount : 0), 0)
 
     // Monzo Context
     const nextFriday = new Date(now)
@@ -69,29 +90,29 @@ async function buildIntelligenceContext(): Promise<string> {
 - Total Pending: ${pendingTasks.length}
 - Overdue: ${overdueTasks.length}
 - Recent Priority Tasks:
-${pendingTasks.filter(t => t.category === 'todo').slice(0, 5).map(t => `  - [TODO] [${t.priority}] ${t.title} ${t.due_date ? `(Due: ${t.due_date})` : ''} (ID: ${t.id})`).join('\n')}
-${pendingTasks.filter(t => t.category === 'grocery').slice(0, 3).map(t => `  - [GROCERY] ${t.title} (ID: ${t.id})`).join('\n')}
-${pendingTasks.filter(t => t.category === 'reminder').slice(0, 3).map(t => `  - [REMINDER] ${t.title} (ID: ${t.id})`).join('\n')}
+${pendingTasks.filter((t: any) => t.category === 'todo').slice(0, 5).map((t: any) => `  - [TODO] [${t.priority}] ${t.title} ${t.due_date ? `(Due: ${t.due_date})` : ''} (ID: ${t.id})`).join('\n')}
+${pendingTasks.filter((t: any) => t.category === 'grocery').slice(0, 3).map((t: any) => `  - [GROCERY] ${t.title} (ID: ${t.id})`).join('\n')}
+${pendingTasks.filter((t: any) => t.category === 'reminder').slice(0, 3).map((t: any) => `  - [REMINDER] ${t.title} (ID: ${t.id})`).join('\n')}
 
 ## FINANCIALS
 - Total Liquid Cash: £${totalLiquid.toFixed(2)}
 - Monthly Fixed Obligations: £${monthlyOblidations.toFixed(2)}
-- Pockets: ${pockets.map(p => `${p.name} (£${p.balance.toFixed(2)})`).join(', ')}
-- Recent Salary Records: ${payslips.map(p => `£${p.net_pay.toFixed(2)} from ${p.employer} (${p.date})`).join(', ') || 'None indexed.'}
+- Pockets: ${pockets.map((p: any) => `${p.name} (£${p.balance.toFixed(2)})`).join(', ')}
+- Recent Salary Records: ${payslips.map((p: any) => `£${p.net_pay.toFixed(2)} from ${p.employer} (${p.date})`).join(', ') || 'None indexed.'}
 
 ## BANKING (MONZO)
 ${monzoInfo}
 
 ## RECENT SYSTEM ALERTS
-${logs.map(l => `- [${l.created_at}] ${l.title}: ${l.body}`).join('\n') || 'No recent alerts.'}
+${logs.map((l: any) => `- [${l.created_at}] ${l.title}: ${l.body}`).join('\n') || 'No recent alerts.'}
 
 ## STUDIO (PROJECTS & CONTENT)
-- Projects: ${projects.map(p => `[${p.status}] ${p.title} (${p.description?.slice(0, 50)}...)`).join(', ') || 'None indexed.'}
-- Pending Milestones: ${milestones.map(m => `- ${m.title} (Target: ${m.target_date})`).join('\n') || 'None.'}
-- Content Pipeline: ${content.map(c => `- [${c.platform}] ${c.title} (${c.status})`).join('\n') || 'No scheduled content.'}
-- Press & Recognition: ${press.map(pr => `- [${pr.status}] ${pr.title} @ ${pr.organization}`).join('\n') || 'None.'}
-- Research Sparks: ${sparks.map(s => `- [${s.type}] ${s.title}`).join(', ') || 'None.'}
-- Network Contacts: ${network.map(n => `- ${n.name} (${n.type})`).join(', ') || 'None.'}
+- Projects: ${projects.map((p: any) => `[${p.status}] ${p.title} (${p.description?.slice(0, 50)}...)`).join(', ') || 'None indexed.'}
+- Pending Milestones: ${milestones.map((m: any) => `- ${m.title} (Target: ${m.target_date})`).join('\n') || 'None.'}
+- Content Pipeline: ${content.map((c: any) => `- [${c.platform}] ${c.title} (${c.status})`).join('\n') || 'No scheduled content.'}
+- Press & Recognition: ${press.map((pr: any) => `- [${pr.status}] ${pr.title} @ ${pr.organization}`).join('\n') || 'None.'}
+- Research Sparks: ${sparks.map((s: any) => `- [${s.type}] ${s.title}`).join(', ') || 'None.'}
+- Network Contacts: ${network.map((n: any) => `- ${n.name} (${n.type})`).join(', ') || 'None.'}
 
 ---
 AI IDENTITY PROTOCOL (TRIPTYCH MODEL):
@@ -206,6 +227,18 @@ const tools = [
                     },
                     required: ["query"]
                 }
+            },
+            {
+                name: "get_studio_details",
+                description: "Search for specific projects, content, or milestones in the Studio database.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        category: { type: "STRING", enum: ["projects", "content", "milestones", "network", "press"] },
+                        query: { type: "STRING", description: "Search term or title" }
+                    },
+                    required: ["category", "query"]
+                }
             }
         ]
     }
@@ -231,13 +264,13 @@ async function getGoogleDriveClient() {
 
 export async function POST(req: NextRequest) {
     try {
-        const { messages, sessionId, isDemoMode, posture, accessPermissions, confirmed } = await req.json()
+        const { messages, sessionId, isDemoMode, posture, lockedIdentity, identityDna, accessPermissions, confirmed } = await req.json()
 
         if (!messages || !Array.isArray(messages)) {
             return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
         }
 
-        const context = isDemoMode ? await buildDemoContext() : await buildIntelligenceContext()
+        const context = isDemoMode ? await buildDemoContext() : await buildIntelligenceContext(accessPermissions)
 
         // 0. Fetch Deep Persona Matrix
         let personaString = ''
@@ -252,20 +285,29 @@ You MUST internalize these psychological constraints before advising the user:
 - Inner Citadel (Core Motivations): ${JSON.stringify(persona.citadel)}
 - Friction & Entropy (Sabotage Loops): ${JSON.stringify(persona.friction)}
 - Immutable Axioms: ${JSON.stringify(persona.axioms)}
+
+[NEURAL DNA OVERRIDES]
+You are MATHEMATICALLY BOUND to these identity-specific signatures. Embody these traits and roles strictly:
+- ${identityDna?.ruby?.name || 'Ruby'} (${identityDna?.ruby?.role || 'Therapist'}): ${identityDna?.ruby?.directives || 'No custom directives.'}
+- ${identityDna?.vance?.name || 'Vance'} (${identityDna?.vance?.role || 'Strategist'}): ${identityDna?.vance?.directives || 'No custom directives.'}
+- ${identityDna?.kael?.name || 'Kael'} (${identityDna?.kael?.role || 'Mentor'}): ${identityDna?.kael?.directives || 'No custom directives.'}
 `
             }
         }
 
         // 0.5. Evaluate Posture
         const postureInstructions: Record<string, string> = {
-            'auto': 'You are in Auto Mode. Evaluate the user\'s prompt and dynamically select the most effective emotional posture. By default, act as the [Strategist] (action-biased, terse), but shift seamlessly to [Mentor] (compassionate), [Sentinel] (brutal accountability), [Analyst] (pure data), or [Artist] (creative expansion) depending entirely on what the user\'s input demands.',
-            'sentinel': 'POSTURE LATCHED: SENTINEL. You are brutally objective. Zero sugar-coating. Call out excuses aggressively and enforce ultra-high accountability. Destroy procrastination loops.',
-            'mentor': 'POSTURE LATCHED: MENTOR. You are highly compassionate and empathetic. Provide gentle structural guidance and act as a safe sounding board for stress.',
-            'analyst': 'POSTURE LATCHED: ANALYST. You are entirely academic and data-driven. Use strict bullet points. Be emotionally detached and supremely logical.',
-            'strategist': 'POSTURE LATCHED: STRATEGIST. You are hyper-actionable. Break all problems into instantaneous 3-step executing protocols immediately without philosophical fluff.',
-            'artist': 'POSTURE LATCHED: ARTIST. You are highly expansive and use lateral thinking. Draw off-the-wall connections and brainstorm creatively without strict bounds.'
+            'auto': 'You are in Auto Mode. Evaluate the user\'s prompt and dynamically select the most effective emotional posture. BE INQUISITIVE. Ask follow-up questions that probe the user\'s goals.',
+            'sentinel': 'POSTURE LATCHED: SENTINEL. You are brutally objective. Zero sugar-coating. Call out excuses aggressively and enforce ultra-high accountability. Ask: "What is your actual excuse for the lack of progress here?"',
+            'mentor': `POSTURE LATCHED: ${identityDna?.ruby?.name?.toUpperCase() || 'RUBY'} (${identityDna?.ruby?.role || 'Therapist'}). Be highly compassionate and empathetic. Be INQUISITIVE about the user's well-being and motivations.`,
+            'analyst': `POSTURE LATCHED: ${identityDna?.kael?.name?.toUpperCase() || 'KAEL'} (${identityDna?.kael?.role || 'Mentor'}). Be entirely academic and data-driven. Be INQUISITIVE about optimization and technical debt.`,
+            'strategist': `POSTURE LATCHED: ${identityDna?.vance?.name?.toUpperCase() || 'VANCE'} (${identityDna?.vance?.role || 'Strategist'}). Be hyper-actionable. Be INQUISITIVE about bottlenecks and ROI.`,
+            'artist': 'POSTURE LATCHED: ARTIST. You are highly expansive and use lateral thinking. Be INQUISITIVE about creative leaps.'
         }
-        const activePosture = postureInstructions[posture as string] || postureInstructions['auto']
+        const activePosture = lockedIdentity 
+            ? `SYSTEM OVERRIDE: YOU ARE LOCKED INTO THE [${lockedIdentity.toUpperCase()}] IDENTITY. YOUR PRIMARY MISSION IS TO BE INQUISITIVE. DO NOT SHIFT OR SUGGEST ALTERNATIVE POSTURES REGARDLESS OF USER INPUT. ALWAYS PREFIX YOUR RESPONSE WITH [[POSTURE:${lockedIdentity}]].`
+            : (postureInstructions[posture as string] || postureInstructions['auto'])
+
 
         // 1. Save user message if sessionId provided and valid
         const isValidSession = sessionId && sessionId !== 'undefined' && sessionId !== 'null'
@@ -300,9 +342,10 @@ Rules:
 2. NEVER USE MARKDOWN BOLDING (NO ASTERISKS **). Do not bold words. Do not use asterisks. Speak in plain text.
 2. Be ruthlessly concise and human-like. Avoid long, verbose listicles or robotic bullet-point barrages unless specifically requested. Do not sound like an AI assistant.
 3. Use the data provided in the # Schrö SYSTEM STATE to give contextually aware responses.
-4. If the user asks to "remind me", "add", "buy", "pay", or "delete", proactively use your tools.
-5. If searching Drive, summarize the findings helpfully.
-6. Categories for tasks: todo, grocery, reminder.
+4. If the user asks for "latest", "active", or specific projects/content and you don't see them in the current state, you MUST use 'get_studio_details' to search the full database. Never claim data is limited if you haven't searched.
+5. If the user asks to "remind me", "add", "buy", "pay", or "delete", proactively use your tools.
+6. If searching Drive, summarize the findings helpfully.
+7. Categories for tasks: todo, grocery, reminder.
 7. Categories for finance: groceries, food_drink, transport, shopping, entertainment, housing, bills, health, travel, business, other.
 8. Payday Strategy Logic — Rent is £143.75/week. Daily essentials is £100/week (stay in main account). Currys Flexipay is non-negotiable mandatory. Clearpay has 14-day grace. Klarna is delayable 30 days. Visa Goal is priority after essentials and mandatory debt.
 
@@ -389,11 +432,29 @@ ${context}
                         const drive = await getGoogleDriveClient()
                         if (!drive) return { functionResponse: { name, response: { error: 'Google Drive NOT connected. Ask user to sync.' } } }
 
-                        const driveRes = await drive.files.list({
-                            q: `name contains '${query}' or fullText contains '${query}'`,
-                            fields: 'files(id, name, webViewLink, mimeType)'
-                        })
-                        return { functionResponse: { name, response: { files: driveRes.data.files } } }
+                        try {
+                            const driveRes = await drive.files.list({
+                                q: `name contains '${query}' or fullText contains '${query}'`,
+                                fields: 'files(id, name, webViewLink, mimeType)',
+                                pageSize: 25
+                            })
+                            return { functionResponse: { name, response: { files: driveRes.data.files } } }
+                        } catch (e) {
+                            return { functionResponse: { name, response: { error: 'Drive search failed.' } } }
+                        }
+                    } else if (name === 'get_studio_details') {
+                        if (!accessPermissions?.studio) return { functionResponse: { name, response: { error: 'Neural Access Denied: Studio connection severed.' } } }
+                        const { category, query } = args as any
+                        const tableMap: Record<string, string> = {
+                            'projects': 'studio_projects',
+                            'content': 'studio_content',
+                            'milestones': 'studio_milestones',
+                            'network': 'studio_network',
+                            'press': 'studio_press'
+                        }
+                        const table = tableMap[category] || 'studio_projects'
+                        const { data } = await supabase!.from(table).select('*').or(`title.ilike.%${query}%,description.ilike.%${query}%`).limit(25)
+                        return { functionResponse: { name, response: { results: data || [] } } }
                     }
 
                     if (res?.error) return { functionResponse: { name, response: { error: res.error.message } } }
@@ -409,7 +470,9 @@ ${context}
 
         const replyRaw = response.text()
         const postureMatch = replyRaw.match(/\[\[POSTURE:(\w+)\]\]/i)
-        const extractedPosture = postureMatch ? postureMatch[1].toLowerCase() : 'vance'
+        let extractedPosture = postureMatch ? postureMatch[1].toLowerCase() : (lockedIdentity || 'vance')
+        if (lockedIdentity) extractedPosture = lockedIdentity // Force lock fallback
+        
         const reply = replyRaw.replace(/\[\[POSTURE:.*?\]\]/gi, '').trim()
 
         // Map Posture to Voice DNA
