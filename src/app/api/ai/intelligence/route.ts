@@ -231,7 +231,7 @@ async function getGoogleDriveClient() {
 
 export async function POST(req: NextRequest) {
     try {
-        const { messages, sessionId, isDemoMode, posture, accessPermissions } = await req.json()
+        const { messages, sessionId, isDemoMode, posture, accessPermissions, confirmed } = await req.json()
 
         if (!messages || !Array.isArray(messages)) {
             return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
@@ -330,6 +330,28 @@ ${context}
 
         // Handle tool calls loop
         let callCount = 0
+        const toolCalls = response.functionCalls()
+        
+        // NEURAL CONSENT PROTOCOL: Intercept state-mutating actions
+        if (toolCalls?.length && !confirmed) {
+            const needsConsent = toolCalls.some(call => {
+                const { name, args } = call as any
+                if (name === 'manage_task' && (args.action === 'create' || args.action === 'update' || args.action === 'delete')) return true
+                if (name === 'manage_finance') return true // Always consent for finance
+                return false
+            })
+
+            if (needsConsent) {
+                console.log('[Neural Consent] Staging actions for user review:', toolCalls)
+                return NextResponse.json({ 
+                    requiresConsent: true, 
+                    pendingActions: toolCalls.map(c => ({ name: c.name, args: c.args })),
+                    reply: "I've staged these actions for you. Please confirm to proceed with the system execution.",
+                    posture: 'vance' // Default to strategist for staging
+                })
+            }
+        }
+
         while (response.functionCalls()?.length && callCount < 5) {
             callCount++
             const toolResults = await Promise.all(response.functionCalls()!.map(async (call) => {

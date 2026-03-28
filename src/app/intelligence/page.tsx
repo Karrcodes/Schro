@@ -17,6 +17,7 @@ interface Message {
     content: string
     timestamp: Date
     posture?: EmotivePosture
+    pendingActions?: any[]
 }
 
 interface ChatSession {
@@ -639,10 +640,17 @@ export default function IntelligencePage() {
         const newMessages = [...messages, userMsg]
         setMessages(newMessages)
         setInput('')
-        setIsTyping(true)
+        
+        // iPad Hardening: Explicitly stop recognition the moment we send to free audio context
+        if (recognitionRef.current) {
+            try { recognitionRef.current.stop() } catch (e) {}
+        }
 
         try {
-            // 1. Create session if it doesn't exist
+            setIsTyping(true)
+            
+            // 1. Persist User Message if session exists
+            let currentSessionId = activeSessionId
             if (!currentSessionId) {
                 const sRes = await fetch('/api/intelligence/sessions', {
                     method: 'POST',
@@ -672,6 +680,18 @@ export default function IntelligencePage() {
             })
 
             const data = await res.json()
+            if (data.requiresConsent) {
+                const stagingMsg: Message = {
+                    role: 'assistant',
+                    content: data.reply || "Protocol Execution Staged: Awaiting Neural Confirmation.",
+                    timestamp: new Date(),
+                    posture: data.posture as EmotivePosture || 'vance',
+                    pendingActions: data.pendingActions
+                }
+                setMessages(prev => [...prev, stagingMsg])
+                return
+            }
+
             if (data.reply) {
                 let finalReply = data.reply
                 
@@ -712,6 +732,44 @@ export default function IntelligencePage() {
                 timestamp: new Date()
             }
             setMessages(prev => [...prev, errorMsg])
+        } finally {
+            setIsTyping(false)
+        }
+    }
+
+    const handleConfirmAction = async (msgIndex: number, actions: any[]) => {
+        setIsTyping(true)
+        // Optimistically remove actions from UI or mark as executing
+        setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, pendingActions: undefined } : m))
+
+        try {
+            const res = await fetch('/api/ai/intelligence', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: messages,
+                    sessionId: activeSessionId,
+                    confirmed: true, // TRIGGER EXECUTION
+                    isDemoMode: settings.is_demo_mode,
+                    posture,
+                    accessPermissions
+                })
+            })
+            const data = await res.json()
+            if (data.reply) {
+                const assistantMsg: Message = {
+                    role: 'assistant',
+                    content: data.reply,
+                    timestamp: new Date(),
+                    posture: data.posture as EmotivePosture
+                }
+                setMessages(prev => [...prev, assistantMsg])
+                if (isVoiceMode && isHDVoice) {
+                    handleVocalize(data.reply, messages.length + 1, data.voice)
+                }
+            }
+        } catch (err) {
+            console.error('Action execution failed', err)
         } finally {
             setIsTyping(false)
         }
@@ -1047,6 +1105,39 @@ export default function IntelligencePage() {
                                         : "bg-black text-white border-black font-medium rounded-tr-none"
                                 )}>
                                     {msg.content}
+
+                                    {msg.pendingActions && (
+                                        <div className="mt-4 p-4 rounded-xl bg-black/[0.02] border border-black/5 space-y-3">
+                                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black/40">
+                                                <Zap className="w-3 h-3 text-amber-500 fill-current" />
+                                                Action Staging Protocol
+                                            </div>
+                                            <div className="space-y-2">
+                                                {msg.pendingActions.map((action, i) => (
+                                                    <div key={i} className="flex items-start gap-2 text-xs font-bold text-black/80 bg-white/50 p-2 rounded-lg border border-black/5">
+                                                        <span className="text-emerald-500">▶</span>
+                                                        {action.name === 'manage_task' ? `Create Task: ${action.args.title}` : 
+                                                         action.name === 'manage_finance' ? `Fin Op: ${action.args.description || action.args.action}` : 
+                                                         `Execute: ${action.name}`}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex gap-2 pt-1">
+                                                <button
+                                                    onClick={() => handleConfirmAction(index, msg.pendingActions!)}
+                                                    className="flex-1 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                                >
+                                                    Execute Protocol
+                                                </button>
+                                                <button
+                                                    onClick={() => setMessages(prev => prev.map((m, i) => i === index ? { ...m, pendingActions: undefined } : m))}
+                                                    className="px-3 py-2 bg-black/5 text-black/40 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-black/10 transition-all"
+                                                >
+                                                    Abort
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
                                     <span className="text-[9px] font-medium text-black/20 uppercase">
