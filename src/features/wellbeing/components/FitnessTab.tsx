@@ -47,16 +47,16 @@ export function FitnessTab() {
         : 'Full Body';
 
     return (
-        <div className="flex flex-col space-y-12">
+        <div className="flex flex-col space-y-4">
             <WellbeingHeader
                 title="Fitness & Vitality"
                 subtitle="Wellbeing Protocol"
                 activeColor="text-rose-500"
             />
 
-            <div className="w-full space-y-12">
+            <div className="w-full space-y-4">
                 {/* Module Controls Row */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <WellbeingTabs />
                     <WellbeingControls />
                 </div>
@@ -143,7 +143,7 @@ export function FitnessTab() {
                 </motion.div>
 
                 {/* Main Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 xl:gap-6 items-start">
                     {routines.length === 0 ? (
                         <div className="lg:col-span-3">
                             <RoutineBuilder />
@@ -151,18 +151,43 @@ export function FitnessTab() {
                     ) : (
                         <>
                             {/* Active Protocol */}
-                            <section style={{ height: 380 }} className="bg-black text-white rounded-[32px] shadow-2xl lg:col-span-1 w-full relative overflow-visible group">
-                                    <div className="h-full w-full overflow-y-auto p-6 relative no-scrollbar rounded-[32px]">
+                            <section className="bg-black text-white rounded-[32px] shadow-2xl lg:col-span-1 w-full relative overflow-visible group h-[330px] xl:h-[380px]">
+                                    <div className="h-full w-full overflow-y-auto lg:overflow-hidden p-6 relative no-scrollbar rounded-[32px]">
                                         <div className="flex items-center justify-between relative z-10 shrink-0 mb-3">
-                                            <div className="flex items-center gap-2">
-                                                <Dumbbell className="w-4 h-4 text-emerald-500" />
-                                                <h3 className="text-[10px] font-black text-white/50 uppercase tracking-[0.4em]">Active Protocol</h3>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                                                    <Dumbbell className="w-3.5 h-3.5 text-emerald-500" />
+                                                </div>
+                                                <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Active Protocol</span>
                                             </div>
+                                            {activeSession ? (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setShowCancelConfirm(true);
+                                                    }}
+                                                    className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-all border border-rose-500/20 group/cancel"
+                                                >
+                                                    <X className="w-3 h-3 text-rose-500 group-hover:text-rose-400 transition-colors" />
+                                                    <span className="hidden md:inline text-[9px] font-black uppercase tracking-widest text-rose-200 group-hover:text-white">Cancel Session</span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsDynamicModalOpen(true);
+                                                    }}
+                                                    className="flex items-center gap-2 px-3 py-1.5 bg-violet-500/10 hover:bg-violet-500/20 rounded-xl transition-all border border-violet-500/20 group/dyn"
+                                                >
+                                                    <Sparkles className="w-3 h-3 text-violet-500 group-hover:text-violet-400 transition-colors" />
+                                                    <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest text-violet-200 group-hover:text-white">Dynamic Session</span>
+                                                </button>
+                                            )}
                                         </div>
 
                                         <div className="flex flex-col gap-2">
                                             <div className="flex flex-col items-start gap-1 relative z-10 w-full">
-                                                <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter leading-none">{displayTitle}</h2>
+                                                <h2 className="text-xl lg:text-2xl xl:text-3xl font-black uppercase tracking-tighter leading-none">{displayTitle}</h2>
                                                 <p className="text-rose-500 text-[9px] md:text-[10px] font-black uppercase tracking-widest leading-snug">{displayMuscles}</p>
                                             </div>
 
@@ -203,37 +228,15 @@ export function FitnessTab() {
                                                     {activeSession ? 'SESSION PAUSED' : 'Start Session'}
                                                 </p>
                                                 
-                                                {activeSession && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setShowCancelConfirm(true);
-                                                        }}
-                                                        className="mt-3 group/cancel flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-white/5 transition-all"
-                                                    >
-                                                        <X className="w-3 h-3 text-white/20 group-hover/cancel:text-rose-500 transition-colors" />
-                                                        <span className="text-[9px] font-black text-white/20 group-hover/cancel:text-white uppercase tracking-widest transition-colors">Cancel Session</span>
-                                                    </button>
-                                                )}
-
-                                                {!activeSession && (
-                                                    <button
-                                                        onClick={() => setIsDynamicModalOpen(true)}
-                                                        className="mt-5 px-6 py-2.5 rounded-full border border-white/10 hover:border-violet-500/50 hover:bg-violet-500/10 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 group/dyn shadow-lg shadow-transparent hover:shadow-violet-500/10"
-                                                    >
-                                                        <Sparkles className="w-3.5 h-3.5 text-violet-500/70 group-hover/dyn:text-violet-400 group-hover/dyn:animate-pulse" />
-                                                        Generate Dynamic Session
-                                                    </button>
-                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 </section>
 
                             {/* Operational Flow */}
-                            <div style={{ height: 380 }} className="bg-white border border-black/5 rounded-[32px] shadow-sm lg:col-span-1 w-full relative overflow-visible">
-                                <div className="h-full w-full overflow-y-auto p-6 no-scrollbar">
-                                        <div className="flex items-center justify-between mb-6">
+                            <div className="bg-white border border-black/5 rounded-[32px] shadow-sm lg:col-span-1 w-full relative overflow-visible h-[330px] xl:h-[380px]">
+                                <div className="h-full w-full overflow-y-auto lg:overflow-hidden p-6 no-scrollbar">
+                                        <div className="flex items-center justify-between mb-4 lg:mb-3 xl:mb-6">
                                             <h3 className="text-[11px] font-black text-black/30 uppercase tracking-[0.3em]">Operational Flow</h3>
                                             <Activity className="w-4 h-4 text-black/20" />
                                         </div>
@@ -242,7 +245,7 @@ export function FitnessTab() {
                                 </div>
                                 
                             {/* Milestones */}
-                            <div style={{ height: 380 }} className="lg:col-span-1 relative w-full overflow-visible">
+                            <div className="lg:col-span-1 relative w-full overflow-visible h-[330px] xl:h-[380px]">
                                 <MilestoneTracker />
                             </div>
                         </>
