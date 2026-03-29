@@ -74,7 +74,7 @@ export function NutritionTab() {
 
                     <div className="space-y-6">
                         {/* Nutrition Trends */}
-                        <div className="bg-white border border-black/5 rounded-[32px] p-8 space-y-6 w-full h-[420px] overflow-y-auto no-scrollbar">
+                        <div className="bg-white border border-black/5 rounded-[32px] p-8 space-y-6 w-full h-[340px] xl:h-[390px] overflow-y-auto no-scrollbar">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-[11px] font-black text-black/30 uppercase tracking-[0.3em]">Monthly Adherence</h3>
                                 <ActivitySquare className="w-4 h-4 text-black/20" />
@@ -85,7 +85,7 @@ export function NutritionTab() {
                 </div>
 
                 {/* The Fridge (Inventory) */}
-                <div className="w-full h-[320px] pb-12">
+                <div className="w-full h-[340px] pb-12">
                         <motion.div
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.99 }}

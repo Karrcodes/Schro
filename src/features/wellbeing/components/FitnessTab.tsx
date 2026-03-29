@@ -47,16 +47,16 @@ export function FitnessTab() {
         : 'Full Body';
 
     return (
-        <div className="flex flex-col space-y-4">
+        <div className="flex flex-col space-y-12">
             <WellbeingHeader
                 title="Fitness & Vitality"
                 subtitle="Wellbeing Protocol"
                 activeColor="text-rose-500"
             />
 
-            <div className="w-full space-y-4">
+            <div className="w-full space-y-12">
                 {/* Module Controls Row */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <WellbeingTabs />
                     <WellbeingControls />
                 </div>
@@ -151,9 +151,9 @@ export function FitnessTab() {
                     ) : (
                         <>
                             {/* Active Protocol */}
-                            <section className="bg-black text-white rounded-[32px] shadow-2xl lg:col-span-1 w-full relative overflow-visible group h-[330px] xl:h-[380px]">
+                            <section className="bg-black text-white rounded-[32px] shadow-2xl lg:col-span-1 w-full relative overflow-visible group h-[340px] xl:h-[390px]">
                                     <div className="h-full w-full overflow-y-auto lg:overflow-hidden p-6 relative no-scrollbar rounded-[32px]">
-                                        <div className="flex items-center justify-between relative z-10 shrink-0 mb-3">
+                                        <div className="flex items-center justify-between relative z-10 shrink-0 mb-3 xl:mb-6">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                                                     <Dumbbell className="w-3.5 h-3.5 text-emerald-500" />
@@ -234,7 +234,7 @@ export function FitnessTab() {
                                 </section>
 
                             {/* Operational Flow */}
-                            <div className="bg-white border border-black/5 rounded-[32px] shadow-sm lg:col-span-1 w-full relative overflow-visible h-[330px] xl:h-[380px]">
+                            <div className="bg-white border border-black/5 rounded-[32px] shadow-sm lg:col-span-1 w-full relative overflow-visible h-[340px] xl:h-[390px]">
                                 <div className="h-full w-full overflow-y-auto lg:overflow-hidden p-6 no-scrollbar">
                                         <div className="flex items-center justify-between mb-4 lg:mb-3 xl:mb-6">
                                             <h3 className="text-[11px] font-black text-black/30 uppercase tracking-[0.3em]">Operational Flow</h3>
@@ -245,7 +245,7 @@ export function FitnessTab() {
                                 </div>
                                 
                             {/* Milestones */}
-                            <div className="lg:col-span-1 relative w-full overflow-visible h-[330px] xl:h-[380px]">
+                            <div className="lg:col-span-1 relative w-full overflow-visible h-[340px] xl:h-[390px]">
                                 <MilestoneTracker />
                             </div>
                         </>

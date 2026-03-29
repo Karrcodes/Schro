@@ -30,7 +30,7 @@ export function NutritionHeatmap() {
     }, [mealLogs, weekOffset])
 
     const getHeatmapColor = (calories: number) => {
-        if (calories === 0) return "bg-black/[0.03] scale-95"
+        if (calories === 0) return "bg-rose-500/10 border-rose-500/20 scale-95"
 
         const ratio = calories / targetCalories
 
@@ -88,9 +88,13 @@ export function NutritionHeatmap() {
                         )}
                     >
                         {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-xl pointer-events-none">
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-xl pointer-events-none text-center">
                             {format(new Date(day.date), 'MMM do')}
-                            <span className="block text-emerald-400 mt-0.5">{day.calories} kcal</span>
+                            {day.calories > 0 ? (
+                                <span className="block text-emerald-400 mt-0.5">{day.calories} kcal</span>
+                            ) : (
+                                <span className="block text-rose-400 mt-0.5 whitespace-nowrap">No Data Recorded</span>
+                            )}
                             <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black" />
                         </div>
                     </div>
@@ -104,7 +108,7 @@ export function NutritionHeatmap() {
 
                 <div className="flex items-center gap-1.5">
                     <div className="text-[8px] font-black text-black/20 uppercase tracking-widest mr-1">Less</div>
-                    <div className="w-2 h-2 rounded-sm bg-black/[0.03]" />
+                    <div className="w-2 h-2 rounded-sm bg-rose-500/10 border border-rose-500/20" />
                     <div className="w-2 h-2 rounded-sm bg-emerald-200" />
                     <div className="w-2 h-2 rounded-sm bg-emerald-300" />
                     <div className="w-2 h-2 rounded-sm bg-emerald-500" />

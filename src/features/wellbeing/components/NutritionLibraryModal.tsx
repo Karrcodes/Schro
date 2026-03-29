@@ -541,8 +541,31 @@ function LibraryMealCard({
             if (isDraggingRef.current) {
                 onPointerDragOver(ev.clientX, ev.clientY)
                 if (ghost) {
+                    // Calculate distance to nearest category drop zone
+                    const targets = document.querySelectorAll('[data-category-type]')
+                    let minDistance = 1000
+                    targets.forEach(t => {
+                        const rect = t.getBoundingClientRect()
+                        const cx = rect.left + rect.width / 2
+                        const cy = rect.top + rect.height / 2
+                        const dist = Math.sqrt(Math.pow(ev.clientX - cx, 2) + Math.pow(ev.clientY - cy, 2))
+                        if (dist < minDistance) minDistance = dist
+                    })
+
+                    // Smart scaling based on proximity
+                    const startShrink = 350 // px
+                    const minScaleDist = 40  // px
+                    const factor = Math.max(0, Math.min(1, (minDistance - minScaleDist) / (startShrink - minScaleDist)))
+                    
+                    // Scale from 0.95 (far) to 0.4 (close)
+                    const targetScale = 0.4 + (factor * 0.55)
+                    // Opacity from 1.0 (far) to 0.5 (close)
+                    const targetOpacity = 0.5 + (factor * 0.5)
+
                     ghost.style.left = `${ev.clientX - 140}px`
                     ghost.style.top = `${ev.clientY - 40}px`
+                    ghost.style.transform = `rotate(-2deg) scale(${targetScale})`
+                    ghost.style.opacity = `${targetOpacity}`
                 }
             }
         }

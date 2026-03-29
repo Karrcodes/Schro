@@ -38,8 +38,8 @@ export function FitnessHeatmap() {
     const getHeatmapColor = (hasVisit?: boolean, isWorkDay?: boolean, isPending?: boolean) => {
         if (hasVisit) return "bg-emerald-500 shadow-sm shadow-emerald-500/20 border-emerald-500/20 scale-105 z-10"
         if (isPending) return "bg-emerald-500/20 border-emerald-500/30 animate-pulse"
-        if (isWorkDay) return "bg-black/[0.15] scale-95"
-        return "bg-black/[0.03] scale-95"
+        if (isWorkDay) return "bg-black/[0.03] scale-95"
+        return "bg-rose-500/10 border-rose-500/20 scale-95"
     }
 
     const activeDays = days.filter(d => d.hasVisit || d.isPending).length
@@ -97,7 +97,7 @@ export function FitnessHeatmap() {
                                 ) : day.isPending ? (
                                     <span className="block text-emerald-400/60 mt-0.5 animate-pulse">Session Pending</span>
                                 ) : (
-                                    <span className="block text-white/40 mt-0.5">{day.isWorkDay ? 'Work Day' : 'Rest Day'}</span>
+                                    <span className={cn("block mt-0.5", day.isWorkDay ? "text-white/40" : "text-rose-400")}>{day.isWorkDay ? 'Work Day' : 'Rest Day'}</span>
                                 )}
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black" />
                             </div>
@@ -113,11 +113,11 @@ export function FitnessHeatmap() {
 
                 <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-sm bg-black/[0.15]" />
+                        <div className="w-2 h-2 rounded-sm bg-black/[0.03]" />
                         <span className="text-[7px] font-black text-black/20 uppercase tracking-widest">Work</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-sm bg-black/[0.03]" />
+                        <div className="w-2 h-2 rounded-sm bg-rose-500/10 border border-rose-500/20" />
                         <span className="text-[7px] font-black text-black/20 uppercase tracking-widest">Rest</span>
                     </div>
                     <div className="flex items-center gap-1">

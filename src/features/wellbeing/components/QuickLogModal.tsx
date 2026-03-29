@@ -65,7 +65,10 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: mealName })
             })
-            if (!res.ok) throw new Error('API Error')
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: 'API Error' }))
+                throw new Error(errorData.error || 'Failed to estimate macros')
+            }
             const data = await res.json()
             setMealName(data.name || 'AI ESTIMATED MEAL')
             setMealEmoji(data.emoji || '🍽️')
@@ -78,9 +81,9 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
             setEstimatedIngredients(data.ingredients || [])
             setMealType(data.type ? [data.type] : ['snack'])
             setSaveToLibrary(true) // AI meals should usually be saved
-        } catch (error) {
+        } catch (error: any) {
             console.error(error)
-            alert('Failed to estimate macros. Please try again.')
+            alert(error.message || 'Failed to estimate macros. Please try again.')
         } finally {
             setIsEstimating(false)
         }
