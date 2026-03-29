@@ -169,7 +169,7 @@ export function FitnessTab() {
                                                     className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-all border border-rose-500/20 group/cancel"
                                                 >
                                                     <X className="w-3 h-3 text-rose-500 group-hover:text-rose-400 transition-colors" />
-                                                    <span className="hidden md:inline text-[9px] font-black uppercase tracking-widest text-rose-200 group-hover:text-white">Cancel Session</span>
+                                                    <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest text-rose-200 group-hover:text-white">Cancel Session</span>
                                                 </button>
                                             ) : (
                                                 <button
