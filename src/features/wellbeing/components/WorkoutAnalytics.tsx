@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { useWellbeing } from '../contexts/WellbeingContext'
 import { 
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -19,10 +20,11 @@ import { format, subDays, isAfter, parseISO, startOfDay } from 'date-fns'
 import { EXERCISES } from '../constants/exercises'
 
 interface WorkoutAnalyticsProps {
-    onClose: () => void
+    onClose?: () => void
 }
 
 export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
+    const router = useRouter()
     const { 
         workoutLogs, routines, logWorkout, 
         bulkAddWorkoutLogs, clearWorkoutLogs, deleteWorkoutLog 
@@ -194,24 +196,25 @@ export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-white flex flex-col md:p-6 p-0 overflow-y-auto"
+            className="flex flex-col space-y-12"
         >
             {/* Header */}
-            <header className="flex items-center justify-between p-4 bg-white border-b border-black/5 shrink-0">
-                <button 
-                    onClick={onClose}
-                    className="w-10 h-10 flex items-center justify-center bg-black/5 rounded-full hover:bg-black/10 transition-colors"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div className="text-center">
-                    <h2 className="text-xl font-black uppercase tracking-tighter">Performance Matrix</h2>
-                    <p className="text-[9px] font-black text-black/40 uppercase tracking-widest">Workout History & Analytics</p>
+            <header className="flex flex-col md:flex-row md:items-center justify-between z-10 gap-6 w-full flex-shrink-0">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <button 
+                        onClick={() => onClose ? onClose() : router.push('/health/fitness')}
+                        className="w-9 h-9 rounded-xl bg-black/[0.03] flex items-center justify-center hover:bg-black/[0.06] transition-colors flex-shrink-0"
+                    >
+                        <ArrowLeft className="w-4 h-4 text-black/40" />
+                    </button>
+                    <div className="min-w-0 flex-1 space-y-1">
+                        <h2 className="text-[11px] font-black text-rose-500 uppercase tracking-[0.3em] truncate">Performance Matrix</h2>
+                        <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tighter uppercase grayscale truncate">Workout History</h1>
+                    </div>
                 </div>
-                <div className="w-10" /> {/* Spacer */}
             </header>
 
-            <div className="max-w-5xl mx-auto w-full space-y-8 p-4 md:p-0 pb-12">
+            <div className="w-full space-y-12 pb-12">
                 
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-4">

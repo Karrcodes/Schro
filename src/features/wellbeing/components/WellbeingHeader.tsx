@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useWellbeing } from '../contexts/WellbeingContext'
 import { usePathname, useRouter } from 'next/navigation'
+import { History, Dna } from 'lucide-react'
+import { WorkoutAnalytics } from './WorkoutAnalytics'
+import { AnimatePresence } from 'framer-motion'
 
 interface WellbeingHeaderProps {
     title: string
@@ -36,14 +39,25 @@ export function WellbeingHeader({ title, subtitle, activeColor }: WellbeingHeade
                 <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">{title}</h1>
             </div>
             
-            {pathname !== '/health/settings' && (
-                <button
-                    onClick={() => router.push('/health/settings')}
-                    className="flex items-center gap-2 px-4 py-2 bg-black/[0.02] hover:bg-black/[0.05] rounded-xl transition-all border border-black/[0.05]"
-                >
-                    <span className={cn("text-[10px] font-black uppercase tracking-widest", activeColor)}>Biometric Data</span>
-                </button>
+            {pathname !== '/health/settings' && pathname !== '/health/fitness/matrix' && (
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => router.push('/health/fitness/matrix')}
+                        className="flex items-center gap-2 px-4 py-2 bg-black/[0.02] hover:bg-black/[0.05] rounded-xl transition-all border border-black/[0.05] group"
+                    >
+                        <History className={cn("w-3.5 h-3.5 text-black/20 group-hover:text-black transition-colors", activeColor)} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-black/40 group-hover:text-black">Performance Matrix</span>
+                    </button>
+                    <button
+                        onClick={() => router.push('/health/settings')}
+                        className="flex items-center gap-2 px-4 py-2 bg-black/[0.02] hover:bg-black/[0.05] rounded-xl transition-all border border-black/[0.05] group"
+                    >
+                        <Dna className={cn("w-3.5 h-3.5 text-black/20 group-hover:text-black transition-colors", activeColor)} />
+                        <span className={cn("text-[10px] font-black uppercase tracking-widest", activeColor)}>Biometric Data</span>
+                    </button>
+                </div>
             )}
+
         </header>
     )
 }

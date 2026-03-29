@@ -175,7 +175,7 @@ export function WellbeingSettings() {
                     </button>
                     <div className="min-w-0 flex-1 space-y-1">
                         <h2 className="text-[11px] font-black text-rose-500 uppercase tracking-[0.3em] truncate">Wellbeing Protocol</h2>
-                        <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tighter uppercase grayscale truncate">Settings & Config</h1>
+                        <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tighter uppercase grayscale truncate">Biometric Data</h1>
                     </div>
                 </div>
             </div>
@@ -189,7 +189,6 @@ export function WellbeingSettings() {
                             <User className="w-3.5 h-3.5 text-rose-500" />
                             <h2 className="text-[10px] font-black text-black/30 uppercase tracking-[0.25em]">Personal Metrics</h2>
                         </div>
-                        <h1 className="text-2xl font-black text-black uppercase tracking-tighter">Biometric Data</h1>
                     </div>
                 </div>
 
