@@ -12,8 +12,13 @@ import { PiggyBank } from 'lucide-react'
 
 export default function ManifestDashboard() {
     const { goals, wishlist, loading } = useGoals()
-    const { goals: financeGoals } = useFinanceGoals()
-    const { pots } = usePots()
+    const { goals: personalFinanceGoals } = useFinanceGoals('personal')
+    const { goals: businessFinanceGoals } = useFinanceGoals('business')
+    const { pots: personalPots } = usePots('personal')
+    const { pots: businessPots } = usePots('business')
+
+    const allFinanceGoals = useMemo(() => [...personalFinanceGoals, ...businessFinanceGoals], [personalFinanceGoals, businessFinanceGoals])
+    const allPots = useMemo(() => [...personalPots, ...businessPots], [personalPots, businessPots])
 
     const stats = useMemo(() => {
         const activeGoals = goals.filter(g => g.status === 'active')
@@ -24,8 +29,8 @@ export default function ManifestDashboard() {
         activeGoals.forEach(goal => {
             if (goal.linked_savings_id) {
                 const savings = goal.linked_savings_type === 'manual' 
-                    ? financeGoals.find(f => f.id === goal.linked_savings_id)
-                    : pots.find(p => p.id === goal.linked_savings_id)
+                    ? allFinanceGoals.find(f => f.id === goal.linked_savings_id)
+                    : allPots.find(p => p.id === goal.linked_savings_id)
                 
                 if (savings && savings.target_amount) {
                     manifestationValue += Number(savings.target_amount) || 0
@@ -42,7 +47,7 @@ export default function ManifestDashboard() {
             acquiredItems,
             totalItems: wishlist.length
         }
-    }, [goals, wishlist, financeGoals, pots])
+    }, [goals, wishlist, allFinanceGoals, allPots])
 
     if (loading && goals.length === 0) {
         return (
@@ -169,8 +174,8 @@ export default function ManifestDashboard() {
                                             {/* Secondary Savings Progress */}
                                             {goal.linked_savings_id && (() => {
                                                 const savings = goal.linked_savings_type === 'manual' 
-                                                    ? financeGoals.find(f => f.id === goal.linked_savings_id)
-                                                    : pots.find(p => p.id === goal.linked_savings_id)
+                                                    ? allFinanceGoals.find(f => f.id === goal.linked_savings_id)
+                                                    : allPots.find(p => p.id === goal.linked_savings_id)
                                                 
                                                 if (!savings) return null
                                                 
@@ -273,8 +278,46 @@ export default function ManifestDashboard() {
                                             {item.category && <span className="text-[7px] font-bold text-black/25 uppercase tracking-widest">{item.category}</span>}
                                         </div>
                                         <p className="text-[13px] font-black text-black leading-tight truncate group-hover:text-amber-600 transition-colors">{item.title}</p>
-                                        {item.description && <p className="text-[9px] text-black/40 font-medium mt-0.5 line-clamp-1">{item.description}</p>}
-                                        {item.price && (
+                                        
+                                        {/* Progressive Progress Visualization */}
+                                        {item.linked_savings_id ? (() => {
+                                            const linkedGoal = item.linked_savings_type === 'manual' 
+                                                ? allFinanceGoals.find((g: any) => g.id === item.linked_savings_id)
+                                                : null
+                                            const linkedPot = item.linked_savings_type === 'monzo'
+                                                ? allPots.find((p: any) => p.id === item.linked_savings_id)
+                                                : null
+                                            
+                                            const savings = linkedGoal || linkedPot
+                                            if (!savings) return null
+
+                                            const current = 'current_amount' in savings ? savings.current_amount : savings.balance
+                                            const target = savings.target_amount
+                                            const progress = target > 0 ? Math.min(100, (current / target) * 100) : 0
+                                            
+                                            return (
+                                                <div className="mt-1.5 space-y-1">
+                                                    <div className="flex justify-between items-end gap-2">
+                                                        <div className="flex items-center gap-1">
+                                                            <PiggyBank className="w-2.5 h-2.5 text-emerald-500/60" />
+                                                            <span className="text-[7.5px] font-black uppercase tracking-widest text-emerald-600/40 truncate max-w-[80px]">{savings.name}</span>
+                                                        </div>
+                                                        <span className="text-[8px] font-black text-emerald-600 shrink-0">£{current.toLocaleString()} <span className="text-black/15 font-bold">/ {target.toLocaleString()}</span></span>
+                                                    </div>
+                                                    <div className="h-1 w-full bg-emerald-500/10 rounded-full overflow-hidden">
+                                                        <motion.div 
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: `${progress}%` }}
+                                                            className="h-full bg-emerald-500 rounded-full shadow-[0_0_4px_rgba(16,185,129,0.2)]"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )
+                                        })() : item.description && (
+                                            <p className="text-[9px] text-black/40 font-medium mt-0.5 line-clamp-1">{item.description}</p>
+                                        )}
+
+                                        {item.price && !item.linked_savings_id && (
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-[11px] font-black text-amber-700">£{Number(item.price).toLocaleString()}</span>
                                                 <span className="w-0.5 h-0.5 rounded-full bg-black/20" />

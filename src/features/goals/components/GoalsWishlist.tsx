@@ -1,16 +1,18 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
     Plus, Trash2, ExternalLink, Rocket, MoreVertical, 
     Star, Tag, PoundSterling, Edit2, GripVertical, CheckCircle2, XCircle,
     UploadCloud, X, AlertTriangle, Image as ImageIcon,
     Loader2, Zap, RefreshCw, Sparkles, Wand2, ChevronRight, ChevronDown,
-    Globe, Upload
+    Globe, Upload, PiggyBank
 } from 'lucide-react'
 import type { WishlistItem, CreateWishlistItemData, GoalCategory, WishlistStatus } from '../types/goals.types'
 import { useGoals } from '../hooks/useGoals'
+import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
+import { usePots } from '@/features/finance/hooks/usePots'
 import { cn } from '@/lib/utils'
 import ConfirmationModal from '@/components/ConfirmationModal'
 
@@ -381,6 +383,14 @@ function WishlistCard({
     onPointerDragStart, onPointerDragOver, onPointerDrop
 }: WishlistCardProps) {
     const { generatingWishlistIds } = useGoals()
+    const { goals: personalFinanceGoals } = useFinanceGoals('personal')
+    const { goals: businessFinanceGoals } = useFinanceGoals('business')
+    const { pots: personalPots } = usePots('personal')
+    const { pots: businessPots } = usePots('business')
+
+    const allFinanceGoals = useMemo(() => [...personalFinanceGoals, ...businessFinanceGoals], [personalFinanceGoals, businessFinanceGoals])
+    const allPots = useMemo(() => [...personalPots, ...businessPots], [personalPots, businessPots])
+
     const [showOptions, setShowOptions] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const isGenerating = generatingWishlistIds.includes(item.id)
@@ -528,7 +538,42 @@ function WishlistCard({
                         </div>
                         <h4 className="text-[13px] font-black text-black leading-tight group-hover:text-amber-600 transition-colors uppercase italic">{item.title}</h4>
                         {item.description && <p className="text-[9px] font-bold text-black/40 mt-1 line-clamp-2 leading-relaxed">{item.description}</p>}
-                        {item.price && item.price > 0 && (() => {
+                        
+                        {/* Progress Bar for Linked Items */}
+                        {item.linked_savings_id ? (() => {
+                            const linkedGoal = item.linked_savings_type === 'manual' 
+                                ? allFinanceGoals.find((g: any) => g.id === item.linked_savings_id)
+                                : null
+                            const linkedPot = item.linked_savings_type === 'monzo'
+                                ? allPots.find((p: any) => p.id === item.linked_savings_id)
+                                : null
+                            
+                            const savings = linkedGoal || linkedPot
+                            if (!savings) return null
+
+                            const current = 'current_amount' in savings ? savings.current_amount : savings.balance
+                            const target = savings.target_amount
+                            const progress = target > 0 ? Math.min(100, (current / target) * 100) : 0
+                            
+                            return (
+                                <div className="mt-3 space-y-1.5">
+                                    <div className="flex justify-between items-end">
+                                        <div className="flex items-center gap-1.5">
+                                            <PiggyBank className="w-3 h-3 text-emerald-500/60" />
+                                            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600/40 truncate max-w-[120px]">{savings.name}</span>
+                                        </div>
+                                        <span className="text-[10px] font-black text-emerald-600">£{current.toLocaleString()} <span className="text-black/20 font-bold">/ £{target.toLocaleString()}</span></span>
+                                    </div>
+                                    <div className="h-2 w-full bg-emerald-500/10 rounded-full overflow-hidden">
+                                        <motion.div 
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${progress}%` }}
+                                            className="h-full bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.2)]"
+                                        />
+                                    </div>
+                                </div>
+                            )
+                        })() : item.price && item.price > 0 && (() => {
                             const OT_RATE_NET = 20.35 * (1 - 0.1821) // ~£16.64/hr net
                             const HOURS_PER_SHIFT = 11.5
                             const hoursNeeded = item.price / OT_RATE_NET
@@ -602,6 +647,19 @@ interface WishlistModalProps {
 
 function WishlistModal({ item, onClose, onSave }: WishlistModalProps) {
     const { regenerateWishlistCover, suggestWishlistDetails, generatingWishlistIds } = useGoals()
+    const { goals: personalGoals } = useFinanceGoals('personal')
+    const { goals: businessGoals } = useFinanceGoals('business')
+    const { pots: personalPots } = usePots('personal')
+    const { pots: businessPots } = usePots('business')
+
+    // Combine for selection
+    const availableSavings = [
+        ...personalGoals.map(g => ({ id: g.id, name: g.name, type: 'manual' as const, profile: 'personal' })),
+        ...businessGoals.map(g => ({ id: g.id, name: g.name, type: 'manual' as const, profile: 'business' })),
+        ...personalPots.filter(p => p.target_amount > 0 || p.type === 'savings').map(p => ({ id: p.id, name: p.name, type: 'monzo' as const, profile: 'personal' })),
+        ...businessPots.filter(p => p.target_amount > 0 || p.type === 'savings').map(p => ({ id: p.id, name: p.name, type: 'monzo' as const, profile: 'business' }))
+    ]
+
     const isGenerating = item ? generatingWishlistIds.includes(item.id) : false
     const [isSuggesting, setIsSuggesting] = useState(false)
     const [suggestions, setSuggestions] = useState<any[]>([])
@@ -614,7 +672,9 @@ function WishlistModal({ item, onClose, onSave }: WishlistModalProps) {
         image_url: item?.image_url || '',
         category: item?.category || 'personal',
         priority: item?.priority || 'mid',
-        status: item?.status || 'incoming'
+        status: item?.status || 'incoming',
+        linked_savings_id: item?.linked_savings_id || null,
+        linked_savings_type: item?.linked_savings_type || null
     })
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string>(item?.image_url || '')
@@ -803,22 +863,82 @@ function WishlistModal({ item, onClose, onSave }: WishlistModalProps) {
                                 </div>
                             </div>
 
-                            {/* Status */}
+                            {/* Savings Target */}
                             <div className="space-y-3">
-                                <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Current State</label>
-                                <select
-                                    value={formData.status}
-                                    onChange={e => setFormData({ ...formData, status: e.target.value as WishlistStatus })}
-                                    className="w-full bg-black/[0.03] border border-black/5 focus:border-black/10 focus:bg-transparent rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all appearance-none"
-                                >
-                                    {COLUMNS.map(col => (
-                                        <option key={col.value} value={col.value}>{col.label}</option>
-                                    ))}
-                                </select>
+                                <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Savings Target</label>
+                                <div className="relative group rounded-2xl border border-black/5 bg-black/[0.03] focus-within:border-black/20 focus-within:bg-white transition-all overflow-hidden">
+                                    <select
+                                        value={formData.linked_savings_id || ''}
+                                        onChange={(e) => {
+                                            const val = e.target.value
+                                            if (!val) {
+                                                setFormData({ ...formData, linked_savings_id: null, linked_savings_type: null })
+                                            } else {
+                                                const found = availableSavings.find(s => s.id === val)
+                                                if (found) {
+                                                    setFormData({ ...formData, linked_savings_id: found.id, linked_savings_type: found.type })
+                                                }
+                                            }
+                                        }}
+                                        className="block w-full py-4 px-4 text-[13px] font-black appearance-none outline-none bg-transparent border-none transition-all pr-12 cursor-pointer"
+                                    >
+                                        <option value="">No linked savings</option>
+                                        <optgroup label="Personal Finance Goals">
+                                            {availableSavings.filter(s => s.type === 'manual' && s.profile === 'personal').map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </optgroup>
+                                        <optgroup label="Business Finance Goals">
+                                            {availableSavings.filter(s => s.type === 'manual' && s.profile === 'business').map(s => (
+                                                <option key={s.id} value={s.id}>{s.name} (Business)</option>
+                                            ))}
+                                        </optgroup>
+                                        <optgroup label="Personal Savings Pots (Monzo)">
+                                            {availableSavings.filter(s => s.type === 'monzo' && s.profile === 'personal').map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </optgroup>
+                                        <optgroup label="Business Savings Pots (Monzo)">
+                                            {availableSavings.filter(s => s.type === 'monzo' && s.profile === 'business').map(s => (
+                                                <option key={s.id} value={s.id}>{s.name} (Business)</option>
+                                            ))}
+                                        </optgroup>
+                                    </select>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-black/20">
+                                        <PiggyBank className="w-4 h-4" />
+                                    </div>
+                                </div>
+                                {formData.linked_savings_id && (
+                                    <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-lg border border-emerald-100 mt-1 w-fit">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                        <span className="text-[8.5px] font-bold text-emerald-700 uppercase tracking-widest leading-none">
+                                            Auto-Syncing
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        {/* Row 2: Category & Priority */}
+                        {/* Status Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2 border-t border-black/5">
+                            {/* Status */}
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Current State</label>
+                                <div className="relative">
+                                    <select
+                                        value={formData.status}
+                                        onChange={e => setFormData({ ...formData, status: e.target.value as WishlistStatus })}
+                                        className="w-full bg-black/[0.03] border border-black/5 focus:border-black/10 focus:bg-transparent rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all appearance-none"
+                                    >
+                                        {COLUMNS.map(col => (
+                                            <option key={col.value} value={col.value}>{col.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Row 3: Category & Priority */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2 border-t border-black/5">
                             <div className="space-y-3">
                                 <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Sector</label>

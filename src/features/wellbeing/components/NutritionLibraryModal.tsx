@@ -477,6 +477,8 @@ function LibraryMealCard({
     const handlePointerDown = (e: React.PointerEvent) => {
         // Only allow dragging from the main card area, not buttons
         if ((e.target as HTMLElement).closest('button')) return
+        // Combos are not draggable (category-agnostic)
+        if (meal.isCombo) return
 
         e.preventDefault()
         startPos.current = { x: e.clientX, y: e.clientY }
@@ -590,16 +592,19 @@ function LibraryMealCard({
             onPointerDown={handlePointerDown}
             onClick={() => isComboMode && onSelect()}
             className={cn(
-                "bg-white border rounded-[24px] p-5 flex items-center justify-between group transition-all cursor-grab active:cursor-grabbing",
+                "bg-white border rounded-[24px] p-5 flex items-center justify-between group transition-all",
+                !meal.isCombo && "cursor-grab active:cursor-grabbing",
                 isDragging ? "opacity-30 scale-95 shadow-none pointer-events-none" : "hover:border-black/10",
                 isSelected && "border-emerald-500 bg-emerald-50/30 ring-4 ring-emerald-500/10 scale-[0.98]",
                 isComboMode && !isSelected && "hover:border-emerald-200 hover:bg-emerald-50/10"
             )}
         >
             <div className="flex items-center gap-4">
-                <div className="text-black/20 group-hover:text-black/40 cursor-grab active:cursor-grabbing">
-                    <GripVertical className="w-5 h-5" />
-                </div>
+                {!meal.isCombo && (
+                    <div className="text-black/20 group-hover:text-black/40 cursor-grab active:cursor-grabbing">
+                        <GripVertical className="w-5 h-5" />
+                    </div>
+                )}
                 <div>
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                         {(() => {

@@ -7,17 +7,20 @@ import { useFinanceProfile } from '../contexts/FinanceProfileContext'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { MOCK_FINANCE, MOCK_BUSINESS } from '@/lib/demoData'
 
+import { ProfileType } from '../types/finance.types'
+
 // Module-level locks to prevent race conditions across multiple hook instances
 const ensuringProfiles = new Set<string>()
 
 const GET_LOCAL_KEY = (profile: string) => `schrö_demo_finance_pockets_${profile}_v2`
 
-export function usePots() {
+export function usePots(profileOverride?: ProfileType) {
     const [pots, setPots] = useState<Pot[]>([])
     const [loading, setLoading] = useState(true)
     const [isMonzoConnected, setIsMonzoConnected] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const { activeProfile, refreshTrigger, globalRefresh, isSyncing, setSyncing } = useFinanceProfile()
+    const { activeProfile: contextProfile, refreshTrigger, globalRefresh, isSyncing, setSyncing } = useFinanceProfile()
+    const activeProfile = profileOverride || contextProfile
     const { settings } = useSystemSettings()
 
     const checkMonzoConnection = async () => {

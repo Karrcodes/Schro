@@ -10,7 +10,10 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGoals } from '../hooks/useGoals'
+import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
+import { usePots } from '@/features/finance/hooks/usePots'
 import type { WishlistItem, GoalPriority } from '../types/goals.types'
+import { PiggyBank } from 'lucide-react'
 import ConfirmationModal from '@/components/ConfirmationModal'
 
 interface WishlistDetailModalProps {
@@ -29,6 +32,21 @@ export default function WishlistDetailModal({
     initialEditMode = false
 }: WishlistDetailModalProps) {
     const { regenerateWishlistCover, suggestWishlistDetails, updateWishlistItem, generatingWishlistIds } = useGoals()
+    const { goals: personalGoals } = useFinanceGoals('personal')
+    const { goals: businessGoals } = useFinanceGoals('business')
+    const { pots: personalPots } = usePots('personal')
+    const { pots: businessPots } = usePots('business')
+
+    // Combine for selection
+    const availableSavings = [
+        ...personalGoals.map(g => ({ id: g.id, name: g.name, type: 'manual' as const, profile: 'personal' })),
+        ...businessGoals.map(g => ({ id: g.id, name: g.name, type: 'manual' as const, profile: 'business' })),
+        ...personalPots.filter(p => p.target_amount > 0 || p.type === 'savings').map(p => ({ id: p.id, name: p.name, type: 'monzo' as const, profile: 'personal' })),
+        ...businessPots.filter(p => p.target_amount > 0 || p.type === 'savings').map(p => ({ id: p.id, name: p.name, type: 'monzo' as const, profile: 'business' }))
+    ]
+
+    const allFinanceGoals = [...personalGoals, ...businessGoals]
+    const allPots = [...personalPots, ...businessPots]
     const [isEditing, setIsEditing] = useState(false)
     const [isSuggesting, setIsSuggesting] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -265,6 +283,60 @@ export default function WishlistDetailModal({
                                                 />
                                             </div>
 
+                                            <div className="space-y-3 pt-6 border-t border-black/5">
+                                                <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Savings Target</label>
+                                                <div className="relative group rounded-2xl border border-black/5 bg-black/[0.03] focus-within:border-black/20 focus-within:bg-white transition-all overflow-hidden">
+                                                    <select
+                                                        value={formData.linked_savings_id || ''}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value
+                                                            if (!val) {
+                                                                setFormData({ ...formData, linked_savings_id: null, linked_savings_type: null })
+                                                            } else {
+                                                                const found = availableSavings.find(s => s.id === val)
+                                                                if (found) {
+                                                                    setFormData({ ...formData, linked_savings_id: found.id, linked_savings_type: found.type })
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="block w-full py-4 px-4 text-[13px] font-black appearance-none outline-none bg-transparent border-none transition-all pr-12 cursor-pointer"
+                                                    >
+                                                        <option value="">No linked savings</option>
+                                                        <optgroup label="Personal Finance Goals">
+                                                            {availableSavings.filter(s => s.type === 'manual' && s.profile === 'personal').map(s => (
+                                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                        <optgroup label="Business Finance Goals">
+                                                            {availableSavings.filter(s => s.type === 'manual' && s.profile === 'business').map(s => (
+                                                                <option key={s.id} value={s.id}>{s.name} (Business)</option>
+                                                            ))}
+                                                        </optgroup>
+                                                        <optgroup label="Personal Savings Pots (Monzo)">
+                                                            {availableSavings.filter(s => s.type === 'monzo' && s.profile === 'personal').map(s => (
+                                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                        <optgroup label="Business Savings Pots (Monzo)">
+                                                            {availableSavings.filter(s => s.type === 'monzo' && s.profile === 'business').map(s => (
+                                                                <option key={s.id} value={s.id}>{s.name} (Business)</option>
+                                                            ))}
+                                                        </optgroup>
+                                                    </select>
+                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-black/20">
+                                                        <PiggyBank className="w-4 h-4" />
+                                                    </div>
+                                                </div>
+                                                {formData.linked_savings_id && (
+                                                    <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-lg border border-emerald-100 mt-1 w-fit">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                                        <span className="text-[8.5px] font-bold text-emerald-700 uppercase tracking-widest leading-none">
+                                                            Auto-Syncing
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+
                                             <div className="flex items-center gap-4 pt-6">
                                                 <button 
                                                     onClick={handleSave}
@@ -323,6 +395,62 @@ export default function WishlistDetailModal({
                                                     </a>
                                                 </div>
                                             )}
+
+                                            {/* Linked Savings */}
+                                            {item.linked_savings_id && (() => {
+                                                const linkedGoal = item.linked_savings_type === 'manual' 
+                                                    ? allFinanceGoals.find(g => g.id === item.linked_savings_id)
+                                                    : null
+                                                const linkedPot = item.linked_savings_type === 'monzo'
+                                                    ? allPots.find(p => p.id === item.linked_savings_id)
+                                                    : null
+                                                
+                                                const savings = linkedGoal || linkedPot
+                                                if (!savings) return null
+
+                                                const current = 'current_amount' in savings ? savings.current_amount : savings.balance
+                                                const target = savings.target_amount
+                                                const progress = target > 0 ? Math.min(100, (current / target) * 100) : 0
+
+                                                return (
+                                                    <div className="pt-10 border-t border-black/5 space-y-6">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <PiggyBank className="w-5 h-5 text-emerald-500" />
+                                                                <h4 className="text-[11px] font-black text-black/30 uppercase tracking-[0.2em]">Linked Savings Target</h4>
+                                                            </div>
+                                                            <span className="px-2.5 py-1 rounded-full bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">
+                                                                Auto-Syncing
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="bg-black/[0.01] border border-black/[0.03] rounded-[32px] p-8">
+                                                            <div className="flex justify-between items-end mb-4">
+                                                                <span className="text-[15px] font-black text-black uppercase">{savings.name}</span>
+                                                                <div className="flex flex-col items-end">
+                                                                    <span className="text-[18px] font-black text-emerald-600">£{current.toLocaleString()}</span>
+                                                                    <span className="text-[10px] font-bold text-black/20 uppercase">of £{target.toLocaleString()}</span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="h-4 w-full bg-black/5 rounded-full overflow-hidden p-1">
+                                                                <motion.div
+                                                                    initial={{ width: 0 }}
+                                                                    animate={{ width: `${progress}%` }}
+                                                                    className="h-full bg-emerald-500 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                                                />
+                                                            </div>
+                                                            <div className="flex justify-between mt-4">
+                                                                <p className="text-[10px] font-bold text-emerald-600/60 uppercase tracking-widest flex items-center gap-1.5">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                                                    Live balance
+                                                                </p>
+                                                                <span className="text-[11px] font-black text-black/40">{Math.round(progress)}% Complete</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })()}
                                         </div>
                                     )}
                                 </div>

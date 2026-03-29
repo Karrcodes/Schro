@@ -5,18 +5,21 @@ import { supabase } from '@/lib/supabase'
 import type { Goal } from '../types/finance.types'
 import { useFinanceProfile } from '../contexts/FinanceProfileContext'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
-import { MOCK_FINANCE } from '@/lib/demoData'
+import { MOCK_FINANCE, MOCK_BUSINESS } from '@/lib/demoData'
+import { ProfileType } from '../types/finance.types'
 
-export function useGoals() {
+export function useGoals(profileOverride?: ProfileType) {
     const [goals, setGoals] = useState<Goal[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const { activeProfile, refreshTrigger } = useFinanceProfile()
+    const { activeProfile: contextProfile, refreshTrigger } = useFinanceProfile()
+    const activeProfile = profileOverride || contextProfile
     const { settings } = useSystemSettings()
 
     const fetchGoals = async () => {
         if (settings.is_demo_mode) {
-            setGoals(MOCK_FINANCE.goals as any)
+            const mockData = activeProfile === 'business' ? MOCK_BUSINESS.goals : MOCK_FINANCE.goals
+            setGoals(mockData as any)
             setLoading(false)
             return
         }

@@ -132,11 +132,11 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 if (m.status === 'completed') return false
                 if (m.project_id) {
                     const parent = projects.find((p: any) => p.id === m.project_id)
-                    if (!parent || parent.is_archived) return false
+                    if (!parent || parent.is_archived || parent.status === 'shipped' || parent.status === 'archived') return false
                 }
                 if (m.content_id) {
                     const parent = content.find((c: any) => c.id === m.content_id)
-                    if (!parent || parent.is_archived) return false
+                    if (!parent || parent.is_archived || parent.status === 'published') return false
                 }
                 return true
             })
@@ -493,11 +493,11 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 .filter(m => {
                     if (m.project_id) {
                         const parent = projects.find((p: any) => p.id === m.project_id)
-                        if (!parent || parent.is_archived) return false
+                        if (!parent || parent.is_archived || parent.status === 'shipped' || parent.status === 'archived') return false
                     }
                     if (m.content_id) {
                         const parent = content.find((c: any) => c.id === m.content_id)
-                        if (!parent || parent.is_archived) return false
+                        if (!parent || parent.is_archived || parent.status === 'published') return false
                     }
                     return true
                 })

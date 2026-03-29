@@ -64,9 +64,11 @@ export const MOCK_BUSINESS = {
         { id: 'd-btx-6', description: 'Envato Elements', amount: 28.00, category: 'business', type: 'spend', date: '2026-02-07' },
     ],
     obligations: [
-        { id: 'd-bo-1', name: 'Co-working Hotdesk', amount: 250, frequency: 'monthly', due_day: 5 },
-        { id: 'd-bo-2', name: 'Professional Insurance', amount: 35, frequency: 'monthly', due_day: 10 },
         { id: 'd-bo-3', name: 'MacBook Pro Finance', amount: 115, frequency: 'monthly', due_day: 15, payments_left: 14 },
+    ],
+    goals: [
+        { id: 'd-bg-1', name: 'Tax Reserve 2026', target_amount: 15000, current_amount: 4120, deadline: '2027-01-31', category: 'finance', profile: 'business' },
+        { id: 'd-bg-2', name: 'Hardware Refresh Fund', target_amount: 5000, current_amount: 500, deadline: '2026-12-31', category: 'other', profile: 'business' },
     ]
 }
 

@@ -56,6 +56,8 @@ export interface WishlistItem {
     category: GoalCategory
     priority: GoalPriority
     status: WishlistStatus
+    linked_savings_id?: string | null
+    linked_savings_type?: 'manual' | 'monzo' | null
     created_at: string
 }
 
@@ -68,4 +70,6 @@ export interface CreateWishlistItemData {
     category?: GoalCategory
     priority?: GoalPriority
     status?: WishlistStatus
+    linked_savings_id?: string | null
+    linked_savings_type?: 'manual' | 'monzo' | null
 }

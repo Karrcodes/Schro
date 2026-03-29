@@ -556,6 +556,8 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
                     category: data.category || 'personal',
                     priority: data.priority || 'mid',
                     status: data.status || 'incoming',
+                    linked_savings_id: data.linked_savings_id || null,
+                    linked_savings_type: data.linked_savings_type || null,
                     created_at: new Date().toISOString()
                 }
                 const session = getSessionWishlist() || []
@@ -583,6 +585,8 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
                 .insert([{
                     user_id: userId,
                     ...data,
+                    linked_savings_id: data.linked_savings_id,
+                    linked_savings_type: data.linked_savings_type,
                     image_url: finalImageUrl
                 }])
                 .select()
@@ -624,6 +628,8 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
                     item.id === id ? { 
                         ...item, 
                         ...updates,
+                        linked_savings_id: updates.linked_savings_id !== undefined ? updates.linked_savings_id : item.linked_savings_id,
+                        linked_savings_type: updates.linked_savings_type !== undefined ? updates.linked_savings_type : item.linked_savings_type,
                         image_url: image_url !== undefined ? image_url : item.image_url
                     } : item
                 )
@@ -649,6 +655,8 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
                 .from('sys_wishlist')
                 .update({
                     ...updates,
+                    linked_savings_id: updates.linked_savings_id,
+                    linked_savings_type: updates.linked_savings_type,
                     image_url: finalImageUrl
                 })
                 .eq('id', id)
