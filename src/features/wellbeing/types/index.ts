@@ -69,6 +69,7 @@ export interface WorkoutSession extends WorkoutLog {
     isPaused: boolean
     completedExerciseIds: string[]
     skippedExerciseIds: string[]
+    plannedExercises?: Exercise[]
 }
 
 export interface GymBusyness {

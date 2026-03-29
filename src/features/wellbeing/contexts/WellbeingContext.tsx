@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
-import type { WellbeingProfile, MetricEntry, MacroTargets, WellbeingState, WellbeingGoal, ActivityLevel, WorkoutRoutine, WorkoutLog, WorkoutSession, WorkoutSet, ExerciseLog, TheGymGroupStats, MealLog, MoodValue, MoodEntry, Reflection, GymBusyness, GymVisit, DashboardLayout, LibraryMeal, FridgeItem, Milestone } from '../types'
+import type { WellbeingProfile, MetricEntry, MacroTargets, WellbeingState, WellbeingGoal, ActivityLevel, WorkoutRoutine, WorkoutLog, WorkoutSession, WorkoutSet, ExerciseLog, TheGymGroupStats, MealLog, MoodValue, MoodEntry, Reflection, GymBusyness, GymVisit, DashboardLayout, LibraryMeal, FridgeItem, Milestone, Exercise } from '../types'
 import { GymService } from '../services/gymService'
 import { supabase } from '@/lib/supabase'
 import { getGymRecommendation } from '../utils/fitness-utils'
@@ -55,6 +55,8 @@ interface WellbeingContextType extends WellbeingState {
     togglePauseSession: () => void
     finishSession: () => Promise<void>
     cancelSession: () => void
+    swapSessionExercise: (oldId: string, newExercise: Exercise) => void
+    randomizeSessionExercise: (id: string) => void
     setActiveRoutineId: (id: string) => Promise<void>
     updateRoutine: (id: string, updates: Partial<WorkoutRoutine>) => Promise<void>
     deleteRoutine: (id: string) => Promise<void>
@@ -1154,6 +1156,7 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
             isPaused: false,
             completedExerciseIds: [],
             skippedExerciseIds: [],
+            plannedExercises: routine.exercises,
             exercises: routine.exercises.map(ex => {
                 const target = getOverloadTarget(ex, state.profile, state.workoutLogs)
                 return {
@@ -1192,6 +1195,7 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
             isPaused: false,
             completedExerciseIds: [],
             skippedExerciseIds: [],
+            plannedExercises: selectedExercises,
             exercises: selectedExercises.map(ex => {
                 const target = getOverloadTarget(ex, state.profile, state.workoutLogs)
                 return {
@@ -1234,6 +1238,49 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
         const activeSession = { ...state.activeSession, isPaused: !state.activeSession.isPaused }
         setState(prev => ({ ...prev, activeSession }))
         persistData({ activeSession })
+    }
+    
+    const swapSessionExercise = (oldId: string, newExercise: Exercise) => {
+        if (!state.activeSession) return
+        
+        const target = getOverloadTarget(newExercise, state.profile, state.workoutLogs)
+        const activeSession: WorkoutSession = {
+            ...state.activeSession,
+            plannedExercises: (state.activeSession.plannedExercises || []).map(ex => 
+                ex.id === oldId ? newExercise : ex
+            ),
+            exercises: state.activeSession.exercises.map((ex: ExerciseLog) => 
+                ex.exerciseId === oldId 
+                    ? { 
+                        exerciseId: newExercise.id, 
+                        sets: Array(target.suggestedSets).fill(null).map(() => ({
+                            reps: target.suggestedReps,
+                            weight: target.suggestedWeight
+                        }))
+                      }
+                    : ex
+            )
+        }
+        
+        setState(prev => ({ ...prev, activeSession }))
+        persistData({ activeSession })
+    }
+
+    const randomizeSessionExercise = (id: string) => {
+        if (!state.activeSession) return
+        
+        const currentEx = state.activeSession.plannedExercises?.find(ex => ex.id === id)
+        if (!currentEx) return
+        
+        const alternatives = EXERCISES.filter(ex => 
+            ex.muscleGroup === currentEx.muscleGroup && 
+            ex.id !== currentEx.id
+        )
+        
+        if (alternatives.length === 0) return
+        
+        const randomEx = alternatives[Math.floor(Math.random() * alternatives.length)]
+        swapSessionExercise(id, randomEx)
     }
 
     const finishSession = async (isAutoFinish = false) => {
@@ -1400,6 +1447,8 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
         togglePauseSession,
         finishSession,
         cancelSession,
+        swapSessionExercise,
+        randomizeSessionExercise,
         setActiveRoutineId,
         updateRoutine,
         deleteRoutine,

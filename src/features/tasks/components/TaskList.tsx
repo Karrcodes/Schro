@@ -63,7 +63,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [editValue, setEditValue] = useState("")
     const [editPriority, setEditPriority] = useState<Priority>("super")
     const [showCompleted, setShowCompleted] = useState(false)
-    const [sortBy, setSortBy] = useState<'manual' | 'priority' | 'impact' | 'duration' | 'deadline' | 'date' | 'price'>(category === 'grocery' ? 'price' : 'priority')
+    const [sortBy, setSortBy] = useState<'manual' | 'priority' | 'priority_grouped' | 'impact' | 'duration' | 'deadline' | 'date' | 'price'>(category === 'grocery' ? 'price' : 'priority_grouped')
     const [draggedItem, setDraggedItem] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
     const [activeFilter, setActiveFilter] = useState<string>('all')
@@ -334,7 +334,6 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             itemsToCreate = pendingGroceryItems.map(item => ({
                 title: item.title,
                 amount: item.amount,
-                priority: priority,
                 price: item.price
             }))
         } else {
@@ -533,7 +532,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             return aCompleted ? 1 : -1
         }
 
-        if (sortBy === 'priority' && category !== 'grocery') {
+        if ((sortBy === 'priority' || sortBy === 'priority_grouped') && category !== 'grocery') {
             const priorityOrder = { super: 0, high: 1, mid: 2, low: 3 }
             const aPri = a.type === 'task' ? (a.data.priority || 'low') : 'mid'
             const bPri = b.type === 'task' ? (b.data.priority || 'low') : 'mid'
@@ -613,6 +612,17 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             processedItems.push(item)
         }
     })
+
+    const priorityBuckets = useMemo(() => {
+        if (sortBy !== 'priority_grouped') return null
+        return (['super', 'high', 'mid', 'low'] as const).map(prio => {
+            const bucketItems = processedItems.filter(item => {
+                const itemPrio = item.type === 'task' ? (item.data.priority || 'low') : 'mid'
+                return itemPrio === prio
+            })
+            return { priority: prio, items: bucketItems }
+        }).filter(bucket => bucket.items.length > 0)
+    }, [processedItems, sortBy])
 
     const handleCreateFromTemplate = async (template: TaskTemplate) => {
         try {
@@ -785,7 +795,10 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             {category === 'grocery' ? (
                                 <option value="price">Price</option>
                             ) : (
-                                <option value="priority">Priority</option>
+                                <>
+                                    <option value="priority">Priority</option>
+                                    <option value="priority_grouped">Priority (Grouped)</option>
+                                </>
                             )}
                             {category !== 'grocery' && (
                                 <>
@@ -1583,6 +1596,70 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         <p className="text-[13px] font-medium text-black/40">All caught up.</p>
                         <p className="text-[11px] text-black/30">Add something above to get started.</p>
                     </div>
+                ) : sortBy === 'priority_grouped' && priorityBuckets ? (
+                    priorityBuckets.map((bucket) => (
+                        <div key={bucket.priority} className="mb-10 last:mb-0 animate-in fade-in slide-in-from-top-1 duration-500">
+                            <div className="sticky top-0 z-20 flex items-center gap-3 mb-4 py-3 bg-white/95 backdrop-blur-sm -mx-1 px-1 border-b border-black/[0.03]">
+                                <div className={cn(
+                                    "w-2.5 h-2.5 rounded-full",
+                                    bucket.priority === 'super' ? "bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" :
+                                    bucket.priority === 'high' ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" :
+                                    bucket.priority === 'mid' ? "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" :
+                                    "bg-black/20"
+                                )} />
+                                <h3 className={cn(
+                                    "text-[10px] font-black uppercase tracking-[0.3em]",
+                                    bucket.priority === 'super' ? "text-purple-600" :
+                                    bucket.priority === 'high' ? "text-red-600" :
+                                    bucket.priority === 'mid' ? "text-amber-600" :
+                                    "text-black/40"
+                                )}>
+                                    {PRIORITY_MAP[bucket.priority].label} Priority
+                                </h3>
+                                <div className="h-[1px] flex-1 bg-black/[0.05]" />
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-black text-black/30 bg-black/[0.03] px-2 py-1 rounded-lg uppercase tracking-widest border border-black/[0.05]">
+                                        {bucket.items.length} {bucket.items.length === 1 ? 'Action' : 'Actions'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="space-y-2.5">
+                                {bucket.items.map((item) => (
+                                    item.type === 'task' ? (
+                                        <TaskRow
+                                            key={item.id}
+                                            task={item.data}
+                                            toggleTask={toggleTask}
+                                            deleteTask={handleDeleteQuick}
+                                            editTask={editTask}
+                                            category={category}
+                                            setSelectedTaskForModal={setSelectedTaskForModal}
+                                            setSelectedProjectForModal={setSelectedProjectForModal}
+                                            setSelectedContentForModal={setSelectedContentForModal}
+                                            projects={projects}
+                                            content={content}
+                                        />
+                                    ) : (
+                                        <MilestoneRow
+                                            key={item.id}
+                                            milestone={item.data}
+                                            project={projects.find((p: any) => p.id === item.data.project_id)}
+                                            content={content.find((c: any) => c.id === item.data.content_id)}
+                                            onSelectItem={(m) => {
+                                                if (m.content_id) {
+                                                    setSelectedContentForModal(content.find(c => c.id === m.content_id))
+                                                } else if (m.project_id) {
+                                                    setSelectedProjectForModal(projects.find(p => p.id === m.project_id))
+                                                } else {
+                                                    setSelectedMilestoneForModal(m)
+                                                }
+                                            }}
+                                        />
+                                    )
+                                ))}
+                            </div>
+                        </div>
+                    ))
                 ) : (
                     processedItems.map((item) => (
                         item.type === 'task' ? (
@@ -1782,7 +1859,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
             if (category === 'grocery' && val && !val.startsWith('x')) val = `x${val}`
             updates.amount = val
         }
-        if (editPriority !== task.priority) updates.priority = editPriority
+        if (!isGrocery && editPriority !== task.priority) updates.priority = editPriority
         if (editDueDate !== (task.due_date ? task.due_date.split('T')[0] : '')) {
             updates.due_date = editDueDate || undefined
             if (!editDueDate) updates.due_date_mode = 'on'

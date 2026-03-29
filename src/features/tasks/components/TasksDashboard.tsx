@@ -100,7 +100,7 @@ function TasksDashboardContent() {
                             </div>
 
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <TaskList category={activeTab} />
+                                <TaskList key={activeTab} category={activeTab} />
                             </div>
                         </>
                     ) : (

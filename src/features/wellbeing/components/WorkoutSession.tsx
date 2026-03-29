@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useWellbeing } from '../contexts/WellbeingContext'
-import { Dumbbell, CheckCircle2, ChevronRight, X, Play, Pause, RotateCcw, Save, Trash2, ArrowRight, SkipForward, ChevronDown, ChevronUp, Trophy } from 'lucide-react'
+import { Dumbbell, CheckCircle2, ChevronRight, X, Play, Pause, RotateCcw, Save, Trash2, ArrowRight, SkipForward, ChevronDown, ChevronUp, Trophy, Search, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import { ExerciseLibrary } from './ExerciseLibrary'
+import type { Exercise, ExerciseLog, WorkoutSet } from '../types'
 
 export function WorkoutSession() {
-    const { activeSession, updateSessionSet, togglePauseSession, finishSession, cancelSession, routines } = useWellbeing()
+    const { activeSession, updateSessionSet, togglePauseSession, finishSession, cancelSession, routines, randomizeSessionExercise, swapSessionExercise } = useWellbeing()
     const router = useRouter()
     
     // Core Session State
@@ -24,10 +26,18 @@ export function WorkoutSession() {
         [routines, activeSession?.routineId]
     )
 
+    const sessionExercises = useMemo(() => 
+        activeSession?.plannedExercises || routine?.exercises || [],
+        [activeSession?.plannedExercises, routine?.exercises]
+    )
+
     // Modal & Summary State (Moved to top to prevent hook mismatch)
     const [showCompleteModal, setShowCompleteModal] = useState(false)
     const [showExitModal, setShowExitModal] = useState(false)
     const [showSkipModal, setShowSkipModal] = useState(false)
+    const [showSwapModal, setShowSwapModal] = useState(false)
+    const [swapMode, setSwapMode] = useState<'menu' | 'manual'>('menu')
+    const [isRandomizing, setIsRandomizing] = useState(false)
     const [sessionSummary, setSessionSummary] = useState<{ volume: number, exercises: number } | null>(null)
 
     // Timer logic
@@ -154,13 +164,13 @@ export function WorkoutSession() {
     }
 
     const handleNextSet = () => {
-        const currentEx = routine.exercises[currentExerciseIndex]
+        const currentEx = sessionExercises[currentExerciseIndex]
         if (currentSetIndex < currentEx.suggestedSets - 1) {
             setCurrentSetIndex(prev => prev + 1)
             setBreakTimeRemaining(60) // Could be dynamic
             setSessionMode('break')
         } else {
-            if (currentExerciseIndex < routine.exercises.length - 1) {
+            if (currentExerciseIndex < sessionExercises.length - 1) {
                 setSessionMode('setup')
                 setCurrentExerciseIndex(prev => prev + 1)
                 setCurrentSetIndex(0)
@@ -207,7 +217,7 @@ export function WorkoutSession() {
 
     const confirmSkip = () => {
         setShowSkipModal(false)
-        if (currentExerciseIndex < routine.exercises.length - 1) {
+        if (currentExerciseIndex < sessionExercises.length - 1) {
             setSessionMode('setup')
             setCurrentExerciseIndex(prev => prev + 1)
             setCurrentSetIndex(0)
@@ -216,7 +226,7 @@ export function WorkoutSession() {
         }
     }
 
-    const currentExercise = routine.exercises[currentExerciseIndex]
+    const currentExercise = sessionExercises[currentExerciseIndex]
     const exSession = activeSession.exercises.find(e => e.exerciseId === currentExercise?.id)
     const currentSets = exSession?.sets || []
 
@@ -304,7 +314,15 @@ export function WorkoutSession() {
                         >
                             <div className="space-y-3">
                                 <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.4em]">Prepare Next Protocol</p>
-                                <h1 className="text-5xl font-black uppercase tracking-tighter leading-none">{currentExercise?.name}</h1>
+                                <div className="flex items-center justify-center gap-4">
+                                    <h1 className="text-5xl font-black uppercase tracking-tighter leading-none">{currentExercise?.name}</h1>
+                                    <button 
+                                        onClick={() => { setSwapMode('menu'); setShowSwapModal(true); }}
+                                        className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all border border-white/5"
+                                    >
+                                        <RefreshCw className="w-5 h-5 text-white/60" />
+                                    </button>
+                                </div>
                                 <div className="flex items-center justify-center gap-4 pt-4">
                                     <div className="bg-white/10 rounded-2xl px-5 py-3 border border-white/5">
                                         <p className="text-[8px] font-black text-white/40 uppercase tracking-widest mb-1">Target Sets</p>
@@ -359,8 +377,16 @@ export function WorkoutSession() {
                             exit={{ opacity: 0, x: -50 }}
                             className="h-full w-full bg-white border border-black/5 rounded-[40px] shadow-2xl p-6 sm:p-8 flex flex-col"
                         >
-                            <div className="space-y-0.5 mb-2 shrink-0 text-center">
-                                <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em]">{currentExercise?.name}</p>
+                            <div className="space-y-0.5 mb-2 shrink-0 text-center relative group">
+                                <div className="flex items-center justify-center gap-2">
+                                    <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em]">{currentExercise?.name}</p>
+                                    <button 
+                                        onClick={() => { setSwapMode('menu'); setShowSwapModal(true); }}
+                                        className="opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-black/5 rounded-full"
+                                    >
+                                        <RefreshCw className="w-3 h-3 text-black/20" />
+                                    </button>
+                                </div>
                                 <h2 className="text-5xl font-black uppercase tracking-tighter leading-none">SET {currentSetIndex + 1}</h2>
                                 <p className="text-[10px] font-bold text-black/40 uppercase tracking-tighter pt-1">
                                     Goal: {currentExercise?.suggestedReps} Reps @ {currentExercise?.suggestedSets || 'MAX'} sets
@@ -403,6 +429,91 @@ export function WorkoutSession() {
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* Swap Exercise Modal */}
+            <AnimatePresence>
+                {showSwapModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-md z-[1150] flex items-center justify-center p-6"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-white rounded-[40px] p-8 w-full max-w-lg shadow-2xl space-y-8 relative overflow-hidden flex flex-col max-h-[90vh]"
+                        >
+                            <button 
+                                onClick={() => setShowSwapModal(false)}
+                                className="absolute top-6 right-6 p-2 bg-black/5 rounded-full hover:bg-black/10 transition-all z-10"
+                            >
+                                <X className="w-5 h-5 text-black/40" />
+                            </button>
+
+                            <div className="space-y-1 shrink-0">
+                                <h3 className="text-3xl font-black uppercase tracking-tight text-black leading-none">Swap Exercise</h3>
+                                <p className="text-[10px] font-black text-black/20 uppercase tracking-widest">Diverge from original protocol</p>
+                            </div>
+
+                            <div className="flex-1 overflow-hidden flex flex-col">
+                                {swapMode === 'menu' ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <button
+                                            disabled={isRandomizing}
+                                            onClick={async () => {
+                                                setIsRandomizing(true);
+                                                randomizeSessionExercise(currentExercise.id);
+                                                setTimeout(() => {
+                                                    setIsRandomizing(false);
+                                                    setShowSwapModal(false);
+                                                }, 800);
+                                            }}
+                                            className="flex flex-col items-center justify-center p-8 bg-black/[0.03] border border-black/5 rounded-[32px] hover:bg-black text-black hover:text-white transition-all group relative overflow-hidden"
+                                        >
+                                            <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-white/10 transition-colors">
+                                                <RefreshCw className={cn("w-7 h-7 text-emerald-600 group-hover:text-emerald-400", isRandomizing && "animate-spin")} />
+                                            </div>
+                                            <p className="text-[13px] font-black uppercase tracking-tight">Random Swap</p>
+                                            <p className="text-[9px] font-bold opacity-40 uppercase tracking-widest pt-1 px-4 text-center">Same Muscle Group</p>
+                                        </button>
+
+                                        <button
+                                            onClick={() => setSwapMode('manual')}
+                                            className="flex flex-col items-center justify-center p-8 bg-black/[0.03] border border-black/5 rounded-[32px] hover:bg-black text-black hover:text-white transition-all group"
+                                        >
+                                            <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-white/10 transition-colors">
+                                                <Search className="w-7 h-7 text-blue-600 group-hover:text-blue-400" />
+                                            </div>
+                                            <p className="text-[13px] font-black uppercase tracking-tight">Manual Selection</p>
+                                            <p className="text-[9px] font-bold opacity-40 uppercase tracking-widest pt-1 px-4 text-center">Browse Library</p>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4 flex flex-col h-full">
+                                        <button 
+                                            onClick={() => setSwapMode('menu')}
+                                            className="flex items-center gap-2 text-[9px] font-black text-black/40 uppercase tracking-[0.2em] hover:text-black transition-colors shrink-0"
+                                        >
+                                            <ChevronRight className="w-3 h-3 rotate-180" /> Back to Menu
+                                        </button>
+                                        <div className="flex-1 overflow-hidden pr-1">
+                                            <ExerciseLibrary 
+                                                selectedIds={[currentExercise?.id]}
+                                                onSelect={(ex) => {
+                                                    swapSessionExercise(currentExercise.id, ex);
+                                                    setShowSwapModal(false);
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Exit Confirmation Modal */}
             <AnimatePresence>
