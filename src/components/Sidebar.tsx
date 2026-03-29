@@ -159,7 +159,7 @@ export function Sidebar() {
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
     const [isRefreshing, setIsRefreshing] = useState(false)
     const { isPrivacyEnabled } = useFinanceProfile()
-    const { isVaultPrivate } = useVault()
+    const { isVaultPrivate, isVaultLocked } = useVault()
     const { isMultitasking, toggleMultitasking, focusedPane, setPaneUrl, setFocusedPane } = useMultitasking()
 
     const [orderedTabs, setOrderedTabs] = useState(navItems.map(item => item.label))
@@ -446,6 +446,10 @@ export function Sidebar() {
                                 <EyeOff className="w-3.5 h-3.5 text-blue-500 ml-1.5 animate-pulse" />
                             )}
 
+                            {item.label === 'Vault' && isVaultLocked && (
+                                <Lock className="w-3.5 h-3.5 text-orange-500 ml-1.5" />
+                            )}
+
                             {item.label === 'Finances' && isPrivacyEnabled && (
                                 <EyeOff className="w-3.5 h-3.5 text-emerald-500 ml-1.5 animate-pulse" />
                             )}
@@ -689,10 +693,15 @@ export function Sidebar() {
                                                         : 'text-black/35'
                                             )}
                                         >
-                                            <Icon className={cn(
-                                                "w-4.5 h-4.5",
-                                                isActive && (COLOR_MAP[item.color || 'black'] || 'text-black')
-                                            )} />
+                                            <div className="relative">
+                                                <Icon className={cn(
+                                                    "w-4.5 h-4.5",
+                                                    isActive && (COLOR_MAP[item.color || 'black'] || 'text-black')
+                                                )} />
+                                                {item.label === 'Vault' && isVaultLocked && (
+                                                    <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-white" />
+                                                )}
+                                            </div>
                                         </Link>
                                     </div>
 
