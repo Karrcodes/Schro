@@ -84,12 +84,21 @@ export function useLifeMetricsAggregator() {
         const completedProjects = projects.filter((p: any) => p.status === 'complete').length
 
         // Wellbeing Metrics (Consolidating from Context)
+        const MOOD_SCORES: Record<string, number> = {
+            excellent: 5,
+            good: 4,
+            neutral: 3,
+            low: 2,
+            bad: 1
+        }
         const workoutCount = wellbeing?.workoutLogs?.filter(l => new Date(l.date) >= sevenDaysAgo).length || 0
         const moodLogs = wellbeing?.moodLogs?.filter(l => new Date(l.date) >= sevenDaysAgo) || []
         const avgMood = moodLogs.length > 0 
-            ? moodLogs.reduce((acc, l) => acc + l.value, 0) / moodLogs.length 
+            ? moodLogs.reduce((acc: number, l: any) => acc + (MOOD_SCORES[l.value] || 3), 0) / moodLogs.length 
             : 0
-        const latestWeight = wellbeing?.weightHistory?.[wellbeing.weightHistory.length - 1]?.weight || null
+        const latestWeight = (wellbeing?.weightHistory && wellbeing.weightHistory.length > 0)
+            ? wellbeing.weightHistory[wellbeing.weightHistory.length - 1].weight 
+            : null
         
         // Manifestation Metrics
         const wishlistValue = wishlist.reduce((acc, item) => acc + (item.price || 0), 0)
