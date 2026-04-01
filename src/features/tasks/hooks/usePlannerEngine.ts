@@ -7,6 +7,7 @@ import { useSystemSettings } from '@/features/system/contexts/SystemSettingsCont
 import { useRota } from '@/features/finance/hooks/useRota'
 import { isShiftDay } from '@/features/finance/utils/rotaUtils'
 import { useTasks } from './useTasks'
+import { useTasksContext } from '../contexts/TasksContext'
 import type { Task, DayPlannerSettings, PlannerInitialization, RoutineAnchor } from '../types/tasks.types'
 import { addMinutes, timeToMinutes, minutesToTime, formatTime } from '@/lib/utils'
 
@@ -31,6 +32,8 @@ export interface PlannerItem {
     profile?: string
     strategic_category?: string
     priority?: string
+    work_type?: 'light' | 'deep'
+    notes?: any
 }
 
 export interface FluidZone {
@@ -49,7 +52,13 @@ interface PlannerData {
     items: PlannerItem[]
 }
 
-export function usePlannerEngine(date: Date = new Date()) {
+export function usePlannerEngine(passedDate?: Date) {
+    const dateStr = useMemo(() => {
+        const d = passedDate || new Date()
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    }, [passedDate])
+
+    const date = useMemo(() => passedDate || new Date(), [passedDate])
     const [settings, setSettings] = useState<DayPlannerSettings | null>(null)
     const [initialization, setInitialization] = useState<PlannerInitialization | null>(null)
     const [activeTaskId, setActiveTaskId] = useState<string | null>(() => {
@@ -62,8 +71,15 @@ export function usePlannerEngine(date: Date = new Date()) {
     const [loading, setLoading] = useState(true)
     const { settings: systemSettings } = useSystemSettings()
     const { overrides } = useRota()
-    const { tasks: allBusinessTasks, toggleTask: toggleBusinessTask, refetch: refetchBusiness } = useTasks('todo', 'business')
-    const { tasks: allPersonalTasks, toggleTask: togglePersonalTask, refetch: refetchPersonal } = useTasks('todo', 'personal')
+    const { tasks: allBusinessTodos, refetch: refetchBusinessTodos } = useTasks('todo', 'business')
+    const { tasks: allPersonalTodos, refetch: refetchPersonalTodos } = useTasks('todo', 'personal')
+    const { tasks: allBusinessReminders, refetch: refetchBusinessReminders } = useTasks('reminder', 'business')
+    const { tasks: allPersonalReminders, refetch: refetchPersonalReminders } = useTasks('reminder', 'personal')
+
+    const allBusinessTasks = useMemo(() => [...(allBusinessTodos || []), ...(allBusinessReminders || [])], [allBusinessTodos, allBusinessReminders])
+    const allPersonalTasks = useMemo(() => [...(allPersonalTodos || []), ...(allPersonalReminders || [])], [allPersonalTodos, allPersonalReminders])
+
+    const { toggleTask: contextToggleTask } = useTasksContext()
 
     // Recurring task IDs in the planner are suffixed with the date (e.g. "uuid-2026-02-26").
     // This strips that suffix to recover the base UUID for DB lookups.
@@ -71,10 +87,6 @@ export function usePlannerEngine(date: Date = new Date()) {
         const uuidMatch = id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
         return uuidMatch ? uuidMatch[0] : id
     }
-    const dateStr = useMemo(() => {
-        const d = new Date(date)
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    }, [date])
 
     // 1. Determine Final Work Status
     const isWorkDay = useMemo(() => {
@@ -148,12 +160,10 @@ export function usePlannerEngine(date: Date = new Date()) {
 
         // Filter tasks based on date and profile
         const personalTasks = allPersonalTasks.filter((t: Task) =>
-            !t.is_completed && t.category !== 'reminder' &&
-            (t.due_date_mode === 'on' ? t.due_date === dateStr : true)
+            !t.is_completed && (!t.due_date || t.due_date <= dateStr)
         )
         const businessTasks = allBusinessTasks.filter((t: Task) =>
-            !t.is_completed && t.category !== 'reminder' &&
-            (t.due_date_mode === 'on' ? t.due_date === dateStr : true)
+            !t.is_completed && (!t.due_date || t.due_date <= dateStr)
         )
 
         const reminders = [...allPersonalTasks, ...allBusinessTasks].filter(t =>
@@ -216,7 +226,29 @@ export function usePlannerEngine(date: Date = new Date()) {
             const weights = { super: 4, high: 3, mid: 2, low: 1 }
             const weightA = weights[a.priority as keyof typeof weights] || 0
             const weightB = weights[b.priority as keyof typeof weights] || 0
-            if (a.priority !== b.priority) return weightB - weightA
+
+            // 1. Primary Sort: Task Priority (Super > High > Mid > Low)
+            if (weightA !== weightB) return weightB - weightA
+
+            // 2. Secondary Sort: Date Urgency (Dated today/past > Undated)
+            const getUrgency = (t: Task) => (t.due_date ? 1 : 0)
+            const urgA = getUrgency(a)
+            const urgB = getUrgency(b)
+            if (urgA !== urgB) return urgB - urgA
+
+            // 3. Tertiary Sort: Engagement Type Alignment
+            // On Work Days: Prioritize 'light' work (chores, routine)
+            // On Off Days: Prioritize 'deep' work (business, creation)
+            const getAlignmentScore = (task: Task) => {
+                if (!task.work_type) return 0
+                if (isWorkDay) return task.work_type === 'light' ? 1 : 0
+                return task.work_type === 'deep' ? 1 : 0
+            }
+            const alignA = getAlignmentScore(a)
+            const alignB = getAlignmentScore(b)
+            if (alignA !== alignB) return alignB - alignA
+
+            // 3. Tertiary Sort: Impact Score
             return (b.impact_score || 0) - (a.impact_score || 0)
         }).map(task => ({
             id: task.id,
@@ -233,6 +265,8 @@ export function usePlannerEngine(date: Date = new Date()) {
             profile: task.profile,
             strategic_category: task.strategic_category,
             priority: task.priority,
+            work_type: task.work_type,
+            notes: task.notes,
             sort_priority: 50
         }))
 
@@ -293,26 +327,26 @@ export function usePlannerEngine(date: Date = new Date()) {
         const task = [...allPersonalTasks, ...allBusinessTasks].find(t => t.id === baseId)
         if (!task) {
             console.warn('Task not found in local state, falling back to direct Supabase update. ID:', baseId)
-            // Direct Supabase fallback — works for any task regardless of profile
             const { error } = await supabase.from('fin_tasks').update({ is_completed: true }).eq('id', baseId)
             if (error) {
                 console.error('Direct complete failed:', error)
             } else {
                 console.log('Direct complete succeeded for:', baseId)
             }
-            await refetchBusiness()
-            await refetchPersonal()
+            await refetchBusinessTodos()
+            await refetchPersonalTodos()
+            await refetchBusinessReminders()
+            await refetchPersonalReminders()
             await fetchData()
             return
         }
 
-        if (task.profile === 'business') {
-            await toggleBusinessTask(baseId, true)
-            await refetchBusiness()
-        } else {
-            await togglePersonalTask(baseId, true)
-            await refetchPersonal()
+        try {
+            await contextToggleTask(task.category as string, baseId, true)
+        } catch (error) {
+            console.error('Complete failed via contextToggleTask:', error)
         }
+        
         // Clear active task if we just completed it
         if (activeTaskId === baseId) {
             setActiveTaskId(null)
@@ -358,8 +392,10 @@ export function usePlannerEngine(date: Date = new Date()) {
             localStorage.removeItem('schrö_active_task_id')
         }
 
-        await refetchBusiness()
-        await refetchPersonal()
+        await refetchBusinessTodos()
+        await refetchPersonalTodos()
+        await refetchBusinessReminders()
+        await refetchPersonalReminders()
         await fetchData()
     }
 
@@ -377,7 +413,7 @@ export function usePlannerEngine(date: Date = new Date()) {
         localStorage.removeItem('schrö_active_task_id')
     }
 
-    return {
+    return useMemo(() => ({
         isWorkDay,
         anchors: plannerData.anchors,
         fluidTasks: plannerData.fluidTasks,
@@ -397,5 +433,22 @@ export function usePlannerEngine(date: Date = new Date()) {
         toggleFlow,
         updateSettings,
         refresh: fetchData
-    }
+    }), [
+        isWorkDay, 
+        plannerData, 
+        plannerItems, 
+        loading, 
+        settings, 
+        initialization, 
+        initializeDay, 
+        reinitializeDay, 
+        endDay, 
+        startTask, 
+        completeTask, 
+        rescheduleTask, 
+        isFlowActive, 
+        toggleFlow, 
+        updateSettings, 
+        fetchData
+    ])
 }

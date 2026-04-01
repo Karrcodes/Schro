@@ -9,13 +9,13 @@ import {
     AlertCircle, ShoppingCart, Bell,
     Check, Save, Edit2, Trash2,
     Plus, ChevronRight, ChevronDown,
-    Zap, Target, Beaker, Car, User,
+    Zap, Target, Beaker, Car, User, Activity,
     ArrowRight, MapPin, Briefcase, CheckSquare,
     Type, List, ListChecks, Factory, Tv, TrendingUp, Wallet, Heart
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Task } from '../types/tasks.types'
-import { CATEGORIES, PRIORITIES, STRATEGIC_CATEGORIES, PRIORITY_MAP } from '../constants/tasks.constants'
+import { CATEGORIES, PRIORITIES, STRATEGIC_CATEGORIES, PRIORITY_MAP, WORK_MODES } from '../constants/tasks.constants'
 import type { StudioProject, StudioContent, StudioMilestone } from '../../studio/types/studio.types'
 
 interface TaskDetailModalProps {
@@ -64,6 +64,7 @@ export function TaskDetailModal({
     const [editNotesType, setEditNotesType] = useState<'text' | 'bullets' | 'checklist'>(task?.notes?.type || 'text')
     const [editNotesContent, setEditNotesContent] = useState<any>(task?.notes?.content || '')
     const [newChecklistItem, setNewChecklistItem] = useState('')
+    const [editWorkType, setEditWorkType] = useState<'light' | 'deep'>(task?.work_type || 'light')
 
     useEffect(() => {
         if (isOpen) {
@@ -109,6 +110,7 @@ export function TaskDetailModal({
                 setLinkType(task.content_id ? 'content' : task.project_id ? 'project' : 'none')
                 setEditNotesType(task.notes?.type || 'text')
                 setEditNotesContent(task.notes?.content || (task.notes?.type === 'checklist' ? [] : ''))
+                setEditWorkType(task.work_type || 'light')
             }
         }
     }, [task, milestone, isOpen])
@@ -207,6 +209,15 @@ export function TaskDetailModal({
                                         {item.impact_score}/10
                                     </span>
                                 )}
+                                    {task?.work_type && task?.category === 'todo' && (
+                                        <span className={cn(
+                                            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
+                                            task.work_type === 'deep' ? "bg-purple-50 text-purple-600 border-purple-100" : "bg-amber-50 text-amber-600 border-amber-100"
+                                        )}>
+                                            {task.work_type === 'deep' ? <Activity className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
+                                            {task.work_type}
+                                        </span>
+                                    )}
                                 {!isMilestone && task && (task.travel_to_duration || 0) > 0 && task.category !== 'reminder' && task.category !== 'grocery' && (
                                     <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold text-amber-500 bg-amber-50 border border-amber-100 uppercase tracking-wider">
                                         <Car className="w-3 h-3" />
@@ -370,22 +381,6 @@ export function TaskDetailModal({
                                             </div>
                                         )}
 
-                                        {/* Strategic Category - Hidden for groceries */}
-                                        {!isMilestone && task?.category !== 'grocery' && (
-                                            <div className="space-y-2">
-                                                <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest px-1">Strategic Category</label>
-                                                <select
-                                                    value={editStrategicCategory}
-                                                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setEditStrategicCategory(e.target.value as any)}
-                                                    className="w-full bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 text-[14px] text-black outline-none focus:border-black/20 focus:bg-white transition-all appearance-none cursor-pointer"
-
-                                                >
-                                                    {STRATEGIC_CATEGORIES_LIST.map(cat => (
-                                                        <option key={cat.id} value={cat.id}>{cat.label}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        )}
                                     </div>
 
 
@@ -432,18 +427,41 @@ export function TaskDetailModal({
                                         {task?.category !== 'reminder' && task?.category !== 'grocery' && (
                                             <div className="space-y-2">
                                                 <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest px-1 flex items-center gap-1">
-                                                    <Zap className="w-3.5 h-3.5" /> Impact Score ({editImpact}/10)
+                                                    <Zap className="w-3.5 h-3.5" /> Impact & Mode
                                                 </label>
-                                                <div className="flex items-center gap-3 bg-black/[0.03] border border-black/5 rounded-xl px-4 py-2.5 h-[50px]">
-                                                    <input
-                                                        type="range"
-                                                        min="1"
-                                                        max="10"
-                                                        value={editImpact}
-                                                        onChange={(e: ChangeEvent<HTMLInputElement>) => setEditImpact(e.target.value)}
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-3 bg-black/[0.03] border border-black/5 rounded-xl px-4 py-2.5 h-[50px] flex-1">
+                                                        <input
+                                                            type="range"
+                                                            min="1"
+                                                            max="10"
+                                                            value={editImpact}
+                                                            onChange={(e: ChangeEvent<HTMLInputElement>) => setEditImpact(e.target.value)}
+                                                            className="flex-1 accent-black h-1 bg-black/10 rounded-lg appearance-none cursor-pointer"
+                                                        />
+                                                        <span className="text-[12px] font-black text-black w-4 text-center">{editImpact}</span>
+                                                    </div>
 
-                                                        className="flex-1 accent-black h-1 bg-black/10 rounded-lg appearance-none cursor-pointer"
-                                                    />
+                                                    {!isMilestone && task?.category === 'todo' && (
+                                                        <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/5 h-[50px]">
+                                                            {WORK_MODES.map((mode) => (
+                                                                <button
+                                                                    key={mode.id}
+                                                                    type="button"
+                                                                    onClick={() => setEditWorkType(mode.id as any)}
+                                                                    title={mode.label}
+                                                                    className={cn(
+                                                                        "w-10 flex items-center justify-center rounded-lg transition-all",
+                                                                        editWorkType === mode.id
+                                                                            ? "bg-white text-black shadow-sm"
+                                                                            : "text-black/30 hover:text-black/60"
+                                                                    )}
+                                                                >
+                                                                    <mode.icon className="w-4 h-4" />
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
@@ -692,7 +710,8 @@ export function TaskDetailModal({
                                                 notes: {
                                                     type: editNotesType,
                                                     content: editNotesContent
-                                                }
+                                                },
+                                                work_type: editWorkType
                                             })
                                         }
                                         setIsEditing(false)

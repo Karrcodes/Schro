@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react'
 import { ProfileType } from '../types/finance.types'
 
 interface FinanceProfileContextType {
@@ -73,23 +73,25 @@ export function FinanceProfileProvider({ children }: { children: React.ReactNode
     // or just assume we have 'personal' first.
     // For seamless UX, we render children immediately but with default 'personal' state,
     // which quickly hydrates from localStorage.
+    const contextValue = useMemo(() => ({
+        activeProfile,
+        setProfile: handleSetProfile,
+        isPrivacyEnabled,
+        togglePrivacy,
+        refreshTrigger,
+        lastRefresh,
+        globalRefresh: () => {
+            setRefreshTrigger(prev => prev + 1)
+            setLastRefresh(new Date())
+        },
+        isSyncing,
+        setSyncing: setIsSyncing,
+        isLogging,
+        setLogging: setIsLogging
+    }), [activeProfile, handleSetProfile, isPrivacyEnabled, togglePrivacy, refreshTrigger, lastRefresh, isSyncing, isLogging])
+
     return (
-        <FinanceProfileContext.Provider value={{
-            activeProfile,
-            setProfile: handleSetProfile,
-            isPrivacyEnabled,
-            togglePrivacy,
-            refreshTrigger,
-            lastRefresh,
-            globalRefresh: () => {
-                setRefreshTrigger(prev => prev + 1)
-                setLastRefresh(new Date())
-            },
-            isSyncing,
-            setSyncing: setIsSyncing,
-            isLogging,
-            setLogging: setIsLogging
-        }}>
+        <FinanceProfileContext.Provider value={contextValue}>
             <div className={`${mounted ? "" : "hidden"} ${isPrivacyEnabled ? 'privacy-enabled' : ''}`}>
                 {children}
             </div>

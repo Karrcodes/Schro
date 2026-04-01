@@ -49,6 +49,7 @@ export interface Task {
     origin_location?: string
     price?: number
     content_id?: string | null
+    work_type?: 'light' | 'deep'
 }
 
 export interface GroceryLibraryItem {
@@ -130,6 +131,7 @@ export interface TaskTemplate {
     travel_to_duration?: number
     travel_from_duration?: number
     impact_score?: number
+    work_type?: 'light' | 'deep'
     start_time?: string
     location?: string
     origin_location?: string

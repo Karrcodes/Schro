@@ -327,21 +327,23 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         }
     }, [fetchTasks, settings.is_demo_mode])
 
+    const contextValue = useMemo(() => ({
+        tasks,
+        loading,
+        errors,
+        fetchTasks,
+        createTask,
+        createTasks,
+        toggleTask,
+        editTask,
+        deleteTask,
+        clearAllTasks,
+        clearCompletedTasks,
+        updateTaskPositions
+    }), [tasks, loading, errors, fetchTasks, createTask, createTasks, toggleTask, editTask, deleteTask, clearAllTasks, clearCompletedTasks, updateTaskPositions])
+
     return (
-        <TasksContext.Provider value={{
-            tasks,
-            loading,
-            errors,
-            fetchTasks,
-            createTask,
-            createTasks,
-            toggleTask,
-            editTask,
-            deleteTask,
-            clearAllTasks,
-            clearCompletedTasks,
-            updateTaskPositions
-        }}>
+        <TasksContext.Provider value={contextValue}>
             {children}
         </TasksContext.Provider>
     )

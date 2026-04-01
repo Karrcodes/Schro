@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, ReactNode } from 'react'
-export type TasksProfile = 'personal' | 'business'
+export type TasksProfile = 'personal' | 'business' | 'all'
 
 interface TasksProfileContextType {
     activeProfile: TasksProfile

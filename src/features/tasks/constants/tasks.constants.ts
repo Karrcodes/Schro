@@ -2,7 +2,8 @@ import {
     ShoppingCart, Bell, Activity, Wallet, Briefcase,
     Heart, User, Beaker, Factory, Tv, TrendingUp, Zap,
     Shield, Star, Coffee, Utensils, Search, Filter,
-    LayoutGrid, LayoutList, Target, Clock, Car, ListTodo
+    LayoutGrid, LayoutList, Target, Clock, Car, ListTodo,
+    Timer, Feather
 } from 'lucide-react'
 
 export const CATEGORIES = [
@@ -44,3 +45,8 @@ export const STRATEGIC_CATEGORIES = {
     personal: PERSONAL_CATEGORIES,
     business: BUSINESS_CATEGORIES
 } as const
+
+export const WORK_MODES = [
+    { id: 'light', label: 'Light Work', icon: Feather, color: 'text-orange-900 bg-orange-50 border-orange-100', description: 'Low cognitive load (chores, routine)' },
+    { id: 'deep', label: 'Deep Work', icon: Timer, color: 'text-orange-50 bg-orange-950 border-orange-900', description: 'High concentration (business, growth)' }
+] as const

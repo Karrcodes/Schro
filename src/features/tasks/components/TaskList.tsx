@@ -10,7 +10,7 @@ import {
     MoreVertical, Edit2, Briefcase, User, Zap, Car, MapPin,
     ArrowRight, Info, Check, X, Settings2, Sparkles, BarChart2, Minus,
     Target, ShoppingCart, Bell, LayoutGrid, LayoutList, GripVertical, Activity, ChevronUp, RefreshCw, Rocket, Video, Type, List, ListChecks, Wallet, Heart, Star, Save,
-    Beaker, Factory, Tv, TrendingUp, Shield, Camera, Upload, Library, Receipt, Wand2, ListTodo
+    Beaker, Factory, Tv, TrendingUp, Shield, Camera, Upload, Library, Receipt, Wand2, ListTodo, Layers, ListTree
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTasksProfile } from '../contexts/TasksProfileContext'
@@ -22,7 +22,7 @@ import type { Task, TaskTemplate, Category, Priority, StrategicCategory, Recurre
 import { TaskDetailModal } from './TaskDetailModal'
 import { TaskSettingsModal } from './TaskSettingsModal'
 import { GroceryLibraryModal } from './GroceryLibraryModal'
-import { CATEGORIES, PRIORITIES, STRATEGIC_CATEGORIES, PRIORITY_MAP } from '../constants/tasks.constants'
+import { CATEGORIES, PRIORITIES, STRATEGIC_CATEGORIES, PRIORITY_MAP, WORK_MODES } from '../constants/tasks.constants'
 import { getNextOffPeriod, isShiftDay } from '@/features/finance/utils/rotaUtils'
 import { useStudio } from '@/features/studio/hooks/useStudio'
 import type { StudioMilestone } from '@/features/studio/types/studio.types'
@@ -31,13 +31,16 @@ import ContentDetailModal from '@/features/studio/components/ContentDetailModal'
 import DatePickerInput from '@/components/DatePickerInput'
 import { QuickImportModal } from './QuickImportModal'
 import { aiService } from '../services/aiService'
+import { useWellbeing } from '@/features/wellbeing/contexts/WellbeingContext'
 
 const PERSONAL_CATEGORIES = STRATEGIC_CATEGORIES.personal
 const BUSINESS_CATEGORIES = STRATEGIC_CATEGORIES.business
 
 export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminder' }) {
     const { activeProfile } = useTasksProfile()
-    const strategicCategories = activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES
+    const strategicCategories = activeProfile === 'all'
+        ? [...PERSONAL_CATEGORIES, ...BUSINESS_CATEGORIES]
+        : (activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES)
 
     const { tasks, loading: tasksLoading, createTask, createTasks, toggleTask, deleteTask, clearAllTasks, clearCompletedTasks, editTask, updateTaskPositions } = useTasks(category)
     const { milestones, projects, content, updateMilestone, loading: studioLoading } = useStudio()
@@ -59,11 +62,12 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     })
     const [expandedRecurring, setExpandedRecurring] = useState<Record<string, boolean>>({})
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-    const [editingId, setEditingId] = useState<string | null>(null)
-    const [editValue, setEditValue] = useState("")
-    const [editPriority, setEditPriority] = useState<Priority>("super")
     const [showCompleted, setShowCompleted] = useState(false)
-    const [sortBy, setSortBy] = useState<'manual' | 'priority' | 'priority_grouped' | 'impact' | 'duration' | 'deadline' | 'date' | 'price'>(category === 'grocery' ? 'price' : 'priority_grouped')
+    const [sortBy, setSortBy] = useState<'engagement' | 'priority' | 'impact' | 'deadline' | 'date' | 'manual' | 'price'>(
+        category === 'grocery' ? 'price' : (category === 'reminder' ? 'priority' : 'engagement')
+    )
+    const [isGrouped, setIsGrouped] = useState(true)
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
     const [draggedItem, setDraggedItem] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
     const [activeFilter, setActiveFilter] = useState<string>('all')
@@ -96,6 +100,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [newProjectId, setNewProjectId] = useState<string | undefined>(undefined)
     const [newContentId, setNewContentId] = useState<string | undefined>(undefined)
     const [price, setPrice] = useState<number | undefined>(undefined)
+    const [newWorkType, setNewWorkType] = useState<'light' | 'deep'>('light')
     const [impactScore, setImpactScore] = useState('5')
     const [selectedLibraryItem, setSelectedLibraryItem] = useState<GroceryLibraryItem | null>(null)
     const [isUploadingReceipt, setIsUploadingReceipt] = useState(false)
@@ -379,7 +384,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                     impact_score: finalImpact,
                     project_id: linkType === 'project' ? newProjectId : undefined,
                     content_id: linkType === 'content' ? newContentId : undefined,
-                    price: price
+                    price: price,
+                    work_type: newWorkType
                 })
             }
 
@@ -404,6 +410,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             setNewProjectId(undefined)
             setNewContentId(undefined)
             setPrice(undefined)
+            setNewWorkType('light')
             setSelectedLibraryItem(null)
         } catch (err: any) {
             console.error('Operation creation failed:', err)
@@ -488,7 +495,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const filteredItems = useMemo(() => {
         const taskItems = tasks.map(t => ({ id: t.id, type: 'task' as const, data: t }))
         // Milestones only for business profile and todo category
-        const milestoneItems = (category === 'todo' && activeProfile === 'business')
+        const milestoneItems = (category === 'todo' && (activeProfile === 'business' || activeProfile === 'all'))
             ? milestones
                 .filter(m => {
                     if (m.project_id) {
@@ -523,57 +530,67 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         })
     }, [tasks, milestones, content, projects, searchQuery, selectedStrategicCategory, category, activeProfile])
 
-    // Sort: Uncompleted first, Completed last. Apply custom sorting, fallback to manual.
-    const sortedItems = [...filteredItems].sort((a, b) => {
-        const aCompleted = a.type === 'task' ? a.data.is_completed : a.data.status === 'completed'
-        const bCompleted = b.type === 'task' ? b.data.is_completed : b.data.status === 'completed'
+    // Sort: Multi-level hierarchy. Apply primary sort first, fallback to defined chain.
+    const sortedItems = useMemo(() => {
+        const items = [...filteredItems]
+        
+        const priorityOrder = { super: 0, high: 1, mid: 2, low: 3 }
+        const engagementOrder = { deep: 0, light: 1 }
+        const baseHierarchy = ['engagement', 'priority', 'impact', 'deadline', 'date']
+        const currentHierarchy = [sortBy, ...baseHierarchy.filter(h => h !== sortBy)]
 
-        if (aCompleted !== bCompleted) {
-            return aCompleted ? 1 : -1
-        }
+        return items.sort((a, b) => {
+            const aCompleted = a.type === 'task' ? a.data.is_completed : a.data.status === 'completed'
+            const bCompleted = b.type === 'task' ? b.data.is_completed : b.data.status === 'completed'
 
-        if ((sortBy === 'priority' || sortBy === 'priority_grouped') && category !== 'grocery') {
-            const priorityOrder = { super: 0, high: 1, mid: 2, low: 3 }
-            const aPri = a.type === 'task' ? (a.data.priority || 'low') : 'mid'
-            const bPri = b.type === 'task' ? (b.data.priority || 'low') : 'mid'
-            const diff = (priorityOrder[aPri as keyof typeof priorityOrder] ?? 3) - (priorityOrder[bPri as keyof typeof priorityOrder] ?? 3)
-            if (diff !== 0) return diff
-        } else if (sortBy === 'price') {
-            const aPrice = a.type === 'task' ? (a.data.price || 0) : 0
-            const bPrice = b.type === 'task' ? (b.data.price || 0) : 0
-            const diff = bPrice - aPrice // Expensive first
-            if (diff !== 0) return diff
-        } else if (sortBy === 'impact') {
-            const aImp = a.type === 'task' ? (a.data.impact_score || 0) : (a.data.impact_score || 0)
-            const bImp = b.type === 'task' ? (b.data.impact_score || 0) : (b.data.impact_score || 0)
-            const diff = bImp - aImp // High to Low
-            if (diff !== 0) return diff
-        } else if (sortBy === 'duration') {
-            const aDur = a.type === 'task' ? (a.data.estimated_duration || 0) : 0
-            const bDur = b.type === 'task' ? (b.data.estimated_duration || 0) : 0
-            const diff = aDur - bDur // Short to Long
-            if (diff !== 0) return diff
-        } else if (sortBy === 'deadline') {
-            const aDead = a.type === 'task' && a.data.due_date ? new Date(a.data.due_date).getTime() : Infinity
-            const bDead = b.type === 'task' && b.data.due_date ? new Date(b.data.due_date).getTime() : Infinity
-            const diff = aDead - bDead // Soonest to Latest
-            if (diff !== 0) return diff
-        } else if (sortBy === 'date') {
-            const aDate = new Date(a.data.created_at).getTime()
-            const bDate = new Date(b.data.created_at).getTime()
-            const diff = bDate - aDate // Newest to Oldest
-            if (diff !== 0) return diff
-        }
+            if (aCompleted !== bCompleted) return aCompleted ? 1 : -1
 
-        const aPos = a.type === 'task' ? (a.data.position || 0) : 0
-        const bPos = b.type === 'task' ? (b.data.position || 0) : 0
+            if (sortBy === 'manual') {
+                const aPos = a.type === 'task' ? (a.data.position || 0) : 0
+                const bPos = b.type === 'task' ? (b.data.position || 0) : 0
+                return bPos - aPos
+            }
 
-        return bPos - aPos
-    })
+            for (const crit of currentHierarchy) {
+                let diff = 0
+                if (crit === 'engagement') {
+                    const aEng = a.type === 'task' ? (a.data.work_type || 'light') : 'light'
+                    const bEng = b.type === 'task' ? (b.data.work_type || 'light') : 'light'
+                    diff = engagementOrder[aEng as keyof typeof engagementOrder] - engagementOrder[bEng as keyof typeof engagementOrder]
+                } else if (crit === 'priority') {
+                    const aPri = a.type === 'task' ? (a.data.priority || 'low') : 'mid'
+                    const bPri = b.type === 'task' ? (b.data.priority || 'low') : 'mid'
+                    diff = priorityOrder[aPri as keyof typeof priorityOrder] - priorityOrder[bPri as keyof typeof priorityOrder]
+                } else if (crit === 'impact') {
+                    const aImp = a.data.impact_score || 0
+                    const bImp = b.data.impact_score || 0
+                    diff = bImp - aImp
+                } else if (crit === 'deadline') {
+                    const aDead = a.type === 'task' && a.data.due_date ? new Date(a.data.due_date).getTime() : Infinity
+                    const bDead = b.type === 'task' && b.data.due_date ? new Date(b.data.due_date).getTime() : Infinity
+                    diff = aDead - bDead
+                } else if (crit === 'date') {
+                    const aDate = new Date(a.data.created_at).getTime()
+                    const bDate = new Date(b.data.created_at).getTime()
+                    diff = bDate - aDate
+                } else if (crit === 'price') {
+                    const aPrice = a.type === 'task' ? (a.data.price || 0) : 0
+                    const bPrice = b.type === 'task' ? (b.data.price || 0) : 0
+                    diff = bPrice - aPrice
+                }
+                
+                if (diff !== 0) return diff
+            }
 
-    // Expand recurring "off-day" tasks: one virtual entry per off-day in the current off period
+            const aPos = a.type === 'task' ? (a.data.position || 0) : 0
+            const bPos = b.type === 'task' ? (b.data.position || 0) : 0
+            return bPos - aPos
+        })
+    }, [filteredItems, sortBy])
+
+    // Expand recurring "off-day" tasks
     const today = new Date(); today.setHours(0, 0, 0, 0)
-    const currentOffPeriod = getNextOffPeriod(today) // finds current block if today is off-day too
+    const currentOffPeriod = getNextOffPeriod(today)
     const offDays: Date[] = []
     if (currentOffPeriod.start.getTime() !== currentOffPeriod.end.getTime() || !isShiftDay(currentOffPeriod.start)) {
         let d = new Date(currentOffPeriod.start)
@@ -583,8 +600,6 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         }
     }
 
-    // Expand recurring tasks: Only include if the task's recurrence rule applies to TODAY.
-    // It will show up once on the list for today.
     const dateStr = today.toISOString().split('T')[0]
     const dayOfWeek = today.getDay()
     const processedItems: (({ id: string, type: 'task', data: Task } | { id: string, type: 'milestone', data: StudioMilestone }) & { _recurringDate?: string })[] = []
@@ -613,16 +628,111 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         }
     })
 
-    const priorityBuckets = useMemo(() => {
-        if (sortBy !== 'priority_grouped') return null
-        return (['super', 'high', 'mid', 'low'] as const).map(prio => {
-            const bucketItems = processedItems.filter(item => {
-                const itemPrio = item.type === 'task' ? (item.data.priority || 'low') : 'mid'
-                return itemPrio === prio
-            })
-            return { priority: prio, items: bucketItems }
-        }).filter(bucket => bucket.items.length > 0)
-    }, [processedItems, sortBy])
+    const taskBuckets = useMemo(() => {
+        if (!isGrouped || sortBy === 'manual') return null
+        
+        const buckets: { 
+            id: string; 
+            label: string; 
+            icon?: LucideIcon; 
+            color?: string; 
+            dotColor?: string;
+            items: typeof processedItems 
+        }[] = []
+        
+        processedItems.forEach(item => {
+            let groupId = ''
+            let groupLabel = ''
+            let groupIcon: LucideIcon | undefined
+            let groupColor: string | undefined
+            let dotColor: string | undefined
+
+            if (sortBy === 'engagement') {
+                const type = item.type === 'task' ? (item.data.work_type || 'light') : 'light'
+                const mode = WORK_MODES.find(m => m.id === type)
+                groupId = type
+                groupLabel = mode?.label || 'Light Work'
+                groupIcon = mode?.icon
+                groupColor = type === 'deep' ? 'text-orange-950' : 'text-orange-900/60'
+                dotColor = type === 'deep' ? 'bg-orange-950 shadow-[0_0_8px_rgba(67,20,7,0.4)]' : 'bg-orange-200'
+            } else if (sortBy === 'priority') {
+                const prio = item.type === 'task' ? (item.data.priority || 'low') : 'mid'
+                groupId = prio
+                groupLabel = PRIORITY_MAP[prio as keyof typeof PRIORITY_MAP].label + ' Priority'
+                groupColor = prio === 'super' ? 'text-purple-600' : prio === 'high' ? 'text-red-600' : prio === 'mid' ? 'text-amber-600' : 'text-black/40'
+                dotColor = prio === 'super' ? 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]' :
+                           prio === 'high' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' :
+                           prio === 'mid' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]' :
+                           'bg-black/20'
+            } else if (sortBy === 'impact') {
+                const imp = item.data.impact_score || 0
+                groupId = `impact-${imp}`
+                groupLabel = `Impact Score: ${imp}`
+                groupIcon = Zap
+                groupColor = 'text-amber-600'
+                dotColor = 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
+            } else if (sortBy === 'deadline') {
+                const dueDate = item.type === 'task' && item.data.due_date ? new Date(item.data.due_date) : null
+                if (!dueDate) {
+                    groupId = 'no-date'
+                    groupLabel = 'No Deadline'
+                    groupColor = 'text-black/30'
+                    dotColor = 'bg-black/10'
+                } else {
+                    const startOfToday = new Date(today); startOfToday.setHours(0,0,0,0)
+                    const dueDateFlat = new Date(dueDate); dueDateFlat.setHours(0,0,0,0)
+                    const diffDays = Math.ceil((dueDateFlat.getTime() - startOfToday.getTime()) / (1000 * 3600 * 24))
+                    
+                    if (diffDays < 0) { 
+                        groupId = 'overdue'; groupLabel = 'Overdue'; groupColor = 'text-red-600'; 
+                        dotColor = 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'
+                    }
+                    else if (diffDays === 0) { 
+                        groupId = 'today'; groupLabel = 'Today'; groupColor = 'text-emerald-600'; 
+                        dotColor = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                    }
+                    else if (diffDays === 1) { 
+                        groupId = 'tomorrow'; groupLabel = 'Tomorrow'; groupColor = 'text-blue-600'; 
+                        dotColor = 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]'
+                    }
+                    else { 
+                        groupId = 'upcoming'; groupLabel = 'Upcoming'; groupColor = 'text-black/60'; 
+                        dotColor = 'bg-black/40'
+                    }
+                }
+            } else if (sortBy === 'date') {
+                const created = new Date(item.data.created_at)
+                created.setHours(0,0,0,0)
+                const diffDays = Math.floor((today.getTime() - created.getTime()) / (1000 * 3600 * 24))
+                if (diffDays === 0) { 
+                    groupId = 'added-today'; groupLabel = 'Added Today'
+                    dotColor = 'bg-black/40'
+                } else if (diffDays === 1) { 
+                    groupId = 'added-yesterday'; groupLabel = 'Added Yesterday'
+                    dotColor = 'bg-black/20'
+                } else { 
+                    groupId = 'added-older'; groupLabel = 'Older Actions'
+                    dotColor = 'bg-black/10'
+                }
+                groupColor = 'text-black/60'
+            } else if (sortBy === 'price') {
+                groupId = 'groceries'
+                groupLabel = 'Shopping List'
+                groupIcon = ShoppingCart
+                groupColor = 'text-emerald-600'
+                dotColor = 'bg-emerald-500'
+            }
+
+            let bucket = buckets.find(b => b.id === groupId)
+            if (!bucket) {
+                bucket = { id: groupId, label: groupLabel, icon: groupIcon, color: groupColor, dotColor, items: [] }
+                buckets.push(bucket)
+            }
+            bucket.items.push(item)
+        })
+
+        return buckets
+    }, [processedItems, sortBy, isGrouped])
 
     const handleCreateFromTemplate = async (template: TaskTemplate) => {
         try {
@@ -635,7 +745,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 notes: template.notes,
                 project_id: template.project_id,
                 content_id: template.content_id,
-                recurrence_config: template.recurrence_config
+                recurrence_config: template.recurrence_config,
+                work_type: template.work_type
             })
         } catch (err) {
             console.error('Failed to create from template:', err)
@@ -650,7 +761,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 strategic_category: (newStrategicCategory || (activeProfile === 'personal' ? 'personal' : 'career')) as StrategicCategory,
                 due_date_mode: 'none' as any,
                 profile: activeProfile,
-                notes: t.notes ? { type: 'text', content: t.notes } : undefined
+                notes: t.notes ? { type: 'text', content: t.notes } : undefined,
+                work_type: newWorkType
             })))
         } catch (err) {
             console.error('Failed to import tasks:', err)
@@ -782,13 +894,13 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         <ListChecks className="w-3 h-3" />
                         Sort
                     </div>
-                    <div className="relative flex-shrink-0">
+                    <div className="relative flex-shrink-0 flex items-center gap-1 bg-black/[0.03] p-1 rounded-xl border border-black/5">
                         <select
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value as any)}
                             className={cn(
-                                "appearance-none bg-black/[0.03] text-black/60 hover:text-black hover:bg-black/5 font-bold text-[10px] uppercase tracking-widest pl-3 pr-8 py-1.5 rounded-lg cursor-pointer outline-none transition-all border border-transparent focus:border-black/10 inline-flex items-center h-[26px]",
-                                sortBy !== 'manual' && "bg-black/[0.06] text-black"
+                                "appearance-none bg-transparent text-black/60 hover:text-black font-bold text-[10px] uppercase tracking-widest pl-3 pr-8 py-1 rounded-lg cursor-pointer outline-none transition-all border border-transparent inline-flex items-center h-[26px]",
+                                sortBy !== 'manual' && "text-black"
                             )}
                         >
                              <option value="manual">Manual</option>
@@ -796,20 +908,30 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 <option value="price">Price</option>
                             ) : (
                                 <>
+                                    {category === 'todo' && <option value="engagement">Engagement</option>}
                                     <option value="priority">Priority</option>
-                                    <option value="priority_grouped">Priority (Grouped)</option>
-                                </>
-                            )}
-                            {category !== 'grocery' && (
-                                <>
                                     <option value="impact">Impact</option>
-                                    <option value="duration">Duration</option>
                                     <option value="deadline">Deadline</option>
                                     <option value="date">Date Added</option>
                                 </>
                             )}
                         </select>
-                        <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-black/40" />
+                        <ChevronDown className="w-3 h-3 absolute right-11 top-1/2 -translate-y-1/2 pointer-events-none text-black/40" />
+                        
+                        {category !== 'grocery' && (
+                            <button
+                                onClick={() => setIsGrouped(!isGrouped)}
+                                className={cn(
+                                    "w-7 h-7 flex items-center justify-center rounded-lg transition-all",
+                                    isGrouped 
+                                        ? "bg-black text-white shadow-sm" 
+                                        : "text-black/30 hover:text-black/60 hover:bg-black/5"
+                                )}
+                                title={isGrouped ? "Disable Grouping" : "Enable Grouping"}
+                            >
+                                <ListTree className="w-3.5 h-3.5" />
+                            </button>
+                        )}
                     </div>
                     {category === 'grocery' && (
                         <div className="flex items-center gap-3 ml-auto animate-in fade-in slide-in-from-right-2">
@@ -1232,20 +1354,44 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-3 p-1 bg-black/[0.03] border border-black/5 rounded-xl w-[250px] h-[36px]">
-                                        <div className="flex items-center gap-1.5 text-black/30 shrink-0 ml-2">
-                                            <Zap className="w-3.5 h-3.5" />
-                                            <span className="text-[10px] font-bold uppercase tracking-tight text-black/40">Impact</span>
+
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-3 p-1 bg-black/[0.03] border border-black/5 rounded-xl w-[160px] h-[36px]">
+                                            <div className="flex items-center gap-1.5 text-black/30 shrink-0 ml-1.5">
+                                                <Zap className="w-3.5 h-3.5 mr-0.5" />
+                                                <span className="text-[10px] font-black uppercase tracking-tight text-black/40">Imp</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="10"
+                                                value={impactScore}
+                                                onChange={(e) => setImpactScore(e.target.value)}
+                                                className="flex-1 accent-black h-1 bg-black/10 rounded-lg appearance-none cursor-pointer min-w-0"
+                                            />
+                                            <span className="text-[11px] font-black text-black w-4 text-center shrink-0 pr-1">{impactScore}</span>
                                         </div>
-                                        <input
-                                            type="range"
-                                            min="1"
-                                            max="10"
-                                            value={impactScore}
-                                            onChange={(e) => setImpactScore(e.target.value)}
-                                            className="flex-1 accent-black h-1 bg-black/10 rounded-lg appearance-none cursor-pointer"
-                                        />
-                                        <span className="text-[11px] font-black text-black w-6 text-center shrink-0 pr-1">{impactScore}</span>
+
+                                        {category === 'todo' && (
+                                            <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/[0.08] h-[36px]">
+                                                {WORK_MODES.map((mode) => (
+                                                    <button
+                                                        key={mode.id}
+                                                        type="button"
+                                                        onClick={() => setNewWorkType(mode.id as any)}
+                                                        title={mode.label}
+                                                        className={cn(
+                                                            "w-8 flex items-center justify-center rounded-lg transition-all",
+                                                            newWorkType === mode.id
+                                                                ? "bg-white text-black shadow-sm"
+                                                                : "text-black/30 hover:text-black/60"
+                                                        )}
+                                                    >
+                                                        <mode.icon className="w-3.5 h-3.5" />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </>
                             )}
@@ -1367,7 +1513,32 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
                         {/* Algorithmic Params & Studio Linking */}
                         {category !== 'grocery' && (
-                            <div className="flex flex-col gap-2 mt-1 transition-all animate-in fade-in slide-in-from-top-1">
+                            <div className="flex flex-col gap-3 mt-1 transition-all animate-in fade-in slide-in-from-top-1">
+                                {category === 'todo' && (
+                                    <div className="flex flex-col gap-1.5 opacity-0 pointer-events-none hidden">
+                                        <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest px-1 flex items-center gap-1">
+                                            <Zap className="w-3 h-3 text-amber-500" /> Engagement Mode
+                                        </span>
+                                        <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/[0.08]">
+                                            {WORK_MODES.map((mode) => (
+                                                <button
+                                                    key={mode.id}
+                                                    type="button"
+                                                    onClick={() => setNewWorkType(mode.id as any)}
+                                                    className={cn(
+                                                        "flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                                                        newWorkType === mode.id
+                                                            ? "bg-white text-black shadow-sm"
+                                                            : "text-black/30 hover:text-black/60"
+                                                    )}
+                                                >
+                                                    <mode.icon className="w-3 h-3" />
+                                                    {mode.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                     {activeProfile === 'business' && (
                                         <div className="flex-1 min-w-[240px] flex flex-col gap-1.5">
@@ -1596,70 +1767,97 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         <p className="text-[13px] font-medium text-black/40">All caught up.</p>
                         <p className="text-[11px] text-black/30">Add something above to get started.</p>
                     </div>
-                ) : sortBy === 'priority_grouped' && priorityBuckets ? (
-                    priorityBuckets.map((bucket) => (
-                        <div key={bucket.priority} className="mb-10 last:mb-0 animate-in fade-in slide-in-from-top-1 duration-500">
-                            <div className="sticky top-0 z-20 flex items-center gap-3 mb-4 py-3 bg-white/95 backdrop-blur-sm -mx-1 px-1 border-b border-black/[0.03]">
-                                <div className={cn(
-                                    "w-2.5 h-2.5 rounded-full",
-                                    bucket.priority === 'super' ? "bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" :
-                                    bucket.priority === 'high' ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" :
-                                    bucket.priority === 'mid' ? "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" :
-                                    "bg-black/20"
-                                )} />
-                                <h3 className={cn(
-                                    "text-[10px] font-black uppercase tracking-[0.3em]",
-                                    bucket.priority === 'super' ? "text-purple-600" :
-                                    bucket.priority === 'high' ? "text-red-600" :
-                                    bucket.priority === 'mid' ? "text-amber-600" :
-                                    "text-black/40"
-                                )}>
-                                    {PRIORITY_MAP[bucket.priority].label} Priority
-                                </h3>
-                                <div className="h-[1px] flex-1 bg-black/[0.05]" />
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[9px] font-black text-black/30 bg-black/[0.03] px-2 py-1 rounded-lg uppercase tracking-widest border border-black/[0.05]">
-                                        {bucket.items.length} {bucket.items.length === 1 ? 'Action' : 'Actions'}
-                                    </span>
-                                </div>
+                ) : taskBuckets ? (
+                    taskBuckets.map((bucket) => {
+                        const isCollapsed = collapsedGroups.has(bucket.id)
+                        return (
+                            <div key={bucket.id} className="mb-6 last:mb-0 animate-in fade-in slide-in-from-top-1 duration-500">
+                                <button 
+                                    onClick={() => {
+                                        const next = new Set(collapsedGroups)
+                                        if (next.has(bucket.id)) next.delete(bucket.id)
+                                        else next.add(bucket.id)
+                                        setCollapsedGroups(next)
+                                    }}
+                                    className="sticky top-0 z-20 w-full flex items-center gap-3 mb-4 py-3 bg-white/95 backdrop-blur-sm -mx-1 px-1 border-b border-black/[0.03] text-left group"
+                                >
+                                    <div className={cn(
+                                        "w-2.5 h-2.5 rounded-full transition-all duration-300",
+                                        bucket.dotColor || "bg-black/20"
+                                    )} />
+                                    <div className="flex items-center gap-2">
+                                        {bucket.icon && <bucket.icon className={cn("w-3.5 h-3.5", bucket.color)} />}
+                                        <h3 className={cn(
+                                            "text-[10px] font-black uppercase tracking-[0.3em]",
+                                            bucket.color || "text-black/40"
+                                        )}>
+                                            {bucket.label}
+                                        </h3>
+                                    </div>
+                                    <div className="h-[1px] flex-1 bg-black/[0.05]" />
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-[9px] font-black text-black/30 bg-black/[0.03] px-2 py-1 rounded-lg uppercase tracking-widest border border-black/[0.05] group-hover:bg-black/5 transition-colors">
+                                            {bucket.items.length} {bucket.items.length === 1 ? 'Action' : 'Actions'}
+                                        </span>
+                                        <div className={cn(
+                                            "p-1 rounded-lg hover:bg-black/5 text-black/20 transition-all",
+                                            isCollapsed ? "rotate-0" : "rotate-180"
+                                        )}>
+                                            <ChevronDown className="w-3.5 h-3.5" />
+                                        </div>
+                                    </div>
+                                </button>
+                                
+                                <AnimatePresence initial={false}>
+                                    {!isCollapsed && (
+                                        <motion.div 
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="space-y-2.5 pb-2">
+                                                {bucket.items.map((item) => (
+                                                    item.type === 'task' ? (
+                                                        <TaskRow
+                                                            key={item.id}
+                                                            task={item.data}
+                                                            toggleTask={toggleTask}
+                                                            deleteTask={handleDeleteQuick}
+                                                            editTask={editTask}
+                                                            category={category}
+                                                            setSelectedTaskForModal={setSelectedTaskForModal}
+                                                            setSelectedProjectForModal={setSelectedProjectForModal}
+                                                            setSelectedContentForModal={setSelectedContentForModal}
+                                                            projects={projects}
+                                                            content={content}
+                                                        />
+                                                    ) : (
+                                                        <MilestoneRow
+                                                            key={item.id}
+                                                            milestone={item.data}
+                                                            project={projects.find((p: any) => p.id === item.data.project_id)}
+                                                            content={content.find((c: any) => c.id === item.data.content_id)}
+                                                            onSelectItem={(m) => {
+                                                                if (m.content_id) {
+                                                                    setSelectedContentForModal(content.find(c => c.id === m.content_id))
+                                                                } else if (m.project_id) {
+                                                                    setSelectedProjectForModal(projects.find(p => p.id === m.project_id))
+                                                                } else {
+                                                                    setSelectedMilestoneForModal(m)
+                                                                }
+                                                            }}
+                                                        />
+                                                    )
+                                                ))}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
-                            <div className="space-y-2.5">
-                                {bucket.items.map((item) => (
-                                    item.type === 'task' ? (
-                                        <TaskRow
-                                            key={item.id}
-                                            task={item.data}
-                                            toggleTask={toggleTask}
-                                            deleteTask={handleDeleteQuick}
-                                            editTask={editTask}
-                                            category={category}
-                                            setSelectedTaskForModal={setSelectedTaskForModal}
-                                            setSelectedProjectForModal={setSelectedProjectForModal}
-                                            setSelectedContentForModal={setSelectedContentForModal}
-                                            projects={projects}
-                                            content={content}
-                                        />
-                                    ) : (
-                                        <MilestoneRow
-                                            key={item.id}
-                                            milestone={item.data}
-                                            project={projects.find((p: any) => p.id === item.data.project_id)}
-                                            content={content.find((c: any) => c.id === item.data.content_id)}
-                                            onSelectItem={(m) => {
-                                                if (m.content_id) {
-                                                    setSelectedContentForModal(content.find(c => c.id === m.content_id))
-                                                } else if (m.project_id) {
-                                                    setSelectedProjectForModal(projects.find(p => p.id === m.project_id))
-                                                } else {
-                                                    setSelectedMilestoneForModal(m)
-                                                }
-                                            }}
-                                        />
-                                    )
-                                ))}
-                            </div>
-                        </div>
-                    ))
+                        )
+                    })
                 ) : (
                     processedItems.map((item) => (
                         item.type === 'task' ? (
@@ -1782,6 +1980,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
     content: any[]
 }) {
     const { activeProfile } = useTasksProfile()
+    const { routines, activeRoutineId } = useWellbeing()
     const strategicCategories = activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES
     const controls = useDragControls()
     const [isEditing, setIsEditing] = useState(false)
@@ -1807,6 +2006,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
     const [newChecklistItem, setNewChecklistItem] = useState('')
     const [editProjectId, setEditProjectId] = useState<string | null>(task.project_id || null)
     const [editContentId, setEditContentId] = useState<string | null>(task.content_id || null)
+    const [editWorkType, setEditWorkType] = useState<'light' | 'deep'>(task.work_type || 'light')
     const [linkType, setLinkType] = useState<'none' | 'project' | 'content'>(
         task.content_id ? 'content' : task.project_id ? 'project' : 'none'
     )
@@ -1833,6 +2033,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
             setEditImpact(task.impact_score?.toString() || '5')
             setEditProjectId(task.project_id || null)
             setEditContentId(task.content_id || null)
+            setEditWorkType(task.work_type || 'light')
             setLinkType(task.content_id ? 'content' : task.project_id ? 'project' : 'none')
         }
     }, [isEditing, task])
@@ -1851,6 +2052,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
             },
             strategic_category: isGrocery ? undefined : editStrategicCategory,
             impact_score: isGrocery ? undefined : parseInt(editImpact),
+            work_type: isGrocery ? undefined : editWorkType,
             project_id: isGrocery ? null : (editProjectId || null),
             content_id: isGrocery ? null : (editContentId || null),
         }
@@ -2200,7 +2402,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                             {/* Impact Picker */}
                             {category !== 'grocery' && (
                                 <div className="flex items-center gap-2 p-1.5 bg-black/[0.03] rounded-lg border border-black/5">
-                                    <div className="flex items-center gap-2 min-w-[100px]">
+                                    <div className="flex items-center gap-2 min-w-[110px] pr-1">
                                         <Zap className="w-2.5 h-2.5 text-black/30" />
                                         <input
                                             type="range"
@@ -2210,7 +2412,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                             onChange={(e) => setEditImpact(e.target.value)}
                                             className="w-16 h-1 accent-black bg-black/10 rounded-lg appearance-none cursor-pointer"
                                         />
-                                        <span className="text-[10px] font-black text-black w-3 text-center">{editImpact}</span>
+                                        <span className="text-[10px] font-black text-black w-4 text-center">{editImpact}</span>
                                     </div>
                                 </div>
                             )}
@@ -2252,6 +2454,27 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                             )}
                                         >
                                             {PRIORITY_MAP[p as keyof typeof PRIORITY_MAP].label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {category === 'todo' && (
+                                <div className="flex bg-black/[0.03] p-1 rounded-lg border border-black/[0.08] h-[32px]">
+                                    {WORK_MODES.map((mode) => (
+                                        <button
+                                            key={mode.id}
+                                            type="button"
+                                            onClick={() => setEditWorkType(mode.id as any)}
+                                            title={mode.label}
+                                            className={cn(
+                                                "w-7 flex items-center justify-center rounded-md transition-all",
+                                                editWorkType === mode.id
+                                                    ? "bg-white text-black shadow-sm"
+                                                    : "text-black/30 hover:text-black/60"
+                                            )}
+                                        >
+                                            <mode.icon className="w-3 h-3" />
                                         </button>
                                     ))}
                                 </div>
@@ -2396,6 +2619,19 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                     {task.strategic_category}
                                 </span>
                             )}
+                            {category === 'todo' && task.work_type && (
+                                <span className={cn(
+                                    "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-[0.1em] shrink-0 flex items-center gap-1",
+                                    WORK_MODES.find(m => m.id === task.work_type)?.color || "bg-black/5 text-black/40"
+                                )}>
+                                    {(() => {
+                                        const mode = WORK_MODES.find(m => m.id === task.work_type)
+                                        const Icon = mode?.icon
+                                        return Icon ? <Icon className="w-2 h-2" /> : null
+                                    })()}
+                                    {task.work_type === 'light' ? 'Light' : 'Deep'}
+                                </span>
+                            )}
                             {(task.project_id || task.content_id) && (
                                 <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-[0.1em] shrink-0 flex items-center gap-1 bg-orange-50 text-orange-600 border border-orange-100/50">
                                     {task.project_id ? <Rocket className="w-2.5 h-2.5" /> : <Video className="w-2.5 h-2.5" />}
@@ -2419,7 +2655,9 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                 "text-[14px] font-black truncate transition-all tracking-tight",
                                 task.is_completed ? "text-black/30 line-through" : "text-black"
                             )}>
-                                {task.title}
+                                {task.title.trim() === 'Gym Session 🏋🏾‍♂️' && routines.find(r => r.id === activeRoutineId)
+                                    ? `${task.title}: ${routines.find(r => r.id === activeRoutineId)?.name.replace('Dynamic: ', '')}`
+                                    : task.title}
                             </span>
                             <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface SystemSettings {
@@ -21,6 +21,7 @@ interface SystemSettings {
     shift_start_date: string
     is_demo_mode: boolean
     network_reach_out_days: number
+    dashboard_widgets: Record<string, boolean>
     [key: string]: any
 }
 
@@ -49,6 +50,15 @@ const defaultSettings: SystemSettings = {
     shift_start_date: '',
     is_demo_mode: false,
     network_reach_out_days: 30,
+    dashboard_widgets: {
+        intelligence: true,
+        timeline: true,
+        studio: true,
+        finance: true,
+        focus: true,
+        curation: true,
+        routine: true
+    }
 }
 
 const SystemSettingsContext = createContext<SystemSettingsContextType | undefined>(undefined)
@@ -126,13 +136,15 @@ export function SystemSettingsProvider({ children }: { children: ReactNode }) {
         shift_start_date: '2026-02-23'
     } : settings
 
+    const contextValue = useMemo(() => ({
+        settings: effectiveSettings,
+        loading,
+        updateSetting,
+        refreshSettings: fetchSettings
+    }), [effectiveSettings, loading, updateSetting, fetchSettings])
+
     return (
-        <SystemSettingsContext.Provider value={{
-            settings: effectiveSettings,
-            loading,
-            updateSetting,
-            refreshSettings: fetchSettings
-        }}>
+        <SystemSettingsContext.Provider value={contextValue}>
             {children}
         </SystemSettingsContext.Provider>
     )

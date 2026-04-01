@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useTasks } from '../hooks/useTasks'
+import { useQueryState, useBooleanQueryState } from '@/hooks/useQueryState'
 import { cn } from '@/lib/utils'
 import { KarrFooter } from '@/components/KarrFooter'
 import { TaskList } from './TaskList'
@@ -18,8 +19,8 @@ export function TasksDashboard() {
 }
 
 function TasksDashboardContent() {
-    const [activeTab, setActiveTab] = useState<'todo' | 'reminder' | 'grocery'>('todo')
-    const [showCalendar, setShowCalendar] = useState(false)
+    const [activeTab, setActiveTab] = useQueryState<'todo' | 'reminder' | 'grocery'>('tab', 'todo')
+    const [showCalendar, setShowCalendar] = useBooleanQueryState('calendar', false)
     const { activeProfile } = useTasksProfile()
 
     // Fetch all categories at top level for counts and to comply with Hooks rules

@@ -6,13 +6,14 @@ import { cn } from '@/lib/utils'
 import ContentKanban from '@/features/studio/components/ContentKanban'
 import ContentCalendar from '@/features/studio/components/ContentCalendar'
 import type { ContentStatus } from '@/features/studio/types/studio.types'
+import { useQueryState, useBooleanQueryState } from '@/hooks/useQueryState'
 
 export default function ContentPage() {
-    const [view, setView] = useState<'board' | 'calendar'>('board')
+    const [view, setView] = useQueryState<'board' | 'calendar'>('view', 'board')
     const [searchQuery, setSearchQuery] = useState('')
-    const [showArchived, setShowArchived] = useState(false)
-    const [sortBy, setSortBy] = useState<'priority' | 'impact' | 'date'>('priority')
-    const [focusTab, setFocusTab] = useState<ContentStatus>('idea')
+    const [showArchived, setShowArchived] = useBooleanQueryState('archived', false)
+    const [sortBy, setSortBy] = useQueryState<'priority' | 'impact' | 'date'>('sort', 'priority')
+    const [focusTab, setFocusTab] = useQueryState<ContentStatus>('tab', 'idea')
 
     return (
         <main className="pb-20 pt-8 md:pt-10 px-6 md:px-10 flex flex-col flex-1 text-black">
