@@ -182,59 +182,28 @@ export default function ControlCentrePage() {
 
                     {/* Daily Routine Pulse */}
                     {settings.dashboard_widgets?.routine !== false && (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between px-2">
-                                <div className="flex items-center gap-3">
-                                    <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-black/30">Daily Orchestration</h3>
-                                    <div className="h-px w-8 bg-black/[0.05]" />
-                                </div>
-                                <div className="flex items-center gap-6">
-                                    <div className="flex bg-black/[0.03] p-1 rounded-xl border border-black/[0.05]">
-                                        <button 
-                                            onClick={() => setRoutineMode('morning')}
-                                            className={cn(
-                                                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                                                routineMode === 'morning' ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/60"
-                                            )}
-                                        >
-                                            Morning
-                                        </button>
-                                        <button 
-                                            onClick={() => setRoutineMode('evening')}
-                                            className={cn(
-                                                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                                                routineMode === 'evening' ? "bg-black text-white shadow-lg" : "text-black/30 hover:text-black/60"
-                                            )}
-                                        >
-                                            Evening
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 gap-6">
-                                <AnimatePresence mode="wait">
-                                    {routineMode === 'morning' ? (
-                                        <motion.div
-                                            key="morning"
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: 10 }}
-                                        >
-                                            <MorningPulseWidget />
-                                        </motion.div>
-                                    ) : (
-                                        <motion.div
-                                            key="evening"
-                                            initial={{ opacity: 0, x: 10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: -10 }}
-                                        >
-                                            <EveningReportWidget />
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
+                        <div className="grid grid-cols-1 gap-6">
+                            <AnimatePresence mode="wait">
+                                {routineMode === 'morning' ? (
+                                    <motion.div
+                                        key="morning"
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 10 }}
+                                    >
+                                        <MorningPulseWidget routineMode={routineMode} setRoutineMode={setRoutineMode} />
+                                    </motion.div>
+                                ) : (
+                                    <motion.div
+                                        key="evening"
+                                        initial={{ opacity: 0, x: 10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -10 }}
+                                    >
+                                        <EveningReportWidget routineMode={routineMode} setRoutineMode={setRoutineMode} />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     )}
 

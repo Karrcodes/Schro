@@ -65,6 +65,8 @@ export function TaskDetailModal({
     const [editNotesContent, setEditNotesContent] = useState<any>(task?.notes?.content || '')
     const [newChecklistItem, setNewChecklistItem] = useState('')
     const [editWorkType, setEditWorkType] = useState<'light' | 'deep'>(task?.work_type || 'light')
+    const [editAmount, setEditAmount] = useState(task?.amount || '')
+    const [editPrice, setEditPrice] = useState<number | undefined>(task?.price)
 
     useEffect(() => {
         if (isOpen) {
@@ -111,11 +113,16 @@ export function TaskDetailModal({
                 setEditNotesType(task.notes?.type || 'text')
                 setEditNotesContent(task.notes?.content || (task.notes?.type === 'checklist' ? [] : ''))
                 setEditWorkType(task.work_type || 'light')
+                setEditAmount(task.amount || '')
+                setEditPrice(task.price)
             }
         }
     }, [task, milestone, isOpen])
 
     if (!task && !milestone) return null
+
+    const isShopping = task?.category === 'grocery' || task?.category === 'essential'
+    const isGrocery = task?.category === 'grocery'
 
     const item = (task || milestone)!
     const isMilestone = !!milestone
@@ -185,25 +192,25 @@ export function TaskDetailModal({
                                             ? 'Reminder'
                                             : (PRIORITY_MAP[task?.priority as keyof typeof PRIORITY_MAP] || PRIORITY_MAP.low).label}
                                 </span>
-                                {task?.category !== 'grocery' && (
+                                {!isShopping && (
                                     <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold text-black/40 bg-black/5 uppercase tracking-wider">
                                         {isMilestone ? <Briefcase className="w-3 h-3" /> : (task?.profile === 'business' ? <Briefcase className="w-3 h-3" /> : <User className="w-3 h-3" />)}
                                         {isMilestone ? 'business' : task?.profile}
                                     </span>
                                 )}
-                                {((isMilestone ? milestone?.category : task?.strategic_category)) && (isMilestone || task?.category !== 'grocery') && (
+                                {((isMilestone ? milestone?.category : task?.strategic_category)) && (isMilestone || !isShopping) && (
                                     <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold text-black/40 bg-black/5 uppercase tracking-wider">
                                         {isMilestone ? milestone?.category : task?.strategic_category}
                                     </span>
                                 )}
 
-                                {!isMilestone && task && task.estimated_duration && task.category !== 'reminder' && task.category !== 'grocery' && (
+                                {!isMilestone && task && task.estimated_duration && task.category !== 'reminder' && !isShopping && (
                                     <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 uppercase tracking-wider">
                                         <Clock className="w-3 h-3" />
                                         {task.estimated_duration}m
                                     </span>
                                 )}
-                                {item.impact_score && (task || milestone)?.category !== 'reminder' && (task || milestone)?.category !== 'grocery' && (
+                                {item.impact_score && (task || milestone)?.category !== 'reminder' && !isShopping && (
                                     <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 uppercase tracking-wider">
                                         <Zap className="w-3 h-3" />
                                         {item.impact_score}/10
@@ -218,11 +225,26 @@ export function TaskDetailModal({
                                             {task.work_type}
                                         </span>
                                     )}
-                                {!isMilestone && task && (task.travel_to_duration || 0) > 0 && task.category !== 'reminder' && task.category !== 'grocery' && (
+                                {!isMilestone && task && (task.travel_to_duration || 0) > 0 && task.category !== 'reminder' && !isShopping && (
                                     <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold text-amber-500 bg-amber-50 border border-amber-100 uppercase tracking-wider">
                                         <Car className="w-3 h-3" />
                                         {task.travel_to_duration || 0}{task.travel_from_duration !== task.travel_to_duration ? `+ ${task.travel_from_duration || 0} ` : ''}m
                                     </span>
+                                )}
+
+                                {isShopping && (task?.amount || task?.price) && (
+                                    <div className="flex items-center gap-2">
+                                        {task.amount && (
+                                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold text-black/60 bg-black/5 uppercase tracking-wider">
+                                                {task.amount}
+                                            </span>
+                                        )}
+                                        {task.price && (
+                                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 uppercase tracking-wider">
+                                                £{task.price}
+                                            </span>
+                                        )}
+                                    </div>
                                 )}
 
                             </div>
@@ -244,7 +266,7 @@ export function TaskDetailModal({
                                 </h2>
                             )}
 
-                            {(isMilestone ? milestone?.target_date : task?.due_date) && (isMilestone || task?.category !== 'grocery') && (
+                            {(isMilestone ? milestone?.target_date : task?.due_date) && (isMilestone || !isShopping) && (
                                 <div className="flex items-center gap-2 text-[12px] font-bold text-black/40 uppercase tracking-widest mt-2">
                                     <Calendar className="w-4 h-4" />
                                     <span>
@@ -257,7 +279,7 @@ export function TaskDetailModal({
                             )}
 
 
-                            {!isMilestone && (task?.start_time || task?.location) && task?.category !== 'grocery' && (
+                            {!isMilestone && (task?.start_time || task?.location) && !isShopping && (
                                 <div className="flex flex-wrap gap-4 mt-3">
                                     {task?.start_time && (
                                         <div className="flex items-center gap-2 text-[12px] font-bold text-black/60 bg-black/5 px-3 py-1.5 rounded-xl uppercase tracking-widest">
@@ -349,7 +371,7 @@ export function TaskDetailModal({
                                     <h3 className="text-[11px] font-bold text-black/30 uppercase tracking-[0.2em]">{isMilestone ? 'Milestone Configuration' : 'Task Configuration'}</h3>
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        {!isMilestone && task?.category !== 'reminder' && task?.category !== 'grocery' && (
+                                        {!isMilestone && task?.category !== 'reminder' && !isShopping && (
                                             <div className="space-y-2">
                                                 <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest px-1">Priority</label>
                                                 <select
@@ -364,8 +386,8 @@ export function TaskDetailModal({
                                                 </select>
                                             </div>
                                         )}
-                                        {/* For Groceries, keep priority but in a different layout or same as Todo */}
-                                        {!isMilestone && task?.category === 'grocery' && (
+                                        {/* For Shopping, keep priority but in a different layout or same as Todo */}
+                                        {!isMilestone && isShopping && (
                                             <div className="space-y-2">
                                                 <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest px-1">Priority</label>
                                                 <select
@@ -379,13 +401,39 @@ export function TaskDetailModal({
                                                     ))}
                                                 </select>
                                             </div>
+                                        )}
+
+                                        {isShopping && (
+                                            <>
+                                                <div className="space-y-2">
+                                                    <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest px-1">Amount</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={editAmount}
+                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditAmount(e.target.value)}
+                                                        placeholder="e.g. x2"
+                                                        className="w-full bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 text-[14px] text-black outline-none focus:border-black/20 focus:bg-white transition-all"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest px-1">Price (£)</label>
+                                                    <input 
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={editPrice || ''}
+                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                        placeholder="0.00"
+                                                        className="w-full bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 text-[14px] text-black outline-none focus:border-black/20 focus:bg-white transition-all"
+                                                    />
+                                                </div>
+                                            </>
                                         )}
 
                                     </div>
 
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        {!isMilestone && task?.category !== 'reminder' && task?.category !== 'grocery' && (
+                                        {!isMilestone && task?.category !== 'reminder' && !isShopping && (
                                             <>
                                                 <div className="space-y-2">
                                                     <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest px-1 flex items-center gap-1">
@@ -424,7 +472,7 @@ export function TaskDetailModal({
                                                 </div>
                                             </>
                                         )}
-                                        {task?.category !== 'reminder' && task?.category !== 'grocery' && (
+                                        {task?.category !== 'reminder' && !isShopping && (
                                             <div className="space-y-2">
                                                 <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest px-1 flex items-center gap-1">
                                                     <Zap className="w-3.5 h-3.5" /> Impact & Mode
@@ -468,7 +516,7 @@ export function TaskDetailModal({
                                     </div>
 
 
-                                    {!isMilestone && task?.category !== 'grocery' && (
+                                    {!isMilestone && !isShopping && (
                                         <div className="space-y-4 pt-2">
                                             <div className="bg-black/[0.03] border border-black/5 rounded-xl px-4 py-3 flex items-center justify-between">
                                                 <label className="text-[11px] font-bold text-black/40 uppercase tracking-widest">Appointment Time</label>
@@ -508,8 +556,8 @@ export function TaskDetailModal({
                                     )}
 
 
-                                    {/* Studio Linking - Hidden for groceries */}
-                                    {(isMilestone || (task?.profile === 'business' && task?.category !== 'grocery') || projects.length > 0) && task?.category !== 'grocery' && (
+                                    {/* Studio Linking - Hidden for shopping */}
+                                    {(isMilestone || (task?.profile === 'business' && !isShopping) || projects.length > 0) && !isShopping && (
                                         <div className="space-y-4 pt-4 border-t border-black/[0.04]">
                                             <h3 className="text-[11px] font-bold text-black/30 uppercase tracking-[0.2em]">Studio Linking</h3>
                                             <div className="grid grid-cols-2 gap-4">
@@ -693,25 +741,27 @@ export function TaskDetailModal({
                                                 content_id: editContentId || undefined
                                             })
                                         } else if (!isMilestone && onEditTask) {
-                                            const isGrocery = task?.category === 'grocery'
+                                            const isShopping = task?.category === 'grocery' || task?.category === 'essential'
                                             await onEditTask(task!.id, {
                                                 title: editTitle,
                                                 priority: editPriority,
-                                                strategic_category: isGrocery ? undefined : editStrategicCategory,
-                                                estimated_duration: isGrocery ? undefined : parseInt(editDuration),
-                                                impact_score: isGrocery ? undefined : parseInt(editImpact),
-                                                travel_to_duration: isGrocery ? undefined : parseInt(editTravelDuration),
-                                                travel_from_duration: isGrocery ? undefined : parseInt(editTravelDuration),
-                                                start_time: isGrocery ? undefined : (editStartTime || undefined),
-                                                location: isGrocery ? undefined : (editLocation || undefined),
-                                                origin_location: isGrocery ? undefined : (editOriginLocation || undefined),
-                                                project_id: isGrocery ? null : (editProjectId || null),
-                                                content_id: isGrocery ? null : (editContentId || null),
+                                                strategic_category: isShopping ? undefined : editStrategicCategory,
+                                                estimated_duration: isShopping ? undefined : parseInt(editDuration),
+                                                impact_score: isShopping ? undefined : parseInt(editImpact),
+                                                travel_to_duration: isShopping ? undefined : parseInt(editTravelDuration),
+                                                travel_from_duration: isShopping ? undefined : parseInt(editTravelDuration),
+                                                start_time: isShopping ? undefined : (editStartTime || undefined),
+                                                location: isShopping ? undefined : (editLocation || undefined),
+                                                origin_location: isShopping ? undefined : (editOriginLocation || undefined),
+                                                project_id: isShopping ? null : (editProjectId || null),
+                                                content_id: isShopping ? null : (editContentId || null),
                                                 notes: {
                                                     type: editNotesType,
                                                     content: editNotesContent
                                                 },
-                                                work_type: editWorkType
+                                                work_type: editWorkType,
+                                                amount: isShopping ? editAmount : undefined,
+                                                price: isShopping ? editPrice : undefined
                                             })
                                         }
                                         setIsEditing(false)

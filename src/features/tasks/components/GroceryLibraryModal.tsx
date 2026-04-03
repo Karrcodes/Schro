@@ -59,7 +59,7 @@ export function GroceryLibraryModal({ isOpen, onClose }: GroceryLibraryModalProp
                             <Library className="w-7 h-7" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-[900] text-neutral-900 tracking-tight leading-tight">Grocery Intelligence</h2>
+                            <h2 className="text-2xl font-[900] text-neutral-900 tracking-tight leading-tight">Inventory Intelligence</h2>
                             <p className="text-[12px] text-emerald-600 font-bold uppercase tracking-[0.2em] mt-0.5">Aggregated Shopping Library</p>
                         </div>
                     </div>

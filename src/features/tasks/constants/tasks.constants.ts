@@ -10,6 +10,7 @@ export const CATEGORIES = [
     { id: 'todo', label: 'Tasks', icon: ListTodo },
     { id: 'grocery', label: 'Grocery List', icon: ShoppingCart },
     { id: 'reminder', label: 'Reminders', icon: Bell },
+    { id: 'essential', label: 'Essentials', icon: ShoppingCart },
 ] as const
 
 export const PRIORITIES = [

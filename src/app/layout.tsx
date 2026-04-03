@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Sidebar } from '@/components/Sidebar'
+import { BugHerd } from '@/components/BugHerd'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -61,7 +62,6 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Schrö" />
-        <script type="text/javascript" src="https://www.bugherd.com/sidebarv2.js?apikey=x8pltr1clmsbpoauxgbj1a" async></script>
       </head>
       <body className={`${inter.className} bg-white text-[#0a0a0a] antialiased`}>
         <AuthProvider>
@@ -95,6 +95,7 @@ export default async function RootLayout({
             </FinanceProfileProvider>
           </SystemSettingsProvider>
         </AuthProvider>
+        <BugHerd />
       </body>
     </html>
   )

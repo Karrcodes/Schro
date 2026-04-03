@@ -9,8 +9,9 @@ import {
     Clock, AlertCircle, Trash2, ChevronRight, ChevronDown,
     MoreVertical, Edit2, Briefcase, User, Zap, Car, MapPin,
     ArrowRight, Info, Check, X, Settings2, Sparkles, BarChart2, Minus,
-    Target, ShoppingCart, Bell, LayoutGrid, LayoutList, GripVertical, Activity, ChevronUp, RefreshCw, Rocket, Video, Type, List, ListChecks, Wallet, Heart, Star, Save,
-    Beaker, Factory, Tv, TrendingUp, Shield, Camera, Upload, Library, Receipt, Wand2, ListTodo, Layers, ListTree
+    Target, ShoppingCart, Bell, LayoutGrid, LayoutList, GripVertical, Activity, ChevronUp, RefreshCw, Rocket, Video, Type, List, ListChecks, Wallet, Heart, Star, Save, RotateCcw,
+    Beaker, Factory, Tv, TrendingUp, Shield, Camera, Upload, Library, Receipt, Wand2, ListTodo, Layers, ListTree,
+    Dumbbell, FileText
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTasksProfile } from '../contexts/TasksProfileContext'
@@ -24,6 +25,7 @@ import { TaskSettingsModal } from './TaskSettingsModal'
 import { GroceryLibraryModal } from './GroceryLibraryModal'
 import { CATEGORIES, PRIORITIES, STRATEGIC_CATEGORIES, PRIORITY_MAP, WORK_MODES } from '../constants/tasks.constants'
 import { getNextOffPeriod, isShiftDay } from '@/features/finance/utils/rotaUtils'
+import { MUSCLE_GROUPS } from '@/features/wellbeing/utils/fitness-utils'
 import { useStudio } from '@/features/studio/hooks/useStudio'
 import type { StudioMilestone } from '@/features/studio/types/studio.types'
 import ProjectDetailModal from '@/features/studio/components/ProjectDetailModal'
@@ -32,18 +34,20 @@ import DatePickerInput from '@/components/DatePickerInput'
 import { QuickImportModal } from './QuickImportModal'
 import { aiService } from '../services/aiService'
 import { useWellbeing } from '@/features/wellbeing/contexts/WellbeingContext'
+import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 
 const PERSONAL_CATEGORIES = STRATEGIC_CATEGORIES.personal
 const BUSINESS_CATEGORIES = STRATEGIC_CATEGORIES.business
 
-export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminder' }) {
+export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminder' | 'essential' }) {
+    const isShopping = category === 'grocery' || category === 'essential'
+    const isGrocery = category === 'grocery'
     const { activeProfile } = useTasksProfile()
-    const strategicCategories = activeProfile === 'all'
-        ? [...PERSONAL_CATEGORIES, ...BUSINESS_CATEGORIES]
-        : (activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES)
+    const { settings, updateSetting } = useSystemSettings()
+    const strategicCategories = activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES
 
     const { tasks, loading: tasksLoading, createTask, createTasks, toggleTask, deleteTask, clearAllTasks, clearCompletedTasks, editTask, updateTaskPositions } = useTasks(category)
-    const { milestones, projects, content, updateMilestone, loading: studioLoading } = useStudio()
+    const { milestones, projects, content, drafts, updateMilestone, loading: studioLoading } = useStudio()
     const { library, loading: libraryLoading, processReceipt, getSuggestions, saveToLibrary } = useGroceryLibrary()
     const loading = tasksLoading || studioLoading
 
@@ -64,7 +68,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [showCompleted, setShowCompleted] = useState(false)
     const [sortBy, setSortBy] = useState<'engagement' | 'priority' | 'impact' | 'deadline' | 'date' | 'manual' | 'price'>(
-        category === 'grocery' ? 'price' : (category === 'reminder' ? 'priority' : 'engagement')
+        isShopping ? 'price' : (category === 'reminder' ? 'priority' : 'engagement')
     )
     const [isGrouped, setIsGrouped] = useState(true)
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
@@ -110,6 +114,16 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [showUploadSuccess, setShowUploadSuccess] = useState(false)
     const [showDateSettings, setShowDateSettings] = useState(false)
     const [showQuickImport, setShowQuickImport] = useState(false)
+    const [dynamicParamModal, setDynamicParamModal] = useState<{
+        open: boolean;
+        template: TaskTemplate | null;
+        selectedData: Record<string, any[]>;
+    }>({
+        open: false,
+        template: null,
+        selectedData: {}
+    })
+    const { routines, activeRoutineId } = useWellbeing()
     const [pendingGroceryItems, setPendingGroceryItems] = useState<{
         title: string, 
         amount: string, 
@@ -118,13 +132,13 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     }[]>([])
 
     const groceryTotal = useMemo(() => {
-        if (category !== 'grocery') return 0
+        if (!isShopping) return 0
         return tasks.reduce((sum, task) => {
             const qtyStr = task.amount ? task.amount.replace('x', '') : '1'
             const qty = parseInt(qtyStr) || 1
             return sum + (task.price || 0) * qty
         }, 0)
-    }, [tasks, category])
+    }, [tasks, isShopping])
 
     const scrollContainerRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -173,8 +187,13 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         return result
     }, [tasks, searchQuery, category, showCompleted, activeFilter])
 
-    const title = category === 'todo' ? 'Tasks' : category === 'grocery' ? 'Grocery List' : 'Reminders'
-    const Icon = category === 'todo' ? ListTodo : category === 'grocery' ? ShoppingCart : Bell
+    const title = category === 'todo' ? 'Tasks' 
+        : category === 'grocery' ? 'Grocery List' 
+        : category === 'essential' ? 'Essentials'
+        : 'Reminders'
+    const Icon = category === 'todo' ? ListTodo 
+        : (category === 'grocery' || category === 'essential') ? ShoppingCart 
+        : Bell
 
     // Handlers
     const toggleFolder = (folderId: string) => {
@@ -193,6 +212,20 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             return next
         })
     }
+    const dismissedTaskIds = useMemo(() => {
+        const today = new Date().toISOString().split('T')[0]
+        if (settings.dismissed_tasks?.date === today) {
+            return new Set(settings.dismissed_tasks.ids)
+        }
+        return new Set<string>()
+    }, [settings.dismissed_tasks])
+
+    const reinstateTask = async (id: string) => {
+        const nextIds = Array.from(dismissedTaskIds).filter(taskId => taskId !== id)
+        const today = new Date().toISOString().split('T')[0]
+        await updateSetting('dismissed_tasks', { date: today, ids: nextIds })
+    }
+
     // Confirmation Modal States
     const [confirmModal, setConfirmModal] = useState<{
         open: boolean;
@@ -249,8 +282,9 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
     
     const quickTemplates = useMemo(() => {
+        if (isShopping) return []
         return templates.filter(t => t.category === category && t.profile === activeProfile)
-    }, [templates, category, activeProfile])
+    }, [templates, category, activeProfile, isShopping])
 
     useEffect(() => {
         const fetchTemplates = async () => {
@@ -314,8 +348,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        const isGrocery = (category as string) === 'grocery'
-        if (isGrocery && newTask.trim()) {
+        if (isShopping && newTask.trim()) {
             // Logic to add to pending list instead of final submission
             setPendingGroceryItems(prev => [...prev, {
                 title: newTask.trim(),
@@ -334,7 +367,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         // Preparation for multiple additions if grocery (if it reached here, newTask is empty or it's not a grocery)
         let itemsToCreate: Partial<Task>[] = []
         
-        if (isGrocery) {
+        if (isShopping) {
             // First, take current pending items
             itemsToCreate = pendingGroceryItems.map(item => ({
                 title: item.title,
@@ -348,7 +381,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         }
 
         try {
-            if (isGrocery) {
+            if (isShopping) {
                 if (itemsToCreate.length === 0) return
                 await createTasks(itemsToCreate)
                 setPendingGroceryItems([])
@@ -495,7 +528,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const filteredItems = useMemo(() => {
         const taskItems = tasks.map(t => ({ id: t.id, type: 'task' as const, data: t }))
         // Milestones only for business profile and todo category
-        const milestoneItems = (category === 'todo' && (activeProfile === 'business' || activeProfile === 'all'))
+        const milestoneItems = (category === 'todo' && activeProfile === 'business')
             ? milestones
                 .filter(m => {
                     if (m.project_id) {
@@ -533,55 +566,49 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     // Sort: Multi-level hierarchy. Apply primary sort first, fallback to defined chain.
     const sortedItems = useMemo(() => {
         const items = [...filteredItems]
-        
         const priorityOrder = { super: 0, high: 1, mid: 2, low: 3 }
         const engagementOrder = { deep: 0, light: 1 }
-        const baseHierarchy = ['engagement', 'priority', 'impact', 'deadline', 'date']
-        const currentHierarchy = [sortBy, ...baseHierarchy.filter(h => h !== sortBy)]
+        const now = new Date()
+        const next7Days = new Date()
+        next7Days.setDate(now.getDate() + 7)
 
         return items.sort((a, b) => {
             const aCompleted = a.type === 'task' ? a.data.is_completed : a.data.status === 'completed'
             const bCompleted = b.type === 'task' ? b.data.is_completed : b.data.status === 'completed'
-
             if (aCompleted !== bCompleted) return aCompleted ? 1 : -1
 
             if (sortBy === 'manual') {
-                const aPos = a.type === 'task' ? (a.data.position || 0) : 0
-                const bPos = b.type === 'task' ? (b.data.position || 0) : 0
-                return bPos - aPos
+                return (b.type === 'task' ? (b.data.position || 0) : 0) - (a.type === 'task' ? (a.data.position || 0) : 0)
             }
 
-            for (const crit of currentHierarchy) {
-                let diff = 0
-                if (crit === 'engagement') {
-                    const aEng = a.type === 'task' ? (a.data.work_type || 'light') : 'light'
-                    const bEng = b.type === 'task' ? (b.data.work_type || 'light') : 'light'
-                    diff = engagementOrder[aEng as keyof typeof engagementOrder] - engagementOrder[bEng as keyof typeof engagementOrder]
-                } else if (crit === 'priority') {
-                    const aPri = a.type === 'task' ? (a.data.priority || 'low') : 'mid'
-                    const bPri = b.type === 'task' ? (b.data.priority || 'low') : 'mid'
-                    diff = priorityOrder[aPri as keyof typeof priorityOrder] - priorityOrder[bPri as keyof typeof priorityOrder]
-                } else if (crit === 'impact') {
-                    const aImp = a.data.impact_score || 0
-                    const bImp = b.data.impact_score || 0
-                    diff = bImp - aImp
-                } else if (crit === 'deadline') {
-                    const aDead = a.type === 'task' && a.data.due_date ? new Date(a.data.due_date).getTime() : Infinity
-                    const bDead = b.type === 'task' && b.data.due_date ? new Date(b.data.due_date).getTime() : Infinity
-                    diff = aDead - bDead
-                } else if (crit === 'date') {
-                    const aDate = new Date(a.data.created_at).getTime()
-                    const bDate = new Date(b.data.created_at).getTime()
-                    diff = bDate - aDate
-                } else if (crit === 'price') {
-                    const aPrice = a.type === 'task' ? (a.data.price || 0) : 0
-                    const bPrice = b.type === 'task' ? (b.data.price || 0) : 0
-                    diff = bPrice - aPrice
-                }
-                
-                if (diff !== 0) return diff
-            }
+            // 1. Deadline within 7 days
+            const aDate = a.type === 'task' && a.data.due_date ? new Date(a.data.due_date) : null
+            const bDate = b.type === 'task' && b.data.due_date ? new Date(b.data.due_date) : null
+            const aSoon = aDate && aDate >= now && aDate <= next7Days ? 0 : 1
+            const bSoon = bDate && bDate >= now && bDate <= next7Days ? 0 : 1
+            if (aSoon !== bSoon) return aSoon - bSoon
 
+            // 2. Priority
+            const aPri = a.type === 'task' ? (a.data.priority || 'low') : 'mid'
+            const bPri = b.type === 'task' ? (b.data.priority || 'low') : 'mid'
+            const pDiff = priorityOrder[aPri as keyof typeof priorityOrder] - priorityOrder[bPri as keyof typeof priorityOrder]
+            if (pDiff !== 0) return pDiff
+
+            // 3. Impact
+            const iDiff = (b.data.impact_score || 0) - (a.data.impact_score || 0)
+            if (iDiff !== 0) return iDiff
+
+            // Fallback to explicit Sort Options
+            if (sortBy === 'engagement') {
+                const aE = a.type === 'task' ? (a.data.work_type || 'light') : 'light'
+                const bE = b.type === 'task' ? (b.data.work_type || 'light') : 'light'
+                const eDiff = engagementOrder[aE as keyof typeof engagementOrder] - engagementOrder[bE as keyof typeof engagementOrder]
+                if (eDiff !== 0) return eDiff
+            }
+            if (sortBy === 'deadline') return (aDate?.getTime() || Infinity) - (bDate?.getTime() || Infinity)
+            if (sortBy === 'price') return ((b.type === 'task' ? b.data.price : 0) || 0) - ((a.type === 'task' ? a.data.price : 0) || 0)
+
+            // Final Tie-breaker: Position
             const aPos = a.type === 'task' ? (a.data.position || 0) : 0
             const bPos = b.type === 'task' ? (b.data.position || 0) : 0
             return bPos - aPos
@@ -735,22 +762,74 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     }, [processedItems, sortBy, isGrouped])
 
     const handleCreateFromTemplate = async (template: TaskTemplate) => {
-        try {
-            await createTask({
-                title: template.title,
-                priority: template.priority,
-                strategic_category: template.strategic_category,
-                impact_score: template.impact_score,
-                amount: template.amount,
-                notes: template.notes,
-                project_id: template.project_id,
-                content_id: template.content_id,
-                recurrence_config: template.recurrence_config,
-                work_type: template.work_type
+        if (template.dynamic_params && template.dynamic_params.length > 0) {
+            setDynamicParamModal({
+                open: true,
+                template,
+                selectedData: {}
             })
+            return
+        }
+
+        try {
+            await createTaskFromPreset(template)
         } catch (err) {
             console.error('Failed to create from template:', err)
         }
+    }
+
+    const createTaskFromPreset = async (template: TaskTemplate, dynamicData?: Record<string, any[]>) => {
+        let finalTitle = template.title
+        
+        if (dynamicData) {
+            const parts: string[] = []
+            
+            // Projects (Project objects use .title)
+            if (dynamicData.project?.length) {
+                parts.push(dynamicData.project.map(p => p.title || p.name).join(', '))
+            }
+            
+            // Content (Content objects use .title)
+            if (dynamicData.content?.length) {
+                parts.push(dynamicData.content.map(c => c.title || c.name).join(', '))
+            }
+            
+            // Articles (Draft objects use .title)
+            if (dynamicData.article?.length) {
+                parts.push(dynamicData.article.map(a => a.title || a.name).join(', '))
+            }
+            
+            // Fitness (Protocols use .name, muscle groups use .name)
+            if (template.dynamic_params?.includes('fitness')) {
+                const selectedFitness = dynamicData.fitness || []
+                if (selectedFitness.length > 0) {
+                    parts.push(selectedFitness.map(f => f.name || f.label).join(', '))
+                } else {
+                    // Fallback to active protocol if nothing selected
+                    const activeRoutine = routines.find(r => r.id === activeRoutineId)
+                    if (activeRoutine) {
+                        parts.push(activeRoutine.name.replace('Dynamic: ', ''))
+                    }
+                }
+            }
+            
+            if (parts.length > 0) {
+                finalTitle = `${template.title}: ${parts.join(' | ')}`
+            }
+        }
+
+        await createTask({
+            title: finalTitle,
+            priority: template.priority,
+            strategic_category: template.strategic_category,
+            impact_score: template.impact_score,
+            amount: template.amount,
+            notes: template.notes,
+            project_id: template.project_id,
+            content_id: template.content_id,
+            recurrence_config: template.recurrence_config,
+            work_type: template.work_type
+        })
     }
 
     const handleQuickImport = async (tasks: { title: string, priority: string, notes?: string }[]) => {
@@ -834,12 +913,14 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             All
                         </button>
                     )}
-                    <button
-                        onClick={() => setShowSettings(true)}
-                        className="w-8 h-8 rounded-lg bg-black/5 hover:bg-black/10 flex items-center justify-center text-black/40 hover:text-black transition-all"
-                    >
-                        <Settings2 className="w-4 h-4" />
-                    </button>
+                    {!isShopping && (
+                        <button
+                            onClick={() => setShowSettings(true)}
+                            className="w-8 h-8 rounded-lg bg-black/5 hover:bg-black/10 flex items-center justify-center text-black/40 hover:text-black transition-all"
+                        >
+                            <Settings2 className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -848,10 +929,138 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 onClose={() => setShowSettings(false)}
             />
 
+            {/* Dynamic Parameter Selection Modal */}
+            <AnimatePresence>
+                {dynamicParamModal.open && dynamicParamModal.template && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setDynamicParamModal(prev => ({ ...prev, open: false }))}
+                            className="absolute inset-0 bg-black/40 backdrop-blur-md"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.93, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.93, y: 20 }}
+                            className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden border border-black/5"
+                        >
+                            <div className="p-8 space-y-8">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <h3 className="text-xl font-black text-black tracking-tight">{dynamicParamModal.template.title}</h3>
+                                        <p className="text-[10px] font-bold text-black/30 uppercase tracking-[0.2em]">{dynamicParamModal.template.dynamic_params?.map(p => p === 'fitness' ? 'Protocol' : p).join(' / ')} selection</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setDynamicParamModal(prev => ({ ...prev, open: false }))}
+                                        className="p-3 hover:bg-neutral-100 rounded-2xl transition-colors text-black/20 hover:text-black/60"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-6 max-h-[50vh] overflow-y-auto px-1 pr-4 -mr-4 custom-scrollbar">
+                                    {dynamicParamModal.template.dynamic_params?.map(paramType => {
+                                        const items = paramType === 'project' ? projects.filter(p => ['active', 'idea', 'research'].includes(p.status))
+                                            : paramType === 'content' ? content.filter(c => ['idea', 'scripted', 'filmed'].includes(c.status))
+                                            : paramType === 'article' ? drafts
+                                            : [
+                                                ...routines.map(r => ({ id: r.id, name: r.name, type: 'routine' })),
+                                                ...Object.keys(MUSCLE_GROUPS).map(group => ({ 
+                                                    id: `dynamic-${group}`, 
+                                                    name: group.charAt(0) + group.slice(1).toLowerCase(), 
+                                                    type: 'dynamic' 
+                                                }))
+                                            ]
+
+                                        const label = paramType === 'project' ? 'Projects' 
+                                            : paramType === 'content' ? 'Content' 
+                                            : paramType === 'article' ? 'Articles' 
+                                            : 'Fitness Protocols'
+
+                                        const Icon = paramType === 'project' ? LayoutGrid 
+                                            : paramType === 'content' ? Tv 
+                                            : paramType === 'article' ? FileText 
+                                            : Dumbbell
+
+                                        return (
+                                            <div key={paramType} className="space-y-4">
+                                                <div className="flex items-center gap-2 text-black/30">
+                                                    <Icon className="w-3 h-3" />
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">{label}</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {items.map((item: any) => {
+                                                        const isSelected = (dynamicParamModal.selectedData[paramType] || []).some(i => i.id === item.id)
+                                                        return (
+                                                            <button
+                                                                key={item.id}
+                                                                onClick={() => {
+                                                                    const current = dynamicParamModal.selectedData[paramType] || []
+                                                                    const next = isSelected 
+                                                                        ? current.filter(i => i.id !== item.id)
+                                                                        : [...current, item]
+                                                                    setDynamicParamModal(prev => ({
+                                                                        ...prev,
+                                                                        selectedData: {
+                                                                            ...prev.selectedData,
+                                                                            [paramType]: next
+                                                                        }
+                                                                    }))
+                                                                }}
+                                                                className={cn(
+                                                                    "flex items-center gap-3 p-3 rounded-2xl border text-left transition-all group",
+                                                                    isSelected 
+                                                                        ? "bg-black text-white border-black shadow-lg shadow-black/10 scale-[0.98]"
+                                                                        : "bg-neutral-50 border-black/5 hover:border-black/10 text-black/60 hover:text-black"
+                                                                )}
+                                                            >
+                                                                <div className={cn(
+                                                                    "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors",
+                                                                    isSelected ? "border-white bg-white/20" : "border-black/10 group-hover:border-black/20"
+                                                                )}>
+                                                                    {isSelected && <Check className="w-2.5 h-2.5" />}
+                                                                </div>
+                                                                <span className="text-[11px] font-bold truncate">
+                                                                    {item.name || item.title || item.label}
+                                                                </span>
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => setDynamicParamModal(prev => ({ ...prev, open: false }))}
+                                        className="flex-1 py-4 rounded-2xl border border-black/5 text-[11px] font-black uppercase tracking-widest text-black/40 hover:bg-neutral-50 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            createTaskFromPreset(dynamicParamModal.template!, dynamicParamModal.selectedData)
+                                            setDynamicParamModal(prev => ({ ...prev, open: false }))
+                                        }}
+                                        className="flex-[2] py-4 rounded-2xl bg-black text-white text-[11px] font-black uppercase tracking-widest hover:bg-neutral-800 transition-all shadow-xl shadow-black/10"
+                                    >
+                                        Create Task
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* Strategic Category Filter & Sort */}
             <div className="flex flex-col gap-2 mb-4">
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 pr-2">
-                    {category !== 'grocery' && (
+                    {!isShopping && (
                         <>
                             <div className="flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest text-black/30 border-r border-black/5 mr-1 shrink-0">
                                 <Filter className="w-3 h-3" />
@@ -889,7 +1098,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
                     <div className={cn(
                         "flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest text-black/30 shrink-0",
-                        category !== 'grocery' && "border-l border-black/5 ml-1 pl-3"
+                        !isShopping && "border-l border-black/5 ml-1 pl-3"
                     )}>
                         <ListChecks className="w-3 h-3" />
                         Sort
@@ -904,7 +1113,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             )}
                         >
                              <option value="manual">Manual</option>
-                            {category === 'grocery' ? (
+                            {isShopping ? (
                                 <option value="price">Price</option>
                             ) : (
                                 <>
@@ -918,7 +1127,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         </select>
                         <ChevronDown className="w-3 h-3 absolute right-11 top-1/2 -translate-y-1/2 pointer-events-none text-black/40" />
                         
-                        {category !== 'grocery' && (
+                        {!isShopping && (
                             <button
                                 onClick={() => setIsGrouped(!isGrouped)}
                                 className={cn(
@@ -933,59 +1142,10 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             </button>
                         )}
                     </div>
-                    {category === 'grocery' && (
+                    {isShopping && (
                         <div className="flex items-center gap-3 ml-auto animate-in fade-in slide-in-from-right-2">
-                            <input
-                                type="file"
-                                id="receipt-upload"
-                                className="hidden"
-                                accept="image/*"
-                                onChange={async (e) => {
-                                    const file = e.target.files?.[0]
-                                    if (file) {
-                                        setIsUploadingReceipt(true)
-                                        try {
-                                            await processReceipt(file)
-                                            setShowUploadSuccess(true)
-                                            setTimeout(() => setShowUploadSuccess(false), 3000)
-                                        } finally {
-                                            setIsUploadingReceipt(false)
-                                        }
-                                    }
-                                }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => document.getElementById('receipt-upload')?.click()}
-                                disabled={isUploadingReceipt || libraryLoading}
-                                className={cn(
-                                    "h-8 px-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border flex items-center gap-2",
-                                    showUploadSuccess 
-                                        ? "bg-emerald-500 text-white border-emerald-500 shadow-sm" 
-                                        : (isUploadingReceipt || libraryLoading)
-                                            ? "bg-black/[0.03] text-black/20 border-black/5 animate-pulse"
-                                            : "bg-black/[0.03] hover:bg-black/[0.08] text-black/60 hover:text-black border-black/5"
-                                )}
-                            >
-                                {isUploadingReceipt || libraryLoading ? (
-                                    <RefreshCw className="w-3 h-3" />
-                                ) : showUploadSuccess ? (
-                                    <Check className="w-3 h-3" />
-                                ) : (
-                                    <Receipt className="w-3.5 h-3.5" />
-                                )}
-                                {isUploadingReceipt ? 'Scanning...' : showUploadSuccess ? 'Success' : 'Receipt'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setShowLibraryModal(true)}
-                                className="h-8 px-3 rounded-lg bg-black/[0.03] hover:bg-black/[0.08] text-black/60 hover:text-black text-[10px] font-bold uppercase tracking-widest transition-all border border-black/5 flex items-center gap-2"
-                            >
-                                <Library className="w-3.5 h-3.5" />
-                                Library
-                            </button>
                             <div className="flex flex-col items-end">
-                                <span className="text-[9px] font-bold text-black/20 uppercase tracking-widest">Cart Total</span>
+                                <span className="text-[9px] font-bold text-black/20 uppercase tracking-widest">{isShopping ? 'Cart Total' : 'Total'}</span>
                                 <span className="text-[13px] font-black text-emerald-600">£{groceryTotal.toFixed(2)}</span>
                             </div>
                         </div>
@@ -1007,7 +1167,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
             <form onSubmit={handleSubmit} className="mb-5 flex flex-col gap-2">
                 <div className="flex gap-1.5 sm:gap-2">
-                    {category === 'grocery' && (
+                    {isShopping && (
                         <div className="flex items-center gap-1 bg-black/[0.03] border border-black/[0.08] rounded-xl px-1 shrink-0 h-11">
                             <button 
                                 type="button"
@@ -1052,7 +1212,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             onClick={() => setShowAllFields(true)}
                             onChange={(e) => {
                                 setNewTask(e.target.value)
-                                if (category === 'grocery') {
+                                if (isShopping) {
                                     const sugs = getSuggestions(e.target.value)
                                     setSuggestions(sugs)
                                     setShowLibrarySuggestions(sugs.length > 0)
@@ -1061,7 +1221,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             placeholder={category === 'todo' ? "Add new task..." : `Add new ${category === 'reminder' ? 'reminder' : 'item'}...`}
                             className="w-full bg-black/[0.03] border border-black/[0.08] rounded-xl px-3 sm:px-4 py-2.5 text-[13px] text-black placeholder-black/30 outline-none focus:border-black/40 transition-colors"
                         />
-                        {category === 'grocery' && showLibrarySuggestions && suggestions.length > 0 && (
+                        {isShopping && showLibrarySuggestions && suggestions.length > 0 && (
                             <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-black/10 rounded-xl shadow-xl z-[100] max-h-[200px] overflow-y-auto no-scrollbar overflow-hidden">
                                 {suggestions.map((item) => (
                                     <button
@@ -1086,32 +1246,80 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         )}
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={() => setShowQuickImport(true)}
-                        className={cn(
-                            "w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-sm shrink-0 group relative overflow-hidden border",
-                            category === 'grocery' 
-                                ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100" 
-                                : category === 'todo'
-                                    ? "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
-                                    : "bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-100"
-                        )}
-                        title="Magic Import"
-                    >
-                        <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <Wand2 className="w-5 h-5 relative z-10 group-hover:rotate-12 transition-transform duration-300" />
-                        <Sparkles className={cn(
-                            "w-2.5 h-2.5 absolute top-2 right-2 animate-pulse pointer-events-none transition-colors",
-                            category === 'grocery' ? "text-emerald-400" : category === 'todo' ? "text-blue-400" : "text-purple-400"
-                        )} />
-                    </button>
+                    {!isShopping && (
+                        <button
+                            type="button"
+                            onClick={() => setShowQuickImport(true)}
+                            className={cn(
+                                "w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-sm shrink-0 group relative overflow-hidden border",
+                                category === 'todo'
+                                        ? "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
+                                        : "bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-100"
+                            )}
+                            title="Magic Import"
+                        >
+                            <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Wand2 className="w-5 h-5 relative z-10 group-hover:rotate-12 transition-transform duration-300" />
+                            <Sparkles className={cn(
+                                "w-2.5 h-2.5 absolute top-2 right-2 animate-pulse pointer-events-none transition-colors",
+                                category === 'todo' ? "text-blue-400" : "text-purple-400"
+                            )} />
+                        </button>
+                    )}
+                    {category === 'essential' && (
+                        <div className="flex gap-1.5 shrink-0">
+                            <input 
+                                type="file"
+                                id="receipt-upload"
+                                className="hidden"
+                                accept="image/*,.pdf"
+                                onChange={async (e) => {
+                                    const file = e.target.files?.[0]
+                                    if (!file) return
+                                    setIsUploadingReceipt(true)
+                                    try {
+                                        const result = await processReceipt(file)
+                                        setPendingGroceryItems(prev => [...prev, ...result.map((r: any) => ({
+                                            title: r.name,
+                                            amount: r.quantity ? `x${r.quantity}` : 'x1',
+                                            price: r.price
+                                        }))])
+                                        setShowUploadSuccess(true)
+                                        setTimeout(() => setShowUploadSuccess(false), 3000)
+                                    } catch (err) {
+                                        alert('Receipt processing failed')
+                                    } finally {
+                                        setIsUploadingReceipt(false)
+                                    }
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => document.getElementById('receipt-upload')?.click()}
+                                disabled={isUploadingReceipt}
+                                className="w-11 h-11 rounded-xl bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100 flex items-center justify-center transition-all shadow-sm border relative group disabled:opacity-50"
+                                title="Scan Receipt"
+                            >
+                                <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                {isUploadingReceipt ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Receipt className="w-5 h-5 relative z-10 group-hover:-translate-y-0.5 transition-transform duration-300" />}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowLibraryModal(true)}
+                                className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100 flex items-center justify-center transition-all shadow-sm border relative group"
+                                title="Item Library"
+                            >
+                                <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Library className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform duration-300" />
+                            </button>
+                        </div>
+                    )}
                     <button
                         type="submit"
-                        disabled={(category !== 'grocery' && !newTask.trim()) || (category === 'grocery' && !newTask.trim() && pendingGroceryItems.length === 0) || loading}
+                        disabled={(!isShopping && !newTask.trim()) || (isShopping && !newTask.trim() && pendingGroceryItems.length === 0) || loading}
                         className="w-11 h-11 rounded-xl bg-black flex items-center justify-center text-white hover:bg-neutral-800 transition-all shrink-0 disabled:opacity-50 shadow-sm"
                     >
-                        {category === 'grocery' && !newTask.trim() && pendingGroceryItems.length > 0 ? (
+                        {isShopping && !newTask.trim() && pendingGroceryItems.length > 0 ? (
                             <Check className="w-5 h-5 text-emerald-400" />
                         ) : (
                             <Plus className="w-5 h-5" />
@@ -1142,7 +1350,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 </div>
 
                 {/* Pending Grocery Items List */}
-                {category === 'grocery' && pendingGroceryItems.length > 0 && (
+                {isShopping && pendingGroceryItems.length > 0 && (
                     <div className="flex flex-col gap-1.5 mt-2 animate-in slide-in-from-top-2 duration-300">
                         <div className="flex items-center justify-between px-1">
                             <span className="text-[9px] font-black text-black/30 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -1189,7 +1397,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
 
                 {/* Quick Library row - Persistently below input if not typing Much */}
-                {newTask.length < 3 && quickTemplates.length > 0 && (
+                {newTask.length < 3 && quickTemplates.length > 0 && !isShopping && (
                     <div className="flex flex-col gap-2 px-1 py-1">
                         <div className="flex items-center gap-2">
                             <div className="h-[1px] flex-1 bg-black/[0.03]" />
@@ -1262,7 +1470,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
                         {/* Combined Priority & Tactical Tag row */}
                         <div className="flex flex-wrap items-center gap-3 p-1">
-                            {category !== 'grocery' && (
+                            {!isShopping && (
                                 <div className="flex gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit h-[36px] items-center">
                                     {(['super', 'high', 'mid', 'low'] as const).map(p => (
                                         <button
@@ -1282,7 +1490,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 </div>
                             )}
 
-                            {category !== 'grocery' && (
+                            {!isShopping && (
                                 <>
                                     <div className="flex gap-1.5 p-1 bg-black/[0.03] rounded-xl border border-black/5 w-fit h-[36px] items-center">
                                         {strategicCategories.map(cat => (
@@ -1512,7 +1720,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         )}
 
                         {/* Algorithmic Params & Studio Linking */}
-                        {category !== 'grocery' && (
+                        {!isShopping && (
                             <div className="flex flex-col gap-3 mt-1 transition-all animate-in fade-in slide-in-from-top-1">
                                 {category === 'todo' && (
                                     <div className="flex flex-col gap-1.5 opacity-0 pointer-events-none hidden">
@@ -1578,7 +1786,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         )}
 
                         {/* Notes Creator */}
-                        {category !== 'grocery' && (
+                        {!isShopping && (
                             <div className="flex flex-col gap-2">
                                 <button
                                     type="button"
@@ -1739,10 +1947,10 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             </button>
                             <button
                                 type="submit"
-                                disabled={(category !== 'grocery' && !newTask.trim()) || (category === 'grocery' && !newTask.trim() && pendingGroceryItems.length === 0) || loading}
+                                disabled={(!isShopping && !newTask.trim()) || (isShopping && !newTask.trim() && pendingGroceryItems.length === 0) || loading}
                                 className="flex-[2] py-3 rounded-xl bg-black text-white font-bold text-[12px] uppercase tracking-widest hover:bg-neutral-800 transition-all disabled:opacity-50 shadow-lg shadow-black/10"
                             >
-                                {loading ? 'Creating...' : category === 'grocery' ? 'Add to Grocery List' : 'Create Operation'}
+                                {loading ? 'Creating...' : isShopping ? (category === 'grocery' ? 'Add to Grocery List' : 'Add to Essentials') : 'Create Operation'}
                             </button>
                         </div>
                     </div>
@@ -1832,6 +2040,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                                             setSelectedContentForModal={setSelectedContentForModal}
                                                             projects={projects}
                                                             content={content}
+                                                            isDismissed={dismissedTaskIds.has(item.id)}
+                                                            reinstateTask={reinstateTask}
                                                         />
                                                     ) : (
                                                         <MilestoneRow
@@ -1873,6 +2083,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 setSelectedContentForModal={setSelectedContentForModal}
                                 projects={projects}
                                 content={content}
+                                isDismissed={dismissedTaskIds.has(item.id)}
+                                reinstateTask={reinstateTask}
                             />
                         ) : (
                             <MilestoneRow
@@ -1895,16 +2107,16 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 )}
             </Reorder.Group>
 
-            {category === 'grocery' && tasks.some(t => t.is_completed) && (
+            {isShopping && tasks.some(t => t.is_completed) && (
                 <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <button
                         type="button"
                         onClick={() => {
                             setConfirmModal({
                                 open: true,
-                                title: 'Finish Shopping?',
-                                message: 'This will clear all completed items from your grocery list. Are you sure?',
-                                confirmText: 'Yes, Shop Completed',
+                                title: isGrocery ? 'Finish Shopping?' : 'Clear Completed Essentials?',
+                                message: `This will clear all completed items from your ${isGrocery ? 'grocery' : 'essentials'} list. Are you sure?`,
+                                confirmText: 'Yes, Clear Completed',
                                 type: 'info',
                                 action: async () => {
                                     await clearCompletedTasks()
@@ -1915,7 +2127,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                         className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-[13px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/40 flex items-center justify-center gap-3 active:scale-[0.98]"
                     >
                         <Check className="w-5 h-5" />
-                        Finish Shopping & Clear List
+                        {isGrocery ? 'Finish Shopping & Clear List' : 'Clear Completed Essentials'}
                     </button>
                 </div>
             )}
@@ -1967,7 +2179,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 }
 
 
-function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelectedTaskForModal, setSelectedProjectForModal, setSelectedContentForModal, projects, content }: {
+function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelectedTaskForModal, setSelectedProjectForModal, setSelectedContentForModal, projects, content, isDismissed, reinstateTask }: {
     task: Task,
     toggleTask: any,
     deleteTask: any,
@@ -1977,10 +2189,14 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
     setSelectedProjectForModal: (project: any) => void,
     setSelectedContentForModal: (content: any) => void,
     projects: any[],
-    content: any[]
+    content: any[],
+    isDismissed?: boolean,
+    reinstateTask?: (id: string) => void
 }) {
     const { activeProfile } = useTasksProfile()
     const { routines, activeRoutineId } = useWellbeing()
+    const isShopping = category === 'grocery' || category === 'essential'
+    const isGrocery = category === 'grocery'
     const strategicCategories = activeProfile === 'personal' ? PERSONAL_CATEGORIES : BUSINESS_CATEGORIES
     const controls = useDragControls()
     const [isEditing, setIsEditing] = useState(false)
@@ -2042,6 +2258,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
         if (e) e.preventDefault()
         if (!editValue.trim()) return
 
+        const isShopping = category === 'grocery' || category === 'essential'
         const isGrocery = category === 'grocery'
 
         const updates: Partial<Task> = {
@@ -2050,28 +2267,28 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                 type: editNotesType,
                 content: editNotesContent
             },
-            strategic_category: isGrocery ? undefined : editStrategicCategory,
-            impact_score: isGrocery ? undefined : parseInt(editImpact),
-            work_type: isGrocery ? undefined : editWorkType,
-            project_id: isGrocery ? null : (editProjectId || null),
-            content_id: isGrocery ? null : (editContentId || null),
+            strategic_category: isShopping ? undefined : editStrategicCategory,
+            impact_score: isShopping ? undefined : parseInt(editImpact),
+            work_type: isShopping ? undefined : editWorkType,
+            project_id: isShopping ? null : (editProjectId || null),
+            content_id: isShopping ? null : (editContentId || null),
         }
         if (editAmount.trim() !== (task.amount || '')) {
             let val = editAmount.trim()
-            if (category === 'grocery' && val && !val.startsWith('x')) val = `x${val}`
+            if (isShopping && val && !val.startsWith('x')) val = `x${val}`
             updates.amount = val
         }
-        if (!isGrocery && editPriority !== task.priority) updates.priority = editPriority
+        if (!isShopping && editPriority !== task.priority) updates.priority = editPriority
         if (editDueDate !== (task.due_date ? task.due_date.split('T')[0] : '')) {
-            updates.due_date = editDueDate || undefined
+            updates.due_date = editDueDate || null
             if (!editDueDate) updates.due_date_mode = 'on'
         }
 
         if (editEndDate !== (task.end_date ? task.end_date.split('T')[0] : '')) {
-            updates.end_date = editEndDate || undefined
+            updates.end_date = editEndDate || null
         }
 
-        if (isGrocery) {
+        if (isShopping) {
             updates.recurrence_config = null
             updates.due_date = undefined
             updates.due_date_mode = undefined
@@ -2087,8 +2304,8 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
             updates.due_date_mode = undefined
         } else if (editDueDateMode === 'none') {
             updates.recurrence_config = null
-            updates.due_date = undefined
-            updates.due_date_mode = undefined
+            updates.due_date = null
+            updates.due_date_mode = 'on'
         } else {
             updates.recurrence_config = null
             if (editDueDateMode !== (task.due_date_mode || 'on')) updates.due_date_mode = editDueDateMode as 'on' | 'before' | 'range'
@@ -2134,7 +2351,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
         return (
             <div className="flex flex-col gap-3 p-3 rounded-xl border bg-white border-black/[0.15] shadow-lg animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex gap-2">
-                    {category === 'grocery' && (
+                    {isShopping && (
                         <div className="flex items-center gap-1 bg-black/[0.03] border border-black/[0.08] rounded-lg px-1 shrink-0 h-9">
                             <button 
                                 type="button"
@@ -2171,7 +2388,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
 
                 <div className="flex flex-col gap-3">
                     {/* Notes Editor */}
-                    {category !== 'grocery' && (
+                    {!isShopping && (
                         <div className="flex flex-col gap-2 p-2.5 bg-black/[0.03] border border-black/5 rounded-xl">
                             <div className="flex gap-1.5">
                                 {([
@@ -2274,7 +2491,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                     )}
 
                     {/* Scheduling Options */}
-                    {category !== 'grocery' && (
+                    {!isShopping && (
                         <div className="flex items-center gap-2 flex-wrap">
                             {/* Date/Recurrence mode selector */}
                             <div className="flex flex-wrap gap-1.5">
@@ -2400,7 +2617,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                     <div className="flex items-center justify-between flex-wrap gap-y-3 gap-x-2 border-t border-black/5 pt-3">
                         <div className="flex items-center gap-3 flex-wrap">
                             {/* Impact Picker */}
-                            {category !== 'grocery' && (
+                            {category !== 'grocery' && category !== 'essential' && (
                                 <div className="flex items-center gap-2 p-1.5 bg-black/[0.03] rounded-lg border border-black/5">
                                     <div className="flex items-center gap-2 min-w-[110px] pr-1">
                                         <Zap className="w-2.5 h-2.5 text-black/30" />
@@ -2418,7 +2635,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                             )}
 
                             {/* Strategic Category selection in Edit Mode */}
-                            {category !== 'grocery' && (
+                            {category !== 'grocery' && category !== 'essential' && (
                                 <div className="flex gap-1 p-1 bg-black/[0.03] rounded-lg border border-black/5">
                                     {strategicCategories.map((p: any) => (
                                         <button
@@ -2439,7 +2656,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                 </div>
                             )}
 
-                            {category !== 'grocery' && (
+                            {category !== 'grocery' && category !== 'essential' && (
                                 <div className="flex gap-1 p-1 bg-black/[0.03] rounded-lg border border-black/5">
                                     {(['super', 'high', 'mid', 'low'] as const).map(p => (
                                         <button
@@ -2483,7 +2700,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                     </div>
 
                     {/* Studio Linking in Inline Edit */}
-                    {editProfile === 'business' && (
+                    {editProfile === 'business' && category !== 'essential' && (
                         <div className="flex flex-col gap-2 p-2.5 bg-orange-50/50 border border-orange-100/50 rounded-xl mt-2">
                             <span className="text-[8px] font-bold text-orange-900/40 uppercase tracking-widest px-1">Studio Linking</span>
                             <div className="flex gap-2">
@@ -2598,7 +2815,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                     <div className="flex flex-col min-w-0 flex-1">
                         {/* Metadata First Hierarchy */}
                         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                            {category !== 'grocery' && task.priority && !task.is_completed && (
+                            {category !== 'grocery' && category !== 'essential' && task.priority && !task.is_completed && (
                                 <span className={cn(
                                     "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-[0.1em] shrink-0",
                                     (PRIORITIES.find(p => p.id === task.priority) || PRIORITIES[3]).color
@@ -2606,7 +2823,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                     {task.priority}
                                 </span>
                             )}
-                            {task.strategic_category && (
+                            {task.strategic_category && category !== 'essential' && (
                                 <span className={cn(
                                     "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-[0.1em] shrink-0 flex items-center gap-1",
                                     [...PERSONAL_CATEGORIES, ...BUSINESS_CATEGORIES].find(c => c.id === task.strategic_category)?.color || "bg-black/5 text-black/40"
@@ -2632,7 +2849,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                     {task.work_type === 'light' ? 'Light' : 'Deep'}
                                 </span>
                             )}
-                            {(task.project_id || task.content_id) && (
+                            {(task.project_id || task.content_id) && category !== 'essential' && (
                                 <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-[0.1em] shrink-0 flex items-center gap-1 bg-orange-50 text-orange-600 border border-orange-100/50">
                                     {task.project_id ? <Rocket className="w-2.5 h-2.5" /> : <Video className="w-2.5 h-2.5" />}
                                     {task.content_id
@@ -2643,7 +2860,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {category === 'grocery' && task.amount && (
+                            {(category === 'grocery' || category === 'essential') && task.amount && (
                                 <div className="flex items-center gap-2 shrink-0">
                                     <span className="text-[12px] font-bold text-black/40">{task.amount}</span>
                                     {task.price && (
@@ -2655,13 +2872,13 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                                 "text-[14px] font-black truncate transition-all tracking-tight",
                                 task.is_completed ? "text-black/30 line-through" : "text-black"
                             )}>
-                                {task.title.trim() === 'Gym Session 🏋🏾‍♂️' && routines.find(r => r.id === activeRoutineId)
+                                {(task.title.trim() === 'Gym Session 🏋🏾‍♂️' || task.title.trim() === 'Gym Session') && !task.title.includes(':') && routines.find(r => r.id === activeRoutineId)
                                     ? `${task.title}: ${routines.find(r => r.id === activeRoutineId)?.name.replace('Dynamic: ', '')}`
                                     : task.title}
                             </span>
                             <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
 
-                                {category !== 'grocery' && task.impact_score && (
+                                {category !== 'grocery' && category !== 'essential' && task.impact_score && (
                                     <span className="text-[10px] font-black text-amber-600 flex items-center gap-0.5">
                                         <Zap className="w-3 h-3 fill-current" />
                                         {task.impact_score}
@@ -2671,7 +2888,7 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                             </div>
                         </div>
                         {/* Notes Teaser or Progress Bar */}
-                        {!isEditing && category !== 'grocery' && (
+                        {!isEditing && category !== 'grocery' && category !== 'essential' && (
                             <div className="mt-1 flex flex-col gap-1.5">
                                 {task.notes?.type === 'checklist' && totalSubtasks > 0 && (
                                     <div className="flex items-center gap-2">
@@ -2796,6 +3013,19 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                         </div>
                     ) : (
                         <>
+                            {isDismissed && reinstateTask && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        reinstateTask(task.id)
+                                    }}
+                                    className="px-2.5 py-1.5 h-9 flex items-center gap-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm"
+                                    title="Reinstate to Daily Brief"
+                                >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    Reinstate
+                                </button>
+                            )}
                             <button
                                 onClick={() => setIsEditing(true)}
                                 className="w-9 h-9 flex items-center justify-center rounded-xl bg-black/[0.03] sm:bg-transparent text-black/40 hover:text-black hover:bg-black/5 transition-all"

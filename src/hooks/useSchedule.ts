@@ -88,7 +88,7 @@ export function useSchedule(days: number = 14, allProfiles: boolean = false) {
                                 priority: task.priority,
                                 is_completed: task.is_completed,
                                 due_date_mode: 'range',
-                                end_date: task.end_date,
+                                end_date: task.end_date || undefined,
                                 profile: task.profile,
                                 originalTask: task
                             })

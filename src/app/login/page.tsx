@@ -27,10 +27,11 @@ export default function LoginPage() {
         // Detect if we are on a local network IP (e.g. 192.168.x.x)
         // Supabase blocks http redirects to IPs, so we bridge through production.
         const isLocalIP = /^(https?:\/\/)?(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[0-1]))/.test(currentOrigin)
+        const isPublicTunnel = currentOrigin.includes('ngrok-free.dev') || currentOrigin.includes('loca.lt') || currentOrigin.includes('tail8fa4b8.ts.net')
 
         let finalRedirectTo = `${currentOrigin}/api/auth/callback`
 
-        if (isLocalIP && !currentOrigin.includes('localhost')) {
+        if (isLocalIP && !currentOrigin.includes('localhost') && !isPublicTunnel) {
             const host = currentOrigin.replace(/^https?:\/\//, '')
             // We use production schro.app as a trusted bridge to bypass HTTP IP restriction
             finalRedirectTo = `https://schro.app/api/auth/callback?bridge_target=${encodeURIComponent(host)}&next=${encodeURIComponent(redirectTo)}`

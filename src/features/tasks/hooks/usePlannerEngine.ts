@@ -21,6 +21,8 @@ export interface PlannerItem {
     class: 'A' | 'B' | 'C'
     is_completed?: boolean
     project_id?: string | null
+    content_id?: string | null
+    press_id?: string | null
     is_flow_active?: boolean
     is_open_ended?: boolean
     is_stalled?: boolean
@@ -30,9 +32,12 @@ export interface PlannerItem {
     sort_priority?: number
     location?: string
     profile?: string
-    strategic_category?: string
+    strategic_category?: string | null
     priority?: string
     work_type?: 'light' | 'deep'
+    due_date?: string
+    end_date?: string
+    due_date_mode?: string
     notes?: any
 }
 
@@ -259,6 +264,8 @@ export function usePlannerEngine(passedDate?: Date) {
             class: 'C',
             is_completed: task.is_completed,
             project_id: task.project_id,
+            content_id: task.content_id,
+            press_id: (task as any).press_id,
             impact_score: task.impact_score,
             is_active: activeTaskId === task.id || activeTaskId === `${task.id}-${dateStr}`,
             location: task.location,
@@ -267,7 +274,8 @@ export function usePlannerEngine(passedDate?: Date) {
             priority: task.priority,
             work_type: task.work_type,
             notes: task.notes,
-            sort_priority: 50
+            sort_priority: 50,
+            due_date: task.due_date || undefined
         }))
 
         // D. Consolidate for Timeline (Backward Compatibility)

@@ -27,15 +27,6 @@ export function TasksProfileToggle() {
             >
                 Business
             </button>
-            <button
-                onClick={() => setActiveProfile('all')}
-                className={cn(
-                    "px-5 py-2 rounded-lg text-[11px] font-black uppercase tracking-[0.05em] transition-all",
-                    activeProfile === 'all' ? 'bg-white text-black shadow-sm' : 'text-black/40 hover:text-black/60'
-                )}
-            >
-                All
-            </button>
         </div>
     )
 }

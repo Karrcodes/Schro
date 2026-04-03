@@ -248,10 +248,19 @@ export function Sidebar() {
     useEffect(() => {
         setIsMounted(true)
         // Load collapse state
+        const isTablet = window.innerWidth <= 1024
         const savedCollapsed = localStorage.getItem('schro_sidebar_collapsed')
-        const collapsed = savedCollapsed === 'true'
+        
+        // Auto-collapse on iPad-sized screens (<1024px) when app is opened
+        const collapsed = isTablet ? true : savedCollapsed === 'true'
+        
         setIsCollapsed(collapsed)
         document.documentElement.style.setProperty('--sidebar-w', collapsed ? '64px' : '220px')
+        
+        // Save the tablet auto-collapsed state if it wasn't already true
+        if (isTablet && savedCollapsed !== 'true') {
+            localStorage.setItem('schro_sidebar_collapsed', 'true')
+        }
 
         // Load main tabs order
         const savedOrder = localStorage.getItem('schro_sidebar_order')
@@ -808,6 +817,32 @@ export function Sidebar() {
                             Multitasking
                             {isMultitasking && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
                         </button>
+                        <Link
+                            href="/schrolink"
+                            onClick={(e) => handleNavClick('/schrolink', e)}
+                            className={cn(
+                                "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all text-[13px] font-medium outline-none select-none",
+                                pathname.startsWith('/schrolink')
+                                    ? 'bg-indigo-50 text-indigo-600'
+                                    : 'text-black/50 hover:bg-black/[0.04] hover:text-black/80'
+                            )}
+                        >
+                            <div
+                                className={cn('w-4 h-4 shrink-0', pathname.startsWith('/schrolink') ? 'bg-indigo-500' : 'bg-black/35')}
+                                style={{
+                                    WebkitMaskImage: 'url(/schro-cat.svg)',
+                                    maskImage: 'url(/schro-cat.svg)',
+                                    WebkitMaskRepeat: 'no-repeat',
+                                    maskRepeat: 'no-repeat',
+                                    WebkitMaskSize: 'contain',
+                                    maskSize: 'contain',
+                                    WebkitMaskPosition: 'center',
+                                    maskPosition: 'center',
+                                }}
+                            />
+                            Schrö
+                            {pathname.startsWith('/schrolink') && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />}
+                        </Link>
                         <SidebarFooter pathname={pathname} />
                     </div>
                 )}
@@ -894,6 +929,49 @@ export function Sidebar() {
                                 document.body
                             )}
                         </button>
+
+                        <Link
+                            href="/schrolink"
+                            onClick={(e) => handleNavClick('/schrolink', e)}
+                            onMouseEnter={(e) => {
+                                setHoveredItem('schrolink')
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setFlyoutY(rect.top + rect.height / 2)
+                            }}
+                            onMouseLeave={() => setHoveredItem(null)}
+                            className={cn(
+                                "relative w-10 h-10 flex items-center justify-center rounded-xl transition-all outline-none select-none",
+                                pathname.startsWith('/schrolink')
+                                    ? 'bg-indigo-50 text-indigo-600'
+                                    : hoveredItem === 'schrolink'
+                                        ? 'bg-black/[0.04] text-black/80'
+                                        : 'text-black/35 active:bg-black/[0.04] active:text-black/80'
+                            )}
+                        >
+                            <div
+                                className={cn('w-4 h-4', pathname.startsWith('/schrolink') ? 'bg-indigo-500' : 'bg-black/35')}
+                                style={{
+                                    WebkitMaskImage: 'url(/schro-cat.svg)',
+                                    maskImage: 'url(/schro-cat.svg)',
+                                    WebkitMaskRepeat: 'no-repeat',
+                                    maskRepeat: 'no-repeat',
+                                    WebkitMaskSize: 'contain',
+                                    maskSize: 'contain',
+                                    WebkitMaskPosition: 'center',
+                                    maskPosition: 'center',
+                                }}
+                            />
+                            {isMounted && hoveredItem === 'schrolink' && createPortal(
+                                <div
+                                    ref={flyoutRef}
+                                    className="pointer-events-none fixed px-2.5 py-1.5 bg-black text-white text-[11px] font-bold rounded-lg whitespace-nowrap z-[300] shadow-xl"
+                                    style={{ left: 56 + 12, top: flyoutY + flyoutOffset, transform: 'translateY(-50%)' }}
+                                >
+                                    Schrö
+                                </div>,
+                                document.body
+                            )}
+                        </Link>
 
                         <Link
                             href="/system/settings"

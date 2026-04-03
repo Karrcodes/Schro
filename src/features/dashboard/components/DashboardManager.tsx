@@ -20,13 +20,12 @@ export function DashboardManager({ isOpen, onClose }: DashboardManagerProps) {
     }
 
     const widgetLabels: Record<string, string> = {
+        routine: 'Daily Routine',
         intelligence: 'Intelligence Command',
         timeline: 'Timeline Status',
-        studio: 'Studio Ops',
-        finance: 'Finance Pulse',
-        focus: 'Strategic Focus',
         curation: 'Smart Curation',
-        routine: 'Daily Routine'
+        finance: 'Finance Pulse',
+        focus: 'Strategic Focus'
     }
 
     return (

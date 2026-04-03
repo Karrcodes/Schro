@@ -97,7 +97,7 @@ function TaskCard({ task, ix, projects, content, completeTask, handleDismiss }: 
     )
 }
 
-export function EveningReportWidget() {
+export function EveningReportWidget({ routineMode, setRoutineMode }: { routineMode: 'morning' | 'evening', setRoutineMode: (mode: 'morning' | 'evening') => void }) {
     const { plannerItems, fluidTasks, isWorkDay, completeTask, loading } = usePlannerEngine()
     const wellbeing = useContext(WellbeingContext)
     const { projects, content } = useStudio()
@@ -187,11 +187,34 @@ export function EveningReportWidget() {
                 {/* Left Column: Stats & Reflection */}
                 <div className="space-y-8 flex-1">
                     <div className="space-y-2">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-white/10 rounded-xl">
-                                <Moon className="w-4 h-4 text-blue-400" />
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white/10 rounded-xl">
+                                    <Moon className="w-4 h-4 text-blue-400" />
+                                </div>
+                                <h2 className="text-[18px] font-black tracking-tight italic uppercase">Debrief</h2>
                             </div>
-                            <h2 className="text-[18px] font-black tracking-tight italic uppercase">Evening Report</h2>
+
+                            <div className="flex bg-white/[0.05] p-1 rounded-xl border border-white/[0.05]">
+                                <button 
+                                    onClick={() => setRoutineMode('morning')}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                        routineMode === 'morning' ? "bg-white text-black shadow-sm" : "text-white/30 hover:text-white/60"
+                                    )}
+                                >
+                                    Briefing
+                                </button>
+                                <button 
+                                    onClick={() => setRoutineMode('evening')}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                        routineMode === 'evening' ? "bg-white text-black shadow-lg" : "text-white/30 hover:text-black/60"
+                                    )}
+                                >
+                                    Debrief
+                                </button>
+                            </div>
                         </div>
                         <p className="text-[32px] font-light leading-tight">
                             The sun sets on <span className="font-black italic uppercase text-emerald-400">Production</span>.

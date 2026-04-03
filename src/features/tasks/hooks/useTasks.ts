@@ -5,7 +5,7 @@ import type { Task } from '../types/tasks.types'
 import { useTasksProfile } from '@/features/tasks/contexts/TasksProfileContext'
 import { useTasksContext } from '../contexts/TasksContext'
 
-export function useTasks(category: 'todo' | 'grocery' | 'reminder', profileOverride?: string) {
+export function useTasks(category: 'todo' | 'grocery' | 'reminder' | 'essential', profileOverride?: string) {
     const { activeProfile: contextProfile } = useTasksProfile()
     const activeProfile = profileOverride || contextProfile
     const { 
@@ -25,7 +25,6 @@ export function useTasks(category: 'todo' | 'grocery' | 'reminder', profileOverr
 
     const tasks = useMemo(() => {
         const categoryTasks = allTasks[category] || []
-        if (activeProfile === 'all') return categoryTasks
         return categoryTasks.filter((t: Task) => t.profile === activeProfile)
     }, [allTasks[category], category, activeProfile])
 

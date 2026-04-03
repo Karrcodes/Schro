@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
 
 interface VaultContextType {
@@ -10,8 +12,8 @@ interface VaultContextType {
     isVaultLocked: boolean
     vaultPin: string | null
     isVaultAuthenticated: boolean
-    setVaultLocked: (locked: boolean) => void
-    updateVaultPin: (pin: string) => void
+    setVaultLocked: (locked: boolean) => Promise<void>
+    updateVaultPin: (pin: string) => Promise<void>
     authenticateVault: (pin: string) => boolean
     logoutVault: () => void
 }
@@ -33,23 +35,57 @@ function VaultAutoLock() {
 }
 
 export function VaultProvider({ children }: { children: React.ReactNode }) {
+    const { profile, user } = useAuth()
     const [isVaultPrivate, setIsVaultPrivate] = useState(false)
     const [isVaultLocked, setIsVaultLocked] = useState(false)
     const [vaultPin, setVaultPin] = useState<string | null>(null)
     const [isVaultAuthenticated, setIsVaultAuthenticated] = useState(false)
     const [mounted, setMounted] = useState(false)
 
+    // Load initial state from profile AND localStorage fallback
     useEffect(() => {
-        const savedPrivacy = localStorage.getItem('schro_vault_privacy')
-        const savedLocked = localStorage.getItem('schro_vault_locked')
-        const savedPin = localStorage.getItem('schro_vault_pin')
+        if (profile) {
+            if (profile.vault_locked !== undefined) setIsVaultLocked(profile.vault_locked)
+            if (profile.vault_pin) setVaultPin(profile.vault_pin)
+        } else {
+            const savedLocked = localStorage.getItem('schro_vault_locked')
+            const savedPin = localStorage.getItem('schro_vault_pin')
+            if (savedLocked === 'true') setIsVaultLocked(true)
+            if (savedPin) setVaultPin(savedPin)
+        }
 
+        const savedPrivacy = localStorage.getItem('schro_vault_privacy')
         if (savedPrivacy === 'true') setIsVaultPrivate(true)
-        if (savedLocked === 'true') setIsVaultLocked(true)
-        if (savedPin) setVaultPin(savedPin)
 
         setMounted(true)
-    }, [])
+    }, [profile])
+
+    // Real-time sync for cross-device locking
+    useEffect(() => {
+        if (!user) return
+
+        const channel = supabase
+            .channel('vault-profile-sync')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'user_profiles',
+                    filter: `id=eq.${user.id}`
+                },
+                (payload) => {
+                    const newProfile = payload.new as any
+                    if (newProfile.vault_locked !== undefined) setIsVaultLocked(newProfile.vault_locked)
+                    if (newProfile.vault_pin) setVaultPin(newProfile.vault_pin)
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [user])
 
     const toggleVaultPrivacy = () => {
         setIsVaultPrivate(prev => {
@@ -59,16 +95,32 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         })
     }
 
-    const setVaultLocked = (locked: boolean) => {
+    const setVaultLocked = async (locked: boolean) => {
         setIsVaultLocked(locked)
         localStorage.setItem('schro_vault_locked', String(locked))
         // Always reset authentication session when changing lock status
         setIsVaultAuthenticated(false)
+
+        // Sync to cloud
+        if (user) {
+            await supabase
+                .from('user_profiles')
+                .update({ vault_locked: locked })
+                .eq('id', user.id)
+        }
     }
 
-    const updateVaultPin = (newPin: string) => {
+    const updateVaultPin = async (newPin: string) => {
         setVaultPin(newPin)
         localStorage.setItem('schro_vault_pin', newPin)
+
+        // Sync to cloud
+        if (user) {
+            await supabase
+                .from('user_profiles')
+                .update({ vault_pin: newPin })
+                .eq('id', user.id)
+        }
     }
 
     const authenticateVault = (inputPin: string) => {

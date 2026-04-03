@@ -1,4 +1,4 @@
-export type Category = 'todo' | 'grocery' | 'reminder'
+export type Category = 'todo' | 'grocery' | 'reminder' | 'essential'
 export type StrategicCategory = 'finance' | 'career' | 'health' | 'personal' | 'rnd' | 'production' | 'media' | 'growth' | 'general'
 export type Priority = 'super' | 'high' | 'mid' | 'low'
 export type RecurrenceMode = 'none' | 'daily' | 'work_days' | 'off_days' | 'custom'
@@ -9,12 +9,12 @@ export interface Task {
     title: string
     is_completed: boolean
     category: Category
-    strategic_category?: StrategicCategory
+    strategic_category?: StrategicCategory | null
     priority: Priority
-    amount?: string
-    due_date?: string
-    due_date_mode?: 'on' | 'before' | 'range'
-    end_date?: string
+    amount?: string | null
+    due_date?: string | null
+    due_date_mode?: 'on' | 'before' | 'range' | null
+    end_date?: string | null
     recurrence_config?: {
         type: 'none' | 'daily' | 'work_days' | 'off_days' | 'custom'
         days_of_week?: number[]   // 0=Sun,1=Mon...6=Sat (used for weekly/custom)
@@ -119,7 +119,7 @@ export interface TaskTemplate {
     id: string
     profile: 'personal' | 'business'
     title: string
-    category: 'todo' | 'grocery' | 'reminder'
+    category: 'todo' | 'grocery' | 'reminder' | 'essential'
     priority: 'super' | 'high' | 'mid' | 'low'
     strategic_category?: 'finance' | 'career' | 'health' | 'personal' | 'rnd' | 'production' | 'media' | 'growth' | 'general'
     amount?: string
@@ -136,6 +136,7 @@ export interface TaskTemplate {
     location?: string
     origin_location?: string
     notes?: Task['notes']
+    dynamic_params?: ('project' | 'content' | 'article' | 'fitness')[]
     created_at: string
     updated_at: string
 }

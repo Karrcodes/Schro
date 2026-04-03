@@ -4,7 +4,7 @@ import React from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { KarrFooter } from '@/components/KarrFooter'
-import { ShoppingCart, Bell, Calendar, Target, LayoutDashboard, ListTodo } from 'lucide-react'
+import { ShoppingCart, Bell, Calendar, Target, LayoutDashboard, ListTodo, Package } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTasksProfile } from '../contexts/TasksProfileContext'
 import { TasksProfileToggle } from './TasksProfileToggle'
@@ -13,7 +13,8 @@ import { motion } from 'framer-motion'
 const TABS = [
     { title: 'Tasks', href: '/tasks/todo', icon: ListTodo },
     { title: 'Reminders', href: '/tasks/reminders', icon: Bell },
-    { title: 'Groceries', href: '/tasks/groceries', icon: ShoppingCart },
+    { title: 'Shopping', href: '/tasks/groceries', icon: ShoppingCart },
+    { title: 'Essentials', href: '/tasks/essentials', icon: Package },
 ]
 
 
@@ -26,6 +27,7 @@ export function TasksLayout({ children }: { children: React.ReactNode }) {
     const isPlanner = pathname === '/tasks/planner'
     const isMatrix = pathname === '/tasks/matrix'
     const isGroceries = pathname === '/tasks/groceries'
+    const isEssentials = pathname === '/tasks/essentials'
     const isSpecialView = isOnCalendar || isPlanner || isMatrix
 
     return (
@@ -35,7 +37,7 @@ export function TasksLayout({ children }: { children: React.ReactNode }) {
                 <div className="space-y-1">
                     <h2 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.3em]">Focus & Execution</h2>
                     <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Operations</h1>
-                    {!isOnCalendar && !isPlanner && !isGroceries && (
+                    {!isOnCalendar && !isPlanner && !isGroceries && !isEssentials && (
                         <div className="pt-2">
                             <TasksProfileToggle />
                         </div>
@@ -48,7 +50,11 @@ export function TasksLayout({ children }: { children: React.ReactNode }) {
             {!isSpecialView && (
                 <div className="px-6 md:px-10 z-10 max-w-7xl mx-auto w-full mb-6">
                     <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-2xl border border-black/[0.05] w-fit max-w-full overflow-x-auto no-scrollbar">
-                        {TABS.filter(tab => !(activeProfile === 'business' && tab.href.includes('groceries'))).map(tab => {
+                        {TABS.filter(tab => {
+                            if (activeProfile === 'business' && tab.href.includes('groceries')) return false
+                            if (activeProfile === 'personal' && tab.href.includes('essentials')) return false
+                            return true
+                        }).map(tab => {
                             const isActive = pathname === tab.href
                             const Icon = tab.icon
                             return (

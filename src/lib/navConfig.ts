@@ -8,7 +8,7 @@ import {
     BarChart3, Activity, Shield, Brain, Target, Heart,
     LayoutDashboard, SlidersHorizontal, Calendar, CreditCard,
     PiggyBank, Receipt, Sparkles, Rocket, Video, PenLine, Bell, ShoppingCart,
-    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Images, ListTodo, Search, Wand2
+    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Images, ListTodo, Search, Wand2, Package
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -41,7 +41,8 @@ export const navItems: NavItem[] = [
         sub: [
             { label: 'Tasks', href: '/tasks/todo', icon: ListTodo },
             { label: 'Reminders', href: '/tasks/reminders', icon: Bell },
-            { label: 'Groceries', href: '/tasks/groceries', icon: ShoppingCart }
+            { label: 'Shopping', href: '/tasks/groceries', icon: ShoppingCart, caps: ['P'] },
+            { label: 'Essentials', href: '/tasks/essentials', icon: Package, caps: ['B'] }
         ]
     },
     {

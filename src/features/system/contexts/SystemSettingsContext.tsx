@@ -22,6 +22,8 @@ interface SystemSettings {
     is_demo_mode: boolean
     network_reach_out_days: number
     dashboard_widgets: Record<string, boolean>
+    blurred_ids: string[]
+    dismissed_tasks: { date: string, ids: string[] } | null
     [key: string]: any
 }
 
@@ -58,7 +60,9 @@ const defaultSettings: SystemSettings = {
         focus: true,
         curation: true,
         routine: true
-    }
+    },
+    blurred_ids: [],
+    dismissed_tasks: null
 }
 
 const SystemSettingsContext = createContext<SystemSettingsContextType | undefined>(undefined)

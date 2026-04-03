@@ -11,6 +11,8 @@ interface UserProfile {
     avatar_url: string | null
     status: 'waitlist' | 'beta' | 'admin'
     modules_enabled: Record<string, boolean>
+    vault_pin?: string | null
+    vault_locked?: boolean
 }
 
 interface AuthContextType {

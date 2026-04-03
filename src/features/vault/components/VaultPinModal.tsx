@@ -39,7 +39,7 @@ export function VaultPinModal({ isOpen, onClose }: VaultPinModalProps) {
         }
     }, [isOpen]) // Only react to isOpen
 
-    const handleSetPin = () => {
+    const handleSetPin = async () => {
         if (pinInput.length !== 4) {
             setError('PIN must be 4 digits')
             setIsConfirming(false)
@@ -51,7 +51,7 @@ export function VaultPinModal({ isOpen, onClose }: VaultPinModalProps) {
             setPinConfirm('')
             return
         }
-        updateVaultPin(pinInput)
+        await updateVaultPin(pinInput)
         setStep('menu')
         setIsConfirming(false)
         setPinInput('')
@@ -71,12 +71,12 @@ export function VaultPinModal({ isOpen, onClose }: VaultPinModalProps) {
         }
     }
 
-    const handleToggleLock = () => {
+    const handleToggleLock = async () => {
         if (!vaultPin && !isVaultLocked) {
             setStep('set-pin')
             return
         }
-        setVaultLocked(!isVaultLocked)
+        await setVaultLocked(!isVaultLocked)
     }
 
     if (!isOpen) return null

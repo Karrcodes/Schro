@@ -24,7 +24,9 @@ interface WellbeingContextType extends WellbeingState {
     updateMealLog: (id: string, updates: Partial<MealLog>) => Promise<void>
     deleteMealLog: (id: string) => Promise<void>
     saveRecipe: (recipeId: string) => Promise<void>
-    logMood: (value: MoodValue, note?: string, activities?: string[]) => Promise<void>
+    logMood: (value: MoodValue, note?: string, activities?: string[], date?: string) => Promise<void>
+    deleteMood: (id: string) => Promise<void>
+    clearMoodsByDate: (date: string) => Promise<void>
     saveReflection: (content: string, id?: string) => Promise<void>
     deleteReflection: (id: string) => Promise<void>
     updateLayout: (layout: DashboardLayout) => Promise<void>
@@ -556,16 +558,33 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
         await persistData({ savedRecipes })
     }
 
-    const logMood = async (value: MoodValue, note?: string, activities?: string[]) => {
+    const logMood = async (value: MoodValue, note?: string, activities?: string[], date?: string) => {
+        const targetDate = date || new Date().toISOString().split('T')[0]
         const newEntry: MoodEntry = {
             id: Math.random().toString(36).substring(2, 9),
-            date: new Date().toISOString().split('T')[0],
+            date: targetDate,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             value,
             note,
             activities
         }
-        const moodLogs = [newEntry, ...state.moodLogs].slice(0, 100)
+        
+        // Filter out existing mood for the same day if we're logging fresh
+        const filteredLogs = state.moodLogs.filter(m => m.date !== targetDate)
+        const moodLogs = [newEntry, ...filteredLogs].slice(0, 100)
+        
+        setState(prev => ({ ...prev, moodLogs }))
+        await persistData({ moodLogs })
+    }
+
+    const deleteMood = async (id: string) => {
+        const moodLogs = state.moodLogs.filter(m => m.id !== id)
+        setState(prev => ({ ...prev, moodLogs }))
+        await persistData({ moodLogs })
+    }
+
+    const clearMoodsByDate = async (date: string) => {
+        const moodLogs = state.moodLogs.filter(m => m.date !== date)
         setState(prev => ({ ...prev, moodLogs }))
         await persistData({ moodLogs })
     }
@@ -1460,6 +1479,8 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
         gymRecommendation,
         rotaOverrides,
         setGymOverride,
+        deleteMood,
+        clearMoodsByDate,
         isSyncingGym: state.isSyncingGym,
     }), [state, macros, dailyNutrition, gymRecommendation, rotaOverrides, clearWorkoutLogs, bulkAddWorkoutLogs, setIsGymModalOpen])
 

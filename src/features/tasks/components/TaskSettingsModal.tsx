@@ -11,7 +11,7 @@ import {
     Type, ListChecks, ShoppingCart, Bell, Car,
     ChevronDown, ChevronUp, Lock,
     Grid, List, Tag, Eye, EyeOff, Check,
-    Wallet, Heart, Feather, Timer
+    Wallet, Heart, Feather, Timer, Dumbbell, FileText
 } from 'lucide-react'
 import { TaskTemplate, Category, Priority, StrategicCategory } from '../types/tasks.types'
 import { CATEGORIES, PRIORITIES, STRATEGIC_CATEGORIES, PRIORITY_MAP, WORK_MODES } from '../constants/tasks.constants'
@@ -47,6 +47,8 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
     const [loading, setLoading] = useState(true)
     const [isAdding, setIsAdding] = useState(false)
     const [editingTemplate, setEditingTemplate] = useState<Partial<TaskTemplate> | null>(null)
+    const isShopping = editingTemplate?.category === 'grocery' || editingTemplate?.category === 'essential'
+    const isGrocery = editingTemplate?.category === 'grocery'
     const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
     const [newChecklistItem, setNewChecklistItem] = useState('')
 
@@ -175,7 +177,7 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                             </div>
                         </div>
 
-                        {editingTemplate.category !== 'reminder' && (
+                        {editingTemplate.category !== 'reminder' && editingTemplate.category !== 'grocery' && editingTemplate.category !== 'essential' && (
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-black/30 uppercase tracking-[0.2em] ml-1">Priority</label>
                                 <div className="flex bg-white rounded-xl border border-black/10 p-1 shadow-sm">
@@ -228,7 +230,7 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                             </div>
                         )}
 
-                        {editingTemplate.category !== 'grocery' && editingTemplate.category !== 'reminder' && (
+                        {editingTemplate.category !== 'grocery' && editingTemplate.category !== 'essential' && editingTemplate.category !== 'reminder' && (
                             <div className="space-y-3">
                                 <label className="text-[10px] font-bold text-black/30 uppercase tracking-[0.2em] ml-1">Category</label>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -251,7 +253,7 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                             </div>
                         )}
 
-                        {editingTemplate.category !== 'reminder' && (
+                        {editingTemplate.category !== 'reminder' && editingTemplate.category !== 'grocery' && editingTemplate.category !== 'essential' && (
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-black/30 uppercase tracking-[0.2em] ml-1">Impact Score</label>
                                 <div className="bg-white rounded-xl border border-black/10 p-3 shadow-sm flex flex-col justify-center">
@@ -270,9 +272,43 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                                         <span className="text-[9px] font-bold text-black/20 uppercase tracking-tighter">Critical</span>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                        </div>
+                    )}
+
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-bold text-black/30 uppercase tracking-[0.2em] ml-1">Dynamic Parameters</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {([
+                                { id: 'project', label: 'Project', icon: LayoutGrid },
+                                { id: 'content', label: 'Content', icon: Tv },
+                                { id: 'article', label: 'Article', icon: FileText },
+                                { id: 'fitness', label: 'Fitness', icon: Dumbbell }
+                            ] as const).map(param => (
+                                <button
+                                    key={param.id}
+                                    type="button"
+                                    onClick={() => {
+                                        const current = (editingTemplate as any).dynamic_params || []
+                                        const next = current.includes(param.id)
+                                            ? current.filter((p: string) => p !== param.id)
+                                            : [...current, param.id]
+                                        setEditingTemplate({ ...editingTemplate, dynamic_params: next })
+                                    }}
+                                    className={cn(
+                                        "flex items-center justify-center gap-2 py-2.5 rounded-xl border text-[10px] font-bold uppercase tracking-tight transition-all",
+                                        ((editingTemplate as any).dynamic_params || []).includes(param.id)
+                                            ? "bg-blue-600 text-white border-blue-700 shadow-md shadow-blue-100"
+                                            : "bg-white text-black/40 border-black/10 hover:border-black/20 hover:text-black/60"
+                                    )}
+                                >
+                                    <param.icon className="w-3 h-3" />
+                                    {param.label}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-[9px] text-black/30 italic ml-1">Modal will pop up when clicking quick action to select data.</p>
                     </div>
+                </div>
 
 
                     {/* Notes System */}
@@ -524,11 +560,11 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                                                 <div className={cn(
                                                     "w-16 h-16 rounded-[1.25rem] flex items-center justify-center border-2 transition-transform group-hover:scale-105",
                                                     tmpl.category === 'todo' ? "bg-indigo-50 border-indigo-100 text-indigo-500 shadow-indigo-100/50 shadow-lg" :
-                                                        tmpl.category === 'grocery' ? "bg-emerald-50 border-emerald-100 text-emerald-500 shadow-emerald-100/50 shadow-lg" :
+                                                        (tmpl.category === 'grocery' || tmpl.category === 'essential') ? "bg-emerald-50 border-emerald-100 text-emerald-500 shadow-emerald-100/50 shadow-lg" :
                                                             "bg-amber-50 border-amber-100 text-amber-500 shadow-amber-100/50 shadow-lg"
                                                 )}>
                                                     {tmpl.category === 'todo' ? <Check className="w-8 h-8" /> :
-                                                        tmpl.category === 'grocery' ? <ShoppingCart className="w-8 h-8" /> :
+                                                        (tmpl.category === 'grocery' || tmpl.category === 'essential') ? <ShoppingCart className="w-8 h-8" /> :
                                                             <Bell className="w-8 h-8" />}
                                                 </div>
                                                 <div>
@@ -542,7 +578,7 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                                                             {tmpl.category === 'reminder' && 'REMINDER'}
                                                         </div>
 
-                                                        {tmpl.strategic_category && tmpl.category !== 'grocery' && tmpl.category !== 'reminder' && (
+                                                        {tmpl.strategic_category && tmpl.category !== 'grocery' && tmpl.category !== 'essential' && tmpl.category !== 'reminder' && (
                                                             <span className="text-[9px] font-black uppercase tracking-tighter px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-500 border border-neutral-200">
                                                                 {tmpl.strategic_category}
                                                             </span>
@@ -555,7 +591,7 @@ export function TaskSettingsModal({ isOpen, onClose }: TaskSettingsModalProps) {
                                                             </span>
                                                         )}
 
-                                                        {tmpl.category !== 'grocery' && tmpl.category !== 'reminder' && (
+                                                        {tmpl.category !== 'reminder' && tmpl.category !== 'grocery' && tmpl.category !== 'essential' && (
                                                             <div className="flex items-center gap-2 ml-1">
                                                                 <div className="flex items-center gap-1">
                                                                     <label className="text-[9px] text-black/30 font-black uppercase tracking-widest leading-none">Impact</label>
