@@ -17,7 +17,6 @@ import { useStudio } from '@/features/studio/hooks/useStudio'
 import { WeatherWidget } from '@/features/system/components/WeatherWidget'
 import { AnimatePresence, motion } from 'framer-motion'
 import { LifePerformanceVisualizer } from '@/features/dashboard/components/metrics/LifePerformanceVisualizer'
-import { DashboardManager } from '@/features/dashboard/components/DashboardManager'
 import { TasksCalendar } from '@/features/tasks/components/TasksCalendar'
 import { MorningPulseWidget } from '@/features/dashboard/components/routines/MorningPulseWidget'
 
@@ -28,7 +27,6 @@ function ControlCentreContent() {
     const { settings, loading: settingsLoading } = useSystemSettings()
     const [isMounted, setIsMounted] = useState(false)
     const [orderedModules, setOrderedModules] = useState<typeof moduleNav>([])
-    const [isManagerOpen, setIsManagerOpen] = useState(false)
     const router = useRouter()
     const searchParams = useSearchParams()
     const activeFocusTab = (searchParams.get('tab') as 'brief' | 'calendar' | 'intelligence') || 'brief'
@@ -107,13 +105,6 @@ function ControlCentreContent() {
                                         <span className="text-[11px]">Scanning</span>
                                     </div>
                                 )}
-
-                                <button 
-                                    onClick={() => setIsManagerOpen(true)}
-                                    className="p-2.5 bg-white border border-black/[0.1] rounded-xl hover:bg-black/[0.02] transition-colors relative group"
-                                >
-                                    <SlidersHorizontal className="w-4 h-4 text-black/40 group-hover:text-black transition-colors" />
-                                </button>
 
                                 <div className="text-[11px] text-black/25 uppercase tracking-wider font-medium pb-1">
                                     {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -236,8 +227,6 @@ function ControlCentreContent() {
                 </div>
                 <KarrFooter />
             </div>
-
-            <DashboardManager isOpen={isManagerOpen} onClose={() => setIsManagerOpen(false)} />
         </div>
     )
 }
