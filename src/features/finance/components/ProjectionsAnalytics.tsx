@@ -16,8 +16,14 @@ function getDaysInMonth(year: number, month: number) {
 }
 
 function getFirstDayOfMonth(year: number, month: number) {
-    let day = new Date(year, month, 1).getDay()
-    return day === 0 ? 6 : day - 1 // Convert Sunday=0 to Monday=0
+    return new Date(year, month, 1).getDay()
+}
+
+function toLocalDateStr(date: Date) {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
 }
 
 // Pay constants derived from payslip (wk ending 14/02/2026):
@@ -40,7 +46,10 @@ export function ProjectionsAnalytics() {
     const { payslips, deletePayslip } = usePayslips()
     const payslipByDate = useMemo(() => {
         const map: Record<string, number> = {}
-        payslips.forEach(p => { map[p.date] = p.net_pay })
+        payslips.forEach(p => { 
+            const dKey = p.date.includes('T') ? p.date.split('T')[0] : p.date
+            map[dKey] = p.net_pay 
+        })
         return map
     }, [payslips])
 
@@ -142,7 +151,7 @@ export function ProjectionsAnalytics() {
 
         let curr = new Date(calculationStart)
         while (curr <= calculationEnd) {
-            const dateStr = curr.toISOString().split('T')[0]
+            const dateStr = toLocalDateStr(curr)
 
             let isShift = false
             if (settings.is_demo_mode) {
@@ -185,7 +194,7 @@ export function ProjectionsAnalytics() {
             const paydayThu = new Date(currentSunday)
             paydayThu.setDate(currentSunday.getDate() + 11)
 
-            const paydayStr = paydayThu.toISOString().split('T')[0]
+            const paydayStr = toLocalDateStr(paydayThu)
 
             if (settings.is_demo_mode) {
                 // In Demo Mode, accumulate everything into a single payday (last Thursday of the month)
@@ -195,7 +204,7 @@ export function ProjectionsAnalytics() {
                 while (lastThursday.getDay() !== 4) {
                     lastThursday.setDate(lastThursday.getDate() - 1)
                 }
-                const lastThuStr = lastThursday.toISOString().split('T')[0]
+                const lastThuStr = toLocalDateStr(lastThursday)
                 weeklyPayMap[lastThuStr] = (weeklyPayMap[lastThuStr] || 0) + dailyEarnings[dateStr]
             } else {
                 weeklyPayMap[paydayStr] = (weeklyPayMap[paydayStr] || 0) + dailyEarnings[dateStr]
@@ -219,7 +228,7 @@ export function ProjectionsAnalytics() {
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(year, monthIndex, day)
             date.setHours(0, 0, 0, 0)
-            const dateStr = date.toISOString().split('T')[0]
+            const dateStr = toLocalDateStr(date)
 
             let isShift = false
             if (settings.is_demo_mode) {
@@ -262,9 +271,11 @@ export function ProjectionsAnalytics() {
                 const isPastOrToday = date <= todayMidnight
 
                 const confirmedPay = payslipByDate[dateStr] || (() => {
+                    const prevDay = new Date(date)
+                    prevDay.setDate(prevDay.getDate() - 1)
                     const nextDay = new Date(date)
                     nextDay.setDate(nextDay.getDate() + 1)
-                    return payslipByDate[nextDay.toISOString().split('T')[0]]
+                    return payslipByDate[toLocalDateStr(prevDay)] || payslipByDate[toLocalDateStr(nextDay)]
                 })()
 
                 if (isPastOrToday && confirmedPay !== undefined) {
@@ -430,7 +441,7 @@ export function ProjectionsAnalytics() {
 
                 <div className="p-5">
                     <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
-                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                             <div key={day} className="text-center text-[10px] font-bold uppercase tracking-wider text-black/30 py-2">
                                 {day}
                             </div>
@@ -542,9 +553,11 @@ export function ProjectionsAnalytics() {
                                             const today = new Date(); today.setHours(0, 0, 0, 0)
                                             const isPastOrToday = d.date <= today
                                             const confirmedPay = payslipByDate[dateStr] || (() => {
+                                                const prevDay = new Date(d.date)
+                                                prevDay.setDate(prevDay.getDate() - 1)
                                                 const nextDay = new Date(d.date)
                                                 nextDay.setDate(nextDay.getDate() + 1)
-                                                return payslipByDate[nextDay.toISOString().split('T')[0]]
+                                                return payslipByDate[toLocalDateStr(prevDay)] || payslipByDate[toLocalDateStr(nextDay)]
                                             })()
                                             const displayAmt = (isPastOrToday && confirmedPay != null) ? confirmedPay : (weeklyPayMap[dateStr] || 0)
                                             return (

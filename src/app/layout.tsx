@@ -31,6 +31,7 @@ export const viewport: Viewport = {
 
 
 import { FinanceProfileProvider } from '@/features/finance/contexts/FinanceProfileContext'
+import { FinanceAdvisorProvider } from '@/features/finance/contexts/FinanceAdvisorContext'
 import { SystemSettingsProvider } from '@/features/system/contexts/SystemSettingsContext'
 import { TasksProfileProvider } from '@/features/tasks/contexts/TasksProfileContext'
 import { VaultProvider } from '@/features/vault/contexts/VaultContext'
@@ -67,31 +68,33 @@ export default async function RootLayout({
         <AuthProvider>
           <SystemSettingsProvider>
             <FinanceProfileProvider>
-              <TasksProfileProvider>
-                <StudioProvider>
-                  <TasksProvider>
-                    <GroceryLibraryProvider>
-                      <GoalsProvider>
-                        <VaultProvider>
-                          <WellbeingProvider>
-                            <MultitaskingProvider>
-                              {isShellFreePage ? (
-                                <>{children}</>
-                              ) : (
-                                <SecurityLock>
-                                  <AppShell pathname={pathname}>
-                                    {children}
-                                  </AppShell>
-                                </SecurityLock>
-                              )}
-                            </MultitaskingProvider>
-                          </WellbeingProvider>
-                        </VaultProvider>
-                      </GoalsProvider>
-                    </GroceryLibraryProvider>
-                  </TasksProvider>
-                </StudioProvider>
-              </TasksProfileProvider>
+              <FinanceAdvisorProvider>
+                <TasksProfileProvider>
+                  <StudioProvider>
+                    <TasksProvider>
+                      <GroceryLibraryProvider>
+                        <GoalsProvider>
+                          <VaultProvider>
+                            <WellbeingProvider>
+                              <MultitaskingProvider>
+                                {isShellFreePage ? (
+                                  <>{children}</>
+                                ) : (
+                                  <SecurityLock>
+                                    <AppShell pathname={pathname}>
+                                      {children}
+                                    </AppShell>
+                                  </SecurityLock>
+                                )}
+                              </MultitaskingProvider>
+                            </WellbeingProvider>
+                          </VaultProvider>
+                        </GoalsProvider>
+                      </GroceryLibraryProvider>
+                    </TasksProvider>
+                  </StudioProvider>
+                </TasksProfileProvider>
+              </FinanceAdvisorProvider>
             </FinanceProfileProvider>
           </SystemSettingsProvider>
         </AuthProvider>

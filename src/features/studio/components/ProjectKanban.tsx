@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Rocket, Shield, Clock, MoreVertical, Trash2, CheckCircle2, Zap, Plus } from 'lucide-react'
+import { Rocket, Shield, Clock, MoreVertical, Trash2, CheckCircle2, Zap, Plus, Globe } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import type { StudioProject, ProjectStatus, StudioMilestone, ProjectKanbanProps } from '../types/studio.types'
 import { cn } from '@/lib/utils'
@@ -493,6 +493,11 @@ function ProjectCard({ project, milestones, onPointerDragStart, onPointerDragOve
                                 <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-100 rounded-md">
                                     <Shield className="w-2.5 h-2.5 text-blue-600" />
                                     <span className="text-[8px] font-black text-blue-900 uppercase">GTV</span>
+                                </div>
+                            )}
+                            {project.press_ids && project.press_ids.length > 0 && (
+                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 border border-emerald-100 rounded-md" title="Linked Media">
+                                    <Globe className="w-2.5 h-2.5 text-emerald-600" />
                                 </div>
                             )}
                         </div>

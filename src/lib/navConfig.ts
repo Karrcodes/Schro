@@ -8,7 +8,7 @@ import {
     BarChart3, Activity, Shield, Brain, Target, Heart,
     LayoutDashboard, SlidersHorizontal, Calendar, CreditCard,
     PiggyBank, Receipt, Sparkles, Rocket, Video, PenLine, Bell, ShoppingCart,
-    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Images, ListTodo, Search, Wand2, Package, Wrench, Coffee, Gauge
+    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Images, ListTodo, Search, Wand2, Package, Wrench, Coffee, Gauge, Wallet, Palette
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -67,7 +67,7 @@ export const navItems: NavItem[] = [
     {
         label: 'Finances',
         href: '/finances',
-        icon: BarChart3,
+        icon: Wallet,
         color: 'emerald',
         sub: [
             { label: 'Projections', href: '/finances/projections', icon: TrendingUp, caps: ['P'] },
@@ -82,7 +82,7 @@ export const navItems: NavItem[] = [
     {
         label: 'Studio',
         href: '/create',
-        icon: Wand2,
+        icon: Palette,
         color: 'orange',
         sub: [
             { label: 'Projects', href: '/create/projects', icon: Rocket },
@@ -100,8 +100,8 @@ export const navItems: NavItem[] = [
         icon: Compass, 
         color: 'amber',
         sub: [
-            { label: 'Goals', href: '/goals/mission', icon: Target },
-            { label: 'Dreams', href: '/goals/dreams', icon: Sparkles },
+            { label: 'Targets', href: '/goals/mission', icon: Target },
+            { label: 'Dreams', href: '/goals/dreams', icon: Wand2 },
             { label: 'Wishlist', href: '/goals/wishlist', icon: Star }
         ]
     },

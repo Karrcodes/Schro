@@ -24,6 +24,11 @@ interface SystemSettings {
     dashboard_widgets: Record<string, boolean>
     blurred_ids: string[]
     dismissed_tasks: { date: string, ids: string[] } | null
+    integration_x: boolean
+    integration_google: boolean
+    integration_framer: boolean
+    integration_monzo: boolean
+    integration_thegymgroup: boolean
     [key: string]: any
 }
 
@@ -62,7 +67,12 @@ const defaultSettings: SystemSettings = {
         routine: true
     },
     blurred_ids: [],
-    dismissed_tasks: null
+    dismissed_tasks: null,
+    integration_x: true,
+    integration_google: true,
+    integration_framer: true,
+    integration_monzo: true,
+    integration_thegymgroup: true
 }
 
 const SystemSettingsContext = createContext<SystemSettingsContextType | undefined>(undefined)

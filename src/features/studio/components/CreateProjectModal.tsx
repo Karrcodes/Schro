@@ -25,7 +25,7 @@ const PLATFORMS: Platform[] = ['youtube', 'instagram', 'substack', 'tiktok', 'x'
 const MILESTONE_CATEGORIES = ['rnd', 'production', 'media', 'growth']
 
 export default function CreateProjectModal({ isOpen, onClose }: CreateProjectModalProps) {
-    const { addProject } = useStudio()
+    const { addProject, press } = useStudio()
     const [loading, setLoading] = useState(false)
     const [title, setTitle] = useState('')
     const [tagline, setTagline] = useState('')
@@ -44,6 +44,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
     const [milestones, setMilestones] = useState<{ id: string, title: string, category: string, impact_score: number, target_date?: string }[]>([])
     const [error, setError] = useState<string | null>(null)
     const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null)
+    const [pressIds, setPressIds] = useState<string[]>([])
 
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -54,6 +55,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
             setPriority('mid'); setTargetDate(''); setStartDate(new Date().toISOString().split('T')[0])
             setImpactScore(5); setStrategicCategory('rnd'); setMilestones([])
             setCoverFile(null); setImagePreview(null); setError(null)
+            setPressIds([])
         }
     }, [isOpen])
 
@@ -107,7 +109,8 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                 impact_score: impactScore,
                 strategic_category: strategicCategory,
                 target_date: targetDate || undefined,
-                start_date: startDate
+                start_date: startDate,
+                press_ids: pressIds
             }
 
             await addProject(
@@ -214,6 +217,53 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                                         rows={3}
                                         className="w-full text-sm font-medium text-black/60 placeholder:text-black/15 border-none p-0 focus:ring-0 resize-none outline-none"
                                     />
+                                </div>
+
+                                {/* Press Selection */}
+                                <div className="space-y-3 pt-2 border-t border-black/5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Associated Press / Recognition</label>
+                                        <span className="text-[8px] font-black text-black/20 uppercase tracking-widest">Multi-Link Enabled</span>
+                                    </div>
+                                    
+                                    {/* Selected Press Tags */}
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                        {pressIds.map(id => {
+                                            const p = press.find(pr => pr.id === id)
+                                            if (!p) return null
+                                            return (
+                                                <div key={id} className="flex items-center gap-2 px-3 py-1.5 bg-black/[0.03] border border-black/5 rounded-xl">
+                                                    <span className="text-[10px] font-bold text-black/60">{p.organization}: {p.title}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setPressIds(prev => prev.filter(x => x !== id))}
+                                                        className="p-1 hover:bg-black/5 rounded-md transition-colors"
+                                                    >
+                                                        <X className="w-3 h-3 text-black/40" />
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+
+                                    <select
+                                        value=""
+                                        onChange={e => {
+                                            if (!e.target.value) return
+                                            if (pressIds.includes(e.target.value)) return
+                                            setPressIds(prev => [...prev, e.target.value])
+                                        }}
+                                        className="w-full px-4 py-3.5 bg-black/[0.02] border border-black/[0.05] rounded-xl text-[13px] font-bold focus:outline-none focus:border-orange-200 appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Add Press Item...</option>
+                                        {press
+                                            .filter(pr => !pressIds.includes(pr.id))
+                                            .map(pr => (
+                                                <option key={pr.id} value={pr.id}>
+                                                    {pr.organization}: {pr.title}
+                                                </option>
+                                            ))}
+                                    </select>
                                 </div>
 
                                 {/* Milestones */}

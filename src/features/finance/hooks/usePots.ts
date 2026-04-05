@@ -164,8 +164,7 @@ export function usePots(profileOverride?: ProfileType) {
 
         try {
             const systemPots = [
-                { name: 'General', type: 'general' as const, sort_order: 0 },
-                { name: 'Liabilities', type: 'buffer' as const, sort_order: 99 }
+                { name: 'General', type: 'general' as const, sort_order: 0 }
             ]
 
             for (const sp of systemPots) {

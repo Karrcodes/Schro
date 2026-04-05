@@ -40,6 +40,7 @@ export interface StudioProject {
     file_url?: string;
     is_staged?: boolean;
     stage_data?: Record<string, any>;
+    press_ids?: string[];
     created_at: string;
     updated_at: string;
 }
@@ -98,6 +99,7 @@ export interface StudioContent {
     scenes?: ContentScene[];
     is_staged?: boolean;
     stage_data?: Record<string, any>;
+    press_ids?: string[];
     created_at: string;
     updated_at: string;
 }

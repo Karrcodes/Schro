@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Calendar as CalendarIcon, CreditCard, ChevronLeft, ChevronRight, List, LayoutGrid, Tag, X, CheckCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { RecurringObligation } from '../types/finance.types'
 import { getLenderLogo, countRemainingPayments } from '../utils/lenderLogos'
 import { useRecurring } from '../hooks/useRecurring'
@@ -46,6 +47,13 @@ function addMonths(date: Date, months: number): Date {
     d.setMonth(targetMonth)
     if (d.getMonth() !== ((targetMonth % 12) + 12) % 12) d.setDate(0)
     return d
+}
+
+function toLocalDateStr(date: Date) {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
 }
 
 const DEBT_KEYWORDS = ['klarna', 'clearpay', 'currys', 'flexipay', 'loan', 'finance', 'credit']
@@ -102,7 +110,7 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
 
         let curr = new Date(calculationStart)
         while (curr <= calculationEnd) {
-            const dateStr = curr.toISOString().split('T')[0]
+            const dateStr = toLocalDateStr(curr)
             let isShift = false
 
             if (settings.is_demo_mode) {
@@ -141,7 +149,7 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
             const paydayThu = new Date(currentSunday)
             paydayThu.setDate(currentSunday.getDate() + 11)
 
-            const paydayStr = paydayThu.toISOString().split('T')[0]
+            const paydayStr = toLocalDateStr(paydayThu)
 
             if (settings.is_demo_mode) {                // In Demo Mode, accumulate everything into a single payday (last Thursday of the month)
                 // We'll find the last Thursday of whatever month curr is in
@@ -150,7 +158,7 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
                 while (lastThursday.getDay() !== 4) {
                     lastThursday.setDate(lastThursday.getDate() - 1)
                 }
-                const lastThuStr = lastThursday.toISOString().split('T')[0]
+                const lastThuStr = toLocalDateStr(lastThursday)
                 map[lastThuStr] = (map[lastThuStr] || 0) + dailyEarnings[dateStr]
             } else {
                 map[paydayStr] = (map[paydayStr] || 0) + dailyEarnings[dateStr]
@@ -163,7 +171,11 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
 
     const payslipByDate = useMemo(() => {
         const map: Record<string, number> = {}
-        payslips.forEach(p => { map[p.date] = p.net_pay })
+        payslips.forEach(p => { 
+            // Match the literal date-split logic from ProjectionsAnalytics for perfect sync
+            const dKey = p.date.includes('T') ? p.date.split('T')[0] : p.date
+            map[dKey] = p.net_pay 
+        })
         return map
     }, [payslips])
 
@@ -406,7 +418,7 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
                                             </span>
                                             {(() => {
                                                 const date = new Date(calMonth.getFullYear(), calMonth.getMonth(), day)
-                                                const dateStr = date.toISOString().split('T')[0]
+                                                const dateStr = toLocalDateStr(date)
                                                 let isPayday = date.getDay() === 4
                                                 if (settings.is_demo_mode) {
                                                     // Ensure only the LAST Thursday of the month is a payday in Demo Mode
@@ -420,18 +432,36 @@ export function CalendarVisualizer({ obligations }: { obligations: RecurringObli
 
                                                 if (!isPayday) return null
 
+                                                const today = new Date(); today.setHours(0, 0, 0, 0)
+                                                const isPastOrToday = date <= today
+
                                                 const confirmedPay = payslipByDate[dateStr] || (() => {
-                                                    const nextDay = new Date(date)
-                                                    nextDay.setDate(nextDay.getDate() + 1)
-                                                    return payslipByDate[nextDay.toISOString().split('T')[0]]
+                                                    const d = new Date(date)
+                                                    // Broad window: Check Wednesday through Friday for any payslip mapping to this Thursday payday
+                                                    const prevDay = new Date(d); prevDay.setDate(d.getDate() - 1)
+                                                    const nextDay = new Date(d); nextDay.setDate(d.getDate() + 1)
+                                                    return payslipByDate[toLocalDateStr(prevDay)] || payslipByDate[toLocalDateStr(nextDay)]
                                                 })()
-                                                const displayAmt = confirmedPay != null ? confirmedPay : (weeklyPayMap[dateStr] || 0)
+
+                                                const displayAmt = (isPastOrToday && confirmedPay != null) ? confirmedPay : (weeklyPayMap[dateStr] || 0)
 
                                                 return (
-                                                    <div className="flex items-center gap-1 px-1.5 py-1 rounded-md bg-emerald-50 border border-emerald-200/60 shadow-sm">
-                                                        <span className="text-[8px] sm:text-[9px] font-black text-emerald-700 privacy-blur">
-                                                            £{displayAmt.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                    <div className={cn(
+                                                        "flex flex-col items-end gap-0.5 px-1.5 py-1 rounded-md border shadow-sm transition-all min-w-[32px]", 
+                                                        isPastOrToday && confirmedPay != null ? "bg-emerald-50 border-emerald-200/60" : 
+                                                        isPastOrToday ? "bg-amber-50 border-amber-200/60" : 
+                                                        "bg-blue-50/50 border-blue-100"
+                                                    )}>
+                                                        <span className={cn(
+                                                            "text-[8px] sm:text-[10px] font-black privacy-blur", 
+                                                            isPastOrToday && confirmedPay != null ? "text-emerald-700" : 
+                                                            isPastOrToday ? "text-amber-600" : 
+                                                            "text-blue-600/60"
+                                                        )}>
+                                                            £{displayAmt.toFixed(0)}
                                                         </span>
+                                                        {isPastOrToday && confirmedPay != null && <CheckCircle className="w-2.5 h-2.5 text-emerald-500" />}
+                                                        {isPastOrToday && confirmedPay == null && <Tag className="w-2.5 h-2.5 text-amber-400 rotate-90" />}
                                                     </div>
                                                 )
                                             })()}

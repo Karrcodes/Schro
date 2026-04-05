@@ -39,7 +39,7 @@ export function PotsGrid({ pots, isSyncing }: PotsGridProps) {
     }
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {pots.map((pot) => {
                 const config = typeConfig[pot.type] ?? typeConfig.general
                 const Icon = config.icon

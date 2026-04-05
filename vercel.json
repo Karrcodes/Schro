@@ -15,6 +15,10 @@
         {
             "path": "/api/cron/finance-evening",
             "schedule": "0 21 * * *"
+        },
+        {
+            "path": "/api/cron/sync-payslips",
+            "schedule": "0 22 * * 3,4"
         }
     ]
 }

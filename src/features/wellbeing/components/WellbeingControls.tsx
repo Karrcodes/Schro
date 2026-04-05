@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useWellbeing } from '../contexts/WellbeingContext'
-import { Settings, RefreshCw, CheckCircle2, Dumbbell } from 'lucide-react'
+import { Settings, RefreshCw, CheckCircle2, Dumbbell, Scale, Lock } from 'lucide-react'
 import { useRouter, usePathname } from 'next/navigation'
 import type { GymBusyness, TheGymGroupStats } from '../types'
 import { getNextOffPeriod } from '@/features/finance/utils/rotaUtils'
@@ -64,10 +64,15 @@ function GymOccupancySwitcher({ allBusyness, gymStats }: {
 }
 
 export function WellbeingControls() {
-    const { gymStats, syncGymData, isSyncingGym, requiresGymReauth, setIsGymModalOpen, rotaOverrides } = useWellbeing()
+    const { 
+        gymStats, syncGymData, isSyncingGym, requiresGymReauth, setIsGymModalOpen, 
+        eufyStats, syncEufyData, setIsEufyModalOpen,
+        rotaOverrides 
+    } = useWellbeing()
     const pathname = usePathname()
     const router = useRouter()
     const [justSynced, setJustSynced] = useState(false)
+    const [isSyncingEufy, setIsSyncingEufy] = useState(false)
 
     useEffect(() => {
         if (!isSyncingGym && gymStats.lastSyncTime) {
@@ -87,29 +92,29 @@ export function WellbeingControls() {
     }, [rotaOverrides])
 
     return (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+            {/* Next Prep Day Indicator */}
+            {gymStats.isIntegrated && pathname.startsWith('/health/nutrition') && (
+                <div className="flex items-center gap-2 px-5 h-11 bg-indigo-50 border border-indigo-100 rounded-[20px] shadow-sm">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                    <div className="flex flex-col leading-none">
+                        <span className="text-[10px] font-black uppercase tracking-tight text-indigo-950">
+                            {format(nextPrepDay, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') 
+                                ? 'Today' 
+                                : format(nextPrepDay, 'yyyy-MM-dd') === format(new Date(Date.now() + 86400000), 'yyyy-MM-dd')
+                                    ? 'Tomorrow'
+                                    : format(nextPrepDay, 'EEEE')}
+                        </span>
+                        <span className="text-[7px] font-bold uppercase tracking-widest text-indigo-500/60">
+                            Next Prep Day
+                        </span>
+                    </div>
+                </div>
+            )}
+
             {/* Gym Integration Actions */}
             {gymStats.isIntegrated ? (
-                <div className="flex items-center gap-3">
-                    {/* Next Prep Day Indicator */}
-                    {pathname.startsWith('/health/nutrition') && (
-                        <div className="flex items-center gap-2 px-5 h-11 bg-indigo-50 border border-indigo-100 rounded-[20px] shadow-sm">
-                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                            <div className="flex flex-col leading-none">
-                                <span className="text-[10px] font-black uppercase tracking-tight text-indigo-950">
-                                    {format(nextPrepDay, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') 
-                                        ? 'Today' 
-                                        : format(nextPrepDay, 'yyyy-MM-dd') === format(new Date(Date.now() + 86400000), 'yyyy-MM-dd')
-                                            ? 'Tomorrow'
-                                            : format(nextPrepDay, 'EEEE')}
-                                </span>
-                                <span className="text-[7px] font-bold uppercase tracking-widest text-indigo-500/60">
-                                    Next Prep Day
-                                </span>
-                            </div>
-                        </div>
-                    )}
-
+                <>
                     {gymStats.allBusyness && Object.keys(gymStats.allBusyness).length > 0 && (
                         <GymOccupancySwitcher
                             allBusyness={gymStats.allBusyness}
@@ -181,19 +186,60 @@ export function WellbeingControls() {
                             <Dumbbell className="w-3.5 h-3.5" />
                         </button>
                     </div>
-                </div>
+                </>
             ) : (
-                <div className="flex items-center gap-3">
-                    <div className="hidden md:flex items-center gap-2 text-[10px] font-black text-black/20 uppercase tracking-widest mr-2">
-                        <span>Sensors Offline</span>
-                    </div>
+                <div className="flex items-center bg-white border border-black/5 rounded-[20px] shadow-sm overflow-hidden h-11">
                     <button
                         onClick={() => setIsGymModalOpen(true)}
-                        className="w-11 h-11 rounded-[20px] flex items-center justify-center transition-all border bg-white border-black/5 text-black/30 hover:text-black/60 shadow-sm"
-                        title="Link Gym Sensors"
+                        className="flex items-center gap-2 px-6 h-full hover:bg-black/[0.02] text-black/40 hover:text-black transition-all group"
                     >
-                        <Settings className="w-4 h-4" />
+                        <Dumbbell className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Link Gym</span>
                     </button>
+                </div>
+            )}
+
+            {/* Eufy Scale Integration Blocks */}
+            {eufyStats.isIntegrated ? (
+                <div className={cn(
+                    "flex items-center rounded-[20px] shadow-sm overflow-hidden h-11 transition-all duration-300 border border-black/5 bg-emerald-50 border-emerald-100"
+                )}>
+                    <button
+                        onClick={async () => {
+                            setIsSyncingEufy(true)
+                            await syncEufyData()
+                            setTimeout(() => setIsSyncingEufy(false), 2000)
+                        }}
+                        disabled={isSyncingEufy}
+                        className="flex items-center gap-2 px-5 h-full text-emerald-600 hover:bg-emerald-100 group transition-all duration-300"
+                    >
+                        <Scale className={cn("w-4 h-4 text-emerald-500", isSyncingEufy && "animate-spin")} />
+                        <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap text-emerald-700">
+                            {isSyncingEufy ? 'Weighing...' : 'Scale Sync'}
+                        </span>
+                    </button>
+                    <div className="w-px h-6 bg-emerald-200" />
+                    <button
+                        onClick={() => setIsEufyModalOpen(true)}
+                        className="flex items-center justify-center px-4 h-full hover:bg-emerald-100 text-emerald-600 transition-all duration-300"
+                        title="Manage Scale Integration"
+                    >
+                        <Settings className="w-3.5 h-3.5 opacity-40 hover:opacity-100" />
+                    </button>
+                </div>
+            ) : (
+                <div className="flex items-center bg-white border border-black/5 rounded-[20px] shadow-sm overflow-hidden h-11 relative group">
+                    <button
+                        disabled
+                        className="flex items-center gap-2 px-6 h-full text-black/20 cursor-not-allowed transition-all relative z-10"
+                        title="Coming in the next version"
+                    >
+                        <Scale className="w-4 h-4" />
+                        <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+                            Link Scale <Lock className="w-2.5 h-2.5" />
+                        </span>
+                    </button>
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmIi8+CjxwYXRoIGQ9Ik0tMSwxIGwyLC0yIE0wLDQgbDQsLTQgTTMsNSBsMiwtMiIgc3Ryb2tlPSIjMDAwMDAwMDUiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3N2Zz4=')] opacity-50 z-0 pointer-events-none" />
                 </div>
             )}
         </div>

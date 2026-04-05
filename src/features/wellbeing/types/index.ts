@@ -47,6 +47,7 @@ export interface WorkoutRoutine {
 export interface WorkoutSet {
     reps: number
     weight: number
+    isCompleted?: boolean
 }
 
 export interface ExerciseLog {
@@ -69,6 +70,8 @@ export interface WorkoutSession extends WorkoutLog {
     isPaused: boolean
     completedExerciseIds: string[]
     skippedExerciseIds: string[]
+    totalPausedMs: number
+    lastPauseStart?: string | null
     plannedExercises?: Exercise[]
 }
 
@@ -107,6 +110,14 @@ export interface TheGymGroupStats {
     debug_raw_busyness?: any
     debug_raw_user?: any
     lastSyncTime?: string | null
+}
+
+export interface EufyStats {
+    isIntegrated: boolean
+    lastSyncTime?: string | null
+    email?: string
+    userId?: string
+    accessToken?: string
 }
 
 export interface Ingredient {
@@ -226,6 +237,16 @@ export interface Milestone {
     parentId?: string
 }
 
+export interface EufyHistoryEntry extends MetricEntry {
+    bmi?: number
+    bodyFat?: number
+    muscleMass?: number
+    waterPercentage?: number
+    boneMass?: number
+    visceralFat?: number
+    bmr?: number
+}
+
 export interface WellbeingState {
     profile: WellbeingProfile | null
     weightHistory: MetricEntry[]
@@ -245,6 +266,8 @@ export interface WellbeingState {
     isSyncingGym: boolean
     isGymModalOpen: boolean
     requiresGymReauth: boolean
+    eufyStats: EufyStats
+    isEufyModalOpen: boolean
     loading: boolean
     gymOverrides?: Record<string, 'force' | 'skip'>
 }

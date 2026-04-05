@@ -9,7 +9,7 @@ import { KarrFooter } from '@/components/KarrFooter'
 import { TransactionDetailsModal } from '@/features/finance/components/TransactionDetailsModal'
 import { getCategoryById, FINANCE_CATEGORIES } from '@/features/finance/constants/categories'
 import { useBank } from '@/features/finance/hooks/useBank'
-import { RevolutImportModal } from '@/features/finance/components/RevolutImportModal'
+import { MonzoImportModal } from '@/features/finance/components/MonzoImportModal'
 import { MonzoSyncControls } from '@/features/finance/components/MonzoSyncControls'
 import type { Transaction } from '@/features/finance/types/finance.types'
 
@@ -23,7 +23,7 @@ export default function TransactionsPage() {
     const [selectedPot, setSelectedPot] = useState<string>('all')
     const [timeFilter, setTimeFilter] = useState<string>('all')
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+    const [isMonzoModalOpen, setIsMonzoModalOpen] = useState(false)
 
     const handleSyncSuccess = (count: number) => {
         alert(`Successfully synced ${count} new transactions!`)
@@ -74,12 +74,12 @@ export default function TransactionsPage() {
                         <div className="flex items-center gap-2 flex-shrink-0">
                             <MonzoSyncControls />
                             <button
-                                onClick={() => setIsImportModalOpen(true)}
+                                onClick={() => setIsMonzoModalOpen(true)}
                                 disabled={bankSyncLoading}
-                                className="flex items-center gap-1.5 text-[12px] font-bold text-black bg-black/5 px-3 py-1.5 rounded-xl hover:bg-black/10 transition-colors disabled:opacity-50"
+                                className="flex items-center gap-1.5 text-[12px] font-bold text-black bg-emerald-500/10 px-3 py-1.5 rounded-xl hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
                             >
-                                <RefreshCw className={`w-3.5 h-3.5 ${bankSyncLoading ? 'animate-spin' : ''}`} />
-                                <span className="hidden sm:inline">{bankSyncLoading ? 'Syncing...' : 'Sync CSV'}</span>
+                                <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="hidden sm:inline">Monzo CSV</span>
                             </button>
 
                             <button
@@ -230,9 +230,9 @@ export default function TransactionsPage() {
                 onClose={() => setSelectedTx(null)}
             />
 
-            <RevolutImportModal
-                isOpen={isImportModalOpen}
-                onClose={() => setIsImportModalOpen(false)}
+            <MonzoImportModal
+                isOpen={isMonzoModalOpen}
+                onClose={() => setIsMonzoModalOpen(false)}
                 onSuccess={handleSyncSuccess}
             />
         </div>

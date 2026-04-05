@@ -31,6 +31,7 @@ export function usePayslips() {
             setLoading(false)
             return
         }
+        
         setLoading(true)
         const { data, error } = await supabase
             .from('fin_payslips')
@@ -38,8 +39,11 @@ export function usePayslips() {
             .eq('profile', activeProfile)
             .order('date', { ascending: false })
 
-        if (error) setError(error.message)
-        else setPayslips(data ?? [])
+        if (error) {
+            setError(error.message)
+        } else if (data) {
+            setPayslips(data)
+        }
         setLoading(false)
     }
 

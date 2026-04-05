@@ -10,7 +10,11 @@ import { ExerciseLibrary } from './ExerciseLibrary'
 import type { Exercise, ExerciseLog, WorkoutSet } from '../types'
 
 export function WorkoutSession() {
-    const { activeSession, updateSessionSet, togglePauseSession, finishSession, cancelSession, routines, randomizeSessionExercise, swapSessionExercise } = useWellbeing()
+    const { 
+        activeSession, updateSessionSet, togglePauseSession, 
+        finishSession, cancelSession, routines, randomizeSessionExercise, 
+        swapSessionExercise, skipSessionExercise 
+    } = useWellbeing()
     const router = useRouter()
     
     // Core Session State
@@ -190,12 +194,16 @@ export function WorkoutSession() {
     }
 
     const handleFinish = async () => {
-        const volume = activeSession.exercises.reduce((v, ex) => 
+        const recordedExercises = activeSession.exercises.filter(ex => 
+            activeSession.completedExerciseIds.includes(ex.exerciseId)
+        )
+
+        const volume = recordedExercises.reduce((v, ex) => 
             v + ex.sets.reduce((sv, set) => sv + (set.weight * (set.reps || 0)), 0), 0)
         
         setSessionSummary({
             volume,
-            exercises: activeSession.exercises.length
+            exercises: recordedExercises.length
         })
         
         await finishSession()
@@ -216,14 +224,10 @@ export function WorkoutSession() {
     }
 
     const confirmSkip = () => {
-        setShowSkipModal(false)
-        if (currentExerciseIndex < sessionExercises.length - 1) {
-            setSessionMode('setup')
-            setCurrentExerciseIndex(prev => prev + 1)
-            setCurrentSetIndex(0)
-        } else {
-            handleFinish()
+        if (currentExercise) {
+            randomizeSessionExercise(currentExercise.id)
         }
+        setShowSkipModal(false)
     }
 
     const currentExercise = sessionExercises[currentExerciseIndex]
@@ -458,57 +462,17 @@ export function WorkoutSession() {
                             </div>
 
                             <div className="flex-1 overflow-hidden flex flex-col">
-                                {swapMode === 'menu' ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <button
-                                            disabled={isRandomizing}
-                                            onClick={async () => {
-                                                setIsRandomizing(true);
-                                                randomizeSessionExercise(currentExercise.id);
-                                                setTimeout(() => {
-                                                    setIsRandomizing(false);
-                                                    setShowSwapModal(false);
-                                                }, 800);
+                                <div className="space-y-4 flex flex-col h-full">
+                                    <div className="flex-1 overflow-hidden pr-1">
+                                        <ExerciseLibrary 
+                                            selectedIds={[currentExercise?.id]}
+                                            onSelect={(ex) => {
+                                                swapSessionExercise(currentExercise.id, ex);
+                                                setShowSwapModal(false);
                                             }}
-                                            className="flex flex-col items-center justify-center p-8 bg-black/[0.03] border border-black/5 rounded-[32px] hover:bg-black text-black hover:text-white transition-all group relative overflow-hidden"
-                                        >
-                                            <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-white/10 transition-colors">
-                                                <RefreshCw className={cn("w-7 h-7 text-emerald-600 group-hover:text-emerald-400", isRandomizing && "animate-spin")} />
-                                            </div>
-                                            <p className="text-[13px] font-black uppercase tracking-tight">Random Swap</p>
-                                            <p className="text-[9px] font-bold opacity-40 uppercase tracking-widest pt-1 px-4 text-center">Same Muscle Group</p>
-                                        </button>
-
-                                        <button
-                                            onClick={() => setSwapMode('manual')}
-                                            className="flex flex-col items-center justify-center p-8 bg-black/[0.03] border border-black/5 rounded-[32px] hover:bg-black text-black hover:text-white transition-all group"
-                                        >
-                                            <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-white/10 transition-colors">
-                                                <Search className="w-7 h-7 text-blue-600 group-hover:text-blue-400" />
-                                            </div>
-                                            <p className="text-[13px] font-black uppercase tracking-tight">Manual Selection</p>
-                                            <p className="text-[9px] font-bold opacity-40 uppercase tracking-widest pt-1 px-4 text-center">Browse Library</p>
-                                        </button>
+                                        />
                                     </div>
-                                ) : (
-                                    <div className="space-y-4 flex flex-col h-full">
-                                        <button 
-                                            onClick={() => setSwapMode('menu')}
-                                            className="flex items-center gap-2 text-[9px] font-black text-black/40 uppercase tracking-[0.2em] hover:text-black transition-colors shrink-0"
-                                        >
-                                            <ChevronRight className="w-3 h-3 rotate-180" /> Back to Menu
-                                        </button>
-                                        <div className="flex-1 overflow-hidden pr-1">
-                                            <ExerciseLibrary 
-                                                selectedIds={[currentExercise?.id]}
-                                                onSelect={(ex) => {
-                                                    swapSessionExercise(currentExercise.id, ex);
-                                                    setShowSwapModal(false);
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
+                                </div>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -573,21 +537,21 @@ export function WorkoutSession() {
                             exit={{ scale: 0.9, opacity: 0 }}
                             className="bg-white rounded-[32px] p-8 w-full max-w-sm shadow-2xl space-y-6"
                         >
-                            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-                                <SkipForward className="w-7 h-7 text-amber-600" />
+                            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                                <RefreshCw className="w-7 h-7 text-emerald-600" />
                             </div>
                             <div className="space-y-2 text-left">
-                                <h3 className="text-xl font-black uppercase tracking-tight text-black">Skip Exercise?</h3>
+                                <h3 className="text-xl font-black uppercase tracking-tight text-black">Find Alternative?</h3>
                                 <p className="text-[13px] font-medium text-black/40 leading-relaxed uppercase tracking-tight">
-                                    Are you sure you want to move to the next protocol? Current exercise progress will be saved.
+                                    Can't do this exercise? We'll find a random replacement for {currentExercise?.muscleGroup} automatically.
                                 </p>
                             </div>
                             <div className="flex flex-col gap-3">
                                 <button 
                                     onClick={confirmSkip}
-                                    className="w-full py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-black/20"
+                                    className="w-full py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20"
                                 >
-                                    Confirm Skip
+                                    Confirm Alternative
                                 </button>
                                 <button 
                                     onClick={() => setShowSkipModal(false)}

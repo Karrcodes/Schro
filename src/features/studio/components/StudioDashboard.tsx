@@ -187,6 +187,11 @@ export default function StudioDashboard() {
                                                                         {project.priority}
                                                                     </div>
                                                                 )}
+                                                                {project.press_ids && project.press_ids.length > 0 && (
+                                                                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 border border-emerald-100 rounded-md" title="Linked Media">
+                                                                        <Globe className="w-2.5 h-2.5 text-emerald-600" />
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
 
@@ -301,6 +306,11 @@ export default function StudioDashboard() {
                                                                                     "bg-black/5 text-black/40"
                                                                     )}>
                                                                         {item.priority}
+                                                                    </div>
+                                                                )}
+                                                                {item.press_ids && item.press_ids.length > 0 && (
+                                                                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 border border-emerald-100 rounded-md" title="Linked Media">
+                                                                        <Globe className="w-2.5 h-2.5 text-emerald-600" />
                                                                     </div>
                                                                 )}
                                                             </div>

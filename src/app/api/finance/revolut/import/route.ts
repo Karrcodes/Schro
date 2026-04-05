@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 function categoriseDescription(desc: string): string {
     const d = desc.toLowerCase()
@@ -44,6 +45,23 @@ function categoriseDescription(desc: string): string {
 
 export async function POST(req: NextRequest) {
     try {
+        const cookieStore = await cookies()
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                cookies: {
+                    get(name: string) { return cookieStore.get(name)?.value },
+                },
+            }
+        )
+
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        const userId = user.id
         const { csvText, profile = 'personal', wipeExisting = false } = await req.json()
 
         if (!csvText) {
@@ -56,6 +74,7 @@ export async function POST(req: NextRequest) {
                 .delete()
                 .eq('profile', profile)
                 .eq('provider', 'revolut_csv')
+                .eq('user_id', userId)
         }
 
         const lines = csvText.split('\n')
@@ -76,12 +95,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Could not identify required CSV columns (Amount, Description)' }, { status: 400 })
         }
 
-        // ── Step 1: Parse all rows ──────────────────────────────────────────────
-        const parsed: Array<{
-            amount: number, type: string, description: string,
-            date: string, emoji: string, profile: string,
-            provider: string, provider_tx_id: string
-        }> = []
+        const parsed: any[] = []
 
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim()
@@ -98,10 +112,8 @@ export async function POST(req: NextRequest) {
             const description = row[colMap.description] || 'Revolut Transaction'
             const date = row[colMap.date] || new Date().toISOString()
             const revolutType = (colMap.type >= 0 ? row[colMap.type] : '').toUpperCase().replace(/ /g, '_')
-            const providerTxId = `rev_${Buffer.from(`${profile}${date}${amount}${description}`).toString('base64').substring(0, 32)}`
+            const providerTxId = `rev_${Buffer.from(`${userId}${date}${amount}${description}`).toString('base64').substring(0, 32)}`
 
-            // ── Classify using Revolut's own Type column ──────────────────────
-            // EXCHANGE = currency conversion (not real spend/income), skip entirely
             if (revolutType === 'EXCHANGE') continue
 
             const isSalary = description.toLowerCase().includes('payment from u u k')
@@ -110,18 +122,17 @@ export async function POST(req: NextRequest) {
             if (revolutType === 'CARD_PAYMENT' || revolutType === 'ATM' || revolutType === 'FEE') {
                 txType = 'spend'
             } else if (isSalary) {
-                // Only your employer transfer counts as true income
                 txType = 'income'
             } else {
-                // All other transfers, top-ups, cashback, refunds → not spend, not income
                 txType = 'transfer'
             }
 
             parsed.push({
+                user_id: userId,
                 amount: Math.abs(amount),
                 type: txType,
                 description,
-                date: date.split(' ')[0],
+                date: date.replace(' ', 'T'),
                 emoji: txType === 'spend' ? '💸' : txType === 'income' ? '💰' : '🔄',
                 profile,
                 provider: 'revolut_csv',
@@ -130,13 +141,11 @@ export async function POST(req: NextRequest) {
 
         }
 
-        // ── Step 2: Local Rule-Based Categorisation ──────────────────────────
         const transactions = parsed.map(p => ({
             ...p,
             category: p.type === 'spend' ? categoriseDescription(p.description) : 'other'
         }))
 
-        // Deduplicate the array by provider_tx_id to prevent "cannot affect row a second time" error
         const uniqueTransactions = transactions.filter((t, index, self) =>
             index === self.findIndex((tx) => tx.provider_tx_id === t.provider_tx_id)
         )
@@ -154,7 +163,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             success: true,
             count: data?.length || 0,
-            message: `Successfully imported ${data?.length || 0} transactions with AI categorisation.`
+            message: `Successfully imported ${data?.length || 0} transactions.`
         })
 
     } catch (error: any) {

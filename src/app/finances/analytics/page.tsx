@@ -71,7 +71,7 @@ export default function FinanceAnalyticsPage() {
                         </div>
 
                         {/* Tab Switcher & Sync */}
-                        <div className="flex flex-col xl:flex-row items-start xl:items-center gap-4 shrink-0">
+                        <div className="flex flex-wrap items-center gap-4 shrink-0">
                             {activeProfile === 'personal' && (
                                 <div className="flex bg-black/[0.03] p-1 rounded-xl w-[max-content] max-w-full overflow-x-auto no-scrollbar self-start xl:self-auto shrink-0 border border-black/[0.06]">
                                     <button

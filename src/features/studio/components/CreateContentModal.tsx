@@ -27,7 +27,7 @@ const CATEGORIES: ContentCategory[] = ['Vlog', 'Thoughts', 'Showcase', 'Concept'
 const MILESTONE_CATEGORIES = ['rnd', 'production', 'media', 'growth']
 
 export default function CreateContentModal({ isOpen, onClose }: CreateContentModalProps) {
-    const { addContent, addMilestone, projects } = useStudio()
+    const { addContent, addMilestone, projects, press } = useStudio()
     const [loading, setLoading] = useState(false)
     const [title, setTitle] = useState('')
     const [platforms, setPlatforms] = useState<Platform[]>([])
@@ -43,6 +43,7 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
     
     const [coverFile, setCoverFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
+    const [pressIds, setPressIds] = useState<string[]>([])
     const [milestones, setMilestones] = useState<{ id: string, title: string, category: string, impact_score: number, target_date?: string }[]>([])
     const [error, setError] = useState<string | null>(null)
     const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null)
@@ -55,6 +56,7 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
             setTitle(''); setPlatforms([]); setType('video'); setCategory('Vlog'); setStatus('idea')
             setPriority('mid'); setImpactScore(5); setNotes(''); setDeadline(''); setProjectId('')
             setUrl(''); setMilestones([]); setCoverFile(null); setImagePreview(null); setError(null)
+            setPressIds([])
         }
     }, [isOpen])
 
@@ -122,7 +124,8 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                 deadline: deadline || undefined,
                 project_id: projectId || null,
                 cover_url: finalCoverUrl,
-                url: url || undefined
+                url: url || undefined,
+                press_ids: pressIds
             } as any)
 
             // Add milestones
@@ -212,6 +215,53 @@ export default function CreateContentModal({ isOpen, onClose }: CreateContentMod
                                     >
                                         <option value="">No project link</option>
                                         {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Associated Press */}
+                                <div className="space-y-3 pt-2 border-t border-black/5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Associated Press / Recognition</label>
+                                        <span className="text-[8px] font-black text-black/20 uppercase tracking-widest">Multi-Link Enabled</span>
+                                    </div>
+                                    
+                                    {/* Selected Press Tags */}
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                        {pressIds.map(id => {
+                                            const p = press.find(pr => pr.id === id)
+                                            if (!p) return null
+                                            return (
+                                                <div key={id} className="flex items-center gap-2 px-3 py-1.5 bg-black/[0.03] border border-black/5 rounded-xl">
+                                                    <span className="text-[10px] font-bold text-black/60">{p.organization}: {p.title}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setPressIds(prev => prev.filter(x => x !== id))}
+                                                        className="p-1 hover:bg-black/5 rounded-md transition-colors"
+                                                    >
+                                                        <X className="w-3 h-3 text-black/40" />
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+
+                                    <select
+                                        value=""
+                                        onChange={e => {
+                                            if (!e.target.value) return
+                                            if (pressIds.includes(e.target.value)) return
+                                            setPressIds(prev => [...prev, e.target.value])
+                                        }}
+                                        className="w-full px-4 py-3.5 bg-black/[0.02] border border-black/[0.05] rounded-xl text-[13px] font-bold focus:outline-none focus:border-blue-200 appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Add Press Item...</option>
+                                        {press
+                                            .filter(pr => !pressIds.includes(pr.id))
+                                            .map(pr => (
+                                                <option key={pr.id} value={pr.id}>
+                                                    {pr.organization}: {pr.title}
+                                                </option>
+                                            ))}
                                     </select>
                                 </div>
 

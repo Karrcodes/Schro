@@ -14,6 +14,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { QuickLogModal } from '@/features/wellbeing/components/QuickLogModal'
 import { NutritionLibraryModal } from '@/features/wellbeing/components/NutritionLibraryModal'
 import { NutritionFridgeModal } from '@/features/wellbeing/components/NutritionFridgeModal'
+import { EufyIntegrationModal } from '@/features/wellbeing/components/EufyIntegrationModal'
 
 import { ChevronRight } from 'lucide-react'
 import type { TheGymGroupStats, GymBusyness } from '@/features/wellbeing/types'
@@ -152,6 +153,7 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
                 isOpen={isFridgeOpen}
                 onClose={() => setIsFridgeOpen(false)}
             />
+            <EufyIntegrationModal />
         </div>
     )
 }

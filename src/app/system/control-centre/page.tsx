@@ -19,12 +19,71 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { LifePerformanceVisualizer } from '@/features/dashboard/components/metrics/LifePerformanceVisualizer'
 import { TasksCalendar } from '@/features/tasks/components/TasksCalendar'
 import { MorningPulseWidget } from '@/features/dashboard/components/routines/MorningPulseWidget'
+import { useLifeMetricsAggregator, PILLAR_MAX } from '@/features/dashboard/hooks/useLifeMetricsAggregator'
+
+function EngineVelocityMini({ efficiency }: { efficiency: number }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-3 bg-black/[0.02] border border-black/[0.05] rounded-xl px-3 py-2 group/velocity relative"
+        >
+            <div className="relative w-10 h-6">
+                <svg viewBox="0 0 40 24" className="w-full h-full">
+                    <defs>
+                        <linearGradient id="miniGaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#ef4444" />
+                            <stop offset="50%" stopColor="#eab308" />
+                            <stop offset="100%" stopColor="#10b981" />
+                        </linearGradient>
+                    </defs>
+                    <path 
+                        d="M 4 20 A 16 16 0 0 1 36 20" 
+                        fill="none" 
+                        stroke="rgba(0,0,0,0.05)" 
+                        strokeWidth="4" 
+                        strokeLinecap="round" 
+                    />
+                    <motion.path 
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: efficiency / 100 }}
+                        transition={{ duration: 1.5, ease: "circOut" }}
+                        d="M 4 20 A 16 16 0 0 1 36 20" 
+                        fill="none" 
+                        stroke="url(#miniGaugeGradient)" 
+                        strokeWidth="4" 
+                        strokeLinecap="round" 
+                    />
+                    <motion.g 
+                        initial={{ rotate: -90 }}
+                        animate={{ rotate: -90 + (efficiency * 1.8) }}
+                        transition={{ duration: 1.5, type: 'spring', damping: 10 }}
+                        style={{ originX: '20px', originY: '20px' }}
+                    >
+                        <line x1="20" y1="20" x2="20" y2="8" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                        <circle cx="20" cy="20" r="2" fill="black" />
+                    </motion.g>
+                </svg>
+            </div>
+            <div className="flex flex-col">
+                <div className="flex items-baseline gap-1 leading-none">
+                    <span className="text-[13px] font-black italic text-black tracking-tighter">{efficiency}%</span>
+                    <span className="text-[7px] font-black text-black/20 uppercase tracking-[0.1em]">Velocity</span>
+                </div>
+                <p className="text-[9px] font-black text-black/30 uppercase tracking-widest leading-none mt-0.5">
+                    Efficiency
+                </p>
+            </div>
+        </motion.div>
+    )
+}
 
 function ControlCentreContent() {
     const { loading: tasksLoading } = useTasks('todo', 'all')
     const { loading: studioLoading } = useStudio()
     const { loading: goalsLoading } = useGoals()
     const { settings, loading: settingsLoading } = useSystemSettings()
+    const metrics = useLifeMetricsAggregator()
     const [isMounted, setIsMounted] = useState(false)
     const [orderedModules, setOrderedModules] = useState<typeof moduleNav>([])
     const router = useRouter()
@@ -96,8 +155,13 @@ function ControlCentreContent() {
                                 <h2 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.3em]">System Core</h2>
                                 <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Control Centre</h1>
                             </div>
-                            <div className="flex items-center gap-6">
+                            <div className="flex flex-wrap items-center gap-4 md:gap-6 justify-start md:justify-end">
                                 <WeatherWidget />
+                                
+                                {(() => {
+                                    const efficiency = Math.round(((metrics.finance.points + metrics.tasks.points) / (PILLAR_MAX.finance + PILLAR_MAX.tasks)) * 100)
+                                    return <EngineVelocityMini efficiency={efficiency} />
+                                })()}
 
                                 {loading && (
                                     <div className="flex items-center gap-1.5 text-black/30">
@@ -217,7 +281,6 @@ function ControlCentreContent() {
                                         exit={{ opacity: 0, y: -10 }}
                                         className="bg-white rounded-3xl border border-black/[0.08] p-8 shadow-sm"
                                     >
-                                        <h3 className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em] mb-6">Intelligence command</h3>
                                         <LifePerformanceVisualizer />
                                     </motion.div>
                                 )}

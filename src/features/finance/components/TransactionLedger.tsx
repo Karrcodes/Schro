@@ -44,7 +44,7 @@ export function TransactionLedger() {
 
             {/* Transaction List */}
             <div className="rounded-2xl overflow-hidden">
-                <div>
+                <div className="space-y-2">
                     {recentTransactions.length === 0 ? (
                         <>
                             <div className="h-14 rounded-xl bg-black/[0.02] border border-black/[0.04]" />

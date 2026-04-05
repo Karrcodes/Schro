@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, User, Bell, Monitor, Shield, Save, Check, RefreshCw, Sun, Moon, Smartphone, Calendar, Upload, X as CloseIcon, Settings, Lock, Eye, EyeOff, Layout } from 'lucide-react'
+import { ArrowLeft, User, Bell, Monitor, Shield, Save, Check, RefreshCw, Sun, Moon, Smartphone, Calendar, Upload, X as CloseIcon, Settings, Lock, Eye, EyeOff, Layout, Cloud, Mail, Brain, Wallet, Activity, CheckSquare, Heart, Zap, Music, Link } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { useFinanceProfile } from '@/features/finance/contexts/FinanceProfileContext'
@@ -10,6 +10,7 @@ import { KarrFooter } from '@/components/KarrFooter'
 import { subscribeToPushNotifications, checkPushSubscription, unsubscribeFromPushNotifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
 import DatePickerInput from '@/components/DatePickerInput'
+import { PersonaModal } from '@/app/intelligence/components/PersonaModal'
 
 export default function SettingsPage() {
     const router = useRouter()
@@ -33,6 +34,7 @@ export default function SettingsPage() {
     const [shiftStart, setShiftStart] = useState(settings.shift_start_date || '')
     const [authorizedDevices, setAuthorizedDevices] = useState<any[]>([])
     const [fetchingDevices, setFetchingDevices] = useState(false)
+    const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false)
 
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -267,7 +269,7 @@ export default function SettingsPage() {
                     )}
 
                     {/* Profile Section */}
-                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden">
                         <div className="px-6 py-4 border-b border-black/[0.04] bg-black/[0.01] flex items-center gap-2">
                             <User className="w-4 h-4 text-black/40" />
                             <h2 className="text-[13px] font-bold text-black uppercase tracking-wider">Profile Management</h2>
@@ -322,23 +324,94 @@ export default function SettingsPage() {
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex justify-end">
-                                        <button
-                                            onClick={handleSaveProfile}
-                                            disabled={isSaving}
-                                            className="bg-black text-white px-6 py-2 rounded-xl text-[13px] font-bold hover:bg-black/80 transition-all flex items-center gap-2 shadow-lg shadow-black/10 active:scale-95"
-                                        >
-                                            {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                                            {saveSuccess ? 'Saved!' : 'Save changes'}
-                                        </button>
+                                </div>
+                            </div>
+
+                            <div className="h-px bg-black/[0.04]" />
+
+                            <button
+                                onClick={() => setIsPersonaModalOpen(true)}
+                                className="w-full flex items-center justify-between p-4 rounded-2xl bg-black/[0.02] border border-black/[0.06] hover:bg-black/[0.04] transition-all group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-white border border-black/[0.06] flex items-center justify-center shadow-sm">
+                                        <Brain className="w-5 h-5 text-black/40 group-hover:text-black transition-colors" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-[14px] font-bold text-black">Persona Alignment</p>
+                                        <p className="text-[11px] text-black/35 font-medium">Fine-tune the assistant's personality and behavior.</p>
                                     </div>
                                 </div>
+                                <div className="w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center group-hover:bg-black/10 transition-colors">
+                                    <Settings className="w-4 h-4 text-black/40" />
+                                </div>
+                            </button>
+
+                            <div className="flex justify-end pt-2">
+                                <button
+                                    onClick={handleSaveProfile}
+                                    disabled={isSaving}
+                                    className="bg-black text-white px-6 py-2 rounded-xl text-[13px] font-bold hover:bg-black/80 transition-all flex items-center gap-2 shadow-lg shadow-black/10 active:scale-95"
+                                >
+                                    {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                                    {saveSuccess ? 'Saved!' : 'Save Profile'}
+                                </button>
                             </div>
                         </div>
                     </section>
 
+                    {/* Connected Ecosystem Section */}
+                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 border-b border-black/[0.04] bg-black/[0.01] flex items-center gap-2">
+                            <Link className="w-4 h-4 text-black/40" />
+                            <h2 className="text-[13px] font-bold text-black uppercase tracking-wider">Connected Ecosystem</h2>
+                        </div>
+                        <div className="divide-y divide-black/[0.04]">
+                            <IntegrationToggle
+                                icon={<Cloud className="w-4 h-4" />}
+                                label="Google Workspace"
+                                description="Sync Drive, Gmail, and Calendar data for neural context."
+                                active={settings.integration_google}
+                                onToggle={() => updateSetting('integration_google', !settings.integration_google)}
+                            />
+                            <IntegrationToggle
+                                icon={<RefreshCw className="w-4 h-4" />}
+                                label="X (Twitter)"
+                                description="Connect for automated posting and community tracking."
+                                active={settings.integration_x}
+                                onToggle={() => updateSetting('integration_x', !settings.integration_x)}
+                            />
+                            <IntegrationToggle
+                                icon={<Layout className="w-4 h-4" />}
+                                label="Framer Sync"
+                                description="Real-time website updates and content deployment."
+                                active={settings.integration_framer}
+                                onToggle={() => updateSetting('integration_framer', !settings.integration_framer)}
+                            />
+                            <IntegrationToggle
+                                icon={<Wallet className="w-4 h-4" />}
+                                label="Monzo Open Banking"
+                                description="Secure real-time transaction and balance synchronization."
+                                active={settings.integration_monzo}
+                                onToggle={() => updateSetting('integration_monzo', !settings.integration_monzo)}
+                            />
+                            <IntegrationToggle
+                                icon={<Activity className="w-4 h-4" />}
+                                label="The Gym Group"
+                                description="Automated biometric and activity logging from Gym nodes."
+                                active={settings.integration_thegymgroup}
+                                onToggle={() => updateSetting('integration_thegymgroup', !settings.integration_thegymgroup)}
+                            />
+                        </div>
+                        <div className="p-4 bg-black/[0.02] border-t border-black/[0.04]">
+                            <p className="text-[10px] text-center text-black/30 font-medium uppercase tracking-widest leading-relaxed">
+                                Toggling off disables system access but preserves underlying account connections.
+                            </p>
+                        </div>
+                    </section>
+
                     {/* Notifications Section */}
-                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: '100ms' }}>
+                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden">
                         <div className="px-6 py-4 border-b border-black/[0.04] bg-black/[0.01] flex items-center gap-2">
                             <Bell className="w-4 h-4 text-black/40" />
                             <h2 className="text-[13px] font-bold text-black uppercase tracking-wider">Notifications</h2>
@@ -392,38 +465,40 @@ export default function SettingsPage() {
                                         <p className="text-[11px] text-black/35 font-medium">Receive real-time alerts on this browser.</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={async () => {
-                                        if (isSubscribed) {
-                                            const res = await unsubscribeFromPushNotifications()
-                                            if (res.success) setIsSubscribed(false)
-                                        } else {
-                                            const res = await subscribeToPushNotifications()
-                                            if (res.success) setIsSubscribed(true)
-                                        }
-                                    }}
-                                    className={cn(
-                                        "px-4 py-2 rounded-xl text-[11px] font-bold transition-all border",
-                                        isSubscribed ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-black text-white border-black"
-                                    )}
-                                >
-                                    {isSubscribed ? 'Enabled' : 'Enable'}
-                                </button>
-                                {isSubscribed && (
+                                <div className="flex items-center gap-3">
                                     <button
-                                        onClick={clearPushSubscriptions}
-                                        disabled={isSaving}
-                                        className="px-4 py-2 rounded-xl text-[11px] font-bold text-red-500 hover:bg-red-50 transition-all border border-transparent"
+                                        onClick={async () => {
+                                            if (isSubscribed) {
+                                                const res = await unsubscribeFromPushNotifications()
+                                                if (res.success) setIsSubscribed(false)
+                                            } else {
+                                                const res = await subscribeToPushNotifications()
+                                                if (res.success) setIsSubscribed(true)
+                                            }
+                                        }}
+                                        className={cn(
+                                            "px-4 py-2 rounded-xl text-[11px] font-bold transition-all border",
+                                            isSubscribed ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-black text-white border-black"
+                                        )}
                                     >
-                                        Clear All Devices
+                                        {isSubscribed ? 'Enabled' : 'Enable'}
                                     </button>
-                                )}
+                                    {isSubscribed && (
+                                        <button
+                                            onClick={clearPushSubscriptions}
+                                            disabled={isSaving}
+                                            className="px-4 py-2 rounded-xl text-[11px] font-bold text-red-500 hover:bg-red-50 transition-all border border-transparent"
+                                        >
+                                            Clear All Devices
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </section>
 
                     {/* Schedule & Work Section */}
-                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: '200ms' }}>
+                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden">
                         <div className="px-6 py-4 border-b border-black/[0.04] bg-black/[0.01] flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-black/40" />
                             <h2 className="text-[13px] font-bold text-black uppercase tracking-wider">Schedule Configuration</h2>
@@ -514,7 +589,7 @@ export default function SettingsPage() {
                     </section>
 
                     {/* App Appearance Section */}
-                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: '300ms' }}>
+                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden">
                         <div className="px-6 py-4 border-b border-black/[0.04] bg-black/[0.01] flex items-center gap-2">
                             <Monitor className="w-4 h-4 text-black/40" />
                             <h2 className="text-[13px] font-bold text-black uppercase tracking-wider">Appearance & Privacy</h2>
@@ -551,7 +626,7 @@ export default function SettingsPage() {
                     </section>
 
                     {/* Security Section */}
-                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: '400ms' }}>
+                    <section className="bg-white rounded-3xl border border-black/[0.06] shadow-sm overflow-hidden">
                         <div className="px-6 py-4 border-b border-black/[0.04] bg-black/[0.01] flex items-center gap-2">
                             <Shield className="w-4 h-4 text-black/40" />
                             <h2 className="text-[13px] font-bold text-black uppercase tracking-wider">Security & Access</h2>
@@ -616,10 +691,42 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     </section>
+                    
+                    {/* Bottom Padding Spacer */}
+                    <div className="h-12 flex-shrink-0" />
                 </div>
+                <PersonaModal isOpen={isPersonaModalOpen} onClose={() => setIsPersonaModalOpen(false)} />
                 <KarrFooter />
-            </div >
-        </div >
+            </div>
+        </div>
+    )
+}
+
+function IntegrationToggle({ icon, label, description, active, onToggle }: { icon: React.ReactNode, label: string, description: string, active: boolean, onToggle: () => void }) {
+    return (
+        <div className="p-6 flex items-center justify-between hover:bg-black/[0.01] transition-colors">
+            <div className="flex items-center gap-4 min-w-0 pr-4">
+                <div className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all",
+                    active ? "bg-black text-white border-black" : "bg-white text-black/30 border-black/5"
+                )}>
+                    {icon}
+                </div>
+                <div>
+                    <p className="text-[14px] font-bold text-black truncate">{label}</p>
+                    <p className="text-[11px] text-black/35 font-medium leading-tight">{description}</p>
+                </div>
+            </div>
+            <button
+                onClick={onToggle}
+                className={cn(
+                    "w-11 h-6 rounded-full transition-all duration-300 relative shrink-0",
+                    active ? "bg-emerald-500" : "bg-black/10"
+                )}
+            >
+                <div className={cn("absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm", active ? "left-6" : "left-1")} />
+            </button>
+        </div>
     )
 }
 

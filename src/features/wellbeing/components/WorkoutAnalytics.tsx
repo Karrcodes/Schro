@@ -12,7 +12,7 @@ import {
     History, BarChart2, TrendingUp, Calendar, 
     ChevronRight, ArrowLeft, Dumbbell, Clock, 
     Zap, Target, Filter, ChevronDown, ChevronUp,
-    Trophy, Activity, Percent, Trash2
+    Trophy, Activity, Percent, Trash2, CheckCircle2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -31,6 +31,7 @@ export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
     } = useWellbeing()
     
     const [deletingLogId, setDeletingLogId] = useState<string | null>(null)
+    const [showClearModal, setShowClearModal] = useState(false)
     
     const handleDeleteLog = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation()
@@ -42,6 +43,11 @@ export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
             await deleteWorkoutLog(deletingLogId)
             setDeletingLogId(null)
         }
+    }
+
+    const confirmClear = async () => {
+        await clearWorkoutLogs()
+        setShowClearModal(false)
     }
     const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('30d')
     const [selectedRoutineType, setSelectedRoutineType] = useState<'pull' | 'push' | 'legs' | null>('push')
@@ -198,7 +204,6 @@ export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
             exit={{ opacity: 0 }}
             className="flex flex-col space-y-12"
         >
-            {/* Header */}
             <header className="flex flex-col md:flex-row md:items-center justify-between z-10 gap-6 w-full flex-shrink-0">
                 <div className="flex items-start sm:items-center gap-3 min-w-0">
                     <button 
@@ -211,6 +216,16 @@ export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
                         <h2 className="text-[11px] font-black text-rose-500 uppercase tracking-[0.3em] truncate">Performance Matrix</h2>
                         <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tighter uppercase grayscale truncate">Workout History</h1>
                     </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => setShowClearModal(true)}
+                        className="flex items-center gap-2 px-6 py-3 bg-rose-500/10 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all shadow-lg shadow-rose-500/10 active:scale-95 group"
+                    >
+                        <Trash2 className="w-3.5 h-3.5 transition-transform group-hover:rotate-12" />
+                        Clear Raw History
+                    </button>
                 </div>
             </header>
 
@@ -409,12 +424,14 @@ export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
                             const isExpanded = expandedLogId === log.id
                             const routine = routines.find(r => r.id === log.routineId)
                             const totalVol = calculateVolume(log)
+                            const isVerified = log.gymVisitId && !log.note?.includes('baseline')
 
                             return (
                                 <div 
                                     key={log.id}
                                     className={cn(
-                                        "bg-white border border-black/5 rounded-[32px] overflow-hidden transition-all duration-300",
+                                        isVerified ? "bg-emerald-50/50 border-emerald-500/20" : "bg-white border-black/5",
+                                        "rounded-[32px] overflow-hidden transition-all duration-300",
                                         isExpanded ? "shadow-2xl translate-y-[-4px]" : "hover:border-black/20"
                                     )}
                                 >
@@ -423,12 +440,21 @@ export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
                                         className="w-full p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left"
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-2xl bg-black/5 flex items-center justify-center shrink-0">
-                                                <Calendar className="w-4 h-4 text-black/40" />
+                                            <div className={cn(
+                                                "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
+                                                isVerified ? "bg-emerald-500 text-white" : "bg-black/5 text-black/40"
+                                            )}>
+                                                {isVerified ? <CheckCircle2 className="w-5 h-5" /> : <Calendar className="w-4 h-4" />}
                                             </div>
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <h4 className="text-[12px] font-black uppercase tracking-tight leading-tight">{routine?.name || 'Manual Session'}</h4>
+                                                    {isVerified && (
+                                                        <div className="bg-emerald-500 text-white px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm shadow-emerald-500/20">
+                                                            <Activity className="w-2.5 h-2.5" />
+                                                            Verified
+                                                        </div>
+                                                    )}
                                                     {log.note && (
                                                         <div className={cn(
                                                             "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1",
@@ -550,6 +576,50 @@ export function WorkoutAnalytics({ onClose }: WorkoutAnalyticsProps) {
                                     className="w-full py-4 bg-black/5 text-black rounded-2xl text-[10px] font-black uppercase tracking-widest"
                                 >
                                     Cancel
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            {/* Clear History Confirmation Modal */}
+            <AnimatePresence>
+                {showClearModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-md z-[1100] flex items-center justify-center p-6"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-white rounded-[40px] p-10 w-full max-w-sm shadow-2xl text-center space-y-8 relative overflow-hidden"
+                        >
+                            <div className="w-20 h-20 rounded-[28px] bg-rose-500 text-white flex items-center justify-center mx-auto shadow-2xl shadow-rose-500/40">
+                                <Trash2 className="w-10 h-10" />
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-black uppercase tracking-tight text-black">Reset Analytics?</h3>
+                                <p className="text-[11px] font-bold text-black/40 leading-relaxed uppercase tracking-widest px-4">
+                                    All recorded workout logs will be permanently deleted from your matrix. Are you sure?
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col gap-3">
+                                <button 
+                                    onClick={confirmClear}
+                                    className="w-full py-5 bg-rose-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all"
+                                >
+                                    Confirm Reset
+                                </button>
+                                <button 
+                                    onClick={() => setShowClearModal(false)}
+                                    className="w-full py-5 bg-black/[0.03] text-black/40 rounded-2xl text-[11px] font-black uppercase tracking-widest active:scale-95 transition-all"
+                                >
+                                    Nevermind
                                 </button>
                             </div>
                         </motion.div>

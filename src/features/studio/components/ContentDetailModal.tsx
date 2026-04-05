@@ -154,7 +154,7 @@ function NotepadEditor({ value, onChange }: { value: string; onChange: (v: strin
 }
 
 export default function ContentDetailModal({ isOpen, onClose, item, initialTab }: ContentDetailModalProps) {
-    const { refresh, updateContent, deleteContent, projects, milestones, addMilestone, updateMilestone, deleteMilestone, regenerateContentCover, generatingContentIds, stageItem } = useStudio()
+    const { refresh, updateContent, deleteContent, projects, milestones, addMilestone, updateMilestone, deleteMilestone, regenerateContentCover, generatingContentIds, stageItem, press } = useStudio()
     const [activeTab, setActiveTab] = useState<'details' | 'script'>(initialTab || 'details')
     const [isEditing, setIsEditing] = useState(false)
     const [isClearingImage, setIsClearingImage] = useState(false)
@@ -560,6 +560,43 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
                                             className="p-6 bg-black/[0.02] rounded-3xl border border-black/5"
                                         />
 
+                                        {/* Linked Press Appearance */}
+                                        {item.press_ids && item.press_ids.length > 0 && (
+                                            <div className="p-6 bg-black/[0.015] border border-black/[0.03] rounded-3xl space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-black/30">Linked Media ({item.press_ids.length})</span>
+                                                    <Globe className="w-3.5 h-3.5 text-black/20" />
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {item.press_ids.map(id => {
+                                                        const p = press.find(pr => pr.id === id)
+                                                        if (!p) return null
+                                                        return (
+                                                            <div key={id} className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-xl overflow-hidden border border-black/5 shrink-0 bg-black/5">
+                                                                    {p.cover_url && (
+                                                                        <img 
+                                                                            src={p.cover_url} 
+                                                                            className="w-full h-full object-cover"
+                                                                            alt="Press Link"
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-[11px] font-black text-black leading-tight truncate">
+                                                                        {p.title}
+                                                                    </p>
+                                                                    <p className="text-[9px] font-bold text-black/30 uppercase tracking-widest mt-0.5 truncate">
+                                                                        {p.organization}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div className="p-6 bg-black/[0.02] rounded-3xl border border-black/5 space-y-6">
                                             <div className="space-y-4">
                                                 <div className="flex items-center justify-between">
@@ -736,6 +773,56 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
                                                     value={(editedData.deadline ?? item.deadline ?? '').split('T')[0]}
                                                     onChange={val => setEditedData(prev => ({ ...prev, deadline: val }))}
                                                 />
+                                            </div>
+
+                                            {/* Press Selection Row */}
+                                            <div className="space-y-3 pt-4 border-t border-black/5">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Associated Press / Recognition</label>
+                                                    <span className="text-[8px] font-black text-black/20 uppercase tracking-widest">Multi-Link Enabled</span>
+                                                </div>
+                                                
+                                                {/* Selected Press Tags */}
+                                                <div className="flex flex-wrap gap-2 mb-3">
+                                                    {(editedData.press_ids || item.press_ids || []).map(id => {
+                                                        const p = press.find(pr => pr.id === id)
+                                                        if (!p) return null
+                                                        return (
+                                                            <div key={id} className="flex items-center gap-2 px-3 py-1.5 bg-black/[0.03] border border-black/5 rounded-xl">
+                                                                <span className="text-[10px] font-bold text-black/60">{p.organization}: {p.title}</span>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const current = editedData.press_ids || item.press_ids || []
+                                                                        setEditedData(prev => ({ ...prev, press_ids: current.filter(x => x !== id) }))
+                                                                    }}
+                                                                    className="p-1 hover:bg-black/5 rounded-md transition-colors"
+                                                                >
+                                                                    <X className="w-3 h-3 text-black/40" />
+                                                                </button>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+
+                                                <select
+                                                    value=""
+                                                    onChange={e => {
+                                                        if (!e.target.value) return
+                                                        const current = editedData.press_ids || item.press_ids || []
+                                                        if (current.includes(e.target.value)) return
+                                                        setEditedData(prev => ({ ...prev, press_ids: [...current, e.target.value] }))
+                                                    }}
+                                                    className="w-full px-5 py-3.5 bg-black/[0.02] border border-black/[0.05] rounded-2xl text-[13px] font-bold focus:outline-none focus:border-orange-200 appearance-none cursor-pointer"
+                                                >
+                                                    <option value="">Add Press Item...</option>
+                                                    {press
+                                                        .filter(pr => !(editedData.press_ids || item.press_ids || []).includes(pr.id))
+                                                        .map(pr => (
+                                                            <option key={pr.id} value={pr.id}>
+                                                                {pr.organization}: {pr.title}
+                                                            </option>
+                                                        ))}
+                                                </select>
                                             </div>
 
                                             {/* Impact Score Control */}
