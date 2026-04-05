@@ -25,8 +25,9 @@ export function useTasks(category: 'todo' | 'grocery' | 'reminder' | 'essential'
 
     const tasks = useMemo(() => {
         const categoryTasks = allTasks[category] || []
+        if (activeProfile === 'all') return categoryTasks
         return categoryTasks.filter((t: Task) => t.profile === activeProfile)
-    }, [allTasks[category], category, activeProfile])
+    }, [allTasks, category, activeProfile])
 
     const fetchTasks = useCallback(() => contextFetchTasks(category), [contextFetchTasks, category])
 

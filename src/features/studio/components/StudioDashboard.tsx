@@ -72,7 +72,7 @@ export default function StudioDashboard() {
                             { label: 'Projects', href: '/create/projects', icon: Rocket, color: 'text-orange-600', bg: 'bg-orange-500/10' },
                             { label: 'Content', href: '/create/content', icon: Video, color: 'text-blue-600', bg: 'bg-blue-600/10' },
                             { label: 'Canvas', href: '/create/canvas', icon: PenLine, color: 'text-rose-600', bg: 'bg-rose-500/10' },
-                            { label: 'Sparks', href: '/create/sparks', icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
+                            { label: 'Tools', href: '/create/sparks', icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
                             { label: 'Network', href: '/create/network', icon: Users, color: 'text-purple-600', bg: 'bg-purple-500/10' },
                             { label: 'Press', href: '/create/press', icon: Award, color: 'text-amber-600', bg: 'bg-amber-500/10' },
                             ...(!settings.is_demo_mode ? [{ label: 'Portfolio', href: '/create/portfolio', icon: Images, color: 'text-indigo-600', bg: 'bg-indigo-500/10' }] : [])
@@ -352,7 +352,7 @@ export default function StudioDashboard() {
                                 <div className="flex items-center justify-between px-2">
                                     <h2 className="text-[13px] font-bold text-black uppercase tracking-wider flex items-center gap-2">
                                         <Target className="w-4 h-4 text-emerald-500" />
-                                        Recent Sparks
+                                        Recent Tools
                                     </h2>
                                     <Link href="/create/sparks" className="text-[11px] font-bold text-black/40 hover:text-black transition-colors">See Grid</Link>
                                 </div>
@@ -393,7 +393,7 @@ export default function StudioDashboard() {
                                         className="w-full p-3 border-2 border-dashed border-black/[0.05] rounded-xl flex items-center justify-center gap-2 text-[12px] font-bold text-black/40 hover:border-emerald-200 hover:text-emerald-600 hover:bg-emerald-50/30 transition-all group"
                                     >
                                         <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-                                        Capture New Spark
+                                        Capture New Tool
                                     </button>
                                 </div>
                             </div>

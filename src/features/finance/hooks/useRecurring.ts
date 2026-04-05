@@ -7,11 +7,12 @@ import { useFinanceProfile } from '../contexts/FinanceProfileContext'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { MOCK_FINANCE, MOCK_BUSINESS } from '@/lib/demoData'
 
-export function useRecurring() {
+export function useRecurring(profileOverride?: string) {
     const [obligations, setObligations] = useState<RecurringObligation[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const { activeProfile, refreshTrigger, globalRefresh } = useFinanceProfile()
+    const { activeProfile: contextProfile, refreshTrigger, globalRefresh } = useFinanceProfile()
+    const activeProfile = profileOverride || contextProfile
     const { settings } = useSystemSettings()
 
     const fetchObligations = useCallback(async () => {
@@ -48,11 +49,13 @@ export function useRecurring() {
         }
         // Only show loading spinner on initial load (when there's no data yet)
         if (obligations.length === 0) setLoading(true)
-        const { data, error } = await supabase
-            .from('fin_recurring')
-            .select('*')
-            .eq('profile', activeProfile)
-            .order('next_due_date', { ascending: true })
+        
+        let query = supabase.from('fin_recurring').select('*')
+        if (activeProfile !== 'all') {
+            query = query.eq('profile', activeProfile)
+        }
+        
+        const { data, error } = await query.order('next_due_date', { ascending: true })
 
         if (error) setError(error.message)
         else setObligations(data ?? [])

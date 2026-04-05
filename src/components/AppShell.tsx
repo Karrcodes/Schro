@@ -11,16 +11,53 @@ import { FloatingModulePicker } from './FloatingModulePicker'
 import { X } from 'lucide-react'
 
 function SplitView() {
-    const { leftUrl, rightUrl, focusedPane, setFocusedPane, toggleMultitasking } = useMultitasking()
+    const { leftUrl, rightUrl, focusedPane, setFocusedPane, toggleMultitasking, splitPosition, setSplitPosition } = useMultitasking()
+    const [isResizing, setIsResizing] = React.useState(false)
 
-    const renderPane = (pane: Pane, url: string) => {
+    const startResizing = React.useCallback((e: React.MouseEvent) => {
+        setIsResizing(true)
+        e.preventDefault()
+    }, [])
+
+    const stopResizing = React.useCallback(() => {
+        setIsResizing(false)
+    }, [])
+
+    const resize = React.useCallback((e: MouseEvent) => {
+        if (isResizing) {
+            const newSplit = (e.clientX / window.innerWidth) * 100
+            if (newSplit > 20 && newSplit < 80) {
+                setSplitPosition(newSplit)
+            }
+        }
+    }, [isResizing, setSplitPosition])
+
+    React.useEffect(() => {
+        if (isResizing) {
+            window.addEventListener('mousemove', resize)
+            window.addEventListener('mouseup', stopResizing)
+        } else {
+            window.removeEventListener('mousemove', resize)
+            window.removeEventListener('mouseup', stopResizing)
+        }
+        return () => {
+            window.removeEventListener('mousemove', resize)
+            window.removeEventListener('mouseup', stopResizing)
+        }
+    }, [isResizing, resize, stopResizing])
+
+    const renderPane = (pane: Pane, url: string, widthPercentage: number) => {
         const isFocused = focusedPane === pane
         return (
             <div 
                 className={cn(
-                    "flex-1 relative transition-all duration-300 h-full overflow-hidden rounded-xl bg-white border border-black/5",
+                    "relative transition-all duration-300 h-full overflow-hidden rounded-xl bg-white border border-black/5",
                     isFocused ? "ring-2 ring-blue-500/20 border-blue-500/30 z-10 shadow-lg" : "opacity-90 scale-[0.995]"
                 )}
+                style={{ 
+                    flex: `0 0 ${widthPercentage}%`,
+                    maxWidth: `${widthPercentage}%`
+                }}
                 onMouseEnter={() => setFocusedPane(pane)}
             >
                 {/* Floating Navigation for this pane */}
@@ -35,9 +72,27 @@ function SplitView() {
     }
 
     return (
-        <div className="flex h-screen w-full bg-[#f5f5f5] gap-2 p-2 relative">
-            {renderPane('left', leftUrl)}
-            {renderPane('right', rightUrl)}
+        <div className={cn(
+            "flex h-screen w-full bg-[#f5f5f5] gap-0.5 p-2 relative",
+            isResizing ? "cursor-col-resize select-none" : ""
+        )}>
+            {renderPane('left', leftUrl, splitPosition)}
+            
+            {/* Resizer Handle */}
+            <div 
+                onMouseDown={startResizing}
+                className={cn(
+                    "w-1 group relative cursor-col-resize hover:bg-blue-500/40 transition-colors z-[60]",
+                    isResizing ? "bg-blue-500" : "bg-transparent"
+                )}
+            >
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-12 bg-white/10 backdrop-blur-md rounded-full border border-black/5 flex flex-col items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-0.5 h-3 bg-black/20 rounded-full" />
+                    <div className="w-0.5 h-3 bg-black/20 rounded-full" />
+                </div>
+            </div>
+
+            {renderPane('right', rightUrl, 100 - splitPosition)}
 
             {/* Persistent Exit Button */}
             <button

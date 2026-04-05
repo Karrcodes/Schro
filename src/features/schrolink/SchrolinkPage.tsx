@@ -612,7 +612,7 @@ export default function SchrolinkPage() {
                     viewport={{ once: true }}
                     className="bg-white rounded-2xl border border-black/[0.06] shadow-sm p-8 text-center"
                 >
-                    <img src="/schro-cat.svg" alt="Schrö" className="w-8 h-8 object-contain opacity-10 mx-auto mb-4" />
+                    <img src="/schro-logo-svg.svg" alt="Schrö" className="w-8 h-8 object-contain opacity-10 mx-auto mb-4" />
                     <p className="text-[15px] font-bold text-black/60 leading-relaxed max-w-xl mx-auto">
                         "Schrö is the bridge between who you are today and who you are becoming. Every data point captured is a step toward a system that truly knows you."
                     </p>

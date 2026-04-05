@@ -12,10 +12,17 @@ const PUBLIC_ROUTES = [
     '/terms',
     '/api/auth',
     '/api/studio',
+    '/api/calendar',
+    '/api/apple-sync',
+    '/api/calendar/apple',
 ]
 
 function isPublicRoute(pathname: string) {
-    return PUBLIC_ROUTES.some(route => pathname.startsWith(route))
+    const isPublic = PUBLIC_ROUTES.some(route => pathname.startsWith(route))
+    if (!isPublic && pathname.includes('api')) {
+        console.log(`[Proxy] NON-PUBLIC API ROUTE: ${pathname}`)
+    }
+    return isPublic
 }
 
 async function getUserStatus(userId: string): Promise<string | null> {
@@ -33,8 +40,13 @@ async function getUserStatus(userId: string): Promise<string | null> {
     return data?.status ?? null
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
+
+    // 🚨 EMERGENCY BYPASS FOR APPLE SYNC 🚨
+    if (pathname.includes('apple')) {
+        return NextResponse.next()
+    }
 
     // Always set x-pathname for use in layouts
     const requestHeaders = new Headers(request.headers)
@@ -69,6 +81,10 @@ export async function proxy(request: NextRequest) {
             }
             // Logged in but not approved — let them see login or go to waitlist
             return NextResponse.redirect(new URL('/waitlist', request.url))
+        }
+        // Ensure we don't redirect public API routes to login
+        if (pathname.includes('/api/') && (supabaseResponse.status === 307 || supabaseResponse.status === 302)) {
+            return NextResponse.next()
         }
         return supabaseResponse
     }

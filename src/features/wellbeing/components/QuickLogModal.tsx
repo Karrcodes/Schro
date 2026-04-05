@@ -2,10 +2,11 @@
 
 import React, { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Search, Sparkles, Check, Database } from 'lucide-react'
+import { X, Search, Sparkles, Check, Database, ChefHat } from 'lucide-react'
 import { useWellbeing } from '../contexts/WellbeingContext'
 import { ComboEmojiStack } from './ComboEmojiStack'
 import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
 import type { LibraryMeal } from '../types'
 
 interface QuickLogModalProps {
@@ -13,18 +14,18 @@ interface QuickLogModalProps {
     onClose: () => void
 }
 
-type LogType = 'meal' | 'weight'
-
 export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
-    const { logWeight, logMeal, addMealToLibrary, profile, library } = useWellbeing()
-    const [activeTab, setActiveTab] = useState<LogType>('meal')
+    const { logMeal, consumeFromFridge, addMealToLibrary, library, fridge } = useWellbeing()
+    const [activeTab, setActiveTab] = useState<'custom' | 'library' | 'combos' | 'fridge'>('custom')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [showSuccess, setShowSuccess] = useState(false)
 
-    // Weight State
-    const [weight, setWeight] = useState(profile?.weight?.toString() || '')
+    // Selection State
+    const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null)
+    const [selectedFridgeId, setSelectedFridgeId] = useState<string | null>(null)
+    const [searchQuery, setSearchQuery] = useState('')
 
-    // Meal State
+    // Custom Meal State
     const [mealName, setMealName] = useState('')
     const [mealEmoji, setMealEmoji] = useState('🍽️')
     const [mealCals, setMealCals] = useState('')
@@ -36,12 +37,17 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
     const [comboContents, setComboContents] = useState<any[]>([])
     const [estimatedIngredients, setEstimatedIngredients] = useState<any[]>([])
 
-    // Library Autocomplete State
-    const [showLibraryDropdown, setShowLibraryDropdown] = useState(false)
-    const filteredLibrary = useMemo(() => {
-        if (!mealName.trim() || !showLibraryDropdown) return []
-        return library.filter(m => m.name.toLowerCase().includes(mealName.toLowerCase()))
-    }, [mealName, library, showLibraryDropdown])
+    const filteredMeals = useMemo(() => {
+        const meals = library.filter(m => !m.isCombo)
+        if (!searchQuery.trim()) return meals
+        return meals.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    }, [searchQuery, library])
+
+    const filteredCombos = useMemo(() => {
+        const combos = library.filter(m => !!m.isCombo)
+        if (!searchQuery.trim()) return combos
+        return combos.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    }, [searchQuery, library])
 
     const handleSuccess = () => {
         setShowSuccess(true)
@@ -53,6 +59,9 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
             setMealEmoji('🍽️')
             setMealCals('')
             setMealMacros({ protein: 0, carbs: 0, fat: 0 })
+            setSelectedLibraryId(null)
+            setSelectedFridgeId(null)
+            setSearchQuery('')
         }, 1500)
     }
 
@@ -109,10 +118,33 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
         e.preventDefault()
         setIsSubmitting(true)
 
+        const typeToLog = mealType.length > 0 ? mealType[0] : 'snack'
+
         try {
-            if (activeTab === 'weight') {
-                await logWeight(parseFloat(weight))
-            } else if (activeTab === 'meal') {
+            if (activeTab === 'fridge') {
+                if (selectedFridgeId) {
+                    await consumeFromFridge(selectedFridgeId, typeToLog)
+                }
+            } else if (activeTab === 'library' || activeTab === 'combos') {
+                if (selectedLibraryId) {
+                    const libItem = library.find(m => m.id === selectedLibraryId)
+                    if (libItem) {
+                        await logMeal({
+                            name: libItem.name,
+                            emoji: libItem.emoji || '🍽️',
+                            calories: libItem.calories,
+                            protein: libItem.protein,
+                            fat: libItem.fat,
+                            carbs: libItem.carbs,
+                            type: typeToLog,
+                            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                            date: new Date().toISOString().split('T')[0],
+                            isCombo: !!libItem.isCombo,
+                            contents: libItem.contents || []
+                        })
+                    }
+                }
+            } else if (activeTab === 'custom') {
                 const cals = parseInt(mealCals) || 0
 
                 if (saveToLibrary) {
@@ -135,7 +167,7 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
                     protein: mealMacros.protein,
                     fat: mealMacros.fat,
                     carbs: mealMacros.carbs,
-                    type: mealType.length > 0 ? mealType[0] : 'snack', // logMeal expects singular type, use first tag or default
+                    type: typeToLog,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     date: new Date().toISOString().split('T')[0],
                     isCombo,
@@ -184,10 +216,14 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
 
                 {/* Tabs */}
                 <div className="px-8 flex items-center gap-2 mb-6 shrink-0">
-                    {(['meal', 'weight'] as const).map((tab) => (
+                    {(['custom', 'library', 'combos', 'fridge'] as const).map((tab) => (
                         <button
                             key={tab}
-                            onClick={() => setActiveTab(tab)}
+                            onClick={() => {
+                                setActiveTab(tab)
+                                setSelectedLibraryId(null)
+                                setSelectedFridgeId(null)
+                            }}
                             className={cn(
                                 "flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border",
                                 activeTab === tab
@@ -204,9 +240,9 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
                 <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar">
                     <form id="quick-log-form" onSubmit={handleSubmit} className="space-y-6">
                         <AnimatePresence mode="wait">
-                            {activeTab === 'meal' && (
+                            {activeTab === 'custom' && (
                                 <motion.div
-                                    key="meal"
+                                    key="custom"
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
@@ -214,44 +250,6 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
                                 >
                                     {/* Manual Fields */}
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2 col-span-2">
-                                            <label className="text-[10px] font-black text-black/30 uppercase tracking-widest px-1">Meal Type</label>
-                                            <div className="flex bg-black/[0.02] rounded-2xl p-1 gap-1 border border-black/5">
-                                                {(['dewbit', 'breakfast', 'lunch', 'dinner', 'snack'] as const).map(type => {
-                                                    const isSelected = mealType.includes(type)
-                                                    const colorClass = isSelected
-                                                        ? type === 'breakfast' ? 'bg-amber-400 text-white shadow-sm'
-                                                            : type === 'lunch' ? 'bg-emerald-400 text-white shadow-sm'
-                                                            : type === 'dinner' ? 'bg-blue-400 text-white shadow-sm'
-                                                            : type === 'snack' ? 'bg-rose-400 text-white shadow-sm'
-                                                            : 'bg-violet-400 text-white shadow-sm'
-                                                        : 'text-black/30 hover:bg-black/[0.04]'
-                                                    return (
-                                                        <button
-                                                            key={type}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                if (saveToLibrary) {
-                                                                    setMealType(prev => 
-                                                                        prev.includes(type) 
-                                                                            ? prev.filter(t => t !== type) 
-                                                                            : [...prev, type]
-                                                                    )
-                                                                } else {
-                                                                    setMealType([type])
-                                                                }
-                                                            }}
-                                                            className={cn(
-                                                                "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                                                colorClass
-                                                            )}
-                                                        >
-                                                            {type}
-                                                        </button>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
                                         <div className="space-y-2 col-span-2 relative">
                                             <label className="text-[10px] font-black text-black/30 uppercase tracking-widest px-1">Meal Name / AI Prompt</label>
                                             <div className="flex bg-black/[0.02] border border-black/5 rounded-2xl overflow-hidden focus-within:border-emerald-500/50 transition-colors">
@@ -275,12 +273,7 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
                                                 <input
                                                     type="text"
                                                     value={mealName}
-                                                    onChange={(e) => {
-                                                        setMealName(e.target.value)
-                                                        setShowLibraryDropdown(true)
-                                                    }}
-                                                    onFocus={() => setShowLibraryDropdown(true)}
-                                                    onBlur={() => setTimeout(() => setShowLibraryDropdown(false), 200)}
+                                                    onChange={e => setMealName(e.target.value)}
                                                     onKeyDown={e => {
                                                         if (e.key === 'Enter') {
                                                             e.preventDefault()
@@ -304,39 +297,6 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
                                                     )}
                                                 </button>
                                             </div>
-
-                                            {filteredLibrary.length > 0 && (
-                                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-black/5 rounded-2xl shadow-xl z-50 max-h-[200px] overflow-y-auto custom-scrollbar p-2">
-                                                    {filteredLibrary.map(libItem => (
-                                                        <button
-                                                            key={libItem.id}
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.preventDefault()
-                                                                loadFromLibrary(libItem)
-                                                                setShowLibraryDropdown(false)
-                                                            }}
-                                                            className="w-full text-left p-2 rounded-xl border border-transparent hover:border-black/5 bg-transparent hover:bg-black/[0.02] transition-colors flex justify-between items-center group"
-                                                        >
-                                                            <div className="flex items-center gap-3">
-                                                                <ComboEmojiStack 
-                                                                    isCombo={libItem.isCombo}
-                                                                    contents={libItem.contents}
-                                                                    fallbackEmoji={libItem.emoji}
-                                                                    size="sm"
-                                                                />
-                                                                <div>
-                                                                    <div className="text-[12px] font-bold text-black">{libItem.name}</div>
-                                                                    <div className="text-[10px] font-bold text-black/40 mt-0.5">
-                                                                        {libItem.calories} kcal • {libItem.protein}P • {libItem.carbs}C • {libItem.fat}F
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <Search className="w-4 h-4 text-black/0 group-hover:text-black/20 transition-colors" />
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-black/30 uppercase tracking-widest px-1">Calories</label>
@@ -402,38 +362,171 @@ export function QuickLogModal({ isOpen, onClose }: QuickLogModalProps) {
                                 </motion.div>
                             )}
 
-                            {activeTab === 'weight' && (
+                            {(activeTab === 'library' || activeTab === 'combos') && (
                                 <motion.div
-                                    key="weight"
+                                    key={activeTab}
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
                                     className="space-y-4"
                                 >
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-black/30 uppercase tracking-widest px-1">Weight (kg)</label>
+                                    <div className="relative">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
                                         <input
-                                            type="number"
-                                            step="0.1"
-                                            value={weight}
-                                            onChange={(e) => setWeight(e.target.value)}
-                                            className="w-full bg-black/[0.02] border border-black/5 rounded-2xl px-6 py-4 text-xl font-black focus:outline-none focus:border-rose-500/50 transition-colors"
-                                            placeholder="0.0"
-                                            autoFocus
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            placeholder={`Search ${activeTab}...`}
+                                            className="w-full bg-black/[0.02] border border-black/5 rounded-2xl pl-12 pr-4 py-3.5 text-[14px] font-black uppercase focus:outline-none focus:border-emerald-500/50 transition-colors placeholder:text-black/20"
                                         />
                                     </div>
+                                    <div className="space-y-2">
+                                        {(activeTab === 'library' ? filteredMeals : filteredCombos).map(libItem => (
+                                            <div
+                                                key={libItem.id}
+                                                onClick={() => setSelectedLibraryId(libItem.id)}
+                                                className={cn(
+                                                    "w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group",
+                                                    selectedLibraryId === libItem.id 
+                                                        ? "bg-black text-white border-black shadow-lg" 
+                                                        : "bg-transparent border-black/5 hover:border-black/10 hover:bg-black/[0.02]"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className={cn("shrink-0", selectedLibraryId === libItem.id ? "opacity-90" : "")}>
+                                                        <ComboEmojiStack 
+                                                            isCombo={libItem.isCombo}
+                                                            contents={libItem.contents}
+                                                            fallbackEmoji={libItem.emoji}
+                                                            size="md"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <div className={cn("text-[14px] font-bold", selectedLibraryId === libItem.id ? "text-white" : "text-black")}>
+                                                            {libItem.name}
+                                                        </div>
+                                                        <div className={cn("text-[11px] font-bold mt-1 tracking-wide", selectedLibraryId === libItem.id ? "text-white/60" : "text-black/40")}>
+                                                            {libItem.calories} kcal • {libItem.protein}P • {libItem.carbs}C • {libItem.fat}F
+                                                            {libItem.isCombo && libItem.contents && ` • ${libItem.contents.length} Items`}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {selectedLibraryId === libItem.id && (
+                                                    <Check className="w-5 h-5 text-white" />
+                                                )}
+                                            </div>
+                                        ))}
+                                        {(activeTab === 'library' ? filteredMeals : filteredCombos).length === 0 && (
+                                            <p className="text-center text-[11px] font-bold tracking-widest uppercase text-black/30 py-8">No items found.</p>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {activeTab === 'fridge' && (
+                                <motion.div
+                                    key="fridge"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    className="space-y-4"
+                                >
+                                    {fridge.length === 0 ? (
+                                        <div className="text-center py-12 space-y-3">
+                                            <div className="w-16 h-16 bg-black/[0.02] rounded-full flex items-center justify-center mx-auto mb-2">
+                                                <ChefHat className="w-8 h-8 text-black/10" />
+                                            </div>
+                                            <h3 className="text-[12px] font-black text-black/60 uppercase tracking-widest">Fridge is Empty</h3>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {fridge.map(item => {
+                                                const meal = library.find(m => m.id === item.mealId)
+                                                if (!meal) return null
+
+                                                return (
+                                                    <div
+                                                        key={item.id}
+                                                        onClick={() => setSelectedFridgeId(item.id)}
+                                                        className={cn(
+                                                            "w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group",
+                                                            selectedFridgeId === item.id 
+                                                                ? "bg-black text-white border-black shadow-lg" 
+                                                                : "bg-transparent border-black/5 hover:border-black/10 hover:bg-black/[0.02]"
+                                                        )}
+                                                    >
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={cn("shrink-0", selectedFridgeId === item.id ? "opacity-90" : "")}>
+                                                                <ComboEmojiStack 
+                                                                    isCombo={meal.isCombo}
+                                                                    contents={meal.contents}
+                                                                    fallbackEmoji={meal.emoji}
+                                                                    size="md"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <div className={cn("text-[14px] font-bold", selectedFridgeId === item.id ? "text-white" : "text-black")}>
+                                                                    {meal.name}
+                                                                </div>
+                                                                <div className={cn("text-[11px] font-bold mt-1 tracking-wide", selectedFridgeId === item.id ? "text-white/60" : "text-black/40")}>
+                                                                    {item.portions} portion{item.portions !== 1 ? 's' : ''} left • {meal.calories} kcal
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        {selectedFridgeId === item.id && (
+                                                            <Check className="w-5 h-5 text-white" />
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
                         </AnimatePresence>
                     </form>
                 </div>
 
-                {/* Footer Pinned Button */}
-                <div className="p-8 pt-4 shrink-0 bg-white border-t border-black/5">
+                {/* Footer Pinned Area */}
+                <div className="p-8 pt-4 shrink-0 bg-white border-t border-black/5 space-y-5 z-10">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-black/30 uppercase tracking-widest px-1">Meal Type</label>
+                        <div className="flex bg-black/[0.02] rounded-2xl p-1 gap-1 border border-black/5">
+                            {(['dewbit', 'breakfast', 'lunch', 'dinner', 'snack'] as const).map(type => {
+                                const isSelected = mealType.includes(type)
+                                const colorClass = isSelected
+                                    ? type === 'breakfast' ? 'bg-amber-400 text-white shadow-sm'
+                                        : type === 'lunch' ? 'bg-emerald-400 text-white shadow-sm'
+                                        : type === 'dinner' ? 'bg-blue-400 text-white shadow-sm'
+                                        : type === 'snack' ? 'bg-rose-400 text-white shadow-sm'
+                                        : 'bg-violet-400 text-white shadow-sm'
+                                    : 'text-black/30 hover:bg-black/[0.04]'
+                                return (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        onClick={() => setMealType([type])}
+                                        className={cn(
+                                            "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                            colorClass
+                                        )}
+                                    >
+                                        {type}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+
                     <button
                         type="submit"
                         form="quick-log-form"
-                        disabled={isSubmitting || showSuccess || (activeTab === 'meal' && !mealName)}
+                        disabled={
+                            isSubmitting || showSuccess || 
+                            (activeTab === 'custom' && !mealName) ||
+                            ((activeTab === 'library' || activeTab === 'combos') && !selectedLibraryId) ||
+                            (activeTab === 'fridge' && !selectedFridgeId)
+                        }
                         className={cn(
                             "w-full py-5 rounded-[24px] text-[12px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 disabled:opacity-50",
                             showSuccess

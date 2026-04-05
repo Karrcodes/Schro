@@ -127,16 +127,12 @@ function HealthLayoutContent({ children }: { children: React.ReactNode }) {
 
 
                 {/* Tab Content */}
-                <div className={cn("flex-grow flex flex-col", !isSessionRoute && "px-6 pt-6 pb-0 md:px-10 md:pt-10 md:pb-0")}>
-                    <div className={cn("w-full h-full flex flex-col", !isSessionRoute && "max-w-7xl mx-auto space-y-4")}>
+                <div className={cn("flex-1", !isSessionRoute && "px-6 py-6 md:px-10 md:py-10")}>
+                    <div className={cn("w-full", !isSessionRoute && "max-w-7xl mx-auto space-y-4")}>
                         {children}
-                        {!isSessionRoute && (
-                            <div className="mt-auto pt-0">
-                                <KarrFooter />
-                            </div>
-                        )}
                     </div>
                 </div>
+                {!isSessionRoute && <KarrFooter />}
             </div>
 
 

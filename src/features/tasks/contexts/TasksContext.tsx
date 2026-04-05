@@ -116,7 +116,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
                 origin_location: taskData.origin_location,
                 is_completed: false,
                 category: category as any,
-                profile: activeProfile as any,
+                profile: (taskData.profile || activeProfile) as any,
                 created_at: new Date().toISOString(),
                 position: allTasks.length > 0 ? Math.max(...allTasks.map((t: Task) => t.position || 0)) + 1000 : Date.now()
             }
@@ -130,7 +130,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         const { error } = await supabase.from('fin_tasks').insert({
             ...taskData,
             category,
-            profile: activeProfile,
+            profile: taskData.profile || activeProfile,
             position: currentTasks.length > 0 ? Math.max(...currentTasks.map((t: Task) => t.position || 0)) + 1000 : Date.now(),
         })
         if (error) throw error
@@ -163,7 +163,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
                 price: taskData.price,
                 is_completed: false,
                 category: category as any,
-                profile: activeProfile as any,
+                profile: (taskData.profile || activeProfile) as any,
                 created_at: new Date().toISOString(),
                 position: lastPosition + (idx + 1) * 1000
             }))
@@ -180,7 +180,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         const finalTasks = tasksData.map((taskData, idx) => ({
             ...taskData,
             category,
-            profile: activeProfile,
+            profile: taskData.profile || activeProfile,
             position: lastPosition + (idx + 1) * 1000,
             is_completed: false,
         }))

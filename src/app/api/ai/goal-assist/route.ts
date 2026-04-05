@@ -11,9 +11,11 @@ export async function POST(req: NextRequest) {
 
         const prompt = `You are KarrAI, a strategic life-OS assistant. A user wants to create a goal with the title: "${title}".
 
+If the title starts with "I want...", treat this as a "Manifestation" goal—focus on the emotional and identity-based transformation. Otherwise, treat it as a standard strategic goal.
+
 Generate intelligent suggestions for this goal in exactly this JSON format (no markdown, no code blocks, just raw JSON):
 {
-  "description": "A clear, motivating 1-2 sentence description of what achieving this goal would look like in practice",
+  "description": "A clear, motivating 1-2 sentence description of what achieving this goal would look like in practice, written in a visionary and inspiring tone",
   "category": "one of: finance, health, career, personal",
   "priority": "one of: low, mid, high, urgent",
   "timeframe": "one of: short, medium, long (short=3-6 months, medium=1-2 years, long=strategic/legacy)",

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Pot } from '../types/finance.types'
 import { useFinanceProfile } from '../contexts/FinanceProfileContext'
@@ -23,18 +23,35 @@ export function usePots(profileOverride?: ProfileType) {
     const activeProfile = profileOverride || contextProfile
     const { settings } = useSystemSettings()
 
+    const isCheckingMonzo = useRef(false)
+    const lastMonzoCheck = useRef(0)
+
     const checkMonzoConnection = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return setIsMonzoConnected(false)
+        // Debounce and prevent concurrent checks
+        const now = Date.now()
+        if (isCheckingMonzo.current || (now - lastMonzoCheck.current < 10000)) return
+        
+        isCheckingMonzo.current = true
+        try {
+            const { data: { session } } = await supabase.auth.getSession()
+            const user = session?.user
+            if (!user) {
+                setIsMonzoConnected(false)
+                return
+            }
 
-        const { data, error } = await supabase
-            .from('fin_secrets')
-            .select('service')
-            .eq('user_id', user.id)
-            .eq('service', 'monzo')
-            .single()
+            const { data, error } = await supabase
+                .from('fin_secrets')
+                .select('service')
+                .eq('user_id', user.id)
+                .eq('service', 'monzo')
+                .single()
 
-        setIsMonzoConnected(!!data && !error)
+            setIsMonzoConnected(!!data && !error)
+            lastMonzoCheck.current = Date.now()
+        } finally {
+            isCheckingMonzo.current = false
+        }
     }
 
     const fetchPots = async () => {

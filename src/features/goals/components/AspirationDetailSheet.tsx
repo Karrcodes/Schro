@@ -1,0 +1,313 @@
+'use client'
+
+import React, { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Sparkles, Trash2, Pencil, Loader2, Wand2, CheckCircle2, Circle, Calendar, Clock, Globe } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import ConfirmationModal from '@/components/ConfirmationModal'
+import { useGoals } from '../hooks/useGoals'
+import type { Aspiration, Milestone } from '../types/goals.types'
+
+interface AspirationDetailSheetProps {
+    aspiration: Aspiration | null
+    isOpen: boolean
+    onClose: () => void
+    onToggleMilestone: (milestoneId: string, completed: boolean) => void
+    onUpdateMilestone: (milestoneId: string, updates: Partial<Milestone>) => void
+    onDelete: (id: string) => Promise<void>
+    onEdit: (aspiration: Aspiration) => void
+}
+
+export default function AspirationDetailSheet({ aspiration, isOpen, onClose, onToggleMilestone, onUpdateMilestone, onDelete, onEdit }: AspirationDetailSheetProps) {
+    const { regenerateAspirationCover, generatingAspirationIds } = useGoals()
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    
+    // Sticky state for smooth exit transitions
+    const [displayAspiration, setDisplayAspiration] = useState<Aspiration | null>(aspiration)
+
+    useEffect(() => {
+        if (aspiration) {
+            setDisplayAspiration(aspiration)
+        }
+    }, [aspiration])
+
+    // The data to actually render
+    const activeAspiration = aspiration || displayAspiration
+
+    if (!activeAspiration) return null
+
+    const isGenerating = activeAspiration ? generatingAspirationIds?.includes(activeAspiration.id) : false
+    const totalMilestones = activeAspiration.milestones?.length || 0
+    const completedMilestones = activeAspiration.milestones?.filter(m => m.is_completed).length || 0
+    const progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0
+
+    return (
+        <AnimatePresence>
+            {isOpen && activeAspiration && (
+                <>
+                    {/* Backdrop */}
+                    <motion.div
+                        key="backdrop-aspiration"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90]"
+                    />
+
+                    {/* Sheet */}
+                    <motion.div
+                        key="sheet-aspiration"
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[100] max-h-[90vh] overflow-y-auto shadow-2xl border-t border-black/5 no-scrollbar"
+                    >
+                        {/* Command Center: Absolute to Modal Sheet, Far Right */}
+                        <div className="absolute top-8 right-8 md:top-10 md:right-12 flex items-center gap-3 z-50">
+                            <button
+                                onClick={() => onEdit(activeAspiration)}
+                                className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-black text-white rounded-full transition-all active:scale-90 shadow-xl shadow-black/10 hover:scale-110 group"
+                                title="Edit Dream"
+                            >
+                                <Pencil className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-black/[0.03] hover:bg-black/[0.1] rounded-full transition-all active:scale-90 border border-black/5 group"
+                                title="Close Sheet"
+                            >
+                                <X className="w-4 h-4 md:w-5 md:h-5 text-black/40 group-hover:text-black transition-colors" />
+                            </button>
+                        </div>
+
+                        {/* Handle */}
+                        <div className="flex justify-center p-4">
+                            <div className="w-12 h-1.5 bg-black/10 rounded-full" />
+                        </div>
+
+                        <div className="max-w-3xl mx-auto px-6 md:px-8 pt-10 md:pt-16 pb-24 md:pb-40 space-y-12">
+                            {/* Header: Left Aligned badge style */}
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="px-2 md:px-2.5 py-1 bg-black text-white rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-wider">
+                                            {activeAspiration.category}
+                                        </span>
+                                        <div className="hidden xs:block w-1 h-1 rounded-full bg-black/10" />
+                                        <span className="px-2 md:px-2.5 py-1 bg-black/[0.04] text-black/50 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-wider border border-black/5">
+                                            {activeAspiration.horizon} Strategic Horizon
+                                        </span>
+                                    </div>
+                                    <h2 className="text-[24px] md:text-[32px] font-bold text-black tracking-tight leading-[1.1]">{activeAspiration.title}</h2>
+                                    <p className="text-[14px] md:text-[15px] text-black/50 font-medium leading-relaxed max-w-xl">{activeAspiration.description || 'Consult the genie to define your future state.'}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                {/* Left Column (1/3): Metrics & Visuals */}
+                                <div className="md:col-span-1 space-y-6">
+                                    {activeAspiration.vision_image_url ? (
+                                        <div className="relative group aspect-square rounded-2xl overflow-hidden border border-black/5 shadow-xl shadow-black/5">
+                                            <img
+                                                src={activeAspiration.vision_image_url}
+                                                alt={activeAspiration.title}
+                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                            />
+                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <button
+                                                onClick={() => regenerateAspirationCover(activeAspiration.id)}
+                                                disabled={isGenerating}
+                                                className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 bg-white/90 backdrop-blur-sm text-black rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg"
+                                            >
+                                                {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                                                Regenerate
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onClick={() => !isGenerating && regenerateAspirationCover(activeAspiration.id)}
+                                            className={cn(
+                                                "aspect-square rounded-2xl border-2 border-dashed border-black/[0.08] flex flex-col items-center justify-center gap-3 text-center p-6 transition-all",
+                                                isGenerating ? "cursor-not-allowed" : "cursor-pointer hover:border-amber-400/50 hover:bg-amber-50/30 group"
+                                            )}
+                                        >
+                                            {isGenerating ? (
+                                                <>
+                                                    <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+                                                    <p className="text-[11px] font-bold uppercase text-amber-600/60 tracking-widest leading-tight">Manifesting...</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Wand2 className="w-8 h-8 text-black/10 group-hover:text-amber-500 transition-colors" />
+                                                    <p className="text-[11px] font-bold uppercase text-black/20 group-hover:text-amber-600/60 tracking-widest leading-tight transition-colors">Manifest Visual</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="p-6 bg-black/[0.02] rounded-2xl border border-black/5 space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-black/30">Realisation</span>
+                                            <span className="text-[12px] font-mono font-bold text-black">{Math.round(progress)}%</span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-black/[0.04] rounded-full overflow-hidden">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${progress}%` }}
+                                                className="h-full bg-black shadow-[0_0_10px_rgba(0,0,0,0.1)]"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-4 pt-2">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold text-black/20 uppercase tracking-tight">Pillars</span>
+                                                <span className="text-[15px] font-bold text-black">{completedMilestones}/{totalMilestones}</span>
+                                            </div>
+                                            <div className="w-px h-8 bg-black/5" />
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold text-black/20 uppercase tracking-tight">Status</span>
+                                                <span className="text-[15px] font-bold uppercase tracking-tight text-emerald-600">{activeAspiration.status}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => onEdit(activeAspiration)}
+                                        className="w-full flex items-center justify-center gap-2 py-3 bg-black/[0.04] hover:bg-black/[0.08] rounded-xl transition-colors text-[12px] font-bold uppercase tracking-widest text-black mb-1"
+                                    >
+                                        Refine Dream
+                                    </button>
+
+                                    <button
+                                        onClick={() => setShowDeleteConfirm(true)}
+                                        className="w-full flex items-center justify-center gap-2 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors text-[12px] font-bold uppercase tracking-widest"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Terminate
+                                    </button>
+                                </div>
+
+                                {/* Right Columns (2/3): Targeting & Pillars */}
+                                <div className="md:col-span-2 space-y-6">
+                                    {/* Strategic Targeting */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40">Strategic Targeting</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="p-5 bg-black/[0.01] rounded-2xl border border-black/[0.06] space-y-1 shadow-sm">
+                                                <div className="flex items-center gap-2 text-black/30 mb-2">
+                                                    <Globe className="w-3.5 h-3.5" />
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider">Horizon</span>
+                                                </div>
+                                                <p className="text-[14px] font-bold text-black uppercase tracking-tight">{activeAspiration.horizon} Strategy</p>
+                                            </div>
+                                            <div className="p-5 bg-black/[0.01] rounded-2xl border border-black/[0.06] space-y-1 shadow-sm">
+                                                <div className="flex items-center gap-2 text-black/30 mb-2">
+                                                    <Clock className="w-3.5 h-3.5" />
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider">Priority</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className={cn(
+                                                        "w-2 h-2 rounded-full",
+                                                        activeAspiration.priority === 'super' ? "bg-purple-600 animate-pulse shadow-[0_0_8px_rgba(147,51,234,0.5)]" :
+                                                            activeAspiration.priority === 'high' ? "bg-red-500" :
+                                                                activeAspiration.priority === 'mid' ? "bg-amber-500" :
+                                                                    "bg-black/20"
+                                                    )} />
+                                                    <p className={cn(
+                                                        "text-[14px] font-bold uppercase tracking-tight",
+                                                        activeAspiration.priority === 'super' ? "text-purple-600" :
+                                                            activeAspiration.priority === 'high' ? "text-red-600" :
+                                                                activeAspiration.priority === 'mid' ? "text-amber-600" :
+                                                                    "text-black"
+                                                    )}>
+                                                        {activeAspiration.priority || 'mid'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-4 border-t border-black/5">
+                                        <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40">Strategic Pillars</h3>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {activeAspiration.milestones?.map((m) => (
+                                            <div
+                                                key={m.id}
+                                                className={cn(
+                                                    "w-full flex flex-col gap-3 p-4 rounded-xl border transition-all text-left group",
+                                                    m.is_completed
+                                                        ? "bg-emerald-50 border-emerald-100 opacity-60"
+                                                        : "bg-white border-black/[0.06] hover:border-black/20"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <button
+                                                        onClick={() => onToggleMilestone(m.id, !m.is_completed)}
+                                                        className={cn(
+                                                            "w-6 h-6 rounded-lg flex items-center justify-center transition-all shrink-0",
+                                                            m.is_completed ? "bg-emerald-500 text-white" : "bg-black/5 text-black/20 group-hover:bg-black group-hover:text-white"
+                                                        )}
+                                                    >
+                                                        {m.is_completed ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                                                    </button>
+                                                    <div className="flex-1 min-w-0">
+                                                        <input
+                                                            type="text"
+                                                            value={m.title}
+                                                            onChange={(e) => onUpdateMilestone(m.id, { title: e.target.value })}
+                                                            className={cn(
+                                                                "w-full bg-transparent border-none focus:outline-none text-[14px] font-bold p-0",
+                                                                m.is_completed && "line-through text-emerald-900/40"
+                                                            )}
+                                                            placeholder="Pillar title..."
+                                                        />
+                                                    </div>
+                                                </div>
+                                                {/* Impact Score: matching Rigid Goals */}
+                                                <div className="flex items-center gap-4 pl-10">
+                                                    <div className="flex items-center gap-2 flex-1 max-w-[200px]">
+                                                        <span className="text-[9px] font-black uppercase text-black/20 whitespace-nowrap">Impact Score</span>
+                                                        <input
+                                                            type="range"
+                                                            min="1"
+                                                            max="10"
+                                                            value={m.impact_score || 5}
+                                                            onChange={(e) => onUpdateMilestone(m.id, { impact_score: parseInt(e.target.value) })}
+                                                            className="w-full h-1 bg-black/5 rounded-full appearance-none accent-black"
+                                                        />
+                                                        <span className="text-[10px] font-black text-black/40 w-4 text-center">{m.impact_score || 5}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {totalMilestones === 0 && (
+                                            <div className="p-8 text-center bg-black/[0.02] border-2 border-dashed border-black/[0.04] rounded-2xl">
+                                                <p className="text-[12px] font-medium text-black/30">Declare your strategic pillars to manifest this dream.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+
+                    <ConfirmationModal
+                        isOpen={showDeleteConfirm}
+                        onClose={() => setShowDeleteConfirm(false)}
+                        onConfirm={async () => {
+                            await onDelete(activeAspiration.id)
+                            onClose()
+                        }}
+                        title="Terminate Dream?"
+                        message={`Are you sure you want to permanently terminate "${activeAspiration.title}"? Your dreams will be removed from the strategic timeline.`}
+                        confirmText="Terminate"
+                        type="danger"
+                    />
+                </>
+            )}
+        </AnimatePresence>
+    )
+}

@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Rocket, Star, Target, ChevronRight, ArrowUpRight, Plus, Wallet, TrendingUp, Compass } from 'lucide-react'
+import { Rocket, Star, Target, ChevronRight, ArrowUpRight, Plus, Wallet, TrendingUp, Compass, Sparkles } from 'lucide-react'
 import { useGoals } from '../hooks/useGoals'
 import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
 import { usePots } from '@/features/finance/hooks/usePots'
@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { PiggyBank } from 'lucide-react'
 
 export default function ManifestDashboard() {
-    const { goals, wishlist, loading } = useGoals()
+    const { goals, wishlist, aspirations, loading } = useGoals()
     const { goals: personalFinanceGoals } = useFinanceGoals('personal')
     const { goals: businessFinanceGoals } = useFinanceGoals('business')
     const { pots: personalPots } = usePots('personal')
@@ -97,17 +97,17 @@ export default function ManifestDashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Goals Section */}
+                {/* Targets Section */}
                 <section className="space-y-4">
                     <div className="flex items-center justify-between px-2">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center">
                                 <Target className="w-4 h-4 text-white" />
                             </div>
-                            <h2 className="text-sm font-black uppercase tracking-widest text-black">Active Goals</h2>
+                            <h2 className="text-sm font-black uppercase tracking-widest text-black">Active Targets</h2>
                         </div>
                         <Link href="/goals/mission" className="text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black flex items-center gap-1 transition-colors">
-                            View All Goals <ArrowUpRight className="w-3 h-3" />
+                            View All Targets <ArrowUpRight className="w-3 h-3" />
                         </Link>
                     </div>
 
@@ -218,8 +218,87 @@ export default function ManifestDashboard() {
                         ))}
                         {goals.length === 0 && (
                             <div className="h-32 border-2 border-dashed border-black/[0.03] rounded-3xl flex flex-col items-center justify-center gap-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-black/20">No active goals</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-black/20">No active targets</p>
                                 <Link href="/goals/mission" className="text-[10px] font-black uppercase tracking-[0.2em] bg-black text-white px-4 py-2 rounded-lg">Initiate</Link>
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                {/* Dreams Section */}
+                <section className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                                <Sparkles className="w-4 h-4 text-white" />
+                            </div>
+                            <h2 className="text-sm font-black uppercase tracking-widest text-black">Active Dreams</h2>
+                        </div>
+                        <Link href="/goals/dreams" className="text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black flex items-center gap-1 transition-colors">
+                            View All Dreams <ArrowUpRight className="w-3 h-3" />
+                        </Link>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                        {aspirations.filter(a => a.status === 'active').slice(0, 5).map((asp) => (
+                            <Link 
+                                key={asp.id} 
+                                href="/goals/dreams"
+                                className="group flex items-center justify-between p-5 bg-white border border-black/[0.05] rounded-3xl hover:border-black/20 hover:shadow-lg transition-all"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-black/[0.05]">
+                                        {asp.vision_image_url ? (
+                                            <img src={asp.vision_image_url} alt={asp.title} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all text-indigo-500">
+                                                <Sparkles className="w-5 h-5" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-[13px] font-black uppercase tracking-tight text-black">{asp.title}</h3>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest">{asp.category}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex-1 px-8 hidden md:block group-hover:px-4 transition-all duration-500">
+                                    <div className="space-y-3">
+                                        <div className="space-y-1">
+                                            {(() => {
+                                                const total = asp.milestones?.length || 0
+                                                const done = asp.milestones?.filter(m => m.is_completed).length || 0
+                                                const progress = total > 0 ? (done / total) * 100 : 0
+                                                
+                                                return (
+                                                    <>
+                                                        <div className="flex justify-between items-end">
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-black/20">Dream Progress</span>
+                                                            <span className="text-[10px] font-black text-black/40">{done} <span className="text-[8px] font-bold">/ {total}</span></span>
+                                                        </div>
+                                                        <div className="h-1.5 w-full bg-black/[0.03] rounded-full overflow-hidden">
+                                                            <motion.div 
+                                                                initial={{ width: 0 }}
+                                                                animate={{ width: `${progress}%` }}
+                                                                className="h-full bg-indigo-500/80 rounded-full"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )
+                                            })()}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <ChevronRight className="w-4 h-4 text-black/10 group-hover:text-black transition-colors" />
+                                </div>
+                            </Link>
+                        ))}
+                        {aspirations.length === 0 && (
+                            <div className="h-32 border-2 border-dashed border-black/[0.03] rounded-3xl flex flex-col items-center justify-center gap-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-black/20">No active dreams</p>
+                                <Link href="/goals/dreams" className="text-[10px] font-black uppercase tracking-[0.2em] bg-black text-white px-4 py-2 rounded-lg">Anchor Dream</Link>
                             </div>
                         )}
                     </div>

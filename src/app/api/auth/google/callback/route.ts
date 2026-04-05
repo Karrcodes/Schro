@@ -47,9 +47,15 @@ export async function GET(req: NextRequest) {
 
         if (error) throw error
 
-        return NextResponse.redirect(`${appUrl}/intelligence?sync=success`)
+        const state = searchParams.get('state') || '/intelligence'
+        // Ensure state is a relative path or an absolute URL on the same origin
+        const redirectUrl = state.startsWith('http') ? state : `${appUrl}${state}`
+        
+        return NextResponse.redirect(`${redirectUrl}${redirectUrl.includes('?') ? '&' : '?'}sync=success`)
     } catch (err: any) {
         console.error('[Google Auth Callback Error]', err)
-        return NextResponse.redirect(`${appUrl}/intelligence?sync=error`)
+        const state = searchParams.get('state') || '/intelligence'
+        const redirectUrl = state.startsWith('http') ? state : `${appUrl}${state}`
+        return NextResponse.redirect(`${redirectUrl}${redirectUrl.includes('?') ? '&' : '?'}sync=error`)
     }
 }

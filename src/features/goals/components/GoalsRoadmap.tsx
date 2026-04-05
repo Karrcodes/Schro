@@ -6,11 +6,11 @@ import { Target, Circle, CheckCircle2, PiggyBank } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
 import { usePots } from '@/features/finance/hooks/usePots'
-import type { Goal } from '../types/goals.types'
+import type { Goal, Aspiration } from '../types/goals.types'
 
 interface GoalsRoadmapProps {
-    goals: Goal[]
-    onGoalClick: (goal: Goal) => void
+    goals: (Goal | Aspiration)[]
+    onGoalClick: (goal: Goal | Aspiration) => void
 }
 
 interface MonthHeader {
@@ -33,10 +33,8 @@ export default function GoalsRoadmap({ goals, onGoalClick }: GoalsRoadmapProps) 
         const end = new Date(today.getFullYear(), today.getMonth() + 10, 0)
 
         const days: Date[] = []
-        let cur = new Date(start)
-        while (cur <= end) {
-            days.push(new Date(cur))
-            cur.setDate(cur.getDate() + 1)
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            days.push(new Date(d))
         }
 
         const totalDays = days.length
@@ -76,9 +74,13 @@ export default function GoalsRoadmap({ goals, onGoalClick }: GoalsRoadmapProps) 
         el.scrollLeft = todayPx - el.clientWidth / 3
     }, [roadmapRange.todayPct, minW])
 
-    const calcPos = (goal: Goal) => {
-        const s = new Date(goal.created_at)
-        const e = goal.target_date ? new Date(goal.target_date) : new Date(roadmapRange.end)
+    const calcPos = (item: Goal | Aspiration) => {
+        const s = new Date(item.created_at)
+        const isGoal = !('horizon' in item)
+        const targetDate = isGoal ? (item as Goal).target_date : null
+        
+        // Aspirations are long-term, if no target date, they span to the end of the visible roadmap
+        const e = targetDate ? new Date(targetDate) : new Date(roadmapRange.end)
         const sd = (s.getTime() - roadmapRange.start.getTime()) / 86_400_000
         const ed = (e.getTime() - roadmapRange.start.getTime()) / 86_400_000
         const left = Math.max(0, (sd / roadmapRange.totalDays) * 100)
@@ -97,32 +99,41 @@ export default function GoalsRoadmap({ goals, onGoalClick }: GoalsRoadmapProps) 
                 </div>
                 {/* Rows — no internal scroll, height matches chart rows */}
                 <div className="flex flex-col" style={{ minHeight: `${goals.length * ROW_HEIGHT}px` }}>
-                    {goals.map(goal => (
-                        <button
-                            key={goal.id}
-                            onClick={() => onGoalClick(goal)}
-                            className="group px-3 md:px-4 flex flex-col justify-center text-left hover:bg-black/[0.02] transition-colors overflow-hidden border-b border-black/[0.03] shrink-0"
-                            style={{ height: ROW_HEIGHT }}
-                        >
-                            <h4 className="text-[11px] md:text-[12px] font-bold text-black truncate group-hover:text-blue-600 transition-colors uppercase tracking-tight leading-snug">
-                                {goal.title}
-                            </h4>
-                            <div className="flex items-center gap-1.5 mt-1">
-                                <span className={cn(
-                                    "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest",
-                                    goal.category === 'finance' ? "bg-emerald-50 text-emerald-600" :
-                                        goal.category === 'career' ? "bg-blue-50 text-blue-600" :
-                                            goal.category === 'health' ? "bg-rose-50 text-rose-600" :
-                                                "bg-black/5 text-black/40"
-                                )}>
-                                    {goal.category}
-                                </span>
-                                {goal.priority === 'super' && (
-                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                )}
-                            </div>
-                        </button>
-                    ))}
+                    {goals.map(item => {
+                        const isGoal = !('horizon' in item)
+                        const category = isGoal ? (item as Goal).category : (item as Aspiration).category
+                        const priority = isGoal ? (item as Goal).priority : null
+                        
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => onGoalClick(item)}
+                                className="group px-3 md:px-4 flex flex-col justify-center text-left hover:bg-black/[0.02] transition-colors overflow-hidden border-b border-black/[0.03] shrink-0"
+                                style={{ height: ROW_HEIGHT }}
+                            >
+                                <h4 className="text-[11px] md:text-[12px] font-bold text-black truncate group-hover:text-amber-600 transition-colors uppercase tracking-tight leading-snug">
+                                    {item.title}
+                                </h4>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                    <span className={cn(
+                                        "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest",
+                                        category === 'finance' ? "bg-emerald-50 text-emerald-600" :
+                                            category === 'career' ? "bg-blue-50 text-blue-600" :
+                                                category === 'health' ? "bg-rose-50 text-rose-600" :
+                                                    "bg-black/5 text-black/40"
+                                    )}>
+                                        {category}
+                                    </span>
+                                    {priority === 'super' && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    )}
+                                    {!isGoal && (
+                                        <span className="text-[8px] font-black uppercase text-amber-500/60 tracking-widest">Vector</span>
+                                    )}
+                                </div>
+                            </button>
+                        )
+                    })}
                     {goals.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                             <Target className="w-8 h-8 mb-2 text-black/10" />
@@ -184,16 +195,17 @@ export default function GoalsRoadmap({ goals, onGoalClick }: GoalsRoadmapProps) 
                     </div>
 
                     {/* ── Goal Bars — offset by the 40px header ── */}
-                    {goals.map((goal, rowIdx) => {
-                        const pos = calcPos(goal)
-                        const milestones = goal.milestones || []
+                    {goals.map((item, rowIdx) => {
+                        const pos = calcPos(item)
+                        const isGoal = !('horizon' in item)
+                        const milestones = item.milestones || []
                         const done = milestones.filter(m => m.is_completed).length
                         const progress = milestones.length ? (done / milestones.length) * 100 : 0
                         const top = 40 + rowIdx * ROW_HEIGHT
 
                         return (
                             <div
-                                key={goal.id}
+                                key={item.id}
                                 className="absolute left-0 right-0 border-b border-black/[0.03] flex items-center"
                                 style={{ top, height: ROW_HEIGHT }}
                             >
@@ -201,26 +213,33 @@ export default function GoalsRoadmap({ goals, onGoalClick }: GoalsRoadmapProps) 
                                     initial={{ opacity: 0, scaleX: 0 }}
                                     animate={{ opacity: 1, scaleX: 1 }}
                                     transition={{ duration: 0.4, ease: 'easeOut' }}
-                                    className="absolute h-7 rounded-full border border-black/10 shadow-sm flex items-center px-3 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                                    className={cn(
+                                        "absolute h-7 rounded-full border border-black/10 shadow-sm flex items-center px-3 overflow-hidden cursor-pointer hover:shadow-md transition-shadow",
+                                        !isGoal && "border-amber-200"
+                                    )}
                                     style={{
                                         left: pos.left,
                                         width: pos.width,
                                         transformOrigin: 'left',
-                                        backgroundColor: goal.status === 'completed' ? '#f0fdf4' : 'white'
+                                        backgroundColor: isGoal && (item as Goal).status === 'completed' ? '#f0fdf4' : 'white'
                                     }}
-                                    onClick={() => onGoalClick(goal)}
+                                    onClick={() => onGoalClick(item)}
                                 >
                                     {/* Progress fill */}
                                     <div
-                                        className="absolute inset-y-0 left-0 bg-black/[0.06] rounded-full"
+                                        className={cn(
+                                            "absolute inset-y-0 left-0 rounded-full",
+                                            isGoal ? "bg-black/[0.06]" : "bg-amber-500/10"
+                                        )}
                                         style={{ width: `${progress}%` }}
                                     />
                                     
                                     {/* Linked Savings Bar */}
-                                    {goal.linked_savings_id && (() => {
-                                        const savings = goal.linked_savings_type === 'manual' 
-                                            ? financeGoals.find(f => f.id === goal.linked_savings_id)
-                                            : pots.find(p => p.id === goal.linked_savings_id)
+                                    {isGoal && (item as Goal).linked_savings_id && (() => {
+                                        const g = item as Goal
+                                        const savings = g.linked_savings_type === 'manual' 
+                                            ? financeGoals.find(f => f.id === g.linked_savings_id)
+                                            : pots.find(p => p.id === g.linked_savings_id)
                                         
                                         if (!savings) return null
                                         
@@ -237,15 +256,18 @@ export default function GoalsRoadmap({ goals, onGoalClick }: GoalsRoadmapProps) 
                                     })()}
 
                                     <div className="relative z-10 flex items-center justify-between w-full gap-2">
-                                        <span className="text-[10px] font-bold uppercase tracking-tight truncate text-black/60 flex items-center gap-1.5">
-                                            {goal.title}
-                                            {goal.linked_savings_id && <PiggyBank className="w-2.5 h-2.5 text-emerald-500" />}
+                                        <span className={cn(
+                                            "text-[10px] font-bold uppercase tracking-tight truncate flex items-center gap-1.5",
+                                            isGoal ? "text-black/60" : "text-amber-700/60"
+                                        )}>
+                                            {item.title}
+                                            {isGoal && (item as Goal).linked_savings_id && <PiggyBank className="w-2.5 h-2.5 text-emerald-500" />}
                                         </span>
                                         <div className="flex items-center gap-0.5 shrink-0">
                                             {milestones.slice(0, 4).map(m => (
                                                 <div key={m.id} title={m.title}>
                                                     {m.is_completed
-                                                        ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+                                                        ? <CheckCircle2 className={cn("w-2.5 h-2.5", isGoal ? "text-emerald-500" : "text-amber-500")} />
                                                         : <Circle className="w-2.5 h-2.5 text-black/10" />
                                                     }
                                                 </div>

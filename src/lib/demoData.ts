@@ -174,6 +174,30 @@ export const MOCK_GOALS = [
     }
 ]
 
+export const MOCK_ASPIRATIONS = [
+    {
+        id: 'd-as-1',
+        title: 'Mastery of Social Agency',
+        description: 'Cultivate a presence that is grounded, fearless, and deeply influential. Move through the world with absolute agency.',
+        category: 'personal',
+        vision_image_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80',
+        horizon: 'long',
+        status: 'active',
+        created_at: '2026-01-01T00:00:00Z'
+    },
+    {
+        id: 'd-as-2',
+        title: 'Digital Sovereignty',
+        description: 'Build a suite of tools and systems that grant me total independence from traditional platforms and institutions.',
+        category: 'career',
+        vision_image_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80',
+        horizon: 'medium',
+        status: 'active',
+        created_at: '2026-01-15T00:00:00Z'
+    }
+]
+
+
 export const MOCK_MILESTONES = [
     // Apartment Deposit
     { id: 'd-m-1', goal_id: 'd-g-1', title: 'Reach £10k baseline', is_completed: true, position: 1 },
@@ -193,7 +217,15 @@ export const MOCK_MILESTONES = [
     // Marathon
     { id: 'd-m-10', goal_id: 'd-g-4', title: 'Reach 10k sub-50min', is_completed: true, position: 1 },
     { id: 'd-m-11', goal_id: 'd-g-4', title: 'Completer Half Marathon sub-2hr', is_completed: false, position: 2 },
-    { id: 'd-m-12', goal_id: 'd-g-4', title: 'Full 42km run', is_completed: false, position: 3 }
+    { id: 'd-m-12', goal_id: 'd-g-4', title: 'Full 42km run', is_completed: false, position: 3 },
+
+    // Mastery of Social Agency (Aspiration Milestones)
+    { id: 'd-am-1', aspiration_id: 'd-as-1', title: 'Public Speaking Workshop', is_completed: true, position: 1 },
+    { id: 'd-am-2', aspiration_id: 'd-as-1', title: 'Networking Event Lead', is_completed: false, position: 2 },
+
+    // Digital Sovereignty (Aspiration Milestones)
+    { id: 'd-am-3', aspiration_id: 'd-as-2', title: 'Setup Personal Server', is_completed: true, position: 1 },
+    { id: 'd-am-4', aspiration_id: 'd-as-2', title: 'Migrate from Cloud Services', is_completed: false, position: 2 }
 ]
 
 export const MOCK_STUDIO = {

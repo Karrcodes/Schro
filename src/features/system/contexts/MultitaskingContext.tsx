@@ -9,9 +9,11 @@ interface MultitaskingContextType {
     leftUrl: string
     rightUrl: string
     focusedPane: Pane
+    splitPosition: number
     toggleMultitasking: (initialRightUrl?: string) => void
     setPaneUrl: (pane: Pane, url: string) => void
     setFocusedPane: (pane: Pane) => void
+    setSplitPosition: (pos: number) => void
 }
 
 const MultitaskingContext = createContext<MultitaskingContextType | undefined>(undefined)
@@ -21,6 +23,7 @@ export function MultitaskingProvider({ children }: { children: React.ReactNode }
     const [leftUrl, setLeftUrl] = useState('/system/control-centre')
     const [rightUrl, setRightUrl] = useState('/tasks/todo')
     const [focusedPane, setFocusedPane] = useState<Pane>('left')
+    const [splitPosition, setSplitPosition] = useState(50)
 
     // Load state from localStorage on mount
     useEffect(() => {
@@ -32,6 +35,7 @@ export function MultitaskingProvider({ children }: { children: React.ReactNode }
                 setLeftUrl(parsed.leftUrl ?? '/system/control-centre')
                 setRightUrl(parsed.rightUrl ?? '/tasks/todo')
                 setFocusedPane(parsed.focusedPane ?? 'left')
+                setSplitPosition(parsed.splitPosition ?? 50)
             } catch (e) {
                 console.error('Failed to parse multitasking state', e)
             }
@@ -44,9 +48,10 @@ export function MultitaskingProvider({ children }: { children: React.ReactNode }
             isMultitasking,
             leftUrl,
             rightUrl,
-            focusedPane
+            focusedPane,
+            splitPosition
         }))
-    }, [isMultitasking, leftUrl, rightUrl, focusedPane])
+    }, [isMultitasking, leftUrl, rightUrl, focusedPane, splitPosition])
 
     const toggleMultitasking = useCallback((initialRightUrl?: string) => {
         setIsMultitasking(prev => {
@@ -71,9 +76,11 @@ export function MultitaskingProvider({ children }: { children: React.ReactNode }
             leftUrl,
             rightUrl,
             focusedPane,
+            splitPosition,
             toggleMultitasking,
             setPaneUrl,
-            setFocusedPane
+            setFocusedPane,
+            setSplitPosition
         }}>
             {children}
         </MultitaskingContext.Provider>

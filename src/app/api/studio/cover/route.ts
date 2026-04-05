@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
     const title = url.searchParams.get('title') || 'Schrö Project'
     const type = url.searchParams.get('type') || 'project'
     const id = url.searchParams.get('id')
+    const tagline = url.searchParams.get('tagline') || ''
     
     const absoluteFallback = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=630&q=80&fm=jpg`
     let debug: string[] = [`Engine start for: ${title}`]
@@ -75,10 +76,11 @@ export async function GET(req: NextRequest) {
 
     try {
         // 1. Expand Prompt - Fix for Gemini 404 Model Error
-        let artPrompt = `Vivid cinematic photography of ${title}, professional lighting, 8k.`
+        let artPrompt = `Vivid cinematic photography of ${title}${tagline ? ` (${tagline})` : ''}, professional lighting, 8k.`
         try {
             const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" }) 
-            const result = await model.generateContent(`Create a 30-word vivid cinematic image prompt for: "${title}".`)
+            const context = tagline ? `context: ${tagline}. ` : ''
+            const result = await model.generateContent(`Create a 30-word vivid cinematic image prompt for: "${title}". ${context}Focus on the core essence and high-impact visual style.`)
             artPrompt = result.response.text().trim().replace(/\n/g, ' ')
             debug.push(`✅ Gemini 2.5 Expansion: ${artPrompt.substring(0, 50)}...`)
         } catch (e: any) { 
@@ -94,7 +96,8 @@ export async function GET(req: NextRequest) {
             const folder = type === 'content' ? 'content-covers' : 
                            type === 'goal' ? 'goal-covers' :
                            type === 'wishlist' ? 'wishlist-covers' :
-                           type === 'press' ? 'press-covers' : 'project-covers'
+                           type === 'press' ? 'press-covers' : 
+                           type === 'aspiration' ? 'aspiration-covers' : 'project-covers'
             const fileName = `${type}_${id || 'anon'}_${Date.now()}.png`
             
             debug.push(`📤 Uploading to Supabase Storage...`)
@@ -112,6 +115,7 @@ export async function GET(req: NextRequest) {
                     else if (type === 'press') table = 'studio_press'
                     else if (type === 'goal') { table = 'sys_goals'; column = 'vision_image_url' }
                     else if (type === 'wishlist') { table = 'sys_wishlist'; column = 'image_url' }
+                    else if (type === 'aspiration') { table = 'sys_aspirations'; column = 'vision_image_url' }
                     
                     if (table) {
                         await supabase.from(table).update({ [column]: internalUrl }).eq('id', id)

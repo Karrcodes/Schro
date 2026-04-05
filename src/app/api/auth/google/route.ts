@@ -19,13 +19,17 @@ export async function GET(req: NextRequest) {
     const scopes = [
         'https://www.googleapis.com/auth/drive.readonly',
         'https://www.googleapis.com/auth/drive.metadata.readonly',
-        'https://www.googleapis.com/auth/gmail.readonly'
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/calendar.readonly',
+        'https://www.googleapis.com/auth/calendar.events'
     ]
 
+    const state = req.nextUrl.searchParams.get('redirect') || '/intelligence'
     const url = oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: scopes,
-        prompt: 'consent'
+        prompt: 'consent',
+        state: state
     })
 
     return NextResponse.redirect(url)

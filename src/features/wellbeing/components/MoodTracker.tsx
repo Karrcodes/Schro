@@ -23,15 +23,25 @@ const ACTIVITIES = [
 ]
 
 export function MoodTracker() {
-    const { logMood } = useWellbeing()
-    const [selectedMood, setSelectedMood] = useState<MoodValue | null>(null)
-    const [selectedActivities, setSelectedActivities] = useState<string[]>([])
+    const { logMood, moodLogs } = useWellbeing()
+    const [selectedMood, setSelectedMood] = React.useState<MoodValue | null>(null)
+    const [selectedActivities, setSelectedActivities] = React.useState<string[]>([])
+
+    const today = React.useMemo(() => new Date().toISOString().split('T')[0], [])
+    const todayMood = React.useMemo(() => moodLogs.find(m => m.date === today), [moodLogs, today])
+
+    // Sync from global state if local state is empty or when todayMood changes
+    React.useEffect(() => {
+        if (todayMood) {
+            setSelectedMood(todayMood.value)
+            setSelectedActivities(todayMood.activities || [])
+        }
+    }, [todayMood])
+
 
     const handleLog = () => {
         if (selectedMood) {
-            logMood(selectedMood, '', selectedActivities)
-            setSelectedMood(null)
-            setSelectedActivities([])
+            logMood(selectedMood, todayMood?.note || '', selectedActivities, today)
         }
     }
 
@@ -61,14 +71,14 @@ export function MoodTracker() {
                         key={m.value}
                         onClick={() => setSelectedMood(m.value)}
                         className={cn(
-                            "flex flex-col items-center gap-2 p-3 rounded-2xl transition-all border",
+                            "flex items-center justify-center p-4 rounded-2xl transition-all border",
                             selectedMood === m.value
-                                ? "bg-black text-white border-black"
+                                ? "bg-black text-white border-black shadow-lg"
                                 : "bg-black/[0.02] border-transparent hover:border-black/10"
                         )}
+                        title={m.label}
                     >
-                        <m.icon className={cn("w-6 h-6", selectedMood === m.value ? "text-white" : m.color)} />
-                        <span className="text-[9px] font-black uppercase tracking-wider">{m.label}</span>
+                        <m.icon className={cn("w-7 h-7", selectedMood === m.value ? "text-white" : m.color)} />
                     </button>
                 ))}
             </div>
@@ -108,7 +118,7 @@ export function MoodTracker() {
                             : "bg-black/[0.05] text-black/20 cursor-not-allowed"
                     )}
                 >
-                    Complete Entry
+                    {todayMood ? "Update Entry" : "Complete Entry"}
                 </button>
             </div>
         </div>

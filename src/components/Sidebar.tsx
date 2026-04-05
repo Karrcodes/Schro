@@ -2,8 +2,8 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import {
     BarChart3, Activity, ShoppingCart, Bell,
@@ -154,6 +154,7 @@ import { useVault } from '@/features/vault/contexts/VaultContext'
 
 export function Sidebar() {
     const pathname = usePathname()
+    const searchParams = useSearchParams()
     if (pathname === '/home') return null
     const [mobileOpen, setMobileOpen] = useState(false)
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
@@ -161,6 +162,19 @@ export function Sidebar() {
     const { isPrivacyEnabled } = useFinanceProfile()
     const { isVaultPrivate, isVaultLocked } = useVault()
     const { isMultitasking, toggleMultitasking, focusedPane, setPaneUrl, setFocusedPane } = useMultitasking()
+
+    // Helper to check if a sub-item is active
+    const checkSubActive = (href: string) => {
+        if (!href.includes('?')) return pathname === href
+        const [basePath, query] = href.split('?')
+        if (pathname !== basePath) return false
+        const params = new URLSearchParams(query)
+        // Check all params in the href
+        for (const [key, value] of params.entries()) {
+            if (searchParams.get(key) !== value) return false
+        }
+        return true
+    }
 
     const [orderedTabs, setOrderedTabs] = useState(navItems.map(item => item.label))
     const [orderedSubTabs, setOrderedSubTabs] = useState<Record<string, string[]>>(() => {
@@ -490,7 +504,7 @@ export function Sidebar() {
                                                 const subItem = item.sub?.find(s => s.label === subLabel)
                                                 if (!subItem) return null
                                                 const SubIcon = subItem.icon
-                                                const subActive = pathname === subItem.href
+                                                const subActive = checkSubActive(subItem.href)
                                                 const isDisabled = (subItem as any).disabled
                                                 return (
                                                     <Reorder.Item key={subLabel} value={subLabel} className={cn("cursor-grab active:cursor-grabbing", isDisabled && "cursor-not-allowed")}>
@@ -529,7 +543,7 @@ export function Sidebar() {
                                                 const subItem = item.sub?.find(s => s.label === subLabel)
                                                 if (!subItem) return null
                                                 const SubIcon = subItem.icon
-                                                const subActive = pathname === subItem.href
+                                                const subActive = checkSubActive(subItem.href)
                                                 const isDisabled = (subItem as any).disabled
                                                 return (
                                                     <div key={subItem.label}>
@@ -641,7 +655,7 @@ export function Sidebar() {
                         isCollapsed && "left-[2px]"
                     )}>
                         {isCollapsed ? (
-                            <span className="text-3xl font-serif italic font-medium tracking-tight leading-none select-none">ö</span>
+                            <img src="/schro-logo-svg.svg" alt="Schro" className="w-7 h-7 select-none" />
                         ) : (
                             <span className="text-2xl font-serif italic font-medium tracking-tight leading-none">Schrö</span>
                         )}
@@ -739,7 +753,7 @@ export function Sidebar() {
                                                     const subItem = item.sub?.find((s: any) => s.label === subLabel)
                                                     if (!subItem) return null
                                                     const SubIcon = subItem.icon || ((props: any) => <div className={cn("w-1.5 h-1.5 rounded-full bg-current", props.className)} />)
-                                                    const isSubActive = pathname === subItem.href
+                                                    const isSubActive = checkSubActive(subItem.href)
                                                     return (
                                                         <div key={subItem.href} className="relative group/sub">
                                                             <Link
@@ -830,8 +844,8 @@ export function Sidebar() {
                             <div
                                 className={cn('w-4 h-4 shrink-0', pathname.startsWith('/schrolink') ? 'bg-indigo-500' : 'bg-black/35')}
                                 style={{
-                                    WebkitMaskImage: 'url(/schro-cat.svg)',
-                                    maskImage: 'url(/schro-cat.svg)',
+                                    WebkitMaskImage: 'url(/schro-logo-svg.svg)',
+                                    maskImage: 'url(/schro-logo-svg.svg)',
                                     WebkitMaskRepeat: 'no-repeat',
                                     maskRepeat: 'no-repeat',
                                     WebkitMaskSize: 'contain',
@@ -951,8 +965,8 @@ export function Sidebar() {
                             <div
                                 className={cn('w-4 h-4', pathname.startsWith('/schrolink') ? 'bg-indigo-500' : 'bg-black/35')}
                                 style={{
-                                    WebkitMaskImage: 'url(/schro-cat.svg)',
-                                    maskImage: 'url(/schro-cat.svg)',
+                                    WebkitMaskImage: 'url(/schro-logo-svg.svg)',
+                                    maskImage: 'url(/schro-logo-svg.svg)',
                                     WebkitMaskRepeat: 'no-repeat',
                                     maskRepeat: 'no-repeat',
                                     WebkitMaskSize: 'contain',

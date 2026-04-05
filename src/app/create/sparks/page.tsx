@@ -18,7 +18,7 @@ export default function SparksPage() {
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-1">
                         <h2 className="text-[11px] font-black text-orange-500 uppercase tracking-[0.3em]">Creative Protocol</h2>
-                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Sparks Inbox</h1>
+                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Tools Inbox</h1>
                     </div>
 
                     <div className="flex bg-black/[0.03] p-1.5 rounded-2xl border border-black/[0.05] items-center gap-0.5 h-fit mb-1">
@@ -46,7 +46,7 @@ export default function SparksPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
                     <input
                         type="text"
-                        placeholder="Search sparks..."
+                        placeholder="Search tools..."
                         value={searchQuery}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 bg-white border border-black/[0.05] rounded-xl text-[13px] focus:outline-none focus:border-orange-200 transition-all font-medium"
@@ -63,7 +63,7 @@ export default function SparksPage() {
                             className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-xl text-[12px] font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 self-start sm:self-auto"
                         >
                             <Plus className="w-4 h-4" />
-                            <span className="hidden xs:inline">Create Spark</span>
+                            <span className="hidden xs:inline">Add Tool</span>
                             <span className="xs:hidden">Add</span>
                         </button>
                     )}

@@ -1,24 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { cn } from '@/lib/utils'
 import { GoalsProvider } from '@/features/goals/contexts/GoalsContext'
 import { KarrFooter } from '@/components/KarrFooter'
 
 export default function GoalsLayout({ children }: { children: React.ReactNode }) {
     return (
         <GoalsProvider>
-            <div className="bg-[#FAFAFA] flex flex-col min-h-screen">
-                <div className="flex-1 overflow-y-auto bg-[#fafafa]">
-                    {/* Tab Content */}
-                    <div className="p-6 md:p-10">
-                        <div className="w-full h-full flex flex-col max-w-7xl mx-auto space-y-12">
+            <div className="flex flex-col min-h-screen bg-[#FAFAFA]">
+                <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+                    <div className="flex-1 p-6 md:p-10">
+                        <div className="max-w-7xl mx-auto w-full space-y-8">
                             {children}
-                            <div className="mt-auto pt-10">
-                                <KarrFooter />
-                            </div>
                         </div>
                     </div>
+                    <KarrFooter />
                 </div>
             </div>
         </GoalsProvider>

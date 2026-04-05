@@ -8,7 +8,7 @@ import {
     BarChart3, Activity, Shield, Brain, Target, Heart,
     LayoutDashboard, SlidersHorizontal, Calendar, CreditCard,
     PiggyBank, Receipt, Sparkles, Rocket, Video, PenLine, Bell, ShoppingCart,
-    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Images, ListTodo, Search, Wand2, Package
+    Users, Award, ClipboardIcon, Key, TrendingUp, Utensils, Dumbbell, Star, Compass, Images, ListTodo, Search, Wand2, Package, Wrench, Coffee, Gauge
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -32,17 +32,26 @@ export interface NavItem {
 export const assistantItem: NavItem = { label: 'Assistant', href: '/intelligence', icon: Sparkles, color: 'black' }
 
 export const navItems: NavItem[] = [
-    { label: 'Control Centre', href: '/system/control-centre', icon: LayoutDashboard },
+    { 
+        label: 'Control Centre', 
+        href: '/system/control-centre', 
+        icon: LayoutDashboard,
+        color: 'blue',
+        sub: [
+            { label: 'Daily Brief', href: '/system/control-centre?tab=brief', icon: Coffee },
+            { label: 'Schedule', href: '/system/control-centre?tab=calendar', icon: Calendar },
+            { label: 'Performance', href: '/system/control-centre?tab=intelligence', icon: Gauge }
+        ]
+    },
     {
         label: 'Operations',
         href: '/tasks',
         icon: Activity,
         color: 'blue',
         sub: [
-            { label: 'Tasks', href: '/tasks/todo', icon: ListTodo },
-            { label: 'Reminders', href: '/tasks/reminders', icon: Bell },
-            { label: 'Shopping', href: '/tasks/groceries', icon: ShoppingCart, caps: ['P'] },
-            { label: 'Essentials', href: '/tasks/essentials', icon: Package, caps: ['B'] }
+            { label: 'Tasks', href: '/tasks?tab=todo', icon: ListTodo },
+            { label: 'Reminders', href: '/tasks?tab=reminder', icon: Bell },
+            { label: 'Shopping', href: '/tasks?tab=shopping&shop=grocery', icon: ShoppingCart },
         ]
     },
     {
@@ -79,7 +88,7 @@ export const navItems: NavItem[] = [
             { label: 'Projects', href: '/create/projects', icon: Rocket },
             { label: 'Content', href: '/create/content', icon: Video },
             { label: 'Canvas', href: '/create/canvas', icon: PenLine },
-            { label: 'Sparks', href: '/create/sparks', icon: Target },
+            { label: 'Tools', href: '/create/sparks', icon: Wrench },
             { label: 'Network', href: '/create/network', icon: Users },
             { label: 'Press', href: '/create/press', icon: Award },
             { label: 'Portfolio', href: '/create/portfolio', icon: Images }
@@ -92,6 +101,7 @@ export const navItems: NavItem[] = [
         color: 'amber',
         sub: [
             { label: 'Goals', href: '/goals/mission', icon: Target },
+            { label: 'Dreams', href: '/goals/dreams', icon: Sparkles },
             { label: 'Wishlist', href: '/goals/wishlist', icon: Star }
         ]
     },

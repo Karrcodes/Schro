@@ -10,18 +10,26 @@ import { useTasksProfile } from '../contexts/TasksProfileContext'
 import { TasksProfileToggle } from './TasksProfileToggle'
 import { motion } from 'framer-motion'
 
-const TABS = [
-    { title: 'Tasks', href: '/tasks/todo', icon: ListTodo },
-    { title: 'Reminders', href: '/tasks/reminders', icon: Bell },
-    { title: 'Shopping', href: '/tasks/groceries', icon: ShoppingCart },
-    { title: 'Essentials', href: '/tasks/essentials', icon: Package },
-]
-
+import { useTasks } from '../hooks/useTasks'
+import { useQueryState } from '@/hooks/useQueryState'
 
 export function TasksLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
     const router = useRouter()
     const { activeProfile } = useTasksProfile()
+    const [activeTab] = useQueryState('tab', 'todo')
+
+    // Fetch all categories for counts
+    const { tasks: todoTasks } = useTasks('todo')
+    const { tasks: reminderTasks } = useTasks('reminder')
+    const { tasks: groceryTasks } = useTasks('grocery')
+    const { tasks: essentialTasks } = useTasks('essential')
+
+    const TABS = [
+        { title: 'Tasks', href: '/tasks?tab=todo', icon: ListTodo, color: 'bg-blue-500', tasks: todoTasks, value: 'todo' },
+        { title: 'Reminders', href: '/tasks?tab=reminder', icon: Bell, color: 'bg-purple-500', tasks: reminderTasks, value: 'reminder' },
+        { title: 'Shopping', href: '/tasks?tab=shopping&shop=grocery', icon: ShoppingCart, color: 'bg-emerald-500', tasks: [...groceryTasks, ...essentialTasks], value: 'shopping' },
+    ]
 
     const isOnCalendar = pathname === '/tasks/calendar'
     const isPlanner = pathname === '/tasks/planner'
@@ -32,31 +40,33 @@ export function TasksLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="flex flex-col min-h-screen">
-            {/* Standard Module Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between px-6 pt-8 pb-4 md:px-10 md:pt-10 md:pb-8 z-10 gap-6 max-w-7xl mx-auto w-full">
-                <div className="space-y-1">
-                    <h2 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.3em]">Focus & Execution</h2>
-                    <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Operations</h1>
-                    {!isOnCalendar && !isPlanner && !isGroceries && !isEssentials && (
-                        <div className="pt-2">
-                            <TasksProfileToggle />
-                        </div>
-                    )}
+            <header className="px-6 md:px-10 pt-8 md:pt-10 pb-4 shrink-0 z-30">
+                <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="space-y-1">
+                        <h2 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.3em]">Focus & Execution</h2>
+                        <h1 className="text-4xl font-black text-black tracking-tighter uppercase grayscale">Operations</h1>
+                        {!isSpecialView && !isGroceries && !isEssentials && (
+                            <div className="pt-2">
+                                <TasksProfileToggle />
+                            </div>
+                        )}
+                    </div>
                 </div>
-
-            </div>
+            </header>
 
             {/* Tabs — hidden on special view pages */}
             {!isSpecialView && (
                 <div className="px-6 md:px-10 z-10 max-w-7xl mx-auto w-full mb-6">
                     <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-2xl border border-black/[0.05] w-fit max-w-full overflow-x-auto no-scrollbar">
                         {TABS.filter(tab => {
-                            if (activeProfile === 'business' && tab.href.includes('groceries')) return false
-                            if (activeProfile === 'personal' && tab.href.includes('essentials')) return false
+                            if (activeProfile === 'business' && tab.value === 'shopping') return false
                             return true
                         }).map(tab => {
-                            const isActive = pathname === tab.href
+                            // Check if current tab is active based on pathname OR query param (tab=...)
+                            const isActive = pathname === tab.href || (pathname === '/tasks' && activeTab === tab.value)
                             const Icon = tab.icon
+                            const pendingCount = tab.tasks.filter(t => !t.is_completed).length
+
                             return (
                                 <Link
                                     key={tab.href}
@@ -68,8 +78,16 @@ export function TasksLayout({ children }: { children: React.ReactNode }) {
                                             : "text-black/30 hover:text-black/60"
                                     )}
                                 >
-                                    <Icon className="w-3.5 h-3.5" />
+                                    <div className={cn("w-1.5 h-1.5 rounded-full", tab.color)} />
                                     <span>{tab.title}</span>
+                                    {pendingCount > 0 && (
+                                        <span className={cn(
+                                            "px-1.5 py-0.5 rounded-md text-[9px]",
+                                            isActive ? "bg-black text-white" : "bg-black/5 text-black/30"
+                                        )}>
+                                            {pendingCount}
+                                        </span>
+                                    )}
                                     {isActive && (
                                         <motion.div
                                             layoutId="activeTab"
@@ -89,9 +107,7 @@ export function TasksLayout({ children }: { children: React.ReactNode }) {
                 <div className={cn("mx-auto w-full max-w-7xl px-6 md:px-10", !isMatrix && "flex-1 flex flex-col")}>
                     {children}
                 </div>
-                <div className="max-w-7xl mx-auto w-full px-6 md:px-10 pb-10">
-                    <KarrFooter />
-                </div>
+                <KarrFooter />
             </div>
         </div>
     )

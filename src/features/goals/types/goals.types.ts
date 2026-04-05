@@ -7,6 +7,7 @@ export type WishlistStatus = 'incoming' | 'queue' | 'acquired' | 'abandoned'
 export interface Milestone {
     id: string
     goal_id: string
+    aspiration_id?: string
     title: string
     is_completed: boolean
     position: number
@@ -72,4 +73,28 @@ export interface CreateWishlistItemData {
     status?: WishlistStatus
     linked_savings_id?: string | null
     linked_savings_type?: 'manual' | 'monzo' | null
+}
+export interface Aspiration {
+    id: string
+    user_id: string
+    title: string
+    description: string | null
+    category: GoalCategory
+    vision_image_url: string | null
+    horizon: GoalTimeframe
+    priority: GoalPriority
+    status: 'active' | 'integrated' | 'archived'
+    created_at: string
+    milestones?: Milestone[]
+}
+
+export interface CreateAspirationData {
+    title: string
+    description?: string | null
+    category?: GoalCategory
+    vision_image_url?: string | null
+    horizon?: GoalTimeframe
+    priority?: GoalPriority
+    status?: 'active' | 'integrated' | 'archived'
+    milestones?: { title: string; is_completed?: boolean; impact_score?: number }[]
 }

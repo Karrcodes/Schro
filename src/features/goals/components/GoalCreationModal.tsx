@@ -3,26 +3,28 @@
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-    X, Plus, Target, Calendar, Briefcase, Heart,
+    X, Plus, Target, Briefcase, Heart,
     User, Wallet, Trash2, Sparkles, Upload, Loader2, AlertCircle, ImageIcon, GripVertical
 } from 'lucide-react'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import { Reorder, useDragControls } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import DatePickerInput from '@/components/DatePickerInput'
-import type { Goal, GoalCategory, GoalPriority, CreateGoalData, GoalStatus } from '../types/goals.types'
+import type { Goal, GoalCategory, GoalPriority, CreateGoalData, GoalStatus, Aspiration, CreateAspirationData } from '../types/goals.types'
 import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
 import { usePots } from '@/features/finance/hooks/usePots'
-import { PiggyBank, Landmark } from 'lucide-react'
+import { PiggyBank } from 'lucide-react'
 
 interface GoalCreationModalProps {
     isOpen: boolean
     onClose: () => void
     onSave: (data: CreateGoalData, imageFile?: File, id?: string) => Promise<void>
+    onSaveAspiration?: (data: CreateAspirationData, imageFile?: File, id?: string) => Promise<void>
     initialGoal?: Goal | null
+    initialAspiration?: Aspiration | null
 }
 
-const CATEGORIES: { value: GoalCategory; label: string; icon: any }[] = [
+const CATEGORIES: { value: GoalCategory; label: string; icon: typeof User }[] = [
     { value: 'personal', label: 'Personal', icon: User },
     { value: 'finance', label: 'Finance', icon: Wallet },
     { value: 'career', label: 'Career', icon: Briefcase },
@@ -33,16 +35,17 @@ const PRIORITIES: { value: GoalPriority; label: string }[] = [
     { value: 'low', label: 'Low' },
     { value: 'mid', label: 'Mid' },
     { value: 'high', label: 'High' },
-    { value: 'super', label: 'Super' },
 ]
 
-export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal }: GoalCreationModalProps) {
+export default function GoalCreationModal({ isOpen, onClose, onSave, onSaveAspiration, initialGoal, initialAspiration }: GoalCreationModalProps) {
+    const [mode, setMode] = useState<'goal' | 'aspiration'>('goal')
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
     const [category, setCategory] = useState<GoalCategory>('personal')
-    const [status, setStatus] = useState<GoalStatus>('active')
+    const [status, setStatus] = useState<GoalStatus | 'integrated'>('active')
     const [priority, setPriority] = useState<GoalPriority>('mid')
     const [timeframe, setTimeframe] = useState<'short' | 'medium' | 'long'>('short')
+    const [horizon, setHorizon] = useState<'short' | 'medium' | 'long'>('medium')
     const [visionImageUrl, setVisionImageUrl] = useState('')
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -72,6 +75,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
     // Populate fields when editing
     React.useEffect(() => {
         if (initialGoal && isOpen) {
+            setMode('goal')
             setTitle(initialGoal.title)
             setDescription(initialGoal.description || '')
             setCategory(initialGoal.category)
@@ -92,14 +96,33 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
             setError(null)
             setLinkedSavingsId(initialGoal.linked_savings_id || null)
             setLinkedSavingsType(initialGoal.linked_savings_type || null)
-        } else if (!initialGoal && isOpen) {
-            // Reset for new goal
+        } else if (initialAspiration && isOpen) {
+            setMode('aspiration')
+            setTitle(initialAspiration.title)
+            setDescription(initialAspiration.description || '')
+            setHorizon(initialAspiration.horizon)
+            setCategory(initialAspiration.category)
+            setStatus(initialAspiration.status as GoalStatus)
+            setVisionImageUrl(initialAspiration.vision_image_url || '')
+            setImagePreview(null)
+            setImageFile(null)
+            setAiUsed(false)
+            setError(null)
+            setMilestones(initialAspiration.milestones?.map(m => ({
+                id: m.id || Math.random().toString(36).substring(2, 9),
+                text: m.title,
+                is_completed: m.is_completed,
+                impact_score: m.impact_score || 5
+            })) || [{ id: Math.random().toString(36).substring(2, 9), text: '', is_completed: false, impact_score: 5 }])
+        } else if (!initialGoal && !initialAspiration && isOpen) {
+            // Reset for new item
+            setMode('goal')
             setTitle(''); setDescription(''); setCategory('personal'); setStatus('active')
-            setPriority('mid'); setTimeframe('short'); setVisionImageUrl(''); setTargetDate('')
+            setPriority('mid'); setTimeframe('short'); setHorizon('medium'); setVisionImageUrl(''); setTargetDate('')
             setMilestones([{ id: 'initial', text: '', is_completed: false, impact_score: 5 }]); setImagePreview(null); setImageFile(null); setAiUsed(false); setError(null)
             setLinkedSavingsId(null); setLinkedSavingsType(null)
         }
-    }, [initialGoal, isOpen])
+    }, [initialGoal, initialAspiration, isOpen])
 
     // ── helpers ──────────────────────────────────────────────
     const addMilestone = () => {
@@ -154,7 +177,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
             if (data.target_date) setTargetDate(data.target_date)
             if (data.milestones?.length) setMilestones(data.milestones.map((m: string) => ({ id: Math.random().toString(36).substring(2, 9), text: m, is_completed: false, impact_score: 5 })))
             setAiUsed(true)
-        } catch (e: any) {
+        } catch (err: unknown) {
             setError('AI assist failed. Fill in manually.')
         } finally {
             setAiLoading(false)
@@ -168,25 +191,38 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
         setSaving(true)
         setError(null)
         try {
-            await onSave({
-                title,
-                description,
-                category,
-                status,
-                priority,
-                timeframe,
-                vision_image_url: visionImageUrl, // Pass the actual state (empty string means removal)
-                target_date: targetDate || undefined,
-                linked_savings_id: linkedSavingsId,
-                linked_savings_type: linkedSavingsType,
-                milestones: milestones
-                    .filter(m => m.text.trim() !== '')
-                    .map(m => ({ title: m.text, is_completed: m.is_completed, impact_score: m.impact_score }))
-            }, imageFile || undefined, initialGoal?.id)
+            if (mode === 'goal') {
+                await onSave({
+                    title,
+                    description,
+                    category,
+                    status: status as GoalStatus,
+                    priority,
+                    timeframe,
+                    vision_image_url: visionImageUrl, // Pass the actual state (empty string means removal)
+                    target_date: targetDate || undefined,
+                    linked_savings_id: linkedSavingsId,
+                    linked_savings_type: linkedSavingsType,
+                    milestones: milestones
+                        .filter(m => m.text.trim() !== '')
+                        .map(m => ({ title: m.text, is_completed: m.is_completed, impact_score: m.impact_score }))
+                }, imageFile || undefined, initialGoal?.id)
+            } else if (onSaveAspiration) {
+                await onSaveAspiration({
+                    title,
+                    description,
+                    category,
+                    vision_image_url: visionImageUrl,
+                    horizon,
+                    milestones: milestones
+                        .filter(m => m.text.trim() !== '')
+                        .map(m => ({ title: m.text, is_completed: m.is_completed, impact_score: m.impact_score }))
+                }, imageFile || undefined, initialAspiration?.id)
+            }
 
             onClose()
-        } catch (err: any) {
-            setError(err?.message || 'Failed to save. Please try again.')
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to save. Please try again.')
         } finally {
             setSaving(false)
         }
@@ -196,7 +232,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
         <>
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 md:p-6">
+                <div key="creation-modal-container" className="fixed inset-0 z-[100] flex items-center justify-center p-3 md:p-6">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -218,8 +254,10 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                     <Target className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h2 className="text-[18px] md:text-[20px] font-bold text-black tracking-tight">{initialGoal ? 'Edit Goal' : 'New Goal'}</h2>
-                                    <p className="text-[10px] text-black/35 font-medium uppercase tracking-wider">Strategic Tactical Layer</p>
+                                    <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter">
+                                        {initialGoal || initialAspiration ? `Refine ${mode === 'goal' ? 'Target' : 'Dream'}` : `New ${mode === 'goal' ? 'Target' : 'Dream'}`}
+                                    </h2>
+                                    <p className="text-[10px] text-black/35 font-medium uppercase tracking-wider">Strategic Architecture</p>
                                 </div>
                             </div>
                             <button onClick={onClose} className="w-9 h-9 rounded-full border border-black/5 flex items-center justify-center hover:bg-black/5 transition-colors">
@@ -244,16 +282,45 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
 
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto no-scrollbar">
-                            <div className="p-5 md:px-10 md:pt-12 pb-16 md:pb-[86px] space-y-8">
+                            
+                            {/* Type Selector (Only for new) */}
+                            {(!initialGoal && !initialAspiration) && (
+                                <div className="px-5 md:px-10 pt-8 flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setMode('goal')}
+                                        className={cn(
+                                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                                            mode === 'goal' ? "bg-black text-white border-black" : "bg-black/[0.03] text-black/30 border-transparent"
+                                        )}
+                                    >
+                                        Rigid Goal
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMode('aspiration')}
+                                        className={cn(
+                                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                                            mode === 'aspiration' ? "bg-black text-white border-black" : "bg-black/[0.03] text-black/30 border-transparent"
+                                        )}
+                                    >
+                                        Dream
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="p-5 md:px-10 md:pt-8 pb-24 md:pb-40 space-y-8">
 
                                 {/* Title + AI Assist */}
                                 <div className="space-y-3">
-                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Goal Designation</label>
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">
+                                        {mode === 'goal' ? 'Target Designation' : 'Dream Essence'}
+                                    </label>
                                     <input
                                         autoFocus
                                         value={title}
                                         onChange={e => { setTitle(e.target.value); setAiUsed(false) }}
-                                        placeholder="e.g. Save for apartment deposit"
+                                        placeholder={mode === 'goal' ? "e.g. Save for apartment deposit" : "I WANT TO... (e.g. Live in a penthouse in NYC)"}
                                         className="w-full text-[20px] md:text-[26px] font-bold tracking-tight placeholder:text-black/10 border-none p-0 focus:ring-0 outline-none"
                                         required
                                     />
@@ -292,109 +359,109 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
 
                                 {/* Description */}
                                 <div className="space-y-2 pt-2 border-t border-black/5">
-                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Goal Brief</label>
+                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">
+                                        {mode === 'goal' ? 'Target Brief' : 'Dream Narrative'}
+                                    </label>
                                     <textarea
                                         value={description}
                                         onChange={e => setDescription(e.target.value)}
-                                        placeholder="Detailed description of the target state..."
+                                        placeholder={mode === 'goal' ? "Detailed description of the target state..." : "Paint a picture of this future reality..."}
                                         rows={3}
                                         className="w-full text-sm font-medium text-black/60 placeholder:text-black/15 border-none p-0 focus:ring-0 resize-none outline-none"
                                     />
                                 </div>
 
-                                {/* Milestones (Promoted) */}
-                                <div className="space-y-3 pt-2 border-t border-black/5">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Milestone Breakdown</label>
-                                            <div className="bg-emerald-100 text-emerald-600 rounded px-1.5 py-0.5 text-[10px] font-bold">
-                                                {milestones.filter(m => m.text.trim()).length}
+                                 {/* Milestones (Promoted) — For Both */}
+                                 <div className="space-y-3 pt-2 border-t border-black/5">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Milestone Breakdown</label>
+                                                <div className="bg-emerald-100 text-emerald-600 rounded px-1.5 py-0.5 text-[10px] font-bold">
+                                                    {milestones.filter(m => m.text.trim()).length}
+                                                </div>
                                             </div>
+                                            <button
+                                                type="button"
+                                                onClick={addMilestone}
+                                                className="text-[10px] font-bold text-black bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-lg uppercase tracking-widest flex items-center gap-1.5 transition-all active:scale-95"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" />
+                                                Add Step
+                                            </button>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={addMilestone}
-                                            className="text-[10px] font-bold text-black bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-lg uppercase tracking-widest flex items-center gap-1.5 transition-all active:scale-95"
+
+                                        <Reorder.Group
+                                            axis="y"
+                                            values={milestones}
+                                            onReorder={setMilestones}
+                                            className="space-y-2"
                                         >
-                                            <Plus className="w-3.5 h-3.5" />
-                                            Add Step
-                                        </button>
+                                            {milestones.map((m) => (
+                                                <MilestoneItem
+                                                    key={m.id}
+                                                    milestone={m}
+                                                    onUpdate={updateMilestone}
+                                                    onRemove={removeMilestone}
+                                                    index={milestones.indexOf(m)}
+                                                />
+                                            ))}
+                                        </Reorder.Group>
                                     </div>
 
-                                    <Reorder.Group
-                                        axis="y"
-                                        values={milestones}
-                                        onReorder={setMilestones}
-                                        className="space-y-2"
-                                    >
-                                        {milestones.map((milestone) => (
-                                            <MilestoneItem
-                                                key={milestone.id}
-                                                milestone={milestone}
-                                                onUpdate={updateMilestone}
-                                                onRemove={removeMilestone}
-                                                index={milestones.indexOf(milestone)}
-                                            />
-                                        ))}
-                                    </Reorder.Group>
-                                </div>
-
-                                {/* Category (Full Width) */}
-                                <div className="space-y-3 pt-2 border-t border-black/5">
-                                    <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Category</label>
-                                    <div className="grid grid-cols-4 gap-3">
-                                        {CATEGORIES.map(cat => {
-                                            const Icon = cat.icon
-                                            const active = category === cat.value
-                                            return (
-                                                <button
-                                                    key={cat.value}
-                                                    type="button"
-                                                    onClick={() => setCategory(cat.value)}
-                                                    className={cn(
-                                                        "flex items-center justify-center gap-2.5 py-3 rounded-xl border transition-all text-[12px] font-bold",
-                                                        active ? "bg-black text-white border-black" : "bg-white border-black/5 text-black/40 hover:border-black/20"
-                                                    )}
-                                                >
-                                                    <Icon className="w-4 h-4" />
-                                                    {cat.label}
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Config Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-black/5">
-
-                                    {/* Left column */}
-                                    <div className="space-y-5 min-w-0">
-
-                                        {/* Horizon */}
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Strategic Horizon</label>
-                                            <div className="flex items-center gap-1.5 p-1 bg-black/5 rounded-xl">
-                                                {(['short', 'medium', 'long'] as const).map(t => (
+                                 {/* Category — For Both */}
+                                 <div className="space-y-3 pt-2 border-t border-black/5">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Category</label>
+                                        <div className="grid grid-cols-4 gap-3">
+                                            {CATEGORIES.map(cat => {
+                                                const Icon = cat.icon
+                                                const active = category === cat.value
+                                                return (
                                                     <button
-                                                        key={t}
+                                                        key={cat.value}
                                                         type="button"
-                                                        onClick={() => setTimeframe(t)}
+                                                        onClick={() => setCategory(cat.value)}
                                                         className={cn(
-                                                            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
-                                                            timeframe === t ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/60"
+                                                            "flex items-center justify-center gap-2.5 py-3 rounded-xl border transition-all text-[12px] font-bold",
+                                                            active ? "bg-black text-white border-black" : "bg-white border-black/5 text-black/40 hover:border-black/20"
                                                         )}
                                                     >
-                                                        {t}
+                                                        <Icon className="w-4 h-4" />
+                                                        {cat.label}
                                                     </button>
-                                                ))}
-                                            </div>
+                                                )
+                                            })}
                                         </div>
                                     </div>
 
-                                    {/* Right column */}
-                                    <div className="space-y-5 min-w-0">
+                                {/* Horizon / Targeting Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-black/5">
+
+                                    {/* Horizon Selector */}
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Strategic Horizon</label>
+                                        <div className="flex items-center gap-1.5 p-1 bg-black/5 rounded-xl">
+                                            {(['short', 'medium', 'long'] as const).map(horizonType => (
+                                                <button
+                                                    key={horizonType}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (mode === 'goal') setTimeframe(horizonType)
+                                                        else setHorizon(horizonType)
+                                                    }}
+                                                    className={cn(
+                                                        "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
+                                                        (mode === 'goal' ? timeframe : horizon) === horizonType ? "bg-white text-black shadow-sm" : "text-black/30 hover:text-black/60"
+                                                    )}
+                                                >
+                                                    {horizonType}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Specific Goal Configs */}
+                                    {mode === 'goal' && (
                                         <div className="space-y-2">
-                                            {/* Linked Savings */}
                                             <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Savings Target</label>
                                             <div className="relative group rounded-xl border border-black/5 bg-black/[0.02] focus-within:border-black/20 focus-within:bg-white transition-all overflow-hidden">
                                                 <select
@@ -416,13 +483,13 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                                 >
                                                     <option value="">No linked savings</option>
                                                     <optgroup label="Manual Finance Goals">
-                                                        {availableSavings.filter(s => s.type === 'manual').map(s => (
-                                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                                        {availableSavings.filter(savingsItem => savingsItem.type === 'manual').map(savingsItem => (
+                                                            <option key={savingsItem.id} value={savingsItem.id}>{savingsItem.name}</option>
                                                         ))}
                                                     </optgroup>
                                                     <optgroup label="Monzo Savings Pots">
-                                                        {availableSavings.filter(s => s.type === 'monzo').map(s => (
-                                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                                        {availableSavings.filter(savingsItem => savingsItem.type === 'monzo').map(savingsItem => (
+                                                            <option key={savingsItem.id} value={savingsItem.id}>{savingsItem.name}</option>
                                                         ))}
                                                     </optgroup>
                                                 </select>
@@ -430,20 +497,12 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                                     <PiggyBank className="w-4 h-4" />
                                                 </div>
                                             </div>
-                                            {linkedSavingsId && (
-                                                <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 rounded-lg border border-emerald-100 mt-1">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                                    <span className="text-[8.5px] font-bold text-emerald-700 uppercase tracking-widest leading-none">
-                                                        Auto-Syncing
-                                                    </span>
-                                                </div>
-                                            )}
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
 
-                                {/* Targeting */}
-                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5">
+                                {/* Priority and Deadline */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-black/5">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Tier Priority</label>
                                         <div className="flex items-center gap-1.5 p-1 bg-black/5 rounded-xl">
@@ -469,7 +528,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">Target Deadline</label>
+                                        <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest ml-1">{mode === 'goal' ? 'Target Deadline' : 'Estimated Materialization'}</label>
                                         <div className="rounded-xl border border-black/5 bg-black/[0.02] focus-within:border-black/20 focus-within:bg-white transition-all overflow-hidden">
                                             <DatePickerInput
                                                 value={targetDate}
@@ -554,7 +613,7 @@ export default function GoalCreationModal({ isOpen, onClose, onSave, initialGoal
                                     className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-2.5 bg-black text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/10 disabled:opacity-40 disabled:scale-100"
                                 >
                                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
-                                    {saving ? (initialGoal ? 'Refining...' : 'Authorizing...') : (initialGoal ? 'Refine Goal' : 'Authorize Goal')}
+                                    {saving ? (initialGoal || initialAspiration ? 'Refining...' : 'Authorizing...') : (initialGoal || initialAspiration ? `Refine ${mode === 'goal' ? 'Goal' : 'Vector'}` : `Authorize ${mode === 'goal' ? 'Goal' : 'Vector'}`)}
                                 </button>
                             </div>
                         </form>

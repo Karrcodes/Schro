@@ -2,13 +2,13 @@
 
 import React, { useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Target, Wallet, Briefcase, Heart, User, ChevronRight, Clock, PiggyBank } from 'lucide-react'
+import { Target, Wallet, Briefcase, Heart, User, ChevronRight, Clock, PiggyBank, Stars } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGoals as useFinanceGoals } from '@/features/finance/hooks/useGoals'
 import { usePots } from '@/features/finance/hooks/usePots'
-import type { Goal, GoalCategory, GoalTimeframe } from '../types/goals.types'
+import type { Goal, GoalCategory, GoalTimeframe, Aspiration } from '../types/goals.types'
 
-const CATEGORY_CONFIG: Record<GoalCategory, { label: string, icon: any, color: string }> = {
+const CATEGORIES: Record<GoalCategory, { label: string, icon: React.ElementType, color: string }> = {
     finance: { label: 'Finance', icon: Wallet, color: 'text-emerald-500 bg-emerald-50' },
     career: { label: 'Career', icon: Briefcase, color: 'text-blue-500 bg-blue-50' },
     health: { label: 'Health', icon: Heart, color: 'text-rose-500 bg-rose-50' },
@@ -21,25 +21,36 @@ const TIMEFRAME_CONFIG: Record<GoalTimeframe, { label: string, desc: string }> =
     long: { label: 'Long Term', desc: 'Strategic Legacy' }
 }
 
-interface GoalsMatrixProps {
-    goals: Goal[]
-    onGoalClick: (goal: Goal) => void
+const PRIORITY_CONFIG: Record<string, { label: string, color: string, pulse?: boolean }> = {
+    super: { label: 'Super Priority', color: 'bg-purple-600/10 text-purple-600', pulse: true },
+    high: { label: 'High Priority', color: 'bg-red-500/10 text-red-600' },
+    mid: { label: 'Mid Priority', color: 'bg-amber-500/10 text-amber-600' },
+    low: { label: 'Low Priority', color: 'bg-black/[0.04] text-black/30' }
 }
 
-export default function GoalsMatrix({ goals, onGoalClick }: GoalsMatrixProps) {
+interface GoalsMatrixProps {
+    items: (Goal | Aspiration)[]
+    onItemClick: (item: Goal | Aspiration) => void
+}
+
+export default function GoalsMatrix({ items, onItemClick }: GoalsMatrixProps) {
     const { goals: financeGoals } = useFinanceGoals()
     const { pots } = usePots()
-    const groupedGoals = useMemo(() => {
-        const groups: Record<GoalTimeframe, Goal[]> = {
+    
+    const groupedItems = useMemo(() => {
+        const groups: Record<GoalTimeframe, (Goal | Aspiration)[]> = {
             short: [],
             medium: [],
             long: []
         }
-        goals.forEach(goal => {
-            groups[goal.timeframe || 'short'].push(goal)
+        items.forEach(item => {
+            const h = 'horizon' in item ? item.horizon : (item as Goal).timeframe
+            if (h && h in groups) {
+                groups[h as GoalTimeframe].push(item)
+            }
         })
         return groups
-    }, [goals])
+    }, [items])
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
@@ -51,7 +62,7 @@ export default function GoalsMatrix({ goals, onGoalClick }: GoalsMatrixProps) {
                                 {TIMEFRAME_CONFIG[timeframe].label}
                             </h3>
                             <div className="ml-auto bg-black/[0.04] px-1.5 py-0.5 rounded text-[9px] font-bold font-mono text-black/20">
-                                {groupedGoals[timeframe].length}
+                                {groupedItems[timeframe].length}
                             </div>
                         </div>
                         <span className="text-[10px] text-black/35 font-medium mt-0.5">
@@ -59,20 +70,20 @@ export default function GoalsMatrix({ goals, onGoalClick }: GoalsMatrixProps) {
                         </span>
                     </div>
 
-                    <div className="space-y-4">
+                        <div className="space-y-4">
                         <AnimatePresence mode="popLayout">
-                            {groupedGoals[timeframe].map((goal, idx) => (
-                                <GoalMatrixCard
-                                    key={goal.id}
-                                    goal={goal}
+                            {groupedItems[timeframe].map((item, idx) => (
+                                <StrategicCard
+                                    key={item.id}
+                                    item={item}
                                     index={idx}
                                     financeGoals={financeGoals}
                                     pots={pots}
-                                    onClick={() => onGoalClick(goal)}
+                                    onClick={() => onItemClick(item)}
                                 />
                             ))}
                         </AnimatePresence>
-                        {groupedGoals[timeframe].length === 0 && (
+                        {groupedItems[timeframe].length === 0 && (
                             <div className="h-24 rounded-2xl border-2 border-dashed border-black/[0.03] flex items-center justify-center">
                                 <p className="text-[11px] text-black/20 font-medium uppercase tracking-widest">Awaiting Command</p>
                             </div>
@@ -84,20 +95,15 @@ export default function GoalsMatrix({ goals, onGoalClick }: GoalsMatrixProps) {
     )
 }
 
-const PRIORITY_CONFIG: Record<string, { label: string, color: string, pulse?: boolean }> = {
-    urgent: { label: 'Urgent Priority', color: 'bg-purple-600/10 text-purple-600', pulse: true },
-    high: { label: 'High Priority', color: 'bg-red-500/10 text-red-600' },
-    mid: { label: 'Mid Priority', color: 'bg-amber-500/10 text-amber-600' },
-    low: { label: 'Low Priority', color: 'bg-black/[0.04] text-black/30' }
-}
-
-function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: { 
-    goal: Goal, 
+function StrategicCard({ item, index, financeGoals, pots, onClick }: { 
+    item: Goal | Aspiration, 
     index: number, 
     financeGoals: any[], 
     pots: any[], 
     onClick: () => void 
 }) {
+    const isAspiration = 'horizon' in item
+    const isGoal = !isAspiration
     const isDragging = useRef(false)
     const wasDragging = useRef(false)
     const startPos = useRef({ x: 0, y: 0 })
@@ -119,7 +125,7 @@ function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: {
             }
         }
 
-        const handleUp = (ev: PointerEvent) => {
+        const handleUp = () => {
             window.removeEventListener('pointermove', handleMove)
             window.removeEventListener('pointerup', handleUp)
             setIsDraggingThis(false)
@@ -132,11 +138,11 @@ function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: {
         window.addEventListener('pointerup', handleUp)
     }
 
-    const totalMilestones = goal.milestones?.length || 0
-    const completedMilestones = goal.milestones?.filter(m => m.is_completed).length || 0
+    const totalMilestones = item.milestones?.length || 0
+    const completedMilestones = item.milestones?.filter(m => m.is_completed).length || 0
     const progress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0
-    const config = CATEGORY_CONFIG[goal.category]
-    const priority = PRIORITY_CONFIG[goal.priority || 'mid']
+    const config = isGoal ? CATEGORIES[(item as Goal).category] : CATEGORIES[(item as Aspiration).category]
+    const priority = isGoal ? PRIORITY_CONFIG[(item as Goal).priority || 'mid'] : null
 
     return (
         <motion.div
@@ -159,15 +165,15 @@ function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: {
                 onPointerDown={handlePointerDown}
                 style={{ touchAction: 'none' }}
             >
-                {goal.vision_image_url ? (
+                {item.vision_image_url ? (
                     <img
-                        src={goal.vision_image_url}
-                        alt={goal.title}
+                        src={item.vision_image_url}
+                        alt={item.title}
                         className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-700"
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center opacity-[0.03]">
-                        <Target className="w-8 h-8 text-black" />
+                        {isGoal ? <Target className="w-8 h-8 text-black" /> : <Stars className="w-8 h-8 text-black" />}
                     </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -175,81 +181,111 @@ function GoalMatrixCard({ goal, index, financeGoals, pots, onClick }: {
 
             <div className="p-6 space-y-4 flex-1 flex flex-col">
                 <div className="flex items-start justify-between">
-                    <div className={cn("p-2.5 rounded-xl flex items-center justify-center", config.color)}>
-                        <config.icon className="w-4 h-4" />
+                    <div className={cn("p-2.5 rounded-xl flex items-center justify-center", config?.color)}>
+                        {config ? React.createElement(config.icon, { className: "w-4 h-4" }) : <Stars className="w-4 h-4" />}
                     </div>
-                    <div className={cn(
-                        "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider",
-                        goal.priority === 'super' ? "bg-purple-600/10 text-purple-600 animate-pulse" :
-                            goal.priority === 'high' ? "bg-red-500/10 text-red-600" :
-                                goal.priority === 'mid' ? "bg-amber-500/10 text-amber-600" :
-                                    "bg-black/[0.04] text-black/30"
-                    )}>
-                        {goal.priority || 'mid'}
-                    </div>
+                    {isGoal && (
+                        <div className={cn(
+                            "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider",
+                            priority?.color
+                        )}>
+                            {priority?.label || 'Mid Priority'}
+                        </div>
+                    )}
+                    {!isGoal && (
+                        <div className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-black text-white">
+                            Vector
+                        </div>
+                    )}
                 </div>
 
                 <div>
-                    <h4 className="text-[15px] font-bold text-black group-hover:text-blue-600 transition-colors line-clamp-1">{goal.title}</h4>
-                    <p className="text-[12px] text-black/40 mt-1 line-clamp-2 leading-relaxed">
-                        {goal.description || 'No strategic breakdown defined.'}
+                    <h4 className="text-[15px] font-bold text-black group-hover:text-blue-600 transition-colors line-clamp-1">{item.title}</h4>
+                    <p className={cn(
+                        "text-[12px] mt-1 line-clamp-2 leading-relaxed italic transition-colors",
+                        isGoal ? "text-black/40" : "text-amber-500/60 font-medium"
+                    )}>
+                        {item.description || (isGoal ? 'No strategic breakdown defined.' : 'No visionary narrative manifested.')}
                     </p>
                 </div>
 
                 <div className="mt-auto space-y-4">
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-bold text-black/30 uppercase tracking-wider">{completedMilestones}/{totalMilestones} Milestones</span>
-                            <span className="font-mono font-bold">{Math.round(progress)}%</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-black/[0.04] rounded-full overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${progress}%` }}
-                                transition={{ duration: 0.8, ease: "easeOut" }}
-                                className="h-full bg-black group-hover:bg-blue-600 transition-colors"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Savings Progress */}
-                    {goal.linked_savings_id && (() => {
-                        const savings = goal.linked_savings_type === 'manual' 
-                            ? financeGoals.find(f => f.id === goal.linked_savings_id)
-                            : pots.find(p => p.id === goal.linked_savings_id)
-                        
-                        if (!savings) return null
-                        
-                        const current = 'current_amount' in savings ? savings.current_amount : savings.balance
-                        const target = savings.target_amount
-                        const sProgress = target > 0 ? Math.min(100, (current / target) * 100) : 0
-                        
-                        return (
-                            <div className="space-y-2 pt-2 border-t border-black/[0.03]">
+                    {(isGoal || totalMilestones > 0) ? (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
                                 <div className="flex items-center justify-between text-[11px]">
-                                    <div className="flex items-center gap-1.5 text-emerald-600">
-                                        <PiggyBank className="w-3.5 h-3.5" />
-                                        <span className="font-bold uppercase tracking-wider">Savings Goal</span>
-                                    </div>
-                                    <span className="font-mono font-bold text-emerald-600">£{current.toLocaleString()} <span className="text-black/10">/ £{target.toLocaleString()}</span></span>
+                                    <span className="font-bold text-black/30 uppercase tracking-wider">{completedMilestones}/{totalMilestones} {isGoal ? 'Milestones' : 'Steps'}</span>
+                                    <span className="font-mono font-bold">{Math.round(progress)}%</span>
                                 </div>
-                                <div className="h-1.5 w-full bg-emerald-500/10 rounded-full overflow-hidden">
+                                <div className="h-1.5 w-full bg-black/[0.04] rounded-full overflow-hidden">
                                     <motion.div
                                         initial={{ width: 0 }}
-                                        animate={{ width: `${sProgress}%` }}
+                                        animate={{ width: `${progress}%` }}
                                         transition={{ duration: 0.8, ease: "easeOut" }}
-                                        className="h-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+                                        className={cn(
+                                            "h-full transition-colors",
+                                            isAspiration ? "bg-amber-500" : "bg-black group-hover:bg-blue-600"
+                                        )}
                                     />
                                 </div>
                             </div>
-                        )
-                    })()}
+
+                            {/* Savings Progress — Only for Goals */}
+                            {isGoal && (item as Goal).linked_savings_id && (() => {
+                                const g = item as Goal
+                                const savings = g.linked_savings_type === 'manual' 
+                                    ? financeGoals.find(f => f.id === g.linked_savings_id)
+                                    : pots.find(p => p.id === g.linked_savings_id)
+                                
+                                if (!savings) return null
+                                
+                                const current = 'current_amount' in savings ? savings.current_amount : (savings.balance || 0)
+                                const target = savings.target_amount || 0
+                                const sProgress = target > 0 ? Math.min(100, (current / target) * 100) : 0
+                                
+                                return (
+                                    <div className="space-y-2 pt-2 border-t border-black/[0.03]">
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <div className="flex items-center gap-1.5 text-emerald-600">
+                                                <PiggyBank className="w-3.5 h-3.5" />
+                                                <span className="font-bold uppercase tracking-wider">Savings Goal</span>
+                                            </div>
+                                            <span className="font-mono font-bold text-emerald-600">£{current.toLocaleString()} <span className="text-black/10">/ £{target.toLocaleString()}</span></span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-emerald-500/10 rounded-full overflow-hidden">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${sProgress}%` }}
+                                                transition={{ duration: 0.8, ease: "easeOut" }}
+                                                className="h-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+                                            />
+                                        </div>
+                                    </div>
+                                )
+                            })()}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-2 pt-2">
+                             <div className="flex items-center gap-2">
+                                <div className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-500/60">Visionary Resonance Active</span>
+                             </div>
+                             <div className="h-1 w-full bg-amber-500/5 rounded-full overflow-hidden">
+                                <motion.div 
+                                    initial={{ x: "-100%" }}
+                                    animate={{ x: "100%" }}
+                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                    className="h-full w-1/3 bg-amber-500/20"
+                                />
+                             </div>
+                        </div>
+                    )}
 
                     <div className="flex items-center justify-between pt-2 border-t border-black/[0.04]">
                         <div className="flex items-center gap-1.5 text-black/25">
-                            <Clock className="w-3 h-3" />
+                            {isGoal ? <Clock className="w-3 h-3" /> : <Stars className="w-3 h-3" />}
                             <span className="text-[10px] font-bold uppercase tracking-wider">
-                                {goal.target_date ? new Date(goal.target_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : 'No Deadline'}
+                                {isGoal ? ((item as Goal).target_date ? new Date((item as Goal).target_date!).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : 'No Deadline') : 'Eternal Horizon'}
                             </span>
                         </div>
                         <div className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center text-black/20 group-hover:bg-black group-hover:text-white transition-all transform group-hover:translate-x-1">

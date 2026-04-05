@@ -28,6 +28,7 @@
     "jose": "^6.1.3",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
+    "node-ical": "^0.26.0",
     "nordigen-node": "^1.4.1",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",

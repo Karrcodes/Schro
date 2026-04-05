@@ -11,7 +11,7 @@ import {
     ArrowRight, Info, Check, X, Settings2, Sparkles, BarChart2, Minus,
     Target, ShoppingCart, Bell, LayoutGrid, LayoutList, GripVertical, Activity, ChevronUp, RefreshCw, Rocket, Video, Type, List, ListChecks, Wallet, Heart, Star, Save, RotateCcw,
     Beaker, Factory, Tv, TrendingUp, Shield, Camera, Upload, Library, Receipt, Wand2, ListTodo, Layers, ListTree,
-    Dumbbell, FileText
+    Dumbbell, FileText, Package
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTasksProfile } from '../contexts/TasksProfileContext'
@@ -192,7 +192,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
         : category === 'essential' ? 'Essentials'
         : 'Reminders'
     const Icon = category === 'todo' ? ListTodo 
-        : (category === 'grocery' || category === 'essential') ? ShoppingCart 
+        : category === 'grocery' ? ShoppingCart 
+        : category === 'essential' ? Package
         : Bell
 
     // Handlers
@@ -1266,7 +1267,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             )} />
                         </button>
                     )}
-                    {category === 'essential' && (
+                    {isShopping && (
                         <div className="flex gap-1.5 shrink-0">
                             <input 
                                 type="file"
