@@ -25,6 +25,11 @@ async function handleSpeech(req: NextRequest) {
 
         const apiKey = process.env.OPENAI_API_KEY
 
+        // Skip execution during static build if key is missing
+        if (!apiKey && process.env.NODE_ENV === 'production' && process.env.TAURI_PLATFORM) {
+            return NextResponse.json({ error: 'AI Speech skipped during static build' }, { status: 200 })
+        }
+
         if (!apiKey) {
             return NextResponse.json({ error: 'OPENAI_API_KEY is not configured in .env.local' }, { status: 500 })
         }
