@@ -473,7 +473,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             open: true,
             title: 'Clear Completed?',
             message: `Are you sure you want to remove all ${itemType}?`,
-            confirmText: 'Yes, Clear Completed',
+            confirmText: 'Clear Completed',
             type: 'danger',
             action: async () => {
                 await clearCompletedTasks()
@@ -2117,7 +2117,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 open: true,
                                 title: isGrocery ? 'Finish Shopping?' : 'Clear Completed Essentials?',
                                 message: `This will clear all completed items from your ${isGrocery ? 'grocery' : 'essentials'} list. Are you sure?`,
-                                confirmText: 'Yes, Clear Completed',
+                                confirmText: 'Clear Completed',
                                 type: 'info',
                                 action: async () => {
                                     await clearCompletedTasks()

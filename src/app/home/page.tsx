@@ -8,7 +8,7 @@ import {
     TrendingUp, Activity, Target,
     Rocket, ArrowRight, Zap, Network,
     ExternalLink, PenLine, BarChart3, Cpu,
-    Check, ChevronRight, SlidersHorizontal, Sliders
+    Check, ChevronDown, ChevronRight, SlidersHorizontal, Sliders
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -50,6 +50,87 @@ function RoleCard({ role, index }: { role: typeof ROLES[0], index: number }) {
     )
 }
 
+function IntegrationCard({ integration, index }: { integration: typeof INTEGRATIONS[0], index: number }) {
+    const [expanded, setExpanded] = useState(false)
+    const [imgError, setImgError] = useState(false)
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: index * 0.04 }}
+            onClick={() => setExpanded(v => !v)}
+            className={cn(
+                'bg-white rounded-2xl border border-black/[0.06] shadow-sm cursor-pointer transition-all duration-200 overflow-hidden',
+                expanded ? 'shadow-md' : 'hover:shadow-md hover:border-black/[0.1]'
+            )}
+        >
+            <div className="p-4">
+                <div className="flex items-start gap-3">
+                    <div className={cn(
+                        'w-9 h-9 rounded-xl border border-black/[0.06] flex items-center justify-center shrink-0 overflow-hidden shadow-sm',
+                        integration.logoBg
+                    )}>
+                        {!imgError ? (
+                            <img
+                                src={integration.logo}
+                                alt={integration.name}
+                                className="w-6 h-6 object-contain"
+                                onError={() => setImgError(true)}
+                            />
+                        ) : (
+                            <span className={cn('text-[12px] font-bold', integration.logoBg === 'bg-black' ? 'text-white/60' : 'text-black/40')}>
+                                {integration.name[0]}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-[13px] font-bold text-black/80 leading-none whitespace-nowrap">{integration.name}</p>
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full shrink-0">Live</span>
+                        </div>
+                        <p className="text-[11px] text-black/35 mt-0.5">{integration.brand}</p>
+                    </div>
+                </div>
+
+                <p className="text-[12px] text-black/50 mt-3 leading-relaxed">{integration.shortDesc}</p>
+
+                <div className="flex items-center gap-1 mt-3 text-black/30 hover:text-black/60 transition-colors">
+                    <span className="text-[10px] font-bold uppercase tracking-widest">
+                        {expanded ? 'Hide details' : 'How it\'s used'}
+                    </span>
+                    <ChevronDown className={cn('w-3 h-3 transition-transform', expanded && 'rotate-180')} />
+                </div>
+            </div>
+
+            <AnimatePresence>
+                {expanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="px-4 pb-4 pt-3 border-t border-black/[0.04] space-y-3 bg-black/[0.01]">
+                            <div className="space-y-2">
+                                {integration.usedFor.map((use, i) => (
+                                    <div key={i} className="flex items-start gap-2">
+                                        <Check className="w-3 h-3 text-emerald-500 shrink-0 mt-0.5" />
+                                        <span className="text-[11px] text-black/50 leading-relaxed">{use}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    )
+}
+
 // ─── Main Landing Page ────────────────────────────────────────────────────────
 
 export default function LandingPage() {
@@ -81,7 +162,7 @@ export default function LandingPage() {
                 </div>
             </header>
 
-            <main className="flex-1 pt-32 pb-20">
+            <main className="flex-1 pt-20 pb-20">
                 <div className="max-w-6xl mx-auto px-6 space-y-24">
                     
                     {/* ── Hero Section ─────────────────────────────────────────── */}
@@ -109,7 +190,7 @@ export default function LandingPage() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.4, duration: 1 }}
-                            className="pt-10 flex justify-center"
+                            className="pt-6 flex justify-center"
                         >
                             <div className="relative group">
                                 {/* Component-based visual representation */}
@@ -160,6 +241,21 @@ export default function LandingPage() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {ROLES.map((role, i) => (
                                 <RoleCard key={role.label} role={role} index={i} />
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* ── Connected Integrations ───────────────────────────────────── */}
+                    <section id="integrations">
+                        <SectionHeader 
+                            icon={Network} 
+                            title="Connected Integrations" 
+                            subtitle="The Data Sources Powering Schrö" 
+                            iconCls="bg-indigo-50 text-indigo-600"
+                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            {INTEGRATIONS.map((integration, i) => (
+                                <IntegrationCard key={integration.id} integration={integration} index={i} />
                             ))}
                         </div>
                     </section>
@@ -304,7 +400,7 @@ export default function LandingPage() {
                 </div>
             </main>
 
-            <div className="max-w-6xl w-full mx-auto px-6 pb-12">
+            <div className="max-w-7xl w-full mx-auto px-6 pb-8">
                 <KarrFooter />
             </div>
             

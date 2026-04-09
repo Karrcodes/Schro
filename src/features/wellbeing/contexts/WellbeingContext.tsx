@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
 import type { WellbeingProfile, MetricEntry, MacroTargets, WellbeingState, WellbeingGoal, ActivityLevel, WorkoutRoutine, WorkoutLog, WorkoutSession, WorkoutSet, ExerciseLog, TheGymGroupStats, MealLog, MoodValue, MoodEntry, Reflection, GymBusyness, GymVisit, DashboardLayout, LibraryMeal, FridgeItem, Milestone, Exercise, EufyHistoryEntry, EufyStats } from '../types'
 import { GymService } from '../services/gymService'
 import { EufyService } from '../services/eufyService'
@@ -140,6 +141,7 @@ import { getNextProgressiveMilestone } from '../utils/milestoneGenerator'
 export function WellbeingProvider({ children }: { children: ReactNode }) {
     const [state, setState] = useState<WellbeingState>(INITIAL_STATE)
     const [rotaOverrides, setRotaOverrides] = useState<RotaOverride[]>([])
+    const pathname = usePathname()
 
     // Load Initial Data
     useEffect(() => {
@@ -1225,10 +1227,11 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
                 return { ...prev, gymStats, workoutLogs, isSyncingGym: false }
             })
         } catch (e: any) { 
-            console.error('Gym sync failed:', e) 
             if (e.message?.includes('403') || e.message?.includes('401')) {
-                // If token is invalid across devices, forcibly disconnect to prompt a re-link
+                console.warn('Gym auth invalid or expired. Disconnecting to prompt re-auth.')
                 disconnectGym()
+            } else {
+                console.warn('Gym sync issue:', e.message) 
             }
         } finally {
             setState(prev => ({ ...prev, isSyncingGym: false }))
@@ -1237,7 +1240,9 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
 
     // Periodic Resync (Every 30 mins)
     useEffect(() => {
-        if (state.gymStats.isIntegrated && !state.loading) {
+        const isShellFreePage = pathname === '/' || pathname === '/home' || pathname?.startsWith('/login')
+        
+        if (state.gymStats.isIntegrated && !state.loading && !isShellFreePage) {
             // Run once on load
             syncGymData()
             
@@ -1246,7 +1251,7 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
             }, 30 * 60 * 1000)
             return () => clearInterval(interval)
         }
-    }, [state.gymStats.isIntegrated, state.loading])
+    }, [state.gymStats.isIntegrated, state.loading, pathname])
 
     const connectGym = async (username: string, pin: string, locationId: string, locationIds?: string[]) => {
         const data = await GymService.login(username, pin)

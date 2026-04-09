@@ -158,7 +158,7 @@ function ControlCentreContent() {
                             <div className="flex flex-wrap items-center gap-4 md:gap-6 justify-start md:justify-end">
                                 <WeatherWidget />
                                 
-                                {(() => {
+                                {isMounted && (() => {
                                     const efficiency = Math.round(((metrics.finance.points + metrics.tasks.points) / (PILLAR_MAX.finance + PILLAR_MAX.tasks)) * 100)
                                     return <EngineVelocityMini efficiency={efficiency} />
                                 })()}

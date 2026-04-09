@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import type { Task } from '../types/tasks.types'
 import { useTasksProfile } from './TasksProfileContext'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { MOCK_TASKS } from '@/lib/demoData'
 
 interface TasksContextType {
@@ -28,6 +29,7 @@ const LOCAL_STORAGE_KEY = 'schrö_demo_tasks'
 
 export function TasksProvider({ children }: { children: React.ReactNode }) {
     const { settings } = useSystemSettings()
+    const { user } = useAuth()
     const [tasks, setTasks] = useState<Record<string, Task[]>>({})
     const [loading, setLoading] = useState<Record<string, boolean>>({})
     const [errors, setErrors] = useState<Record<string, string | null>>({})
@@ -82,16 +84,22 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         }
 
         setLoading(prev => ({ ...prev, [category]: true }))
-        const { data, error } = await supabase
+        const query = supabase
             .from('fin_tasks')
             .select('*')
             .eq('category', category)
             .order('position', { ascending: false })
 
+        if (user?.id) {
+            query.eq('user_id', user.id)
+        }
+
+        const { data, error } = await query
+
         if (error) setErrors(prev => ({ ...prev, [category]: error.message }))
         else setTasks(prev => ({ ...prev, [category]: data ?? [] }))
         setLoading(prev => ({ ...prev, [category]: false }))
-    }, [settings.is_demo_mode, getSessionTasks, saveSessionTasks])
+    }, [settings.is_demo_mode, getSessionTasks, saveSessionTasks, user?.id])
 
     const createTask = async (category: string, taskData: Partial<Task>, activeProfile: string) => {
         if (settings.is_demo_mode) {
@@ -130,6 +138,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         const { error } = await supabase.from('fin_tasks').insert({
             ...taskData,
             category,
+            user_id: user?.id,
             profile: taskData.profile || activeProfile,
             position: currentTasks.length > 0 ? Math.max(...currentTasks.map((t: Task) => t.position || 0)) + 1000 : Date.now(),
         })
@@ -180,6 +189,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         const finalTasks = tasksData.map((taskData, idx) => ({
             ...taskData,
             category,
+            user_id: user?.id,
             profile: taskData.profile || activeProfile,
             position: lastPosition + (idx + 1) * 1000,
             is_completed: false,
@@ -202,7 +212,10 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
             saveSessionTasks(category, updated)
             return
         }
-        const { error } = await supabase.from('fin_tasks').update({ is_completed }).eq('id', id)
+        const { error } = await supabase.from('fin_tasks')
+            .update({ is_completed })
+            .eq('id', id)
+            .eq('user_id', user?.id)
         if (error) {
             await fetchTasks(category)
             throw error
@@ -221,7 +234,10 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
             saveSessionTasks(category, updated)
             return
         }
-        const { error } = await supabase.from('fin_tasks').update(updates).eq('id', id)
+        const { error } = await supabase.from('fin_tasks')
+            .update(updates)
+            .eq('id', id)
+            .eq('user_id', user?.id)
         if (error) {
             await fetchTasks(category)
             throw error
@@ -237,7 +253,10 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
             await fetchTasks(category)
             return
         }
-        const { error } = await supabase.from('fin_tasks').delete().eq('id', id)
+        const { error } = await supabase.from('fin_tasks')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user?.id)
         if (error) throw error
         await fetchTasks(category)
     }
@@ -254,6 +273,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
             .delete()
             .eq('profile', activeProfile)
             .eq('category', category)
+            .eq('user_id', user?.id)
         if (error) throw error
         await fetchTasks(category)
     }
@@ -271,6 +291,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
             .eq('profile', activeProfile)
             .eq('category', category)
             .eq('is_completed', true)
+            .eq('user_id', user?.id)
         if (error) throw error
         await fetchTasks(category)
     }
@@ -295,7 +316,10 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
         try {
             for (const t of updatedOrdered) {
-                await supabase.from('fin_tasks').update({ position: t.position }).eq('id', t.id)
+                await supabase.from('fin_tasks')
+                    .update({ position: t.position })
+                    .eq('id', t.id)
+                    .eq('user_id', user?.id)
             }
         } catch (err) {
             console.error('Failed to persist task positions', err)

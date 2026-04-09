@@ -27,7 +27,8 @@ export const GymService = {
         const res = await fetch(url.toString(), { headers, cache: 'no-store' })
         if (!res.ok) {
             const errorData = await res.json().catch(() => ({}))
-            throw new Error(`Failed to fetch busyness: ${res.status} ${res.statusText} - ${JSON.stringify(errorData)}`)
+            console.warn(`Gym Busyness Unavailable: ${res.status} - ${JSON.stringify(errorData)}`)
+            return null
         }
         return res.json()
     },
