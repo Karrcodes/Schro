@@ -58,6 +58,12 @@ export function useGoals(profileOverride?: ProfileType) {
         else setGoals(data ?? [])
         setLoading(false)
     }
+    const createGoal = async (goal: Omit<Goal, 'id' | 'created_at' | 'profile'>) => {
+        if (settings.is_demo_mode) {
+            const newGoal = { ...goal, id: `demo-g-${Date.now()}`, created_at: new Date().toISOString() } as Goal
+            setGoals([newGoal, ...goals])
+            return
+        }
 
         const { data, error } = await supabase.from('fin_goals').insert({ ...goal, profile: activeProfile }).select().single()
         if (error) throw error

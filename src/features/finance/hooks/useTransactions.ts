@@ -117,6 +117,18 @@ export function useTransactions(profileOverride?: ProfileType | 'all') {
         setLoading(false)
     }
 
+    const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
+        if (settings.is_demo_mode) {
+            const updated = transactions.map(t => t.id === id ? { ...t, ...updates } : t)
+            setTransactions(updated)
+            const key = activeProfile === 'business' ? 'schrö_demo_finance_transactions_business_v1' : 'schrö_demo_finance_transactions_personal_v1'
+            if (typeof window !== 'undefined' && activeProfile !== 'all') {
+                localStorage.setItem(key, JSON.stringify(updated))
+            }
+            globalRefresh()
+            return
+        }
+
         // Local Update (Instant)
         if (isTauri()) {
             const tx = transactions.find(t => t.id === id)
