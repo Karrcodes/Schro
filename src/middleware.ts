@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 
 // Routes that don't require authentication
 const PUBLIC_ROUTES = [
+    '/',
     '/home',
     '/login',
     '/waitlist',
@@ -42,6 +43,11 @@ async function getUserStatus(userId: string): Promise<string | null> {
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
+    
+    // REDIRECT '/home' to '/'
+    if (pathname === '/home') {
+        return NextResponse.redirect(new URL('/', request.url))
+    }
 
     // 🚨 EMERGENCY BYPASS FOR APPLE SYNC 🚨
     if (pathname.includes('apple')) {
@@ -61,7 +67,8 @@ export async function middleware(request: NextRequest) {
     // If visiting root, redirect based on auth state
     if (pathname === '/') {
         if (!user) {
-            return NextResponse.redirect(new URL('/login', request.url))
+            // Guests see the landing page
+            return supabaseResponse
         }
         // Has session — check if approved
         const status = await getUserStatus(user.id)

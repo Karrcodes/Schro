@@ -1,8 +1,5 @@
-'use client'
-
-import ControlCentrePage from './system/control-centre/page'
+import LandingPage from './home/page'
 
 export default function Home() {
-  return <ControlCentrePage />
+    return <LandingPage />
 }
-

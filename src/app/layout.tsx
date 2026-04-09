@@ -55,7 +55,7 @@ export default async function RootLayout({
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') || ''
   // Pages that don't use the main app shell (sidebar, security lock, etc.)
-  const isShellFreePage = pathname === '/home' || pathname.startsWith('/login') || pathname.startsWith('/waitlist')
+  const isShellFreePage = pathname === '/' || pathname === '/home' || pathname.startsWith('/login') || pathname.startsWith('/waitlist')
 
   return (
     <html lang="en" suppressHydrationWarning>

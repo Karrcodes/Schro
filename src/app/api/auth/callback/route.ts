@@ -50,16 +50,22 @@ export async function GET(request: Request) {
 
             if (!existingProfile) {
                 // Determine initial status — check if this is the admin email
-                const adminEmail = process.env.ADMIN_EMAIL
-                const status = adminEmail && user.email?.toLowerCase() === adminEmail.toLowerCase()
+                const userEmail = user.email?.toLowerCase();
+                const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+                
+                const status = adminEmail && userEmail === adminEmail
                     ? 'admin'
                     : 'waitlist'
 
-                await service.from('user_profiles').insert({
+                // Handle missing email (common with Twitter/X if not configured)
+                const fallbackEmail = user.user_metadata?.email ?? userEmail ?? `${user.id}@noemail.schro`;
+                const displayName = user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.user_metadata?.user_name ?? user.email ?? 'Unknown User';
+
+                const { error: insertError } = await service.from('user_profiles').insert({
                     id: user.id,
-                    email: user.email,
-                    display_name: user.user_metadata?.full_name ?? user.email,
-                    avatar_url: user.user_metadata?.avatar_url ?? null,
+                    email: fallbackEmail,
+                    display_name: displayName,
+                    avatar_url: user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? null,
                     status,
                     modules_enabled: {
                         finance: status === 'admin',
@@ -69,6 +75,11 @@ export async function GET(request: Request) {
                         intelligence: status === 'admin',
                     },
                 })
+
+                if (insertError) {
+                    console.error('[Auth Callback] Profile Insert Error:', insertError);
+                    return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`)
+                }
 
                 if (status === 'admin') {
                     return NextResponse.redirect(`${origin}${next}`)
