@@ -1,5 +1,4 @@
-export const dynamic = 'force-static'
-import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js';
 import { fetchTransactions as saltEdgeFetchTransactions } from '@/lib/saltedge';
 

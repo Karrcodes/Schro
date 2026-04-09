@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     X, Plus, Target, Calendar, Rocket,
     Clock, Trash2, CheckCircle2, Circle, Image as ImageIcon, Pencil, Loader2, Zap,
-    Shield, ExternalLink, Link as LinkIcon, Trash, CheckSquare, Sparkles, Wand2, AlignLeft, RefreshCw, ChevronRight, Globe, Layers
+    Shield, ExternalLink, Link as LinkIcon, Trash, CheckSquare, Sparkles, Wand2, AlignLeft, RefreshCw, ChevronRight, Globe, Layers, Upload
 } from 'lucide-react'
 import { useStudio } from '../hooks/useStudio'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
@@ -46,6 +46,9 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null)
     const [newMilestoneTitle, setNewMilestoneTitle] = useState('')
+    const [coverFile, setCoverFile] = useState<File | null>(null)
+    const [imagePreview, setImagePreview] = useState<string | null>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const isGeneratingProject = project ? generatingProjectIds.includes(project.id) : false
 
@@ -58,6 +61,8 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
         fetchLinkedTasks()
         setIsEditing(false)
         setEditedData({})
+        setCoverFile(null)
+        setImagePreview(null)
     }, [isOpen, project])
 
     if (!project) return null
@@ -68,11 +73,18 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
 
     const handleSave = async () => {
         try {
-            await updateProject(project.id, editedData)
+            await updateProject(project.id, editedData, coverFile || undefined)
             setIsEditing(false)
+            setCoverFile(null)
+            setImagePreview(null)
         } catch (err: any) {
             alert(`Failed to save: ${err.message}`)
         }
+    }
+
+    const handleImageFile = (file: File) => {
+        setCoverFile(file)
+        setImagePreview(URL.createObjectURL(file))
     }
 
     const toggleMilestone = async (m: StudioMilestone) => {
@@ -285,13 +297,25 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                 <div className="md:col-span-1 space-y-8">
                                     <div className="relative group aspect-[4/5] rounded-[24px] overflow-hidden border border-black/5 shadow-2xl shadow-black/10">
                                         <img
-                                            src={project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=project&id=${project.id}`}
+                                            src={imagePreview || project.cover_url || `/api/studio/cover?title=${encodeURIComponent(project.title)}&tagline=${encodeURIComponent(project.tagline || '')}&type=project&id=${project.id}`}
                                             alt={project.title}
                                             className={cn(
                                                 "w-full h-full object-cover transition-transform duration-700 group-hover:scale-110",
                                                 isGeneratingProject && "blur-md"
                                             )}
                                         />
+                                        
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="px-6 py-3 bg-white text-black rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2 hover:scale-105 transition-transform"
+                                            >
+                                                <Upload className="w-4 h-4" />
+                                                Replace
+                                            </button>
+                                        </div>
+
                                         <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/90 via-black/40 to-transparent rounded-b-[24px]">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex flex-col gap-1">
@@ -503,6 +527,31 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                 </div>
                                             </div>
 
+                                            {/* Cover Asset */}
+                                            <div className="space-y-3 pt-4 border-t border-black/5">
+                                                <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Cover Asset</label>
+                                                <div className="flex items-center gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                        className="flex-1 px-5 py-4 rounded-2xl border border-dashed border-black/15 bg-black/[0.01] hover:bg-black/[0.05] hover:border-black/30 transition-all cursor-pointer flex items-center justify-center gap-2 text-[12px] font-bold text-black/50"
+                                                    >
+                                                        <Upload className="w-4 h-4" />
+                                                        <span>{imagePreview ? 'Change high-res cover' : 'Upload high-res cover'}</span>
+                                                    </button>
+                                                    {imagePreview && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { setCoverFile(null); setImagePreview(null) }}
+                                                            className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-colors"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <p className="text-[9px] text-center text-black/20 font-medium">Auto-generation via Gemini Vision is also available in View mode.</p>
+                                            </div>
+
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-black/5">
                                                 {/* Priority Setup */}
                                                 <div className="space-y-2">
@@ -706,8 +755,9 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="space-y-6">
-                                            <div className="space-y-2">
+                                        <>
+                                            <div className="space-y-6">
+                                                <div className="space-y-2">
                                                     <div className="flex items-center gap-3 mb-1">
                                                         {project.type && (
                                                             <div className={cn(
@@ -750,7 +800,8 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                                                     </div>
                                                     <p className="text-[15px] font-medium text-black/70 leading-relaxed whitespace-pre-wrap">{project.description || 'No description provided.'}</p>
                                                 </div>
-                                        </div>
+                                            </div>
+                                        </>
                                     )}
 
                                     {/* Milestones Section (View Mode Only) */}
@@ -818,6 +869,30 @@ export default function ProjectDetailModal({ isOpen, onClose, project }: Project
                         message="This tactical step will be removed from the active roadmap."
                         confirmText="Remove"
                         type="danger"
+                    />
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                            const f = e.target.files?.[0]
+                            if (f) {
+                                if (isEditing) {
+                                    handleImageFile(f)
+                                } else {
+                                    // Immediate update in view mode
+                                    setIsGenerating(true)
+                                    try {
+                                        await updateProject(project.id, {}, f)
+                                    } catch (err: any) {
+                                        alert(`Failed to update cover: ${err.message}`)
+                                    } finally {
+                                        setIsGenerating(false)
+                                    }
+                                }
+                            }
+                        }}
                     />
                 </>
             )}

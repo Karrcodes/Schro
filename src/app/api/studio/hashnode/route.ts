@@ -1,53 +1,5 @@
-export const dynamic = 'force-static'
-import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
-
-const HASHNODE_GQL = 'https://gql.hashnode.com'
-
-async function getHashnodeConfig() {
-    // 1. Check Env
-    if (process.env.HASHNODE_API_TOKEN && process.env.HASHNODE_PUBLICATION_ID) {
-        return { 
-            token: process.env.HASHNODE_API_TOKEN, 
-            publicationId: process.env.HASHNODE_PUBLICATION_ID,
-            source: 'env' 
-        }
-    }
-
-    // 2. Fallback to Supabase
-    const { data } = await supabase
-        .from('sys_settings')
-        .select('key, value')
-        .in('key', ['hashnode_token', 'hashnode_publication_id'])
-
-    const token = data?.find(s => s.key === 'hashnode_token')?.value
-    const publicationId = data?.find(s => s.key === 'hashnode_publication_id')?.value
-    return { token, publicationId, source: 'db' }
-}
-
-async function graphql(token: string, query: string, variables?: Record<string, any>) {
-    const res = await fetch(HASHNODE_GQL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token,
-        },
-        body: JSON.stringify({ query, variables }),
-    })
-    const json = await res.json()
-    if (json.errors) throw new Error(json.errors[0].message)
-    return json.data
-}
-
-// Strips TipTap HTML to plain text for the subtitle/brief
-function htmlToText(html: string): string {
-    return html
-        .replace(/<img[^>]*>/gi, '')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<\/h[1-6]>/gi, '\n')
-        .replace(/<[^>]+>/g, '')
-        .replace(/&amp;/g, '&')
+export const dynamic = 'force-dynamic'
+/g, '&')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')

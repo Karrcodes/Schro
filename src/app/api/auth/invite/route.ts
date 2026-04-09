@@ -1,73 +1,65 @@
-export const dynamic = 'force-static'
+import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { NextResponse } from 'next/server'
 
-export async function POST(request: Request) {
-    const { code } = await request.json()
+export const dynamic = 'force-dynamic'
 
-    if (!code || typeof code !== 'string') {
-        return NextResponse.json({ error: 'Invalid invite code.' }, { status: 400 })
+export async function POST(req: Request) {
+    try {
+        const { code } = await req.json()
+        if (!code) return NextResponse.json({ error: 'Authorization code required.' }, { status: 400 })
+
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return NextResponse.json({ error: 'Neural identity unknown. Please sign in.' }, { status: 401 })
+
+        const service = createServiceClient()
+
+        // 1. Verify code
+        const { data: invite, error: inviteError } = await service
+            .from('beta_invites')
+            .select('*')
+            .eq('code', code.toUpperCase())
+            .single()
+
+        if (inviteError || !invite) {
+            return NextResponse.json({ error: 'Invalid authorization code.' }, { status: 403 })
+        }
+
+        // 2. Check if already claimed by someone else (if single use)
+        if (invite.max_claims === 1 && invite.claimed_by && invite.claimed_by !== user.id) {
+            return NextResponse.json({ error: 'Authorization code already utilized.' }, { status: 403 })
+        }
+
+        // 3. Mark as claimed and update user status
+        await service
+            .from('beta_invites')
+            .update({
+                claimed_by: user.id,
+                claimed_at: new Date().toISOString()
+            })
+            .eq('id', invite.id)
+
+        const { error: updateError } = await service
+            .from('user_profiles')
+            .update({ 
+                status: 'beta',
+                modules_enabled: {
+                    finance: true,
+                    studio: true,
+                    goals: true,
+                    vault: true,
+                    intelligence: true
+                }
+            })
+            .eq('id', user.id)
+
+        if (updateError) throw updateError
+
+        return NextResponse.json({ success: true, message: 'Access granted.' })
+
+    } catch (err: any) {
+        console.error('[Invite API Error]:', err)
+        return NextResponse.json({ error: 'System error during authorization.' }, { status: 500 })
     }
-
-    // Verify the current user's session with anon client
-    const supabase = await createClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-        return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
-    }
-
-    // Use service role for all DB reads/writes (bypasses RLS)
-    const service = createServiceClient()
-
-    // Find the invite code
-    const { data: invite, error: inviteError } = await service
-        .from('beta_invites')
-        .select('*')
-        .eq('code', code.trim().toUpperCase())
-        .single()
-
-    if (inviteError || !invite) {
-        return NextResponse.json({ error: 'Invalid invite code. Please check and try again.' }, { status: 404 })
-    }
-
-    // Check if code is already fully claimed
-    const { count } = await service
-        .from('beta_invites')
-        .select('claimed_by', { count: 'exact' })
-        .eq('code', code.trim().toUpperCase())
-        .not('claimed_by', 'is', null)
-
-    if ((count ?? 0) >= (invite.max_claims ?? 1)) {
-        return NextResponse.json({ error: 'This invite code has already been used.' }, { status: 409 })
-    }
-
-    // Check if email-restricted code matches this user
-    if (invite.email && invite.email.toLowerCase() !== user.email?.toLowerCase()) {
-        return NextResponse.json({ error: 'This invite code is not valid for your account.' }, { status: 403 })
-    }
-
-    // Claim the invite and upgrade user status
-    const now = new Date().toISOString()
-
-    await service
-        .from('beta_invites')
-        .update({ claimed_by: user.id, claimed_at: now })
-        .eq('id', invite.id)
-
-    await service
-        .from('user_profiles')
-        .update({
-            status: 'beta',
-            modules_enabled: {
-                finance: true,
-                studio: true,
-                goals: true,
-                vault: true,
-                intelligence: true,
-            },
-        })
-        .eq('id', user.id)
-
-    return NextResponse.json({ success: true })
 }

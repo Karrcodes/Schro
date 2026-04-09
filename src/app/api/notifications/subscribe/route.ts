@@ -1,18 +1,5 @@
-export const dynamic = 'force-static'
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-export async function POST(req: Request) {
-    try {
-        const subscription = await req.json()
-
-        if (!subscription || !subscription.endpoint) {
-            return NextResponse.json({ error: 'Invalid subscription' }, { status: 400 })
-        }
-
-        // Initialize Supabase with the Service Role Key to bypass RLS securely
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+export const dynamic = 'force-dynamic'
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
         if (!supabaseUrl || !supabaseKey) {
             console.error('Supabase credentials missing in API route')

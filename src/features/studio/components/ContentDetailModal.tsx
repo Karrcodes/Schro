@@ -166,6 +166,7 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
     const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null)
     const [coverFile, setCoverFile] = useState<File | null>(null)
     const [coverPreview, setCoverPreview] = useState<string>('')
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Script state
     const [scriptSections, setScriptSections] = useState<ScriptSections>({ hook: '', intro: '', body: '', cta: '', outro: '' })
@@ -535,6 +536,16 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
                                                     </button>
                                                 </div>
                                             </div>
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="px-6 py-3 bg-white text-black rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2 hover:scale-105 transition-transform"
+                                                >
+                                                    <UploadCloud className="w-4 h-4" />
+                                                    Replace
+                                                </button>
+                                            </div>
                                             {isGeneratingContent && (
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm gap-2 rounded-[24px]">
                                                     <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -766,6 +777,31 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
                                                 </div>
                                             </div>
 
+                                            {/* Cover Asset */}
+                                            <div className="space-y-3 pt-4 border-t border-black/5">
+                                                <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Cover Asset</label>
+                                                <div className="flex items-center gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                        className="flex-1 px-5 py-4 rounded-2xl border border-dashed border-black/15 bg-black/[0.01] hover:bg-black/[0.05] hover:border-black/30 transition-all cursor-pointer flex items-center justify-center gap-2 text-[12px] font-bold text-black/50"
+                                                    >
+                                                        <UploadCloud className="w-4 h-4" />
+                                                        <span>{coverPreview ? 'Change high-res cover' : 'Upload high-res cover'}</span>
+                                                    </button>
+                                                    {coverPreview && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { setCoverFile(null); setCoverPreview('') }}
+                                                            className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-colors"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <p className="text-[9px] text-center text-black/20 font-medium tracking-tight">Real-time cover replacement is also available via hover in View mode.</p>
+                                            </div>
+
                                             {/* Timeline Setup */}
                                             <div className="space-y-3 pt-4 border-t border-black/5">
                                                 <label className="text-[9px] font-black text-black/30 uppercase tracking-widest ml-1">Final Deployment Deadline</label>
@@ -972,7 +1008,40 @@ export default function ContentDetailModal({ isOpen, onClose, item, initialTab }
             confirmText="Remove"
             type="danger"
         />
-        </>
+        <input 
+            ref={fileInputRef} 
+            type="file" 
+            accept="image/*" 
+            className="hidden" 
+            onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (file) { 
+                    if (isEditing) {
+                        setCoverFile(file)
+                        setCoverPreview(URL.createObjectURL(file)) 
+                    } else {
+                        // Immediate update in view mode
+                        setIsClearingImage(true)
+                        try {
+                            const fileExt = file.name.split('.').pop()
+                            const fileName = `${Math.random().toString(36).substring(2, 11)}_${Date.now()}.${fileExt}`
+                            const { error: uploadError } = await supabase.storage.from('studio-assets').upload(`content-covers/${fileName}`, file)
+                            if (!uploadError) {
+                                const { data: urlData } = supabase.storage.from('studio-assets').getPublicUrl(`content-covers/${fileName}`)
+                                await updateContent(item.id, { cover_url: urlData.publicUrl })
+                            } else {
+                                throw uploadError
+                            }
+                        } catch (err: any) {
+                            alert(`Failed to update cover: ${err.message}`)
+                        } finally {
+                            setIsClearingImage(false)
+                        }
+                    }
+                }
+            }} 
+        />
+    </>
     )
 }
 

@@ -1,5 +1,4 @@
-export const dynamic = 'force-static'
-import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic'
 import { createCustomer, createConnectSession } from '@/lib/saltedge';
 
 export async function POST(req: Request) {

@@ -28,22 +28,19 @@ const files = walk(apiDir);
 files.forEach(file => {
     let content = fs.readFileSync(file, 'utf8');
     
-    // 1. Remove ANY existing dynamic exports or dummy params
-    const dynamicRegex = /export const dynamic = [^;\n]+;?\n?/g;
-    const staticParamsRegex = /export const generateStaticParams = [^;\n]+;?\n?/g;
+    // REGEX V3: More aggressive cleanup to ensure Next.js static analysis passes
+    const dynamicRegex = /export const dynamic = [^;]+;?\n?/g;
+    const staticParamsRegex = /export const generateStaticParams = [^;]+;?\n?/g;
     
     let newContent = content.replace(dynamicRegex, '').replace(staticParamsRegex, '');
     
-    // 2. Add the dynamic mode to the top
     let header = `export const dynamic = ${targetValue}\n`;
     
-    // 3. Add dummy static params if needed (AT THE TOP)
     if (mode === 'static' && (file.includes('[') && file.includes(']'))) {
-        console.log(`Adding dummy static params to dynamic route: ${path.relative(process.cwd(), file)}`);
         header += "export const generateStaticParams = () => [];\n";
     }
     
-    fs.writeFileSync(file, header + newContent, 'utf8');
+    fs.writeFileSync(file, header + newContent.trimStart(), 'utf8');
 });
 
-console.log(`Deep-Patched 64 API routes for ${mode} mode.`);
+console.log(`Successfully patched 64 API routes as ${mode} for Next.js static analysis.`);

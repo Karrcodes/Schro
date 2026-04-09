@@ -1,6 +1,4 @@
-export const dynamic = 'force-static'
-
-import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase';
 
 

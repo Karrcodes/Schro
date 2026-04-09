@@ -1,22 +1,18 @@
-export const dynamic = 'force-static'
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 
-export async function GET(req: Request) {
+export const dynamic = 'force-dynamic'
+
+export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url)
         const uuid = searchParams.get('uuid')
-        const cookie = req.headers.get('x-gym-cookie')
+        const cookie = req.headers.get('x-gym-cookie') ?? ''
         const token = req.headers.get('x-gym-token')
-
-        if (!cookie) {
-            return NextResponse.json({ error: 'Missing gym cookie' }, { status: 400 })
-        }
 
         const headers: Record<string, string> = {
             'Cookie': cookie,
             'Accept': 'application/json',
             'X-NP-Api-Version': '1.5',
-            'X-NP-App-Version': '9999',
             'User-Agent': 'TheGymGroup/2.14.0 (iPhone; iOS 16.1.1; Scale/3.00)',
             'X-NP-User-Agent': 'clientType=MOBILE;devicePlatform=IOS;applicationName=The Gym Group;applicationVersion=2.14.0'
         }

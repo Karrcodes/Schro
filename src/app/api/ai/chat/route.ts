@@ -1,33 +1,5 @@
-export const dynamic = 'force-static'
-import { NextRequest, NextResponse } from 'next/server'
-import { geminiModel } from '@/lib/gemini'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-const supabase = supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : null
-
-async function buildContext(profile: string): Promise<string> {
-    if (!supabase) {
-        return '## Schrö Financial Snapshot\nNo database connection — Supabase credentials not configured.'
-    }
-
-    const [pocketsRes, recurringRes, goalsRes, settingsRes] = await Promise.all([
-        supabase.from('fin_pockets').select('*').eq('profile', profile),
-        supabase.from('fin_recurring').select('*').eq('profile', profile),
-        supabase.from('fin_goals').select('*').eq('profile', profile),
-        supabase.from('fin_settings').select('*').eq('profile', profile),
-    ])
-
-    const pockets = pocketsRes.data ?? []
-    const recurring = recurringRes.data ?? []
-    const goals = goalsRes.data ?? []
-    const settingsArr = settingsRes.data ?? []
-    const settings: Record<string, string> = {}
-    settingsArr.forEach((s: { key: string; value: string }) => { settings[s.key] = s.value })
+export const dynamic = 'force-dynamic'
+value: string }) => { settings[s.key] = s.value })
 
     const totalLiquid = pockets.reduce((s: number, p: { balance: number }) => s + p.balance, 0)
     let totalDebt = 0
