@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User, Session } from '@supabase/supabase-js'
+import { localDb } from '@/lib/local-db'
+import { isTauri } from '@/lib/utils'
 
 interface UserProfile {
     id: string
@@ -54,6 +56,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     useEffect(() => {
+        // Initialize Local SQLite Database if on Tauri
+        if (isTauri()) {
+            localDb.init().catch(err => console.error('[LocalDB Error]', err))
+        }
+
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session)
             setUser(session?.user ?? null)
