@@ -2,6 +2,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-static'
+
 // Lazy initialize Resend to prevent build-time crashes with "output: export"
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 

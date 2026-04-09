@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
         unoptimized: isTauri,
     },
     async headers() {
+        if (isTauri) return [];
         return [
             {
                 source: '/:path*',
