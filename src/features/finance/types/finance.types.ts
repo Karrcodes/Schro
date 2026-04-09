@@ -2,6 +2,7 @@ export type ProfileType = 'personal' | 'business'
 
 export interface Pot {
     id: string
+    user_id?: string
     name: string
     target_budget: number
     target_amount: number // Monzo specific target
@@ -38,6 +39,7 @@ export interface Income {
 
 export interface Transaction {
     id: string
+    user_id?: string
     amount: number
     type: 'spend' | 'income' | 'allocate' | 'transfer'
     description: string
@@ -53,6 +55,7 @@ export interface Transaction {
 
 export interface Goal {
     id: string
+    user_id?: string
     name: string
     target_amount: number
     current_amount: number

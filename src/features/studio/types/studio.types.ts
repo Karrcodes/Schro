@@ -6,6 +6,7 @@ export type ContentCategory = 'Vlog' | 'Thoughts' | 'Showcase' | 'Concept' | 'Up
 
 export interface StudioProject {
     id: string;
+    user_id?: string;
     title: string;
     tagline?: string;
     description?: string;
@@ -50,6 +51,7 @@ export type SparkStatus = 'inbox' | 'review' | 'utilized' | 'discarded';
 
 export interface StudioSpark {
     id: string;
+    user_id?: string;
     type: SparkType;
     title: string;
     url?: string;
@@ -75,6 +77,7 @@ export interface ContentScene {
 
 export interface StudioContent {
     id: string;
+    user_id?: string;
     project_id?: string | null;
     platforms: Platform[];
     type?: string;
@@ -109,6 +112,7 @@ export type PressStatus = 'not_started' | 'applying' | 'submitted' | 'achieved' 
 
 export interface StudioPress {
     id: string;
+    user_id?: string;
     title: string;
     organization: string;
     type: PressType;
@@ -142,6 +146,7 @@ export type NetworkStatus = 'interested' | 'contacted' | 'connected' | 'attendin
 
 export interface StudioNetwork {
     id: string;
+    user_id?: string;
     type: NetworkType;
     name: string;
     platform?: string;
@@ -158,6 +163,7 @@ export interface StudioNetwork {
 
 export interface StudioMilestone {
     id: string;
+    user_id?: string;
     project_id?: string;
     spark_id?: string;
     content_id?: string;
@@ -259,6 +265,7 @@ export interface NodeReference {
 
 export interface StudioDraft {
     id: string;
+    user_id?: string;
     project_id?: string;
     content_id?: string | null;
     title: string;
