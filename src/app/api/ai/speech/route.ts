@@ -1,6 +1,6 @@
+export const dynamic = (process.env.TAURI_PLATFORM !== undefined || process.env.IS_TAURI === 'true') ? 'force-static' : 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server'
 
-export const dynamic = 'force-static'
 
 export async function GET(req: NextRequest) {
     return handleSpeech(req)

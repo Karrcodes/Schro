@@ -1,9 +1,8 @@
-export const dynamic = 'force-static'
+export const dynamic = (process.env.TAURI_PLATFORM !== undefined || process.env.IS_TAURI === 'true') ? 'force-static' : 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
     // 1. Fetch credentials from sys_settings

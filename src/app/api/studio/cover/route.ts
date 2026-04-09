@@ -1,9 +1,8 @@
-export const dynamic = 'force-static'
+export const dynamic = (process.env.TAURI_PLATFORM !== undefined || process.env.IS_TAURI === 'true') ? 'force-static' : 'force-dynamic';
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')

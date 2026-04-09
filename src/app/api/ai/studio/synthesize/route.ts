@@ -1,4 +1,4 @@
-export const dynamic = 'force-static'
+export const dynamic = (process.env.TAURI_PLATFORM !== undefined || process.env.IS_TAURI === 'true') ? 'force-static' : 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server'
 import { geminiModel } from '@/lib/gemini'
 

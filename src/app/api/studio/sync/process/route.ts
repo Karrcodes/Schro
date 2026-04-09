@@ -1,10 +1,9 @@
-export const dynamic = 'force-static'
+export const dynamic = (process.env.TAURI_PLATFORM !== undefined || process.env.IS_TAURI === 'true') ? 'force-static' : 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { syncJobToFramer } from '@/lib/framer/sync';
 
-export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
     const supabase = createServiceClient();

@@ -20,21 +20,24 @@ function walk(dir) {
 }
 
 const apiDir = path.join(process.cwd(), 'src', 'app', 'api');
-console.log('Scanning:', apiDir);
 const files = walk(apiDir);
 
-console.log(`Found ${files.length} API routes.`);
+const UNIVERSAL_DYNAMIC = "export const dynamic = (process.env.TAURI_PLATFORM !== undefined || process.env.IS_TAURI === 'true') ? 'force-static' : 'force-dynamic';\n";
 
 files.forEach(file => {
     let content = fs.readFileSync(file, 'utf8');
-    if (!content.includes("export const dynamic = 'force-static'")) {
-        console.log(`Patching: ${path.relative(process.cwd(), file)}`);
-        // Add to top of file
-        content = "export const dynamic = 'force-static'\n" + content;
-        fs.writeFileSync(file, content, 'utf8');
-    } else {
-        console.log(`Already patched: ${path.relative(process.cwd(), file)}`);
-    }
+    
+    // Remove ANY existing dynamic exports (force-static, force-dynamic, auto, etc.)
+    const dynamicRegex = /export const dynamic = ['"][^'"]+['"];?\n?/g;
+    const complexDynamicRegex = /export const dynamic = \(process\.env\.TAURI_PLATFORM[^\n]+\n?/g;
+    
+    let newContent = content.replace(dynamicRegex, '').replace(complexDynamicRegex, '');
+    
+    // Add the new universal one at the top
+    newContent = UNIVERSAL_DYNAMIC + newContent;
+    
+    fs.writeFileSync(file, newContent, 'utf8');
+    console.log(`Smart Patched: ${path.relative(process.cwd(), file)}`);
 });
 
-console.log('All API routes have been successfully marked for static build.');
+console.log('All API routes have been updated with smart conditional logic.');
