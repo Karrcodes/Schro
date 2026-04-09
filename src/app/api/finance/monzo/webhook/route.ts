@@ -1,3 +1,4 @@
+export const dynamic = 'force-static'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { notifyMonzoTransaction } from '@/features/finance/utils/monzo-notifications'

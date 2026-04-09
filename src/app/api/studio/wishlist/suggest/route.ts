@@ -1,3 +1,4 @@
+export const dynamic = 'force-static'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 

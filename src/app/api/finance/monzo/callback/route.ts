@@ -1,3 +1,4 @@
+export const dynamic = 'force-static'
 import { NextResponse } from 'next/server'
 import { MonzoService } from '@/features/finance/services/MonzoService'
 import { createServerClient } from '@supabase/ssr'

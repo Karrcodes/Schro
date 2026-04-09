@@ -1,3 +1,4 @@
+export const dynamic = 'force-static'
 import { NextResponse } from 'next/server';
 import { createCustomer, createConnectSession } from '@/lib/saltedge';
 
