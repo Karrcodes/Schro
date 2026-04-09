@@ -636,14 +636,16 @@ function MorningCheckIn() {
 
     const handleMoodSelect = async (value: MoodValue) => {
         setIsSubmitting(true)
+        setShowSuccess(true)
         try {
             if (missedYesterday && !todayMood) {
                 await logMood(value, 'Late check-in', [], yesterdayStr)
             } else {
                 await logMood(value)
             }
-            setShowSuccess(true)
             setTimeout(() => setShowSuccess(false), 1500)
+        } catch (err) {
+            setShowSuccess(false)
         } finally {
             setIsSubmitting(false)
         }
@@ -713,33 +715,46 @@ function MorningCheckIn() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-white/95 backdrop-blur-md z-50 flex items-center justify-center p-4 text-center"
+                            className="absolute inset-0 bg-white/20 backdrop-blur-2xl z-50 flex flex-col items-center justify-center p-4 text-center"
                         >
-                            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-black/60">
-                                Mood Logged
-                            </span>
+                            <motion.div 
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="bg-transparent border border-white/20 backdrop-blur-md rounded-2xl px-6 py-3.5 flex items-center gap-3"
+                            >
+                                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                <span className="text-[12px] font-black uppercase tracking-[0.2em] text-black whitespace-nowrap">
+                                    Mood Logged
+                                </span>
+                            </motion.div>
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                <div className="flex-1 min-w-0 pr-2">
+                <div className={cn(
+                    "flex-1 min-w-0 pr-2 transition-all duration-500",
+                    showSuccess && "blur-md opacity-20 scale-[0.98]"
+                )}>
                     <p className={cn(
                         "text-[9px] font-black uppercase tracking-widest mb-0.5",
-                        missedYesterday && !todayMood ? "text-amber-700/60" : todayMood ? "text-black/30" : "text-black/20"
+                        missedYesterday && !todayMood ? "text-amber-700/60" : (todayMood && !showSuccess) ? "text-black/30" : "text-black/20"
                     )}>
-                        {missedYesterday && !todayMood ? "Consistency Gap" : todayMood ? "Activities" : "Mood"}
+                        {missedYesterday && !todayMood ? "Consistency Gap" : (todayMood && !showSuccess) ? "Activities" : "Mood"}
                     </p>
                     <div className="flex items-center gap-2">
                         <p className={cn(
                             "text-[10px] font-bold capitalize leading-tight",
                             missedYesterday && !todayMood ? "text-amber-800" : "text-black/60"
                         )}>
-                            {missedYesterday && !todayMood ? "Log Yesterday" : (todayMood ? "Tag your day" : 'Daily Check-in')}
+                            {missedYesterday && !todayMood ? "Log Yesterday" : ((todayMood && !showSuccess) ? "Tag your day" : 'Daily Check-in')}
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                    {!todayMood ? (
+                <div className={cn(
+                    "flex items-center gap-1 shrink-0 transition-all duration-500",
+                    showSuccess && "blur-md opacity-20 scale-[0.98]"
+                )}>
+                    {(!todayMood || showSuccess) ? (
                         MOODS.map((m: any) => {
                             const Icon = m.icon
                             return (
@@ -776,7 +791,7 @@ function MorningCheckIn() {
                             )
                         })
                     )}
-                    {todayMood && !missedYesterday && (
+                    {todayMood && !missedYesterday && !showSuccess && (
                         <button
                             onClick={() => clearMoodsByDate(today)}
                             className="p-2 rounded-xl text-black/20 hover:text-red-500 hover:bg-red-500/10 transition-all border border-black/[0.05] hover:border-red-500/20"

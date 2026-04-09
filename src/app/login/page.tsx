@@ -605,7 +605,7 @@ export default function AuthPage() {
                     )}
                     </div>
 
-                    <p className="mt-8 text-center flex flex-col gap-2">
+                    <div className="mt-8 text-center flex flex-col gap-2">
                         <div>
                             <span className="text-[11px] font-medium text-black/25 mr-1.5">
                                 {mode === 'signin' ? "New to Schrö?" : "Already have an account?"}
@@ -623,7 +623,7 @@ export default function AuthPage() {
                         >
                             Enter Invite Code
                         </Link>
-                    </p>
+                    </div>
                 </div>
 
                 <div className="text-[10px] font-bold text-black/15 uppercase tracking-[0.2em] mt-auto">

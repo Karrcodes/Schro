@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 
 /**
@@ -21,10 +21,23 @@ export function useQueryState<T extends string>(
     return (param as T) || defaultValue
   })
 
+  // Track if we're in the middle of an internal update to prevent "bouncing" 
+  // when the router hasn't finished updating searchParams yet.
+  const isInternalUpdate = useRef(false)
+
   // Sync internal state if URL changes externally (e.g. back button)
   useEffect(() => {
     const param = searchParams.get(key)
     const normalizedValue = (param as T) || defaultValue
+
+    // If we just updated internally, wait for the URL to catch up
+    if (isInternalUpdate.current) {
+      if (normalizedValue === state) {
+        isInternalUpdate.current = false
+      }
+      return
+    }
+
     if (normalizedValue !== state) {
       setState(normalizedValue)
     }
@@ -32,7 +45,9 @@ export function useQueryState<T extends string>(
 
   const setQueryValue = useCallback(
     (newValue: T) => {
+      isInternalUpdate.current = true
       setState(newValue)
+      
       const params = new URLSearchParams(searchParams.toString())
       
       if (newValue === defaultValue) {

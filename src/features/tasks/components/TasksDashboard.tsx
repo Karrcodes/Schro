@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useTasks } from '../hooks/useTasks'
 import { useQueryState, useBooleanQueryState } from '@/hooks/useQueryState'
 import { cn } from '@/lib/utils'
@@ -9,7 +10,7 @@ import { TaskList } from './TaskList'
 import { useTasksProfile } from '../contexts/TasksProfileContext'
 import { TasksProfileToggle } from './TasksProfileToggle'
 import Link from 'next/link'
-import { LayoutDashboard, Target, ListTodo } from 'lucide-react'
+import { LayoutDashboard, Target, ListTodo, Bell, ShoppingCart, Package } from 'lucide-react'
 
 
 export function TasksDashboard() {
@@ -61,12 +62,19 @@ function TasksDashboardContent() {
                                                 key={tab.value}
                                                 onClick={() => setActiveTab(tab.value)}
                                                 className={cn(
-                                                    "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all relative whitespace-nowrap",
+                                                    "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all relative whitespace-nowrap z-10",
                                                     isActive
-                                                        ? "bg-white text-black shadow-sm"
+                                                        ? "text-black"
                                                         : "text-black/30 hover:text-black/60"
                                                 )}
                                             >
+                                                {isActive && (
+                                                    <motion.div
+                                                        layoutId="activeTabHighlight"
+                                                        className="absolute inset-0 bg-white rounded-xl shadow-sm -z-10"
+                                                        transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                                                    />
+                                                )}
                                                 <div className={cn("w-1.5 h-1.5 rounded-full", tab.dot)} />
                                                 {tab.label}
                                                 {pendingCount > 0 && (
@@ -86,35 +94,56 @@ function TasksDashboardContent() {
                             {activeTab !== 'shopping' ? (
                                 <TasksProfileToggle />
                             ) : (
-                                <div className="flex bg-black/[0.04] p-0.5 rounded-xl border border-black/[0.06] items-center w-fit">
+                                <div className="flex bg-black/[0.04] p-0.5 rounded-xl border border-black/[0.06] items-center w-fit relative">
                                     <button 
                                         onClick={() => setShoppingTab('grocery')}
                                         className={cn(
-                                            "px-5 py-2 rounded-lg text-[11px] font-black uppercase tracking-[0.05em] transition-all",
-                                            shoppingTab === 'grocery' ? "bg-white text-black shadow-sm" : "text-black/40 hover:text-black/60"
+                                            "px-5 py-2 rounded-lg text-[11px] font-black uppercase tracking-[0.05em] transition-all relative z-10",
+                                            shoppingTab === 'grocery' ? "text-black" : "text-black/40 hover:text-black/60"
                                         )}
                                     >
+                                        {shoppingTab === 'grocery' && (
+                                            <motion.div
+                                                layoutId="shoppingTabHighlight"
+                                                className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"
+                                                transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                                            />
+                                        )}
                                         Groceries
                                     </button>
                                     <button 
                                         onClick={() => setShoppingTab('essential')}
                                         className={cn(
-                                            "px-5 py-2 rounded-lg text-[11px] font-black uppercase tracking-[0.05em] transition-all",
-                                            shoppingTab === 'essential' ? "bg-white text-black shadow-sm" : "text-black/40 hover:text-black/60"
+                                            "px-5 py-2 rounded-lg text-[11px] font-black uppercase tracking-[0.05em] transition-all relative z-10",
+                                            shoppingTab === 'essential' ? "text-black" : "text-black/40 hover:text-black/60"
                                         )}
                                     >
+                                        {shoppingTab === 'essential' && (
+                                            <motion.div
+                                                layoutId="shoppingTabHighlight"
+                                                className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"
+                                                transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                                            />
+                                        )}
                                         Essentials
                                     </button>
                                 </div>
                             )}
                         </div>
 
-                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                            <TaskList 
-                                key={activeTab === 'shopping' ? shoppingTab : activeTab} 
-                                category={activeTab === 'shopping' ? shoppingTab : activeTab} 
-                            />
-                        </div>
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={activeTab === 'shopping' ? shoppingTab : activeTab}
+                                initial={{ opacity: 0, y: 4, filter: 'blur(4px)' }}
+                                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                                exit={{ opacity: 0, y: -4, filter: 'blur(4px)' }}
+                                transition={{ duration: 0.2, ease: "easeOut" }}
+                            >
+                                <TaskList 
+                                    category={activeTab === 'shopping' ? shoppingTab : activeTab} 
+                                />
+                            </motion.div>
+                        </AnimatePresence>
                 </div>
             </main>
 

@@ -4,13 +4,32 @@ import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWellbeing } from '../contexts/WellbeingContext'
 import type { Reflection } from '../types'
-import { PenLine, Plus, Trash2, Quote, ArrowLeft, Search, Calendar, Sparkles } from 'lucide-react'
+import { ReflectZenEditor } from './ReflectZenEditor'
+import { PenLine, Plus, Trash2, Quote, ArrowLeft, Search, Calendar, Sparkles, Wand2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
 import { format, parseISO } from 'date-fns'
+import { Sun, Smile, Meh, CloudRain, Frown } from 'lucide-react'
+
+const MOOD_MAP: Record<string, { icon: any, color: string, bg: string, label: string }> = {
+    excellent: { icon: Sun, color: 'text-yellow-500', bg: 'bg-yellow-50', label: 'Excellent' },
+    good: { icon: Smile, color: 'text-emerald-500', bg: 'bg-emerald-50', label: 'Good' },
+    neutral: { icon: Meh, color: 'text-blue-500', bg: 'bg-blue-50', label: 'Neutral' },
+    low: { icon: CloudRain, color: 'text-amber-500', bg: 'bg-amber-50', label: 'Low' },
+    bad: { icon: Frown, color: 'text-rose-500', bg: 'bg-rose-50', label: 'Bad' },
+}
 
 function formatDate(dateStr: string) {
     try { return format(parseISO(dateStr), 'EEE, MMM do yyyy') }
     catch { return dateStr }
+}
+
+function stripHtml(html: string) {
+    if (typeof document !== 'undefined') {
+        const doc = new DOMParser().parseFromString(html, 'text/html')
+        return doc.body.textContent || ''
+    }
+    return html.replace(/<[^>]*>/g, '')
 }
 
 interface ReflectionEditorProps {
@@ -24,20 +43,7 @@ function ReflectionEditor({ reflection, onSave, onBack }: ReflectionEditorProps)
     const [isSaving, setIsSaving] = useState(false)
     const [saved, setSaved] = useState(false)
     const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
-    const textareaRef = useRef<HTMLTextAreaElement>(null)
     const hasChanges = content !== (reflection?.content || '')
-
-    useEffect(() => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto'
-            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
-        }
-    }, [content])
-
-    // Auto-focus textarea on mount
-    useEffect(() => {
-        textareaRef.current?.focus()
-    }, [])
 
     const handleSave = async () => {
         if (!content.trim() || isSaving) return
@@ -49,7 +55,7 @@ function ReflectionEditor({ reflection, onSave, onBack }: ReflectionEditorProps)
         setTimeout(() => setSaved(false), 2000)
     }
 
-    const wordCount = content.trim().split(/\s+/).filter(Boolean).length
+    const wordCount = stripHtml(content).trim().split(/\s+/).filter(Boolean).length
 
     return (
         <motion.div
@@ -96,25 +102,14 @@ function ReflectionEditor({ reflection, onSave, onBack }: ReflectionEditorProps)
 
             {/* Writing area */}
             <div className="relative flex-1">
-                <Quote className="absolute top-1 right-0 w-8 h-8 text-black/[0.04]" />
-                <textarea
-                    ref={textareaRef}
-                    value={content}
-                    onChange={e => setContent(e.target.value)}
-                    placeholder="Begin your reflection... What happened today? How did you feel? What do you want to carry forward?"
-                    className="w-full min-h-[400px] bg-transparent text-[16px] font-medium text-black leading-[1.9] placeholder:text-black/15 outline-none resize-none"
-                    style={{ lineHeight: '1.9' }}
-                    onKeyDown={e => {
-                        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-                            e.preventDefault()
-                            handleSave()
-                        }
-                    }}
+                <ReflectZenEditor 
+                    content={content}
+                    onChange={setContent}
                 />
             </div>
 
-            <p className="text-[9px] font-black text-black/15 uppercase tracking-widest text-right mt-4">
-                ⌘S to save
+            <p className="text-[9px] font-black text-black/15 uppercase tracking-widest text-right mt-12">
+                Formatting tools appear at the bottom
             </p>
 
             {/* Discard changes modal */}
@@ -154,17 +149,17 @@ function ReflectionEditor({ reflection, onSave, onBack }: ReflectionEditorProps)
 }
 
 export function ReflectionPage() {
-    const { reflections, saveReflection, deleteReflection } = useWellbeing()
+    const { reflections, saveReflection, deleteReflection, moodLogs } = useWellbeing()
     const [activeReflection, setActiveReflection] = useState<Reflection | null>(null)
     const [isNew, setIsNew] = useState(false)
     const [search, setSearch] = useState('')
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+    const [viewingReflection, setViewingReflection] = useState<Reflection | null>(null)
 
     const today = new Date().toISOString().split('T')[0]
-    const todayReflection = reflections.find((r: Reflection) => r.date === today)
 
     const filtered = reflections.filter((r: Reflection) =>
-        !search || r.content.toLowerCase().includes(search.toLowerCase()) || r.date.includes(search)
+        !search || stripHtml(r.content).toLowerCase().includes(search.toLowerCase()) || r.date.includes(search)
     )
 
     const handleNew = () => {
@@ -239,51 +234,68 @@ export function ReflectionPage() {
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {filtered.map((ref: Reflection) => (
-                                    <motion.div
-                                        key={ref.id}
-                                        layout
-                                        initial={{ opacity: 0, y: 8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="group bg-white border border-black/5 rounded-[24px] p-6 flex items-start gap-4 hover:shadow-sm transition-all"
-                                    >
-                                        <div className="w-10 h-10 rounded-2xl bg-black/[0.03] border border-black/5 flex items-center justify-center shrink-0 mt-0.5">
-                                            <Calendar className="w-4 h-4 text-black/20" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <p className="text-[10px] font-black text-black/30 uppercase tracking-widest">
-                                                    {formatDate(ref.date)}
-                                                </p>
-                                                {ref.date === today && (
-                                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-widest">Today</span>
-                                                )}
+                                {filtered.map((ref: Reflection) => {
+                                    const moodEntry = moodLogs.find(m => m.date === ref.date)
+                                    const mood = moodEntry ? MOOD_MAP[moodEntry.value] : null
+                                    
+                                    return (
+                                        <motion.div
+                                            key={ref.id}
+                                            layout
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            onClick={() => setViewingReflection(ref)}
+                                            className="group bg-white border border-black/5 rounded-[24px] p-6 flex items-start gap-4 hover:shadow-sm transition-all cursor-pointer hover:border-black/10 active:scale-[0.99]"
+                                        >
+                                            <div className="w-10 h-10 rounded-2xl bg-black/[0.03] border border-black/5 flex items-center justify-center shrink-0 mt-0.5">
+                                                <Calendar className="w-4 h-4 text-black/20" />
                                             </div>
-                                            <p className="text-[14px] font-medium text-black/70 leading-relaxed line-clamp-2 italic">
-                                                "{ref.content}"
-                                            </p>
-                                            <p className="text-[10px] font-black text-black/20 uppercase mt-2">
-                                                {ref.content.trim().split(/\s+/).filter(Boolean).length} words
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            <button
-                                                onClick={() => handleOpen(ref)}
-                                                className="p-3 bg-black/5 hover:bg-black/10 rounded-xl transition-colors"
-                                                title="Edit"
-                                            >
-                                                <PenLine className="w-4 h-4 text-black/60" />
-                                            </button>
-                                            <button
-                                                onClick={() => setConfirmDelete(ref.id)}
-                                                className="p-3 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4 text-rose-500/60 hover:text-rose-500" />
-                                            </button>
-                                        </div>
-                                    </motion.div>
-                                ))}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <p className="text-[10px] font-black text-black/30 uppercase tracking-widest">
+                                                        {formatDate(ref.date)}
+                                                    </p>
+                                                    {mood && (
+                                                        <div className={cn(
+                                                            "flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-black/5 shrink-0",
+                                                            mood.bg
+                                                        )}>
+                                                            <mood.icon className={cn("w-2.5 h-2.5", mood.color)} />
+                                                            <span className={cn("text-[8px] font-black uppercase tracking-widest", mood.color)}>
+                                                                {mood.label}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {ref.date === today && (
+                                                        <span className="px-2 py-0.5 bg-black text-white rounded-full text-[9px] font-black uppercase tracking-widest">Today</span>
+                                                    )}
+                                                </div>
+                                                <p className="text-[14px] font-medium text-black/70 leading-relaxed line-clamp-2 italic">
+                                                    "{stripHtml(ref.content)}"
+                                                </p>
+                                                <p className="text-[10px] font-black text-black/20 uppercase mt-2">
+                                                    {stripHtml(ref.content).trim().split(/\s+/).filter(Boolean).length} words
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleOpen(ref) }}
+                                                    className="p-3 bg-black/5 hover:bg-black/10 rounded-xl transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <PenLine className="w-4 h-4 text-black/60" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(ref.id) }}
+                                                    className="p-3 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="w-4 h-4 text-rose-500/60 hover:text-rose-500" />
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )
+                                })}
                             </div>
                         )}
                     </motion.div>
@@ -311,6 +323,72 @@ export function ReflectionPage() {
                                 <button onClick={() => handleDelete(confirmDelete!)} className="flex-1 py-3 rounded-2xl bg-rose-500 text-white text-[12px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 hover:bg-rose-600 transition-colors">
                                     Delete
                                 </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+            
+            {/* View Modal */}
+            <AnimatePresence>
+                {viewingReflection && (
+                    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 md:p-8 bg-black/20 backdrop-blur-md">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.94, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.94, y: 20 }}
+                            className="bg-white rounded-[32px] shadow-2xl shadow-black/20 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-black/5"
+                        >
+                            {/* Modal Header */}
+                            <div className="p-8 pb-4 flex items-start justify-between">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-1">
+                                        {(() => {
+                                            const moodEntry = moodLogs.find(m => m.date === viewingReflection.date)
+                                            const mood = moodEntry ? MOOD_MAP[moodEntry.value] : null
+                                            if (!mood) return null
+                                            return (
+                                                <div className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full border border-black/5", mood.bg)}>
+                                                    <mood.icon className={cn("w-3 h-3", mood.color)} />
+                                                    <span className={cn("text-[10px] font-black uppercase tracking-widest", mood.color)}>
+                                                        {mood.label}
+                                                    </span>
+                                                </div>
+                                            )
+                                        })()}
+                                    </div>
+                                    <h2 className="text-[20px] font-black uppercase tracking-tighter">{formatDate(viewingReflection.date)}</h2>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => { handleOpen(viewingReflection); setViewingReflection(null) }}
+                                        className="p-3 bg-black text-white hover:bg-black/80 rounded-2xl shadow-lg shadow-black/10 transition-all active:scale-95"
+                                        title="Edit Entry"
+                                    >
+                                        <PenLine className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewingReflection(null)}
+                                        className="p-3 bg-black/5 hover:bg-black/10 rounded-2xl transition-all active:scale-95"
+                                        title="Close"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="flex-1 overflow-y-auto px-8 pb-12">
+                                <div 
+                                    className="text-[16px] font-medium text-black/80 leading-relaxed space-y-4"
+                                    dangerouslySetInnerHTML={{ __html: viewingReflection.content }}
+                                />
+                                <div className="mt-12 pt-8 border-t border-black/5 flex items-center justify-between">
+                                    <p className="text-[10px] font-black text-black/20 uppercase tracking-widest">
+                                        {stripHtml(viewingReflection.content).trim().split(/\s+/).filter(Boolean).length} Words Written
+                                    </p>
+                                    <Quote className="w-8 h-8 text-black/[0.03]" />
+                                </div>
                             </div>
                         </motion.div>
                     </div>

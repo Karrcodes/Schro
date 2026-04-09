@@ -491,7 +491,7 @@ export default function WaitlistPage() {
                         </div>
                     </div>
 
-                    <p className="mt-8 text-center">
+                    <div className="mt-8 text-center">
                         <span className="text-[11px] font-medium text-black/25 mr-1.5">
                             Don&apos;t have a code?
                         </span>
@@ -501,7 +501,7 @@ export default function WaitlistPage() {
                         >
                             Join the Waitlist
                         </Link>
-                    </p>
+                    </div>
                 </div>
 
                 <div className="flex items-center justify-between mt-auto">

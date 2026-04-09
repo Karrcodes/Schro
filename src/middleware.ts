@@ -16,6 +16,11 @@ const PUBLIC_ROUTES = [
     '/api/calendar',
     '/api/apple-sync',
     '/api/calendar/apple',
+    '/api/wellbeing',
+    '/api/nutrition',
+    '/manifest.json',
+    '/favicon.ico',
+    '/robots.txt',
 ]
 
 function isPublicRoute(pathname: string) {
