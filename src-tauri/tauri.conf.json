@@ -7,7 +7,7 @@
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "node scripts/patch_api_routes.js --static && IS_TAURI=true next build"
+    "beforeBuildCommand": "IS_TAURI=true npm run tauri-build"
   },
   "app": {
     "windows": [
