@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { MOCK_TASKS } from '@/lib/demoData'
 import { isTauri } from '@/lib/utils'
 import { LocalTasksService } from '../services/localTasksService'
+import { localDb } from '@/lib/local-db'
 
 interface TasksContextType {
     tasks: Record<string, Task[]>
