@@ -52,10 +52,13 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const headersList = await headers()
-  const pathname = headersList.get('x-pathname') || ''
-  // Pages that don't use the main app shell (sidebar, security lock, etc.)
-  const isShellFreePage = pathname === '/' || pathname === '/home' || pathname.startsWith('/login') || pathname.startsWith('/waitlist')
+  let isShellFreePage = false
+  if (process.env.IS_TAURI !== 'true') {
+    const headersList = await headers()
+    const pathname = headersList.get('x-pathname') || ''
+    // Pages that don't use the main app shell (sidebar, security lock, etc.)
+    isShellFreePage = pathname === '/' || pathname === '/home' || pathname.startsWith('/login') || pathname.startsWith('/waitlist')
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>
