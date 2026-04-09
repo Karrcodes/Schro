@@ -5,9 +5,6 @@ import { supabase } from '@/lib/supabase'
 import type { StudioProject, StudioSpark, StudioMilestone, StudioContent, StudioPress, StudioNetwork, StudioDraft, NodeReference } from '../types/studio.types'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { MOCK_STUDIO } from '@/lib/demoData'
-import { isTauri } from '@/lib/utils'
-import { LocalStudioService } from '../services/localStudioService'
-import { useAuth } from '@/contexts/AuthContext'
 
 interface StudioContextType {
     projects: StudioProject[]
@@ -67,7 +64,6 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 export function StudioProvider({ children }: { children: React.ReactNode }) {
     const { settings } = useSystemSettings()
-    const { user } = useAuth()
     const [projects, setProjects] = useState<StudioProject[]>([])
     const [sparks, setSparks] = useState<StudioSpark[]>([])
     const [milestones, setMilestones] = useState<StudioMilestone[]>([])
@@ -134,82 +130,12 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
             return
         }
 
-        // --- LOCAL FIRST STRATEGY (TAURI) ---
-        if (isTauri()) {
-            const [locP, locS, locM, locD, locN, locC, locPr] = await Promise.all([
-                LocalStudioService.getProjects(),
-                LocalStudioService.getSparks(),
-                LocalStudioService.getMilestones(),
-                LocalStudioService.getDrafts(),
-                LocalStudioService.getNetworks(),
-                LocalStudioService.getContent(),
-                LocalStudioService.getPress()
-            ])
-            if (locP.length > 0) setProjects(locP)
-            if (locS.length > 0) setSparks(locS)
-            if (locM.length > 0) setMilestones(locM)
-            if (locD.length > 0) setDrafts(locD)
-            if (locN.length > 0) setNetworks(locN)
-            if (locC.length > 0) setContent(locC)
-            if (locPr.length > 0) setPress(locPr)
-            
-            if (locP.length === 0) setLoading(true)
-            
-            // Background Sync
-            const [projectsRes, sparksRes, milestonesRes, contentRes, pressRes, networksRes, draftsRes] = await Promise.all([
-                supabase.from('studio_projects').select('*').order('created_at', { ascending: false }),
-                supabase.from('studio_sparks').select('*').order('created_at', { ascending: false }),
-                supabase.from('studio_milestones').select('*').order('created_at', { ascending: true }),
-                supabase.from('studio_content').select('*').order('created_at', { ascending: false }),
-                supabase.from('studio_press').select('*').order('created_at', { ascending: false }),
-                supabase.from('studio_networks').select('*').order('created_at', { ascending: false }),
-                supabase.from('studio_drafts').select('*').is('is_archived', false).order('updated_at', { ascending: false })
-            ])
-
-            if (!projectsRes.error && projectsRes.data) {
-                await LocalStudioService.syncProjects(projectsRes.data)
-                setProjects(projectsRes.data)
-            }
-            if (!sparksRes.error && sparksRes.data) {
-                await LocalStudioService.syncSparks(sparksRes.data)
-                setSparks(sparksRes.data)
-            }
-            if (!milestonesRes.error && milestonesRes.data) {
-                await LocalStudioService.syncMilestones(milestonesRes.data)
-                setMilestones(milestonesRes.data)
-            }
-            if (!draftsRes.error && draftsRes.data) {
-                await LocalStudioService.syncDrafts(draftsRes.data)
-                setDrafts(draftsRes.data)
-            }
-            if (!networksRes.error && networksRes.data) {
-                await LocalStudioService.syncNetworks(networksRes.data)
-                setNetworks(networksRes.data)
-            }
-            if (!contentRes.error && contentRes.data) {
-                await LocalStudioService.syncContent(contentRes.data)
-                setContent(contentRes.data)
-            }
-            if (!pressRes.error && pressRes.data) {
-                await LocalStudioService.syncPress(pressRes.data)
-                setPress(pressRes.data)
-            }
-            if (!draftsRes.error && draftsRes.data) {
-                setDrafts(draftsRes.data)
-            }
-
-            setLoading(false)
-            return
-        }
-
-        // --- STANDARD WEB STRATEGY ---
         try {
             setLoading(true)
             const [projectsRes, sparksRes, milestonesRes, contentRes, pressRes, networksRes, draftsRes] = await Promise.all([
                 supabase.from('studio_projects').select('*').order('created_at', { ascending: false }),
                 supabase.from('studio_sparks').select('*').order('created_at', { ascending: false }),
-                supabase.from('studio_milestones').select('*').order('created_at', { ascending: true }),
-                supabase.from('studio_content').select('*').order('created_at', { ascending: false }),
+                supabase.from('studio_milestones').select('*').order('created_at', { ascending: true }),                supabase.from('studio_content').select('*').order('created_at', { ascending: false }),
                 supabase.from('studio_press').select('*').order('created_at', { ascending: false }),
                 supabase.from('studio_networks').select('*').order('created_at', { ascending: false }),
                 supabase.from('studio_drafts').select('*').is('is_archived', false).order('updated_at', { ascending: false })
@@ -247,7 +173,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setLoading(false)
         }
-    }, [settings.is_demo_mode, getSessionStudio, saveSessionStudio, user?.id])
+    }, [settings.is_demo_mode, getSessionStudio, saveSessionStudio])
 
     useEffect(() => {
         fetchData()

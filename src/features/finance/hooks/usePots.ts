@@ -8,8 +8,6 @@ import { useSystemSettings } from '@/features/system/contexts/SystemSettingsCont
 import { MOCK_FINANCE, MOCK_BUSINESS } from '@/lib/demoData'
 
 import { ProfileType } from '../types/finance.types'
-import { isTauri } from '@/lib/utils'
-import { LocalFinanceService } from '../services/localFinanceService'
 
 // Module-level locks to prevent race conditions across multiple hook instances
 const ensuringProfiles = new Set<string>()
@@ -70,34 +68,22 @@ export function usePots(profileOverride?: ProfileType) {
             setLoading(false)
             return
         }
-        // 1. Check local SQLite Cache first (Instant)
-        if (isTauri()) {
-            const locPockets = await LocalFinanceService.getPockets(activeProfile)
-            if (locPockets.length > 0) setPots(locPockets)
-            if (locPockets.length === 0) setLoading(true)
-            
-            // Background Sync
-            checkMonzoConnection()
-            const { data, error } = await supabase
-                .from('fin_pockets')
-                .select('*')
-                .eq('profile', activeProfile)
-                .order('sort_order', { ascending: true })
-                .order('created_at', { ascending: true })
-
-            if (!error && data) {
-                await LocalFinanceService.syncPockets(data)
-                setPots(data)
-            } else if (error) {
-                setError(error.message)
-            }
-            setLoading(false)
-            return
-        }
-
-        // --- STANDARD WEB STRATEGY ---
         // Only show loading spinner on initial load (when there's no data yet)
         if (pots.length === 0) setLoading(true)
+
+        // Also check connection status whenever we fetch pots
+        checkMonzoConnection()
+
+        const { data, error } = await supabase
+            .from('fin_pockets')
+            .select('*')
+            .eq('profile', activeProfile)
+            .order('sort_order', { ascending: true })
+            .order('created_at', { ascending: true })
+
+        if (error) setError(error.message)
+        else setPots(data ?? [])
+        setLoading(false)
     }
 
     const createPot = async (pot: Omit<Pot, 'id' | 'created_at' | 'profile'>) => {

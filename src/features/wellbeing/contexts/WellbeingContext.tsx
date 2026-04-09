@@ -11,8 +11,6 @@ import { getMonthlyRoutine } from '../utils/routine-generator'
 import { getOverloadTarget } from '../utils/progressiveOverload'
 import { EXERCISES } from '../constants/exercises'
 import type { RotaOverride } from '@/features/finance/types/finance.types'
-import { isTauri } from '@/lib/utils'
-import { localDb } from '@/lib/local-db'
 
 interface WellbeingContextType extends WellbeingState {
     updateProfile: (profile: WellbeingProfile) => Promise<void>
@@ -151,20 +149,6 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
             const { data: { user } } = await supabase.auth.getUser()
 
             if (typeof window !== 'undefined') {
-                // 1. Check local SQLite Cache first (Instant)
-                if (isTauri()) {
-                    try {
-                        const cached = await localDb.query<any>('SELECT data FROM wellbeing_cache WHERE user_id = ?', [user?.id || 'guest']);
-                        if (cached.length > 0) {
-                            const parsed = JSON.parse(cached[0].data);
-                            setState(prev => ({ ...prev, ...parsed, loading: false }));
-                        }
-                    } catch (e) {
-                        console.error('Failed to load local SQLite wellbeing cache:', e);
-                    }
-                }
-
-                // 2. Fallback to localStorage
                 const saved = localStorage.getItem('wellbeing_state')
                 if (saved) {
                     try {
@@ -369,17 +353,6 @@ export function WellbeingProvider({ children }: { children: ReactNode }) {
                 if (data.dashboardLayout) update.dashboard_layout = data.dashboardLayout
                 if (data.activeSession !== undefined) update.active_session = data.activeSession
                 await supabase.from('wellbeing_data').upsert(update)
-
-                // 2. Update Local SQLite Cache (Instant Mirror)
-                if (isTauri()) {
-                    await localDb.execute(`
-                        INSERT INTO wellbeing_cache (user_id, data, updated_at)
-                        VALUES (?, ?, ?)
-                        ON CONFLICT(user_id) DO UPDATE SET
-                            data = excluded.data,
-                            updated_at = excluded.updated_at
-                    `, [user.id, JSON.stringify(state), new Date().toISOString()]);
-                }
             }
         } catch (e) { console.error('Persistence error:', e) }
     }

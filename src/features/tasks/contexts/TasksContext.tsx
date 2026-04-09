@@ -7,9 +7,6 @@ import { useTasksProfile } from './TasksProfileContext'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { MOCK_TASKS } from '@/lib/demoData'
-import { isTauri } from '@/lib/utils'
-import { LocalTasksService } from '../services/localTasksService'
-import { localDb } from '@/lib/local-db'
 
 interface TasksContextType {
     tasks: Record<string, Task[]>
@@ -86,35 +83,6 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
             return
         }
 
-        // --- LOCAL FIRST STRATEGY (TAURI) ---
-        if (isTauri()) {
-            // 1. Immediately load what we have on Mac
-            const localTasks = await LocalTasksService.getTasks(category, user?.id)
-            if (localTasks.length > 0) {
-                setTasks(prev => ({ ...prev, [category]: localTasks }))
-            } else {
-                setLoading(prev => ({ ...prev, [category]: true }))
-            }
-
-            // 2. Fetch fresh data from Supabase in background
-            const { data, error } = await supabase
-                .from('fin_tasks')
-                .select('*')
-                .eq('category', category)
-                .eq('user_id', user?.id)
-                .order('position', { ascending: false })
-
-            if (!error && data) {
-                // 3. Update local cache and state
-                await LocalTasksService.syncTasks(data)
-                setTasks(prev => ({ ...prev, [category]: data }))
-            }
-            if (error) setErrors(prev => ({ ...prev, [category]: error.message }))
-            setLoading(prev => ({ ...prev, [category]: false }))
-            return
-        }
-
-        // --- STANDARD WEB STRATEGY ---
         setLoading(prev => ({ ...prev, [category]: true }))
         const query = supabase
             .from('fin_tasks')
@@ -167,40 +135,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         }
 
         const currentTasks = tasks[category] || []
-        const newTaskData = {
-            id: `temp-${Date.now()}`,
+        const { error } = await supabase.from('fin_tasks').insert({
             ...taskData,
             category,
             user_id: user?.id,
             profile: taskData.profile || activeProfile,
             position: currentTasks.length > 0 ? Math.max(...currentTasks.map((t: Task) => t.position || 0)) + 1000 : Date.now(),
-            created_at: new Date().toISOString(),
-            is_completed: false
-        } as Task
-
-        // Optimistic UI Update
-        setTasks(prev => ({ ...prev, [category]: [newTaskData, ...(prev[category] || [])] }))
-
-        // Local Save (Instant)
-        if (isTauri()) {
-            await LocalTasksService.saveTaskLocally(newTaskData)
-        }
-
-        // Cloud Persistence
-        const { data, error } = await supabase.from('fin_tasks').insert({
-            ...taskData,
-            category,
-            user_id: user?.id,
-            profile: taskData.profile || activeProfile,
-            position: newTaskData.position,
-        }).select().single()
-
+        })
         if (error) throw error
-        
-        // Final Sync if on Mac
-        if (isTauri() && data) {
-            await LocalTasksService.syncTasks([data])
-        }
         await fetchTasks(category)
     }
 
@@ -270,15 +212,6 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
             saveSessionTasks(category, updated)
             return
         }
-
-        // Local Update (Instant)
-        if (isTauri()) {
-            const task = tasks[category]?.find(t => t.id === id)
-            if (task) {
-                await LocalTasksService.saveTaskLocally({ ...task, is_completed })
-            }
-        }
-
         const { error } = await supabase.from('fin_tasks')
             .update({ is_completed })
             .eq('id', id)
@@ -301,15 +234,6 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
             saveSessionTasks(category, updated)
             return
         }
-
-        // Local Update (Instant)
-        if (isTauri()) {
-            const task = tasks[category]?.find(t => t.id === id)
-            if (task) {
-                await LocalTasksService.saveTaskLocally({ ...task, ...updates })
-            }
-        }
-
         const { error } = await supabase.from('fin_tasks')
             .update(updates)
             .eq('id', id)
@@ -338,10 +262,13 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     }
 
     const clearAllTasks = async (category: string, activeProfile: string) => {
-        if (isTauri()) {
-            await localDb.execute('DELETE FROM tasks WHERE profile = ? AND category = ?', [activeProfile, category])
+        if (settings.is_demo_mode) {
+            const allTasks = getSessionTasks(category) || []
+            const remaining = allTasks.filter((t: Task) => t.profile !== activeProfile)
+            saveSessionTasks(category, remaining)
+            await fetchTasks(category)
+            return
         }
-
         const { error } = await supabase.from('fin_tasks')
             .delete()
             .eq('profile', activeProfile)
@@ -352,10 +279,13 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     }
 
     const clearCompletedTasks = async (category: string, activeProfile: string) => {
-        if (isTauri()) {
-            await localDb.execute('DELETE FROM tasks WHERE profile = ? AND category = ? AND is_completed = 1', [activeProfile, category])
+        if (settings.is_demo_mode) {
+            const allTasks = getSessionTasks(category) || []
+            const updated = allTasks.filter((t: Task) => !(t.profile === activeProfile && t.is_completed))
+            saveSessionTasks(category, updated)
+            await fetchTasks(category)
+            return
         }
-
         const { error } = await supabase.from('fin_tasks')
             .delete()
             .eq('profile', activeProfile)

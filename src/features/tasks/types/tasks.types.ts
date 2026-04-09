@@ -7,7 +7,6 @@ export interface Task {
     id: string
     profile: string
     title: string
-    user_id?: string
     is_completed: boolean
     category: Category
     strategic_category?: StrategicCategory | null
