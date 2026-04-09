@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 
+const isTauri = process.env.TAURI_PLATFORM !== undefined;
+
 const nextConfig: NextConfig = {
-    output: 'export',
+    output: isTauri ? 'export' : undefined,
     images: {
-        unoptimized: true,
+        unoptimized: isTauri,
     },
     async headers() {
         return [
