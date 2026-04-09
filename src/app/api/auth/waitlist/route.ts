@@ -1,4 +1,4 @@
-export const dynamic = (process.env.TAURI_PLATFORM !== undefined || process.env.IS_TAURI === 'true') ? 'force-static' : 'force-dynamic';
+export const dynamic = 'force-static'
 import { createServiceClient } from '@/lib/supabase/service'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'

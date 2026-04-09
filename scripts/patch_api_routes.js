@@ -28,23 +28,22 @@ const files = walk(apiDir);
 files.forEach(file => {
     let content = fs.readFileSync(file, 'utf8');
     
-    // 1. Handle the 'dynamic' setting
+    // 1. Remove ANY existing dynamic exports or dummy params
     const dynamicRegex = /export const dynamic = [^;\n]+;?\n?/g;
-    let newContent = content.replace(dynamicRegex, '');
-    newContent = `export const dynamic = ${targetValue}\n` + newContent;
+    const staticParamsRegex = /export const generateStaticParams = [^;\n]+;?\n?/g;
     
-    // 2. Handle dynamic parameters (e.g. [id]) for static export
+    let newContent = content.replace(dynamicRegex, '').replace(staticParamsRegex, '');
+    
+    // 2. Add the dynamic mode to the top
+    let header = `export const dynamic = ${targetValue}\n`;
+    
+    // 3. Add dummy static params if needed (AT THE TOP)
     if (mode === 'static' && (file.includes('[') && file.includes(']'))) {
-        if (!newContent.includes('export const generateStaticParams')) {
-            console.log(`Adding dummy static params to dynamic route: ${path.relative(process.cwd(), file)}`);
-            newContent += "\nexport const generateStaticParams = () => [];\n";
-        }
-    } else {
-        // Remove dummy params if switching back to dynamic
-        newContent = newContent.replace(/export const generateStaticParams = \(\) => \[\];?\n?/g, '');
+        console.log(`Adding dummy static params to dynamic route: ${path.relative(process.cwd(), file)}`);
+        header += "export const generateStaticParams = () => [];\n";
     }
     
-    fs.writeFileSync(file, newContent, 'utf8');
+    fs.writeFileSync(file, header + newContent, 'utf8');
 });
 
-console.log(`Successfully toggled 64 API routes to ${mode} mode with dynamic route handling.`);
+console.log(`Deep-Patched 64 API routes for ${mode} mode.`);
