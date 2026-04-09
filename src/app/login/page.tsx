@@ -400,7 +400,7 @@ export default function AuthPage() {
     // Explicitly determine mode (signin vs signup)
     const mode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin'
     
-    const [loading, setLoading] = useState<'google' | 'x' | null>(null)
+    const [loading, setLoading] = useState<'google' | 'x' | 'waitlist' | null>(null)
     const [error, setError] = useState<string | null>(null)
 
     const [waitlistEmail, setWaitlistEmail] = useState('')
