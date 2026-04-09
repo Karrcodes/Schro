@@ -32,6 +32,8 @@ export async function POST(request: Request) {
         // 2. Send Email via Resend
         const { data, error: mailError } = await resend.emails.send({
             from: 'Schrö <erwin@schro.app>',
+            to: [email],
+            subject: "You're on the list | Schrö",
             html: `
                 <!DOCTYPE html>
                 <html>
