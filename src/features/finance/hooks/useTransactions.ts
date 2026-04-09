@@ -9,6 +9,7 @@ import { MOCK_FINANCE, MOCK_BUSINESS } from '@/lib/demoData'
 import { ProfileType } from '../types/finance.types'
 import { isTauri } from '@/lib/utils'
 import { LocalFinanceService } from '../services/localFinanceService'
+import { useAuth } from '@/contexts/AuthContext'
 
 export function useTransactions(profileOverride?: ProfileType | 'all') {
     const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -17,6 +18,7 @@ export function useTransactions(profileOverride?: ProfileType | 'all') {
     const { activeProfile: contextProfile, refreshTrigger, globalRefresh } = useFinanceProfile()
     const activeProfile = profileOverride || contextProfile
     const { settings } = useSystemSettings()
+    const { user } = useAuth()
 
     const fetchTransactions = async () => {
         if (settings.is_demo_mode) {
@@ -181,7 +183,9 @@ export function useTransactions(profileOverride?: ProfileType | 'all') {
         }
     }
 
-    useEffect(() => { fetchTransactions() }, [activeProfile, refreshTrigger, settings.is_demo_mode])
+    useEffect(() => { 
+        fetchTransactions() 
+    }, [activeProfile, refreshTrigger, settings.is_demo_mode, user?.id])
 
     return { transactions, loading, error, refetch: fetchTransactions, updateTransaction, deleteTransaction, clearTransactions }
 }

@@ -9,6 +9,7 @@ import { MOCK_FINANCE, MOCK_BUSINESS } from '@/lib/demoData'
 import { ProfileType } from '../types/finance.types'
 import { isTauri } from '@/lib/utils'
 import { LocalGoalsService } from '@/features/goals/services/localGoalsService'
+import { useAuth } from '@/contexts/AuthContext'
 
 export function useGoals(profileOverride?: ProfileType) {
     const [goals, setGoals] = useState<Goal[]>([])
@@ -17,6 +18,7 @@ export function useGoals(profileOverride?: ProfileType) {
     const { activeProfile: contextProfile, refreshTrigger } = useFinanceProfile()
     const activeProfile = profileOverride || contextProfile
     const { settings } = useSystemSettings()
+    const { user } = useAuth()
 
     const fetchGoals = async () => {
         if (settings.is_demo_mode) {
@@ -102,7 +104,9 @@ export function useGoals(profileOverride?: ProfileType) {
         await fetchGoals()
     }
 
-    useEffect(() => { fetchGoals() }, [activeProfile, refreshTrigger, settings.is_demo_mode])
+    useEffect(() => { 
+        fetchGoals() 
+    }, [activeProfile, refreshTrigger, settings.is_demo_mode, user?.id])
 
     return { goals, loading, error, createGoal, updateGoal, deleteGoal, refetch: fetchGoals }
 }

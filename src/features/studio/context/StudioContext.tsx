@@ -7,6 +7,7 @@ import { useSystemSettings } from '@/features/system/contexts/SystemSettingsCont
 import { MOCK_STUDIO } from '@/lib/demoData'
 import { isTauri } from '@/lib/utils'
 import { LocalStudioService } from '../services/localStudioService'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface StudioContextType {
     projects: StudioProject[]
@@ -66,6 +67,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 export function StudioProvider({ children }: { children: React.ReactNode }) {
     const { settings } = useSystemSettings()
+    const { user } = useAuth()
     const [projects, setProjects] = useState<StudioProject[]>([])
     const [sparks, setSparks] = useState<StudioSpark[]>([])
     const [milestones, setMilestones] = useState<StudioMilestone[]>([])
@@ -245,7 +247,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setLoading(false)
         }
-    }, [settings.is_demo_mode, getSessionStudio, saveSessionStudio])
+    }, [settings.is_demo_mode, getSessionStudio, saveSessionStudio, user?.id])
 
     useEffect(() => {
         fetchData()

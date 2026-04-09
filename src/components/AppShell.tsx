@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
 
 import { FloatingModulePicker } from './FloatingModulePicker'
 import { X } from 'lucide-react'
+import { isTauri } from '@/lib/utils'
+import { localDb } from '@/lib/local-db'
 
 function SplitView() {
     const { leftUrl, rightUrl, focusedPane, setFocusedPane, toggleMultitasking, splitPosition, setSplitPosition } = useMultitasking()
@@ -126,6 +128,12 @@ function AppShellInner({ children, pathname }: { children: React.ReactNode, path
     
     React.useEffect(() => {
         setMounted(true)
+        // --- INITIALIZE LOCAL DB (MAC DEKSTOP ONLY) ---
+        if (isTauri()) {
+            localDb.init().catch(err => {
+                console.error('[AppShell] LocalDB Init failed:', err)
+            })
+        }
     }, [])
     
     // Check if we are in an iframe

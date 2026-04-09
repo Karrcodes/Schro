@@ -6,6 +6,7 @@ import Database from '@tauri-apps/plugin-sql';
 class LocalDB {
     private db: Database | null = null;
     private dbPath = 'sqlite:schro.db';
+    private initPromise: Promise<void> | null = null;
 
     async getDb() {
         if (!this.db) {
@@ -14,12 +15,15 @@ class LocalDB {
         return this.db;
     }
 
-    /**
-     * Initializes the database schema.
-     * We create tables locally that mirror our Supabase tables.
-     */
+    async ensureInitialized() {
+        if (this.initPromise) await this.initPromise;
+    }
+
     async init() {
-        const db = await this.getDb();
+        if (this.initPromise) return this.initPromise;
+        
+        this.initPromise = (async () => {
+            const db = await this.getDb();
         
         console.log('[LocalDB] Initializing Schema...');
 
@@ -238,6 +242,9 @@ class LocalDB {
         `);
 
         console.log('[LocalDB] Schema Ready.');
+        })();
+
+        return this.initPromise;
     }
 
 
@@ -245,6 +252,7 @@ class LocalDB {
      * Helper for raw queries
      */
     async query<T>(sql: string, bindValues?: any[]): Promise<T[]> {
+        await this.ensureInitialized();
         const db = await this.getDb();
         return await db.select(sql, bindValues);
     }
@@ -253,6 +261,7 @@ class LocalDB {
      * Helper for executions (INSERT, UPDATE, DELETE)
      */
     async execute(sql: string, bindValues?: any[]) {
+        await this.ensureInitialized();
         const db = await this.getDb();
         return await db.execute(sql, bindValues);
     }
