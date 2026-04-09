@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
+const mode = process.argv.includes('--static') ? 'static' : 'dynamic';
+const targetValue = mode === 'static' ? "'force-static'" : "'force-dynamic'";
+
 function walk(dir) {
     let results = [];
     if (!fs.existsSync(dir)) return [];
@@ -22,22 +25,19 @@ function walk(dir) {
 const apiDir = path.join(process.cwd(), 'src', 'app', 'api');
 const files = walk(apiDir);
 
-const UNIVERSAL_DYNAMIC = "export const dynamic = (process.env.TAURI_PLATFORM !== undefined || process.env.IS_TAURI === 'true') ? 'force-static' : 'force-dynamic';\n";
-
 files.forEach(file => {
     let content = fs.readFileSync(file, 'utf8');
     
-    // Remove ANY existing dynamic exports (force-static, force-dynamic, auto, etc.)
-    const dynamicRegex = /export const dynamic = ['"][^'"]+['"];?\n?/g;
-    const complexDynamicRegex = /export const dynamic = \(process\.env\.TAURI_PLATFORM[^\n]+\n?/g;
+    // Regex to find ANY existing dynamic export
+    // This matches: export const dynamic = '...' or export const dynamic = (...) ? ... : ...;
+    const dynamicRegex = /export const dynamic = [^;\n]+;?\n?/g;
     
-    let newContent = content.replace(dynamicRegex, '').replace(complexDynamicRegex, '');
+    let newContent = content.replace(dynamicRegex, '');
     
-    // Add the new universal one at the top
-    newContent = UNIVERSAL_DYNAMIC + newContent;
+    // Prepend the new literal string
+    newContent = `export const dynamic = ${targetValue}\n` + newContent;
     
     fs.writeFileSync(file, newContent, 'utf8');
-    console.log(`Smart Patched: ${path.relative(process.cwd(), file)}`);
 });
 
-console.log('All API routes have been updated with smart conditional logic.');
+console.log(`Successfully toggled 64 API routes to ${mode} mode.`);
