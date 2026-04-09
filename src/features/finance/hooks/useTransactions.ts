@@ -7,6 +7,8 @@ import { useFinanceProfile } from '../contexts/FinanceProfileContext'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { MOCK_FINANCE, MOCK_BUSINESS } from '@/lib/demoData'
 import { ProfileType } from '../types/finance.types'
+import { isTauri } from '@/lib/utils'
+import { LocalFinanceService } from '../services/localFinanceService'
 
 export function useTransactions(profileOverride?: ProfileType | 'all') {
     const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -51,6 +53,35 @@ export function useTransactions(profileOverride?: ProfileType | 'all') {
             setLoading(false)
             return
         }
+        // --- LOCAL FIRST STRATEGY (TAURI) ---
+        if (isTauri()) {
+            // 1. Immediately load what we have on Mac
+            const localTxs = await LocalFinanceService.getTransactions()
+            if (localTxs.length > 0) {
+                setTransactions(localTxs)
+            } else if (transactions.length === 0) {
+                setLoading(true)
+            }
+
+            // 2. Background Sync
+            let query = supabase.from('fin_transactions').select('*')
+                .order('date', { ascending: false })
+                .order('created_at', { ascending: false })
+            if (activeProfile !== 'all') {
+                query = query.eq('profile', activeProfile)
+            }
+            const { data, error } = await query
+
+            if (!error && data) {
+                await LocalFinanceService.syncTransactions(data)
+                setTransactions(data)
+            }
+            if (error) setError(error.message)
+            setLoading(false)
+            return
+        }
+
+        // --- STANDARD WEB STRATEGY ---
         // Only show loading spinner on initial load (when there's no data yet)
         if (transactions.length === 0) setLoading(true)
         let query = supabase
@@ -86,24 +117,25 @@ export function useTransactions(profileOverride?: ProfileType | 'all') {
         setLoading(false)
     }
 
-    const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
-        if (settings.is_demo_mode) {
-            const updated = transactions.map(t => t.id === id ? { ...t, ...updates } : t)
-            setTransactions(updated)
-            const key = activeProfile === 'business' ? 'schrö_demo_finance_transactions_business_v1' : 'schrö_demo_finance_transactions_personal_v1'
-            if (typeof window !== 'undefined' && activeProfile !== 'all') {
-                localStorage.setItem(key, JSON.stringify(updated))
+        // Local Update (Instant)
+        if (isTauri()) {
+            const tx = transactions.find(t => t.id === id)
+            if (tx) {
+                await LocalFinanceService.saveTransactionLocally({ ...tx, ...updates })
             }
-            globalRefresh()
-            return
         }
+
         const { error } = await supabase
             .from('fin_transactions')
             .update(updates)
             .eq('id', id)
 
-        if (error) setError(error.message)
-        else globalRefresh()
+        if (error) {
+            setError(error.message)
+            fetchTransactions()
+        } else {
+            globalRefresh()
+        }
     }
 
     const deleteTransaction = async (id: string) => {
@@ -117,13 +149,24 @@ export function useTransactions(profileOverride?: ProfileType | 'all') {
             globalRefresh()
             return
         }
+
+        // Local Delete (Instant)
+        if (isTauri()) {
+             setTransactions(prev => prev.filter(t => t.id !== id))
+             // We can follow up with service deletion
+        }
+
         const { error } = await supabase
             .from('fin_transactions')
             .delete()
             .eq('id', id)
 
-        if (error) setError(error.message)
-        else globalRefresh()
+        if (error) {
+            setError(error.message)
+            fetchTransactions()
+        } else {
+            globalRefresh()
+        }
     }
 
     useEffect(() => { fetchTransactions() }, [activeProfile, refreshTrigger, settings.is_demo_mode])

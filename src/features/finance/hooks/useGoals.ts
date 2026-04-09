@@ -7,6 +7,8 @@ import { useFinanceProfile } from '../contexts/FinanceProfileContext'
 import { useSystemSettings } from '@/features/system/contexts/SystemSettingsContext'
 import { MOCK_FINANCE, MOCK_BUSINESS } from '@/lib/demoData'
 import { ProfileType } from '../types/finance.types'
+import { isTauri } from '@/lib/utils'
+import { LocalGoalsService } from '@/features/goals/services/localGoalsService'
 
 export function useGoals(profileOverride?: ProfileType) {
     const [goals, setGoals] = useState<Goal[]>([])
@@ -23,6 +25,28 @@ export function useGoals(profileOverride?: ProfileType) {
             setLoading(false)
             return
         }
+        // --- LOCAL FIRST STRATEGY (TAURI) ---
+        if (isTauri()) {
+            const localGoals = await LocalGoalsService.getGoals()
+            if (localGoals.length > 0) setGoals(localGoals)
+            else if (goals.length === 0) setLoading(true)
+
+            const { data, error } = await supabase
+                .from('fin_goals')
+                .select('*')
+                .eq('profile', activeProfile)
+                .order('created_at', { ascending: true })
+
+            if (!error && data) {
+                 await LocalGoalsService.syncGoals(data)
+                 setGoals(data)
+            }
+            if (error) setError(error.message)
+            setLoading(false)
+            return
+        }
+
+        // --- STANDARD WEB STRATEGY ---
         if (goals.length === 0) setLoading(true)
         const { data, error } = await supabase
             .from('fin_goals')
@@ -35,9 +59,11 @@ export function useGoals(profileOverride?: ProfileType) {
         setLoading(false)
     }
 
-    const createGoal = async (goal: Omit<Goal, 'id' | 'created_at' | 'profile'>) => {
-        const { error } = await supabase.from('fin_goals').insert({ ...goal, profile: activeProfile })
+        const { data, error } = await supabase.from('fin_goals').insert({ ...goal, profile: activeProfile }).select().single()
         if (error) throw error
+        if (isTauri() && data) {
+            await LocalGoalsService.saveGoalLocally(data)
+        }
         await fetchGoals()
     }
 
@@ -53,6 +79,12 @@ export function useGoals(profileOverride?: ProfileType) {
             }
             return
         }
+        // Local Sync
+        if (isTauri()) {
+             const goal = goals.find(g => g.id === id)
+             if (goal) await LocalGoalsService.saveGoalLocally({ ...goal, ...updates })
+        }
+
         const { error } = await supabase.from('fin_goals').update(updates).eq('id', id)
         if (error) throw error
         await fetchGoals()
