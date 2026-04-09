@@ -19,10 +19,23 @@ const PUBLIC_ROUTES = [
 ]
 
 function isPublicRoute(pathname: string) {
-    const isPublic = PUBLIC_ROUTES.some(route => pathname.startsWith(route))
-    if (!isPublic && pathname.includes('api')) {
-        console.log(`[Proxy] NON-PUBLIC API ROUTE: ${pathname}`)
-    }
+    // 1. Precise check for root vs others
+    const isPublic = PUBLIC_ROUTES.some(route => {
+        if (route === '/') return pathname === '/'
+        return pathname.startsWith(route)
+    })
+    
+    // 2. Extra safety for known protected patterns
+    const isProtectedFolder = pathname.startsWith('/system') || 
+                               pathname.startsWith('/vault') || 
+                               pathname.startsWith('/tasks') ||
+                               pathname.startsWith('/finances') ||
+                               pathname.startsWith('/goals') ||
+                               pathname.startsWith('/intelligence') ||
+                               pathname.startsWith('/create')
+
+    if (isProtectedFolder) return false
+
     return isPublic
 }
 
@@ -54,59 +67,66 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next()
     }
 
-    // Always set x-pathname for use in layouts
+    // 1. Prepare request headers with the current pathname
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set('x-pathname', pathname)
 
-    // Refresh session and get user
-    const { supabaseResponse, user } = await updateSession(request)
+    // 2. Refresh session and get user
+    // We pass the original request but we will ensure the response has the headers
+    const { supabaseResponse: sessionResponse, user } = await updateSession(request)
 
-    // Copy x-pathname to the supabase response headers
-    supabaseResponse.headers.set('x-pathname', pathname)
+    // 3. Create a unified response that carries both the session and our custom headers
+    // Using NextResponse.next with the modified request headers is key for layout.tsx to see them via headers()
+    const supabaseResponse = NextResponse.next({
+        request: {
+            headers: requestHeaders,
+        },
+    })
 
-    // If visiting root, redirect based on auth state
-    if (pathname === '/') {
-        if (!user) {
-            // Guests see the landing page
-            return supabaseResponse
-        }
-        // Has session — check if approved
-        const status = await getUserStatus(user.id)
-        const redirectUrl = (status === 'beta' || status === 'admin')
-            ? '/system/control-centre'
-            : '/waitlist'
-        return NextResponse.redirect(new URL(redirectUrl, request.url))
-    }
+    // Copy any cookies set by updateSession to our new response
+    sessionResponse.cookies.getAll().forEach(cookie => {
+        supabaseResponse.cookies.set(cookie.name, cookie.value, {
+            path: '/',
+            domain: cookie.domain,
+            maxAge: cookie.maxAge,
+            secure: cookie.secure,
+            sameSite: cookie.sameSite,
+        })
+    })
 
-    // Allow public routes through
+    // 2. Public route handling
     if (isPublicRoute(pathname)) {
-        // If already logged in and approved, skip past login page
-        if (pathname === '/login' && user) {
+        // If logged in and approved, skip past login/landing to control centre
+        if (user && (pathname === '/login' || pathname === '/')) {
             const status = await getUserStatus(user.id)
             if (status === 'beta' || status === 'admin') {
                 return NextResponse.redirect(new URL('/system/control-centre', request.url))
             }
-            // Logged in but not approved — let them see login or go to waitlist
+            // Logged in but not approved -> force to waitlist
             return NextResponse.redirect(new URL('/waitlist', request.url))
-        }
-        // Ensure we don't redirect public API routes to login
-        if (pathname.includes('/api/') && (supabaseResponse.status === 307 || supabaseResponse.status === 302)) {
-            return NextResponse.next()
         }
         return supabaseResponse
     }
 
-    // Protected route: no user → redirect to login
+    // 3. Protected route: no user → redirect to login
     if (!user) {
+        console.log(`[Middleware] UNAUTHORIZED ACCESS ATTEMPT: ${pathname} -> Redirecting to /login`)
         const loginUrl = new URL('/login', request.url)
         loginUrl.searchParams.set('redirectTo', pathname)
-        return NextResponse.redirect(loginUrl)
+        
+        // Wipe any stale cookies to be safe
+        const response = NextResponse.redirect(loginUrl)
+        response.cookies.delete('sb-hvkoeyxgvvtkcrxnurot-auth-token')
+        return response
     }
 
-    // Has session but check approval status for all protected routes
+    // 4. Has session: check approval status for all protected routes
     const status = await getUserStatus(user.id)
     if (!status || status === 'waitlist') {
-        return NextResponse.redirect(new URL('/waitlist', request.url))
+        if (pathname !== '/waitlist') {
+            console.log(`[Middleware] UNAPPROVED USER ATTEMPT: ${pathname} -> Redirecting to /waitlist`)
+            return NextResponse.redirect(new URL('/waitlist', request.url))
+        }
     }
 
     return supabaseResponse

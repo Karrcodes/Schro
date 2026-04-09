@@ -154,9 +154,9 @@ export default function LandingPage() {
                         <span className="text-2xl font-serif italic font-medium tracking-tight leading-none">Schrö</span>
                     </Link>
                     <div className="flex items-center gap-6">
-                        <Link href="/login?mode=signin" className="text-[13px] font-bold text-black/40 hover:text-black transition-colors">Sign In</Link>
+                        <Link href="/login?mode=signin" className="text-[13px] font-bold text-black/40 hover:text-black transition-colors">Sign in</Link>
                         <Link href="/login?mode=signup" className="px-5 py-2 bg-black text-white text-[13px] font-bold rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all">
-                            Sign up
+                            Join the waitlist
                         </Link>
                     </div>
                 </div>

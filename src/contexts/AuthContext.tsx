@@ -77,7 +77,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     const signOut = async () => {
+        // 1. Sign out on the client
         await supabase.auth.signOut()
+        
+        // 2. Call the server-side signout to purge cookies
+        try {
+            await fetch('/api/auth/signout', { method: 'POST' })
+        } catch (err) {
+            console.error('Server signout failed:', err)
+        }
+
+        // 3. Hard redirect to clear any local state/cache
         window.location.href = '/login'
     }
 

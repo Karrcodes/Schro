@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
     const { searchParams, origin: requestOrigin } = new URL(request.url)
     const code = searchParams.get('code')
-    const next = searchParams.get('next') ?? '/system/control-centre'
+    const next = '/system/control-centre'
     const bridgeTarget = searchParams.get('bridge_target')
 
     // Determine the actual origin from headers to support local network IPs

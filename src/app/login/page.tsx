@@ -605,15 +605,23 @@ export default function AuthPage() {
                     )}
                     </div>
 
-                    <p className="mt-8 text-center">
-                        <span className="text-[11px] font-medium text-black/25 mr-1.5">
-                            {mode === 'signin' ? "New to Schrö?" : "Already have an account?"}
-                        </span>
+                    <p className="mt-8 text-center flex flex-col gap-2">
+                        <div>
+                            <span className="text-[11px] font-medium text-black/25 mr-1.5">
+                                {mode === 'signin' ? "New to Schrö?" : "Already have an account?"}
+                            </span>
+                            <Link 
+                                href={mode === 'signin' ? '/login?mode=signup' : '/login?mode=signin'} 
+                                className="text-[11px] font-bold text-black border-b border-black/10 hover:border-black transition-colors"
+                            >
+                                {mode === 'signin' ? "Join the Waitlist" : "Sign In"}
+                            </Link>
+                        </div>
                         <Link 
-                            href={mode === 'signin' ? '/login?mode=signup' : '/login?mode=signin'} 
-                            className="text-[11px] font-bold text-black border-b border-black/10 hover:border-black transition-colors"
+                            href="/waitlist" 
+                            className="text-[10px] font-bold text-black/30 hover:text-black uppercase tracking-widest transition-colors"
                         >
-                            {mode === 'signin' ? "Join the Waitlist" : "Sign In"}
+                            Enter Invite Code
                         </Link>
                     </p>
                 </div>
