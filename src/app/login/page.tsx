@@ -438,10 +438,14 @@ export default function AuthPage() {
 
     useEffect(() => {
         const errorType = searchParams.get('error')
+        const message = searchParams.get('message')
+
         if (errorType === 'auth_failed') {
             setError('Access is currently by invitation only.')
+        } else if (errorType === 'auth_technical_failed' && message) {
+            setError(`Technical Auth Error: ${message}`)
         } else if (errorType === 'profile_creation_failed') {
-            setError('There was an issue creating your profile. Please contact support.')
+            setError(message ? `Profile Creation Error: ${message}` : 'There was an issue creating your profile. Please contact support.')
         }
     }, [searchParams])
 

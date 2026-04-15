@@ -36,23 +36,35 @@ export async function GET(request: Request) {
         const supabase = await createClient()
         const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
-        if (!error && data.user) {
+        if (error) {
+            console.error('[Auth Callback] Code exchange error:', error)
+            return NextResponse.redirect(`${origin}/login?error=auth_technical_failed&message=${encodeURIComponent(error.message)}`)
+        }
+
+        if (data.user) {
             const user = data.user
+            console.log('[Auth Callback] User authenticated:', user.email)
 
             // Use service role client for DB reads/writes (bypasses RLS)
             const service = createServiceClient()
 
             // Check if user_profile exists, create if not
-            const { data: existingProfile } = await service
+            const { data: existingProfile, error: profileError } = await service
                 .from('user_profiles')
                 .select('id, status')
                 .eq('id', user.id)
                 .single()
 
+            if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "not found"
+                console.error('[Auth Callback] Profile lookup error:', profileError)
+                return NextResponse.redirect(`${origin}/login?error=auth_technical_failed&message=Profile lookup failed`)
+            }
+
             if (!existingProfile) {
                 // Determine initial status — check if this is the admin email
                 const userEmail = user.email?.toLowerCase();
                 const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+                console.log('[Auth Callback] New user detected. Email:', userEmail, 'Admin Target:', adminEmail)
                 
                 const status = adminEmail && userEmail === adminEmail
                     ? 'admin'
@@ -62,6 +74,7 @@ export async function GET(request: Request) {
                 const fallbackEmail = user.user_metadata?.email ?? userEmail ?? `${user.id}@noemail.schro`;
                 const displayName = user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.user_metadata?.user_name ?? user.email ?? 'Unknown User';
 
+                console.log('[Auth Callback] Creating profile with status:', status)
                 const { error: insertError } = await service.from('user_profiles').insert({
                     id: user.id,
                     email: fallbackEmail,
@@ -79,7 +92,7 @@ export async function GET(request: Request) {
 
                 if (insertError) {
                     console.error('[Auth Callback] Profile Insert Error:', insertError);
-                    return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`)
+                    return NextResponse.redirect(`${origin}/login?error=profile_creation_failed&message=${encodeURIComponent(insertError.message)}`)
                 }
 
                 if (status === 'admin') {
@@ -89,6 +102,7 @@ export async function GET(request: Request) {
             }
 
             // Profile exists — check approval status
+            console.log('[Auth Callback] Existing user found. Status:', existingProfile.status)
             if (existingProfile.status === 'waitlist') {
                 return NextResponse.redirect(`${origin}/waitlist`)
             }
@@ -98,5 +112,6 @@ export async function GET(request: Request) {
     }
 
     // Auth error — redirect to login with error flag
+    console.error('[Auth Callback] Final fallthrough. Code present?', !!code)
     return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }
