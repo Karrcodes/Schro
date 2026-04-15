@@ -8,6 +8,7 @@ export interface Task {
     profile: string
     title: string
     is_completed: boolean
+    is_backlog?: boolean
     category: Category
     strategic_category?: StrategicCategory | null
     priority: Priority

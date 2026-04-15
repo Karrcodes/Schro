@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { useState, useEffect, useRef, useMemo, memo } from 'react'
+import { createPortal } from 'react-dom'
 import type { FormEvent, DragEvent } from 'react'
 import { motion, AnimatePresence, useAnimation, Reorder, useDragControls } from 'framer-motion'
 import {
@@ -67,6 +68,8 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     const [expandedRecurring, setExpandedRecurring] = useState<Record<string, boolean>>({})
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [showCompleted, setShowCompleted] = useState(false)
+    const showBacklog = settings.operations_view_backlog ?? false
+    const showMilestones = settings.operations_view_milestones ?? true
     const [sortBy, setSortBy] = useState<'engagement' | 'priority' | 'impact' | 'deadline' | 'date' | 'manual' | 'price'>(
         isShopping ? 'price' : (category === 'reminder' ? 'priority' : 'engagement')
     )
@@ -142,11 +145,13 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
     const scrollContainerRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
+    const [isMounted, setIsMounted] = useState(false)
+    useEffect(() => setIsMounted(true), [])
 
     // Derived State and Logic
     const pendingData = useMemo(() => {
-        const pTasks = tasks.filter((t: Task) => !t.is_completed)
-        const pMilestones = category === 'todo' && activeProfile === 'business'
+        const pTasks = tasks.filter((t: Task) => !t.is_completed && !t.is_backlog)
+        const pMilestones = showMilestones && category === 'todo' && activeProfile === 'business'
             ? milestones.filter((m: any) => {
                 if (m.status === 'completed') return false
                 if (m.project_id) {
@@ -165,7 +170,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             milestones: pMilestones,
             count: pTasks.length + pMilestones.length
         }
-    }, [tasks, milestones, category, activeProfile, projects, content])
+    }, [tasks, milestones, category, activeProfile, projects, content, showMilestones])
 
     // filteredTasks is currently unused, leaving as is but could be removed
     const filteredTasks = useMemo(() => {
@@ -527,9 +532,9 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
     }, [tasks, milestones])
 
     const filteredItems = useMemo(() => {
-        const taskItems = tasks.map(t => ({ id: t.id, type: 'task' as const, data: t }))
+        const taskItems = tasks.filter(t => !!t.is_backlog === showBacklog).map(t => ({ id: t.id, type: 'task' as const, data: t }))
         // Milestones only for business profile and todo category
-        const milestoneItems = (category === 'todo' && activeProfile === 'business')
+        const milestoneItems = (showMilestones && category === 'todo' && activeProfile === 'business')
             ? milestones
                 .filter(m => {
                     if (m.project_id) {
@@ -562,7 +567,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
             const matchesCategory = selectedStrategicCategory === 'all' || strategicCategory === selectedStrategicCategory
             return matchesSearch && matchesCategory
         })
-    }, [tasks, milestones, content, projects, searchQuery, selectedStrategicCategory, category, activeProfile])
+    }, [tasks, milestones, content, projects, searchQuery, selectedStrategicCategory, category, activeProfile, showBacklog, showMilestones])
 
     // Sort: Multi-level hierarchy. Apply primary sort first, fallback to defined chain.
     const sortedItems = useMemo(() => {
@@ -852,41 +857,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
 
     return (
         <div className="bg-white rounded-xl border border-black/[0.08] p-4 sm:p-5 shadow-sm flex flex-col min-h-[500px] relative">
-            {/* Confirmation Modal */}
-            {confirmModal.open && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
-                    <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 text-center animate-in zoom-in-95 duration-200">
-                        <div className={cn(
-                            "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4",
-                            confirmModal.type === 'danger' ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"
-                        )}>
-                            <Trash2 className="w-8 h-8" />
-                        </div>
-                        <h3 className="text-lg font-bold text-black mb-2">{confirmModal.title}</h3>
-                        <p className="text-[14px] text-black/60 mb-6 leading-relaxed">
-                            {confirmModal.message}
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))}
-                                className="flex-1 py-3 rounded-xl border border-black/[0.1] text-black/60 font-bold text-[14px] hover:bg-black/[0.05] transition-colors"
-                            >
-                                Back
-                            </button>
-                            <button
-                                onClick={confirmModal.action}
-                                className={cn(
-                                    "flex-1 py-3 rounded-xl text-white font-bold text-[14px] transition-colors shadow-lg",
-                                    confirmModal.type === 'danger' ? "bg-red-600 hover:bg-red-700 shadow-red-200" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
-                                )}
-                            >
-                                {confirmModal.confirmText}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Confirmation Modal moved to root via React Portal */}
             <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-black/5 border border-black/10 flex items-center justify-center">
@@ -898,6 +869,26 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => updateSetting('operations_view_backlog', !showBacklog)}
+                        className={cn(
+                            "text-[11px] font-bold transition-colors px-2 py-1 rounded",
+                            showBacklog ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "text-black/40 hover:text-amber-500 hover:bg-amber-50"
+                        )}
+                    >
+                        {showBacklog ? 'Hide Backlog' : 'Show Backlog'}
+                    </button>
+                    {category === 'todo' && activeProfile === 'business' && (
+                        <button
+                            onClick={() => updateSetting('operations_view_milestones', !showMilestones)}
+                            className={cn(
+                                "text-[11px] font-bold transition-colors px-2 py-1 rounded flex items-center gap-1",
+                                showMilestones ? "text-purple-600 hover:bg-purple-50 bg-purple-50/50" : "text-black/40 hover:text-purple-500 hover:bg-purple-50"
+                            )}
+                        >
+                            {showMilestones ? 'Hide Milestones' : 'Show Milestones'}
+                        </button>
+                    )}
                     {tasks.some(t => t.is_completed) && (
                         <button
                             onClick={handleClearCompleted}
@@ -2043,6 +2034,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                                             content={content}
                                                             isDismissed={dismissedTaskIds.has(item.id)}
                                                             reinstateTask={reinstateTask}
+                                                            setConfirmModal={setConfirmModal}
                                                         />
                                                     ) : (
                                                         <MilestoneRow
@@ -2086,6 +2078,7 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                                 content={content}
                                 isDismissed={dismissedTaskIds.has(item.id)}
                                 reinstateTask={reinstateTask}
+                                setConfirmModal={setConfirmModal}
                             />
                         ) : (
                             <MilestoneRow
@@ -2133,54 +2126,94 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 </div>
             )}
 
-            <TaskDetailModal
-                task={selectedTaskForModal}
-                milestone={selectedMilestoneForModal}
-                isOpen={!!selectedTaskForModal || !!selectedMilestoneForModal}
-                onClose={() => {
-                    setSelectedTaskForModal(null)
-                    setSelectedMilestoneForModal(null)
-                }}
-                onToggleSubtask={handleModalToggleSubtask}
-                onToggleComplete={handleModalToggleComplete}
-                onEditTask={editTask}
-                onEditMilestone={updateMilestone}
-                projects={projects}
-                content={content}
-            />
+            {isMounted && typeof document !== 'undefined' ? createPortal(
+                <>
+                    {confirmModal.open && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
+                            <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 text-center animate-in zoom-in-95 duration-200">
+                                <div className={cn(
+                                    "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4",
+                                    confirmModal.type === 'danger' ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"
+                                )}>
+                                    <Trash2 className="w-8 h-8" />
+                                </div>
+                                <h3 className="text-lg font-bold text-black mb-2">{confirmModal.title}</h3>
+                                <p className="text-[14px] text-black/60 mb-6 leading-relaxed">
+                                    {confirmModal.message}
+                                </p>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))}
+                                        className="flex-1 py-3 rounded-xl border border-black/[0.1] text-black/60 font-bold text-[14px] hover:bg-black/[0.05] transition-colors"
+                                    >
+                                        Back
+                                    </button>
+                                    <button
+                                        onClick={confirmModal.action}
+                                        className={cn(
+                                            "flex-1 py-3 rounded-xl text-white font-bold text-[14px] transition-colors shadow-lg",
+                                            confirmModal.type === 'danger' ? "bg-red-600 hover:bg-red-700 shadow-red-200" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
+                                        )}
+                                    >
+                                        {confirmModal.confirmText}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-            {selectedProjectForModal && (
-                <ProjectDetailModal
-                    project={selectedProjectForModal}
-                    isOpen={!!selectedProjectForModal}
-                    onClose={() => setSelectedProjectForModal(null)}
-                />
-            )}
+                    <TaskDetailModal
+                        task={selectedTaskForModal}
+                        milestone={selectedMilestoneForModal}
+                        isOpen={!!selectedTaskForModal || !!selectedMilestoneForModal}
+                        onClose={() => {
+                            setSelectedTaskForModal(null)
+                            setSelectedMilestoneForModal(null)
+                        }}
+                        onToggleSubtask={handleModalToggleSubtask}
+                        onToggleComplete={handleModalToggleComplete}
+                        onEditTask={editTask}
+                        onEditMilestone={updateMilestone}
+                        projects={projects}
+                        content={content}
+                    />
 
-            {selectedContentForModal && (
-                <ContentDetailModal
-                    item={selectedContentForModal}
-                    isOpen={!!selectedContentForModal}
-                    onClose={() => setSelectedContentForModal(null)}
-                />
-            )}
+                    {selectedProjectForModal && (
+                        <ProjectDetailModal
+                            project={selectedProjectForModal}
+                            isOpen={!!selectedProjectForModal}
+                            onClose={() => setSelectedProjectForModal(null)}
+                        />
+                    )}
 
-            <GroceryLibraryModal
-                isOpen={showLibraryModal}
-                onClose={() => setShowLibraryModal(false)}
-            />
+                    {selectedContentForModal && (
+                        <ContentDetailModal
+                            item={selectedContentForModal}
+                            isOpen={!!selectedContentForModal}
+                            onClose={() => setSelectedContentForModal(null)}
+                        />
+                    )}
 
-            <QuickImportModal 
-                isOpen={showQuickImport}
-                onClose={() => setShowQuickImport(false)}
-                onImport={handleQuickImport}
-            />
+                    <GroceryLibraryModal
+                        isOpen={showLibraryModal}
+                        onClose={() => setShowLibraryModal(false)}
+                    />
+
+                    <QuickImportModal 
+                        isOpen={showQuickImport}
+                        onClose={() => setShowQuickImport(false)}
+                        onImport={handleQuickImport}
+                    />
+                </>,
+                document.body
+            ) : null}
         </div>
     )
 }
 
 
-function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelectedTaskForModal, setSelectedProjectForModal, setSelectedContentForModal, projects, content, isDismissed, reinstateTask }: {
+function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelectedTaskForModal, setSelectedProjectForModal, setSelectedContentForModal, projects, content, isDismissed, reinstateTask, setConfirmModal }: {
     task: Task,
     toggleTask: any,
     deleteTask: any,
@@ -2192,7 +2225,8 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
     projects: any[],
     content: any[],
     isDismissed?: boolean,
-    reinstateTask?: (id: string) => void
+    reinstateTask?: (id: string) => void,
+    setConfirmModal?: any
 }) {
     const { activeProfile } = useTasksProfile()
     const { routines, activeRoutineId } = useWellbeing()
@@ -3014,6 +3048,37 @@ function TaskRow({ task, toggleTask, deleteTask, editTask, category, setSelected
                         </div>
                     ) : (
                         <>
+                            {category !== 'grocery' && category !== 'essential' && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        if (!task.is_backlog && setConfirmModal) {
+                                            setConfirmModal({
+                                                open: true,
+                                                title: 'Push to Backlog?',
+                                                message: 'This will move the task to your backlog to clear up space. It won\'t be visible here until you view the backlog.',
+                                                confirmText: 'Move to Backlog',
+                                                type: 'info',
+                                                action: async () => {
+                                                    await editTask(task.id, { is_backlog: true })
+                                                    setConfirmModal({ open: false } as any)
+                                                }
+                                            })
+                                        } else {
+                                            editTask(task.id, { is_backlog: false })
+                                        }
+                                    }}
+                                    className={cn(
+                                        "w-9 h-9 flex items-center justify-center rounded-xl transition-all",
+                                        task.is_backlog 
+                                            ? "bg-amber-100 text-amber-600 hover:bg-amber-200" 
+                                            : "bg-black/[0.03] sm:bg-transparent text-black/40 hover:text-amber-500 hover:bg-amber-50"
+                                    )}
+                                    title={task.is_backlog ? "Remove from Backlog" : "Push to Backlog"}
+                                >
+                                    <Layers className="w-4 h-4" />
+                                </button>
+                            )}
                             {isDismissed && reinstateTask && (
                                 <button
                                     onClick={(e) => {
