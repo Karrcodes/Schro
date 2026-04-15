@@ -42,13 +42,5 @@ export function createClient(): SupabaseClient {
         return stub as unknown as SupabaseClient
     }
 
-    return createBrowserClient(url, key, {
-        auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: true,
-            storageKey: 'schro-auth-token', // Explicit storage key
-            storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-        }
-    })
+    return createBrowserClient(url, key)
 }
