@@ -42,7 +42,8 @@ files.forEach(file => {
     
     // REGEX V3: More aggressive cleanup to ensure Next.js static analysis passes
     const dynamicRegex = /export const dynamic = [^\n;]+;?\n?/g;
-    const staticParamsRegex = /export const generateStaticParams = [^\n]+;?\n?/g;
+    // Match both arrow-function and function-declaration forms to avoid duplicates
+    const staticParamsRegex = /export (?:const|function) generateStaticParams[^\n]+\n?/g;
     
     let replacementContent = content.replace(dynamicRegex, '').replace(staticParamsRegex, '');
     let header = `export const dynamic = ${targetValue}\n`;
@@ -67,15 +68,6 @@ files.forEach(file => {
             const dummyParams = paramNames.map(p => `"${p}": "__static__"`).join(', ');
             header += `export function generateStaticParams() { return [{ ${dummyParams} }]; }\n`;
         }
-    } else if (file.includes('[') && file.includes(']')) {
-        const paramNames = [];
-        const segmentRegex = /\[([^\]]+)\]/g;
-        let match;
-        while ((match = segmentRegex.exec(file)) !== null) {
-            paramNames.push(match[1]);
-        }
-        const dummyParams = paramNames.map(p => `"${p}": "__static__"`).join(', ');
-        header += `export function generateStaticParams() { return [{ ${dummyParams} }]; }\n`;
     }
     
     fs.writeFileSync(file, header + replacementContent.trimStart(), 'utf8');
