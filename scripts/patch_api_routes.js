@@ -52,13 +52,30 @@ files.forEach(file => {
         // because they often depend on server-side ENV vars that aren't available at build time.
         // We replace the file with a minimal "stub" that satisfies Next.js static analysis.
         header = `export const dynamic = 'force-static';\nimport { NextResponse } from 'next/server';\n`;
-        replacementContent = `\nexport async function GET() { return NextResponse.json({ static: true }); }\nexport async function POST() { return NextResponse.json({ static: true }); }\n`;
+        replacementContent = `\nexport async function GET() { return NextResponse.json({ static: true }); }\nexport async function POST() { return NextResponse.json({ static: true }); }\nexport async function PATCH() { return NextResponse.json({ static: true }); }\nexport async function DELETE() { return NextResponse.json({ static: true }); }\n`;
         
         if (file.includes('[') && file.includes(']')) {
-            header += "export const generateStaticParams = () => [];\n";
+            // Next.js checks prerenderedRoutes.length > 0, NOT just the existence of the export.
+            // An empty [] means hasGenerateStaticParams = false and the build fails.
+            // We must return at least one dummy entry with all required param keys.
+            const paramNames = [];
+            const segmentRegex = /\[([^\]]+)\]/g;
+            let match;
+            while ((match = segmentRegex.exec(file)) !== null) {
+                paramNames.push(match[1]);
+            }
+            const dummyParams = paramNames.map(p => `"${p}": "__static__"`).join(', ');
+            header += `export function generateStaticParams() { return [{ ${dummyParams} }]; }\n`;
         }
     } else if (file.includes('[') && file.includes(']')) {
-        header += "export const generateStaticParams = () => [];\n";
+        const paramNames = [];
+        const segmentRegex = /\[([^\]]+)\]/g;
+        let match;
+        while ((match = segmentRegex.exec(file)) !== null) {
+            paramNames.push(match[1]);
+        }
+        const dummyParams = paramNames.map(p => `"${p}": "__static__"`).join(', ');
+        header += `export function generateStaticParams() { return [{ ${dummyParams} }]; }\n`;
     }
     
     fs.writeFileSync(file, header + replacementContent.trimStart(), 'utf8');
