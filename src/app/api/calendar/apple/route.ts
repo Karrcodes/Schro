@@ -1,5 +1,72 @@
-export const dynamic = 'force-dynamic'
-')[0]
+export const dynamic = 'force-static'
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+function expandRecurrence(event: any, startRange: Date, endRange: Date) {
+    if (!event.rrule) return [event]
+    
+    const freqMatch = event.rrule.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)
+    if (!freqMatch) return [event]
+    
+    const freq = freqMatch[1]
+    const occurrences: any[] = []
+    let current = new Date(event.start)
+    
+    // Safety break after 100 occurrences or target date
+    let count = 0
+    while (current <= endRange && count < 100) {
+        if (current >= startRange) {
+            occurrences.push({ ...event, start: new Date(current), id: `${event.id}-${current.toISOString()}` })
+        }
+        
+        if (freq === 'DAILY') current.setDate(current.getDate() + 1)
+        else if (freq === 'WEEKLY') current.setDate(current.getDate() + 7)
+        else if (freq === 'MONTHLY') current.setMonth(current.getMonth() + 1)
+        else if (freq === 'YEARLY') current.setFullYear(current.getFullYear() + 1)
+        else break
+        
+        count++
+    }
+    return occurrences
+}
+
+function parseICS(text: string) {
+    const events: any[] = []
+    const unfolded = text.replace(/\r?\n[ \t]/g, '')
+    const lines = unfolded.split(/\r?\n/)
+    let currentEvent: any = null
+    
+    const parseValue = (line: string) => {
+        const colonIndex = line.indexOf(':')
+        if (colonIndex === -1) return ''
+        return line.substring(colonIndex + 1).trim()
+    }
+
+    const parseDate = (line: string) => {
+        let val = parseValue(line)
+        if (!val) return null
+        const dateTimeMatch = val.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/)
+        if (dateTimeMatch) {
+            const isUTC = val.endsWith('Z')
+            const iso = `${dateTimeMatch[1]}-${dateTimeMatch[2]}-${dateTimeMatch[3]}T${dateTimeMatch[4]}:${dateTimeMatch[5]}:${dateTimeMatch[6]}${isUTC ? 'Z' : ''}`
+            return new Date(iso)
+        }
+        const dateMatch = val.match(/^(\d{4})(\d{2})(\d{2})$/)
+        if (dateMatch) return new Date(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`)
+        return new Date(val)
+    }
+
+    for (let line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+        if (trimmed.startsWith('BEGIN:VEVENT')) {
+            currentEvent = {}
+        } else if (trimmed.startsWith('END:VEVENT')) {
+            if (currentEvent) events.push(currentEvent)
+            currentEvent = null
+        } else if (currentEvent) {
+            const [keyPart] = trimmed.split(':')
+            const cleanKey = keyPart.split(';')[0]
             if (cleanKey === 'SUMMARY') currentEvent.summary = parseValue(trimmed)
             else if (cleanKey === 'DTSTART') currentEvent.start = parseDate(trimmed)
             else if (cleanKey === 'DTEND') currentEvent.end = parseDate(trimmed)

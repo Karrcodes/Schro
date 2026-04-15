@@ -1,5 +1,19 @@
-export const dynamic = 'force-dynamic'
-// If the origin is a local network IP, enforce localhost mapping (or use current if preferred)
+export const dynamic = 'force-static'
+import { NextRequest, NextResponse } from 'next/server'
+import { google } from 'googleapis'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
+
+export async function GET(req: NextRequest) {
+    // Google OAuth requires HTTPS or exactly localhost, it rejects raw IPs like 192.168.x.x
+    // Priority: use current request origin to support Ngrok/Local/Production dynamically
+    let appUrl = req.nextUrl.origin;
+    
+    // If the origin is a local network IP, enforce localhost mapping (or use current if preferred)
     if (appUrl.includes('192.168') || appUrl.includes('10.') || appUrl.includes('172.')) {
         appUrl = appUrl.replace(/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)/, 'localhost');
     }

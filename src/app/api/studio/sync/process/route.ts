@@ -1,4 +1,6 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
+
+import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { syncJobToFramer } from '@/lib/framer/sync';
 

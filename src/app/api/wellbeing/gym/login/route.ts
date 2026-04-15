@@ -1,19 +1,22 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
 import { NextResponse } from 'next/server'
-
 
 export async function POST(req: Request) {
     try {
-        const { username, password } = await req.json()
+        const { username, password } = await req.json() // Keep this line to extract username/password from the incoming request body
+
+        // Use form-urlencoded as some Netpulse versions prefer it
         const formData = new URLSearchParams()
         formData.append('username', username)
         formData.append('password', password)
-        formData.append('grant_type', 'password')
 
         const response = await fetch('https://thegymgroup.netpulse.com/np/exerciser/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json',
+                'X-NP-Api-Version': '1.5',
+                'X-NP-App-Version': '9999',
                 'User-Agent': 'TheGymGroup/2.14.0 (iPhone; iOS 16.1.1; Scale/3.00)',
                 'X-NP-User-Agent': 'clientType=MOBILE;devicePlatform=IOS;applicationName=The Gym Group;applicationVersion=2.14.0'
             },
@@ -45,7 +48,6 @@ export async function POST(req: Request) {
             rawUser: data // For debugging mapping
         })
     } catch (error) {
-        console.error('Gym Login Unexpected Error:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
     }
 }

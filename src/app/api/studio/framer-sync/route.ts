@@ -1,5 +1,34 @@
-export const dynamic = 'force-dynamic'
-const targetSiteId = siteId || siteIdSetting
+export const dynamic = 'force-static'
+import { NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin'
+
+export async function GET(req: NextRequest) {
+    const { searchParams } = new URL(req.url)
+    const endpoint = searchParams.get('endpoint') || 'sites'
+    const siteId = searchParams.get('siteId')
+    const collectionId = searchParams.get('collectionId')
+    const itemId = searchParams.get('itemId')
+
+    // Retrieve Stored Config
+    const { data: settings } = await supabase.from('sys_settings').select('key, value').in('key', ['framer_access_token', 'framer_site_id'])
+    const accessToken = settings?.find(s => s.key === 'framer_access_token')?.value
+    let siteIdSetting = settings?.find(s => s.key === 'framer_site_id')?.value
+    
+    // AUTO-MIGRATE: Clean Site ID if it's a URL or contains suffix (Allow hyphens)
+    const idMatch = siteIdSetting?.match(/([a-zA-Z0-9\-]{20,})/)
+    if (idMatch && idMatch[1] !== siteIdSetting && !siteIdSetting?.startsWith('http')) {
+        siteIdSetting = idMatch[1]
+        await supabase.from('sys_settings').update({ value: siteIdSetting }).eq('key', 'framer_site_id')
+    }
+
+    console.log('GET /framer-sync:', { 
+        endpoint, 
+        siteIdParam: siteId, 
+        siteIdSetting, 
+        hasToken: !!accessToken 
+    });
+
+    const targetSiteId = siteId || siteIdSetting
 
     if (!accessToken || !targetSiteId) {
         if (endpoint === 'sites' && !targetSiteId) return NextResponse.json([]) // Return empty list if no site selected yet

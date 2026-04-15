@@ -1,5 +1,67 @@
-export const dynamic = 'force-dynamic'
-i < lines.length; i++) {
+export const dynamic = 'force-static'
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export async function POST(req: NextRequest) {
+    try {
+        const cookieStore = await cookies()
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                cookies: {
+                    get(name: string) { return cookieStore.get(name)?.value },
+                },
+            }
+        )
+
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        const userId = user.id
+        const { csvText, profile = 'personal', wipeExisting = false } = await req.json()
+
+        if (!csvText) {
+            return NextResponse.json({ error: 'No CSV data provided' }, { status: 400 })
+        }
+
+        if (wipeExisting) {
+            await supabase
+                .from('fin_transactions')
+                .delete()
+                .eq('profile', profile)
+                .eq('provider', 'monzo_csv')
+                .eq('user_id', userId)
+        }
+
+        const lines = csvText.trim().split('\n')
+        if (lines.length < 2) {
+            return NextResponse.json({ error: 'Empty or invalid CSV' }, { status: 400 })
+        }
+
+        const header = lines[0].split(',').map((h: string) => h.trim().replace(/"/g, ''))
+
+        const colMap = {
+            id: header.findIndex((h: string) => h === 'Transaction ID'),
+            date: header.findIndex((h: string) => h === 'Date'),
+            time: header.findIndex((h: string) => h === 'Time'),
+            type: header.findIndex((h: string) => h === 'Type'),
+            name: header.findIndex((h: string) => h === 'Name'),
+            category: header.findIndex((h: string) => h === 'Category'),
+            amount: header.findIndex((h: string) => h === 'Amount'),
+            notes: header.findIndex((h: string) => h === 'Notes and #tags'),
+        }
+
+        if (colMap.date === -1 || colMap.amount === -1) {
+            return NextResponse.json({ error: 'Could not identify required CSV columns (Date, Amount)' }, { status: 400 })
+        }
+
+        const parsed: any[] = []
+
+        for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim()
             if (!line) continue
 

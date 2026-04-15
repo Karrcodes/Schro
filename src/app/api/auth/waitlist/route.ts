@@ -1,39 +1,46 @@
-export const dynamic = 'force-dynamic'
-import { NextResponse } from 'next/server'
+export const dynamic = 'force-static'
 import { createServiceClient } from '@/lib/supabase/service'
 import { Resend } from 'resend'
+import { NextResponse } from 'next/server'
 
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy initialize Resend to prevent build-time crashes with "output: export"
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
     try {
-        const { email } = await req.json()
-        const service = createServiceClient()
+        const { email } = await request.json()
 
-        // 1. Add to waitlist table
-        const { data, error: dbError } = await service
-            .from('waitlist')
-            .insert({ email })
-            .select()
-            .single()
-
-        if (dbError) {
-            if (dbError.code === '23505') { // Unique constraint
-               return NextResponse.json({ error: 'Identity already captured. Stand by.' }, { status: 400 })
-            }
-            throw dbError
+        if (!email || !email.includes('@')) {
+            return NextResponse.json({ error: 'Valid email is required.' }, { status: 400 })
         }
 
-        // 2. Send confirmation email
-        const { error: mailError } = await resend.emails.send({
-            from: 'Schrö <system@schro.app>',
-            to: email,
-            subject: 'Evolution Pending.',
+        const supabase = createServiceClient()
+
+        // 1. Save to Supabase
+        const { error: dbError } = await supabase
+            .from('waitlist')
+            .upsert([{ email, status: 'pending' }], { onConflict: 'email' })
+
+        if (dbError) {
+            console.error('Waitlist DB Error:', dbError)
+            // Continue to email even if DB fails for demo/resilience
+        }
+
+        if (!resend) {
+            return NextResponse.json({ error: 'Resend is not configured' }, { status: 500 })
+        }
+
+        // 2. Send Email via Resend
+        const { data, error: mailError } = await resend.emails.send({
+            from: 'Schrö <erwin@schro.app>',
+            to: [email],
+            subject: "You're on the list | Schrö",
             html: `
                 <!DOCTYPE html>
                 <html>
                 <head>
+                    <meta charset="utf-8">
                     <style>
                         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #fafafa; margin: 0; padding: 0; color: #000; }
                         .container { max-width: 600px; margin: 40px auto; padding: 48px; background-color: #ffffff; border: 1px solid rgba(0,0,0,0.06); border-radius: 32px; box-shadow: 0 4px 24px rgba(0,0,0,0.02); }

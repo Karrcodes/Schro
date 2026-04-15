@@ -1,4 +1,5 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
+import { NextResponse } from 'next/server';
 import { geminiModel } from '@/lib/gemini';
 
 export async function POST(req: Request) {

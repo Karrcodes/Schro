@@ -1,23 +1,53 @@
-export const dynamic = 'force-dynamic'
-import { NextResponse, NextRequest } from 'next/server'
+export const dynamic = 'force-static'
+import { NextResponse } from 'next/server'
 
 
-export async function GET(req: NextRequest) {
+
+export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url)
-        const id = searchParams.get('uuid')
+        const uuid = searchParams.get('uuid')
+        const memberId = searchParams.get('memberId')
         const locationId = searchParams.get('locationId')
-        const cookie = req.headers.get('x-gym-cookie') ?? ''
+        const cookie = req.headers.get('x-gym-cookie')
         const token = req.headers.get('x-gym-token')
+
+        if (!(uuid || memberId) || !locationId || !cookie) {
+            return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
+        }
+
+        // Strategy 1: Exerciser-specific busyness using UUID (most common for Netpulse)
+        // Strategy 2: Exerciser-specific busyness using MemberID (Salesforce ID)
+        // Strategy 3: Exerciser-specific busyness using Auth0 Sub (extracted from token)
+        // Strategy 4: Global Gym busyness (permissive fallback)
+
+        const identifiers = [uuid, memberId].filter(Boolean) as string[]
+
+        // Extract Auth0 Sub from token if possible
+        if (token) {
+            try {
+                const payloadBase64 = token.split('.')[1]
+                const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString())
+                if (payload.sub && !identifiers.includes(payload.sub)) {
+                    identifiers.push(payload.sub)
+                    console.log('Added Auth0 Sub to strategies:', payload.sub)
+                }
+            } catch (e) {
+                console.warn('Failed to parse JWT payload for sub extraction')
+            }
+        }
 
         let lastError = null
 
-        if (id && locationId) {
-            const busynessUrl = `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/gyms/${locationId}/busyness?exerciserId=${id}`
+        for (const id of identifiers) {
+            const busynessUrl = `https://thegymgroup.netpulse.com/np/thegymgroup/v1.0/exerciser/${id}/gym-busyness?gymLocationId=${locationId}`
+            console.log('Attempting Busyness with ID:', id, 'URL:', busynessUrl)
+
             const headers: Record<string, string> = {
                 'Cookie': cookie,
                 'Accept': 'application/json',
                 'X-NP-Api-Version': '1.5',
+                'X-NP-App-Version': '9999',
                 'User-Agent': 'TheGymGroup/2.14.0 (iPhone; iOS 16.1.1; Scale/3.00)',
                 'X-NP-User-Agent': 'clientType=MOBILE;devicePlatform=IOS;applicationName=The Gym Group;applicationVersion=2.14.0'
             }
