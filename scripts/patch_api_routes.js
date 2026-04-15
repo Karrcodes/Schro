@@ -29,8 +29,8 @@ files.forEach(file => {
     let content = fs.readFileSync(file, 'utf8');
     
     // REGEX V3: More aggressive cleanup to ensure Next.js static analysis passes
-    const dynamicRegex = /export const dynamic = [^;]+;?\n?/g;
-    const staticParamsRegex = /export const generateStaticParams = [^;]+;?\n?/g;
+    const dynamicRegex = /export const dynamic = [^\n;]+;?\n?/g;
+    const staticParamsRegex = /export const generateStaticParams = [^\n]+;?\n?/g;
     
     let newContent = content.replace(dynamicRegex, '').replace(staticParamsRegex, '');
     

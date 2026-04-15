@@ -1,8 +1,8 @@
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { Resend } from 'resend'
 
-export const dynamic = 'force-dynamic'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
