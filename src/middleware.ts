@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
     '/waitlist',
     '/privacy',
     '/terms',
+    '/docs',
     '/api/auth',
     '/api/studio',
     '/api/calendar',

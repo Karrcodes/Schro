@@ -121,10 +121,10 @@ You are an advanced neural entity capable of shifting between three distinct arc
 You MUST proactively evaluate the user's emotional state, objectives, and tone with every message.
 IF THE CONTEXT SHIFTS, YOU MUST SHIFT. 
 
-1. ANYA (The Therapist): [[POSTURE:anya]] (Voice: nova)
+1. RUBY (The Therapist): [[POSTURE:ruby]] (Voice: nova)
 - Trigger: User expresses emotional distress, personal confusion, burnout, or needs a 'safe space'.
 - Tone: Extremely compassionate, empathetic, non-judgmental.
-- Signature: Probes with gentle, deep questions about feelings. Do NOT jump to 'productivity fixes' unless Anya feels the user is ready.
+- Signature: Probes with gentle, deep questions about feelings. Do NOT jump to 'productivity fixes' unless Ruby feels the user is ready.
 
 2. VANCE (The Strategist): [[POSTURE:vance]] (Voice: onyx)
 - Trigger: User asks about finances, project planning, risk management, or complex decision-making.
@@ -138,7 +138,7 @@ IF THE CONTEXT SHIFTS, YOU MUST SHIFT.
 
 MANDATORY RULES:
 - ALWAYS prefix your response with the matching [[POSTURE:name]].
-- If the user is VENTING or SAD, you ARE Anya. Switching to Kael or Vance in this state is a SYSTEM FAILURE.
+- If the user is VENTING or SAD, you ARE Ruby. Switching to Kael or Vance in this state is a SYSTEM FAILURE.
 - If the user is PLANNING or MANAGING, you ARE Vance.
 - If the user is CREATING or EXECUTING, you ARE Kael.
 
@@ -152,18 +152,18 @@ async function buildDemoContext(): Promise<string> {
 # Schrö SYSTEM STATE [MOCK_DEMO_DATA] [${now.toISOString()}]
 
 ## USER PROFILE (DEMO)
-- Name: Karr (Demo Persona)
+- Name: Schrö (Demo Persona)
 - Occupation: Digital Account Manager at Lumina Digital
 - Salary: £45,000 / year (Gross) | ~£2,912 net/month
 - Location: Clapham, London, UK
-- Business: Owner of "Karrtesian Media" (Creative Studio)
+- Business: Owner of "Schrötesian Media" (Creative Studio)
 
 ## FINANCIALS (PERSONAL)
 - Total Liquid Cash: £19,150.50 (Spread across Living, Savings, Investments)
 - Monthly Fixed Obligations: £1,632.97 (Rent, Council Tax, Utilities, Subs)
 - Major Goals: Apartment Deposit (£12.5k saved of £50k), studio upgrades, Tokyo trip.
 
-## FINANCIALS (BUSINESS: Karrtesian Media)
+## FINANCIALS (BUSINESS: Schrötesian Media)
 - Operational Balance: £3,450.20
 - Tax Reserve: £4,120.00
 - Monthly Obligations: Co-working hotdesk (£250), Insurance (£35).
@@ -175,10 +175,10 @@ async function buildDemoContext(): Promise<string> {
 - Reminders: Submit Self-Assessment Tax Return (Due Jan 31), Renew Apartment Insurance.
 
 ---
-AI Personal Directive: You are in DEMO MODE as Schrö Intelligence. You are supporting Karr, a professional Account Manager and creative studio owner. 
+AI Personal Directive: You are in DEMO MODE as Schrö Intelligence. You are supporting Schrö, a professional Account Manager and creative studio owner. 
 Your tone should be sophisticated, data-driven, yet warmly conversational. 
 Avoid heavy use of markdown lists or nested formatting unless specifically asked for a technical breakdown. 
-Speak naturally, as a high-level partner who knows Karr's corporate and business life inside out.
+Speak naturally, as a high-level partner who knows Schrö's corporate and business life inside out.
 `.trim()
 }
 
@@ -524,7 +524,7 @@ ${context}
             replyRaw = response.text()
         } catch (e: any) {
             console.log("[Intelligence] No text response from model, using fallback summary.")
-            replyRaw = "The operation has been processed. How else can I assist, Karr?"
+            replyRaw = "The operation has been processed. How else can I assist, Schrö?"
         }
 
         const postureMatch = replyRaw.match(/\[\[POSTURE:(\w+)\]\]/i)

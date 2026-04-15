@@ -142,7 +142,7 @@ function AppShellInner({ children, pathname }: { children: React.ReactNode, path
     const isMinimal = (searchParams?.get('ui') === 'minimal') || isIframe
 
     // Pages that should NEVER have the shell
-    const isShellFreePage = currentPath === '/' || currentPath === '/home' || currentPath.startsWith('/login') || currentPath.startsWith('/waitlist')
+    const isShellFreePage = currentPath === '/' || currentPath === '/home' || currentPath.startsWith('/login') || currentPath.startsWith('/waitlist') || currentPath.startsWith('/docs')
 
     if (isMinimal || isShellFreePage) {
         return <div className="min-h-screen bg-white relative">{children}</div>

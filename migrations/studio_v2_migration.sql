@@ -1,4 +1,4 @@
--- KarrOS Studio Enhancement Migration (v2)
+-- Schrö Studio Enhancement Migration (v2)
 -- Execute this in your Supabase SQL Editor to align with recent Studio features.
 
 -- 1. Ensure studio_drafts table exists for Articles

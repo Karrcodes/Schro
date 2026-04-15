@@ -8,7 +8,7 @@ import {
     TrendingUp, Activity, Target,
     Rocket, ArrowRight, Zap, Network,
     ExternalLink, PenLine, BarChart3, Cpu,
-    Check, ChevronDown, ChevronRight, SlidersHorizontal, Sliders
+    Check, ChevronDown, ChevronRight, SlidersHorizontal, Sliders, Book
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -154,6 +154,7 @@ export default function LandingPage() {
                         <span className="text-2xl font-serif italic font-medium tracking-tight leading-none">Schrö</span>
                     </Link>
                     <div className="flex items-center gap-6">
+                        <Link href="/docs" className="text-[13px] font-bold text-black/40 hover:text-black transition-colors">Docs</Link>
                         <Link href="/login?mode=signin" className="text-[13px] font-bold text-black/40 hover:text-black transition-colors">Sign in</Link>
                         <Link href="/login?mode=signup" className="px-5 py-2 bg-black text-white text-[13px] font-bold rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all">
                             Join the waitlist
@@ -361,19 +362,25 @@ export default function LandingPage() {
                             </div>
 
                             {!isSubmitted ? (
-                                <form onSubmit={handleWaitlist} className="flex flex-col sm:flex-row gap-3">
-                                    <input 
-                                        type="email" 
-                                        required 
-                                        placeholder="Enter your email" 
-                                        className="flex-1 px-6 py-4 bg-white border border-black/[0.08] rounded-2xl text-[14px] font-bold outline-none focus:border-black/20 transition-all placeholder:text-black/20"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                    />
-                                    <button className="px-8 py-4 bg-black text-white text-[14px] font-bold rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap">
-                                        Join Early Access
-                                    </button>
-                                </form>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <form onSubmit={handleWaitlist} className="flex-1 flex flex-col sm:flex-row gap-3">
+                                        <input 
+                                            type="email" 
+                                            required 
+                                            placeholder="Enter your email" 
+                                            className="flex-1 px-6 py-4 bg-white border border-black/[0.08] rounded-2xl text-[14px] font-bold outline-none focus:border-black/20 transition-all placeholder:text-black/20"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                        />
+                                        <button className="px-8 py-4 bg-black text-white text-[14px] font-bold rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap">
+                                            Join Early Access
+                                        </button>
+                                    </form>
+                                    <Link href="/docs" className="px-8 py-4 bg-white border border-black/[0.08] text-black text-[14px] font-bold rounded-2xl hover:bg-black/[0.02] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                                        <Book className="w-4 h-4 text-black/30" />
+                                        Read Docs
+                                    </Link>
+                                </div>
                             ) : (
                                 <motion.div 
                                     initial={{ opacity: 0, scale: 0.9 }}
@@ -388,6 +395,8 @@ export default function LandingPage() {
                             )}
 
                             <div className="flex items-center justify-center gap-4 text-black/20">
+                                <Link href="/docs" className="text-[10px] font-bold uppercase tracking-widest hover:text-black transition-colors">Documentation</Link>
+                                <span className="w-1 h-1 rounded-full bg-current" />
                                 <Link href="/system/roadmap" className="text-[10px] font-bold uppercase tracking-widest hover:text-black transition-colors">Roadmap</Link>
                                 <span className="w-1 h-1 rounded-full bg-current" />
                                 <Link href="/privacy" className="text-[10px] font-bold uppercase tracking-widest hover:text-black transition-colors">Privacy</Link>

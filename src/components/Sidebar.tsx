@@ -119,11 +119,11 @@ function ProfileMenu() {
                         {settings.profile_picture_url ? (
                             <img src={settings.profile_picture_url} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
-                            <span className="text-[12px] text-black font-bold">{(settings.user_name?.[0] || 'K').toUpperCase()}</span>
+                            <span className="text-[12px] text-black font-bold">{(settings.user_name?.[0] || 'S').toUpperCase()}</span>
                         )}
                     </div>
                     <div>
-                        <p className="text-[13px] text-black font-bold tracking-tight">{settings.user_name || 'Karr'}</p>
+                        <p className="text-[13px] text-black font-bold tracking-tight">{settings.user_name || 'Schrö'}</p>
                         <p className="text-[11px] text-black/40 font-medium">Personal OS</p>
                     </div>
                 </button>
