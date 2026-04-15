@@ -1,8 +1,20 @@
 const fs = require('fs');
 const path = require('path');
 
-const mode = process.argv.includes('--static') ? 'static' : 'dynamic';
+const mode = process.argv.includes('--static') ? 'static' : (process.argv.includes('--restore') ? 'restore' : 'dynamic');
 const targetValue = mode === 'static' ? "'force-static'" : "'force-dynamic'";
+
+if (mode === 'restore') {
+    const { execSync } = require('child_process');
+    console.log('Restoring API routes from Git...');
+    try {
+        execSync('git checkout src/app/api', { stdio: 'inherit' });
+        console.log('Successfully restored API routes.');
+    } catch (e) {
+        console.error('Failed to restore API routes. Please run "git checkout src/app/api" manually.');
+    }
+    process.exit(0);
+}
 
 function walk(dir) {
     let results = [];
@@ -32,15 +44,24 @@ files.forEach(file => {
     const dynamicRegex = /export const dynamic = [^\n;]+;?\n?/g;
     const staticParamsRegex = /export const generateStaticParams = [^\n]+;?\n?/g;
     
-    let newContent = content.replace(dynamicRegex, '').replace(staticParamsRegex, '');
-    
+    let replacementContent = content.replace(dynamicRegex, '').replace(staticParamsRegex, '');
     let header = `export const dynamic = ${targetValue}\n`;
     
-    if (mode === 'static' && (file.includes('[') && file.includes(']'))) {
+    if (mode === 'static') {
+        // For static builds (Tauri), we MUST NOT execute any real logic in API routes
+        // because they often depend on server-side ENV vars that aren't available at build time.
+        // We replace the file with a minimal "stub" that satisfies Next.js static analysis.
+        header = `export const dynamic = 'force-static';\nimport { NextResponse } from 'next/server';\n`;
+        replacementContent = `\nexport async function GET() { return NextResponse.json({ static: true }); }\nexport async function POST() { return NextResponse.json({ static: true }); }\n`;
+        
+        if (file.includes('[') && file.includes(']')) {
+            header += "export const generateStaticParams = () => [];\n";
+        }
+    } else if (file.includes('[') && file.includes(']')) {
         header += "export const generateStaticParams = () => [];\n";
     }
     
-    fs.writeFileSync(file, header + newContent.trimStart(), 'utf8');
+    fs.writeFileSync(file, header + replacementContent.trimStart(), 'utf8');
 });
 
 console.log(`Successfully patched 64 API routes as ${mode} for Next.js static analysis.`);
