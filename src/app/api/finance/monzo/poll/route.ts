@@ -1,4 +1,4 @@
-export const dynamic = 'force-static'
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { MonzoService } from '@/features/finance/services/MonzoService'
 import { notifyMonzoTransaction } from '@/features/finance/utils/monzo-notifications'
