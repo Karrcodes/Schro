@@ -155,7 +155,8 @@ import { useVault } from '@/features/vault/contexts/VaultContext'
 export function Sidebar() {
     const pathname = usePathname()
     const searchParams = useSearchParams()
-    if (pathname === '/home') return null
+    const isShellFreePage = pathname === '/' || pathname === '/home' || pathname.startsWith('/login') || pathname.startsWith('/waitlist')
+    if (isShellFreePage) return null
     const [mobileOpen, setMobileOpen] = useState(false)
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
     const [isRefreshing, setIsRefreshing] = useState(false)

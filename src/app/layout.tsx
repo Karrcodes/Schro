@@ -52,13 +52,14 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  let isShellFreePage = false
   let pathname = ''
-  if (process.env.IS_TAURI !== 'true') {
-    const headersList = await headers()
-    pathname = headersList.get('x-pathname') || ''
-    // Pages that don't use the main app shell (sidebar, security lock, etc.)
-    isShellFreePage = pathname === '/' || pathname === '/home' || pathname.startsWith('/login') || pathname.startsWith('/waitlist')
+  try {
+    if (process.env.IS_TAURI !== 'true') {
+      const headersList = await headers()
+      pathname = headersList.get('x-pathname') || ''
+    }
+  } catch (err) {
+    console.warn('Headers not available in this context')
   }
 
   return (
@@ -81,15 +82,11 @@ export default async function RootLayout({
                           <VaultProvider>
                             <WellbeingProvider>
                               <MultitaskingProvider>
-                                {isShellFreePage ? (
-                                  <>{children}</>
-                                ) : (
-                                  <SecurityLock>
-                                    <AppShell pathname={pathname}>
-                                      {children}
-                                    </AppShell>
-                                  </SecurityLock>
-                                )}
+                                <SecurityLock>
+                                  <AppShell pathname={pathname}>
+                                    {children}
+                                  </AppShell>
+                                </SecurityLock>
                               </MultitaskingProvider>
                             </WellbeingProvider>
                           </VaultProvider>

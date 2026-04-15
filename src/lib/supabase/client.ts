@@ -8,6 +8,10 @@ export function createClient(): SupabaseClient {
     // During Tauri static export, env vars aren't available at build time.
     // Return a safe no-op stub so SSR prerendering doesn't throw.
     if (!url || !key) {
+        // Only log this warning in development/browser at runtime, not during static build/prerender
+        if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+            console.warn('Supabase env vars missing. Returning stub client.')
+        }
         const stub: any = {
             from: () => stub,
             select: () => stub,
@@ -38,5 +42,13 @@ export function createClient(): SupabaseClient {
         return stub as unknown as SupabaseClient
     }
 
-    return createBrowserClient(url, key)
+    return createBrowserClient(url, key, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            storageKey: 'schro-auth-token', // Explicit storage key
+            storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        }
+    })
 }

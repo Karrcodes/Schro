@@ -109,6 +109,9 @@ function SplitView() {
     )
 }
 
+import { useAuth } from '@/contexts/AuthContext'
+import { usePathname } from 'next/navigation'
+
 export function AppShell({ children, pathname }: { children: React.ReactNode, pathname: string }) {
     return (
         <Suspense fallback={null}>
@@ -121,6 +124,8 @@ export function AppShell({ children, pathname }: { children: React.ReactNode, pa
 
 function AppShellInner({ children, pathname }: { children: React.ReactNode, pathname: string }) {
     const { isMultitasking } = useMultitasking()
+    const { user } = useAuth()
+    const browserPathname = usePathname()
     const searchParams = useSearchParams()
     const [mounted, setMounted] = React.useState(false)
     
@@ -128,17 +133,22 @@ function AppShellInner({ children, pathname }: { children: React.ReactNode, path
         setMounted(true)
     }, [])
     
+    const currentPath = browserPathname || pathname
+    
     // Check if we are in an iframe
     const isIframe = mounted && typeof window !== 'undefined' && window.self !== window.top
     
     // Detect minimal UI from param or iframe environment
     const isMinimal = (searchParams?.get('ui') === 'minimal') || isIframe
 
-    if (isMinimal) {
+    // Pages that should NEVER have the shell
+    const isShellFreePage = currentPath === '/' || currentPath === '/home' || currentPath.startsWith('/login') || currentPath.startsWith('/waitlist')
+
+    if (isMinimal || isShellFreePage) {
         return <div className="min-h-screen bg-white relative">{children}</div>
     }
 
-    if (isMultitasking && pathname !== '/home') {
+    if (isMultitasking && currentPath !== '/home') {
         return (
             <div className="flex min-h-screen bg-white">
                 <div className="flex-1 h-screen overflow-hidden">
