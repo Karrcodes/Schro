@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "tauri": "tauri",
-    "tauri-build": "node scripts/patch_api_routes.js --static && next build && node scripts/patch_api_routes.js --restore"
+    "tauri-build": "node scripts/patch_api_routes.js --static && rm -rf .next && next build && node scripts/patch_api_routes.js --restore"
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
