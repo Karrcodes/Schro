@@ -55,7 +55,7 @@ function TasksDashboardContent() {
                                 <div className="flex items-center gap-1 p-1 bg-black/[0.03] rounded-2xl w-fit max-w-full overflow-x-auto no-scrollbar">
                                     {TABS.map((tab) => {
                                         const isActive = activeTab === tab.value
-                                        const pendingCount = tab.tasks.filter(t => !t.is_completed).length
+                                        const pendingCount = tab.tasks.filter(t => !t.is_completed && !t.is_backlog).length
 
                                         return (
                                             <button

@@ -165,10 +165,12 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                 return true
             })
             : []
+        const bTasks = tasks.filter((t: Task) => !t.is_completed && t.is_backlog)
         return {
             tasks: pTasks,
             milestones: pMilestones,
-            count: pTasks.length + pMilestones.length
+            count: pTasks.length + pMilestones.length,
+            backlogCount: bTasks.length
         }
     }, [tasks, milestones, category, activeProfile, projects, content, showMilestones])
 
@@ -876,7 +878,14 @@ export function TaskList({ category }: { category: 'todo' | 'grocery' | 'reminde
                             showBacklog ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "text-black/40 hover:text-amber-500 hover:bg-amber-50"
                         )}
                     >
-                        {showBacklog ? 'Hide Backlog' : 'Show Backlog'}
+                        <span className="flex items-center gap-1.5">
+                            {showBacklog ? 'Hide Backlog' : 'Show Backlog'}
+                            {pendingData.backlogCount > 0 && !showBacklog && (
+                                <span className="px-1 py-0.5 rounded-md bg-amber-500/10 text-amber-600 text-[9px] min-w-[14px] text-center">
+                                    {pendingData.backlogCount}
+                                </span>
+                            )}
+                        </span>
                     </button>
                     {category === 'todo' && activeProfile === 'business' && (
                         <button
